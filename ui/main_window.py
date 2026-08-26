@@ -39,6 +39,7 @@ class MainWindow(tk.Tk):
         self._log_var = tk.StringVar(value="就绪")
         self._cli_queue: queue.Queue = queue.Queue()
         self._crash_queue: queue.Queue = queue.Queue()
+        self._tray_queue: queue.Queue = queue.Queue()
         self.health = HealthMonitor()
         self._crash_alert_active = False
         self._crash_tick = 0
@@ -51,6 +52,8 @@ class MainWindow(tk.Tk):
         self._tray = None
         self._init_tray()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
+        # 点最小化按钮 → 直接隐藏到系统托盘（恢复：托盘菜单/双击「显示 phpvm」）
+        self.bind("<Unmap>", self._on_unmap)
 
     # ------------------------------------------------------------------ #
     def _build(self) -> None:
@@ -266,14 +269,124 @@ class MainWindow(tk.Tk):
                 tip=APP_TITLE,
                 on_show=self._show_window,
                 on_exit=self._real_quit,
+                menu_builder=self._build_tray_menu,
             )
         except Exception:  # noqa: BLE001
             self._tray = None
 
+    def _on_unmap(self, event) -> None:
+        """最小化（iconic）时隐藏到托盘；withdraw/退出触发的 Unmap 不处理。"""
+        try:
+            if self.state() == "iconic":
+                self.withdraw()
+        except tk.TclError:
+            pass
+
     def _show_window(self) -> None:
         self.deiconify()
+        self.state("normal")
         self.lift()
         self.focus_force()
+        try:
+            self.php_panel.auto_refresh()
+            self.nginx_panel.auto_refresh()
+        except Exception:  # noqa: BLE001
+            pass
+
+    # ------------------------------------------------------------------ #
+    # 托盘动态菜单：PHP 版本 + Nginx 快捷启停
+    def _build_tray_menu(self) -> list[dict]:
+        items: list[dict] = []
+        # 隐藏到托盘（窗口可见时可用）
+        items.append({
+            "type": "item",
+            "label": "隐藏到托盘",
+            "enabled": self.state() == "normal",
+            "cmd": self.withdraw,
+        })
+        items.append({"type": "sep"})
+
+        # Nginx 快捷操作
+        nginx_items: list[dict] = []
+        try:
+            running, pids = self.nginx_mgr.get_status()
+        except Exception:  # noqa: BLE001
+            running, pids = False, []
+        if running:
+            state_txt = f"运行中 · PID {pids[0]}" if pids else "运行中"
+        else:
+            state_txt = "已停止"
+        nginx_items.append({"type": "item", "label": f"状态：{state_txt}", "enabled": False})
+        nginx_items.append({"type": "sep"})
+        nginx_items.append({"type": "item", "label": "启动", "enabled": not running,
+                            "cmd": lambda: self._tray_action("nginx", "start")})
+        nginx_items.append({"type": "item", "label": "停止", "enabled": running,
+                            "cmd": lambda: self._tray_action("nginx", "stop")})
+        nginx_items.append({"type": "item", "label": "重载配置", "enabled": running,
+                            "cmd": lambda: self._tray_action("nginx", "reload")})
+        nginx_items.append({"type": "item", "label": "配置检查",
+                            "cmd": lambda: self._tray_action("nginx", "test_config")})
+        items.append({"type": "submenu", "label": "Nginx", "items": nginx_items})
+
+        # 各 PHP 版本快捷启停
+        versions = self.php_mgr.versions or self.php_mgr.scan_versions()
+        for v in versions:
+            sub: list[dict] = []
+            pid_txt = f" · PID {v.pid}" if v.running and v.pid else ""
+            sub.append({
+                "type": "item",
+                "label": f"状态：{'运行中' if v.running else '已停止'}{pid_txt} · 端口 {v.port}",
+                "enabled": False,
+            })
+            sub.append({"type": "sep"})
+            sub.append({"type": "item", "label": "启动", "enabled": not v.running,
+                        "cmd": lambda v=v: self._tray_action(v, "start")})
+            sub.append({"type": "item", "label": "停止", "enabled": v.running,
+                        "cmd": lambda v=v: self._tray_action(v, "stop")})
+            sub.append({"type": "item", "label": "重启", "enabled": v.running,
+                        "cmd": lambda v=v: self._tray_action(v, "restart")})
+            display = f"（{v.display}）" if v.display else ""
+            mark = "● " if v.running else ""
+            items.append({"type": "submenu", "label": f"{mark}{v.name}{display}", "items": sub})
+
+        return items
+
+    def _tray_action(self, target, action: str) -> None:
+        """托盘菜单操作：后台线程执行（start/stop 含等待探测），结果经队列回 UI。"""
+        mgr = self.php_mgr if target != "nginx" else self.nginx_mgr
+        arg = None if target == "nginx" else target
+
+        def worker():
+            try:
+                if arg is None:
+                    msg = getattr(mgr, action)()
+                else:
+                    msg = getattr(mgr, action)(arg)
+            except Exception as e:  # noqa: BLE001
+                msg = f"{type(e).__name__}：{e}"
+            self._tray_queue.put(msg)
+
+        threading.Thread(target=worker, daemon=True).start()
+        self._poll_tray_queue()
+
+    def _poll_tray_queue(self) -> None:
+        try:
+            msg = self._tray_queue.get_nowait()
+        except queue.Empty:
+            self.after(100, self._poll_tray_queue)
+            return
+        self.set_log(msg)
+        if self._tray is not None:
+            try:
+                self._tray.show_balloon("phpvm", msg[:200])
+            except Exception:  # noqa: BLE001
+                pass
+        # 操作完成 → 立即刷新各面板状态
+        try:
+            self.php_panel.auto_refresh()
+            self.nginx_panel.auto_refresh()
+        except Exception:  # noqa: BLE001
+            pass
 
     def _on_close(self) -> None:
         """点击关闭按钮：弹确认框，可选最小化到托盘 / 退出 / 取消。"""

@@ -5,6 +5,7 @@
 分派托盘回调消息，无需额外窗口或线程。
 """
 import ctypes
+import itertools
 import os
 from ctypes import wintypes
 
@@ -34,8 +35,22 @@ TPM_RETURNCMD = 0x0100
 TPM_NONOTIFY = 0x0080
 TPM_RIGHTBUTTON = 0x0002
 
+# 菜单标志
+MF_STRING = 0x0000
+MF_SEPARATOR = 0x0800
+MF_POPUP = 0x0010
+MF_CHECKED = 0x0008
+MF_GRAYED = 0x0001
+MF_DISABLED = 0x0002
+
 MENU_SHOW = 1001
 MENU_EXIT = 1002
+MENU_ID_BASE = 2000  # 动态菜单项 ID 从此递增
+
+# 动态菜单项字典结构（由 menu_builder 返回）：
+#   {"type": "sep"}
+#   {"type": "item", "label": str, "cmd": callable, "enabled": bool, "checked": bool}
+#   {"type": "submenu", "label": str, "items": [条目...]}
 
 
 def _loword(v):
@@ -108,11 +123,12 @@ shell32.Shell_NotifyIconW.restype = wintypes.BOOL
 class TrayIcon:
     """在给定 Tk 窗口的 HWND 上挂载系统托盘图标。"""
 
-    def __init__(self, hwnd, tip, on_show=None, on_exit=None):
+    def __init__(self, hwnd, tip, on_show=None, on_exit=None, menu_builder=None):
         self.hwnd = hwnd
         self.tip = tip
         self.on_show = on_show
         self.on_exit = on_exit
+        self.menu_builder = menu_builder  # 每次右键弹出时调用，返回动态菜单条目
         self.uID = 1
         self._menu = None
         self._old_wndproc = None
@@ -177,21 +193,66 @@ class TrayIcon:
         shell32.Shell_NotifyIconW(NIM_MODIFY, ctypes.byref(nid))
 
     def _popup_menu(self):
-        if self._menu is None:
-            self._menu = user32.CreatePopupMenu()
-            user32.AppendMenuW(self._menu, 0, MENU_SHOW, "显示 phpvm")
-            user32.AppendMenuW(self._menu, 0, MENU_EXIT, "退出")
+        """每次右键重建菜单（动态反映运行状态），弹完后统一销毁。
+
+        固定头尾：显示 phpvm / 退出；中间由 menu_builder 动态生成。
+        """
+        try:
+            items = self.menu_builder() if self.menu_builder else []
+        except Exception:  # noqa: BLE001
+            items = []
+
+        menu = user32.CreatePopupMenu()
+        all_menus = [menu]
+        cmd_map: dict[int, object] = {}
+        id_gen = itertools.count(MENU_ID_BASE)
+
+        def append(hmenu, item):
+            kind = item.get("type", "item")
+            if kind == "sep":
+                user32.AppendMenuW(hmenu, MF_SEPARATOR, 0, None)
+                return
+            if kind == "submenu":
+                sub = user32.CreatePopupMenu()
+                all_menus.append(sub)
+                for child in item.get("items", []):
+                    append(sub, child)
+                user32.AppendMenuW(hmenu, MF_POPUP | MF_STRING, sub, item.get("label", ""))
+                return
+            flags = MF_STRING
+            if item.get("checked"):
+                flags |= MF_CHECKED
+            if not item.get("enabled", True):
+                flags |= MF_GRAYED | MF_DISABLED
+            cmd = next(id_gen)
+            cmd_map[cmd] = item.get("cmd")
+            user32.AppendMenuW(hmenu, flags, cmd, item.get("label", ""))
+
+        user32.AppendMenuW(menu, MF_STRING, MENU_SHOW, "显示 phpvm")
+        if items:
+            user32.AppendMenuW(menu, MF_SEPARATOR, 0, None)
+            for item in items:
+                append(menu, item)
+            user32.AppendMenuW(menu, MF_SEPARATOR, 0, None)
+        user32.AppendMenuW(menu, MF_STRING, MENU_EXIT, "退出")
+
         pt = wintypes.POINT()
         user32.GetCursorPos(ctypes.byref(pt))
         user32.SetForegroundWindow(self.hwnd)
         cmd = user32.TrackPopupMenuEx(
-            self._menu, TPM_RETURNCMD | TPM_NONOTIFY | TPM_RIGHTBUTTON,
+            menu, TPM_RETURNCMD | TPM_NONOTIFY | TPM_RIGHTBUTTON,
             pt.x, pt.y, self.hwnd, None,
         )
+        for m in all_menus:
+            user32.DestroyMenu(m)
         if cmd == MENU_SHOW and self.on_show:
             self.on_show()
         elif cmd == MENU_EXIT and self.on_exit:
             self.on_exit()
+        else:
+            cb = cmd_map.get(cmd)
+            if callable(cb):
+                cb()
 
     def remove(self):
         try:
