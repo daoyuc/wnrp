@@ -26,13 +26,20 @@ DEFAULT_PORTS = {
     "php85": 9085,
 }
 
+# 功能开关等设置（持久化到 config.json 的 settings 字段）
+DEFAULT_SETTINGS = {
+    "auto_recover_crash": False,  # php-cgi 崩溃后自动重启（自愈），默认关闭
+    "auto_recover_limit": 3,      # 每小时每版本自愈次数上限
+}
+
 
 class Config:
-    """phpvm 配置：端口映射的加载与持久化。"""
+    """phpvm 配置：端口映射 + 功能设置 的加载与持久化。"""
 
     def __init__(self, config_path: str = CONFIG_PATH):
         self.config_path = config_path
         self.ports: dict[str, int] = dict(DEFAULT_PORTS)
+        self.settings: dict = dict(DEFAULT_SETTINGS)
         self._load()
 
     def _load(self) -> None:
@@ -48,17 +55,27 @@ class Config:
                     self.ports[str(k)] = int(v)
                 except (TypeError, ValueError):
                     continue
+            for k in DEFAULT_SETTINGS:
+                if k in data.get("settings", {}):
+                    self.settings[k] = data["settings"][k]
         except (OSError, json.JSONDecodeError):
             # 配置损坏时回退默认并覆盖保存
             self.save()
 
     def save(self) -> None:
-        data = {"ports": self.ports}
+        data = {"ports": self.ports, "settings": self.settings}
         try:
             with open(self.config_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
         except OSError:
             pass
+
+    def get_setting(self, key: str, default=None):
+        return self.settings.get(key, DEFAULT_SETTINGS.get(key, default))
+
+    def set_setting(self, key: str, value) -> None:
+        self.settings[key] = value
+        self.save()
 
     def get_port(self, name: str) -> int:
         return self.ports.get(name, DEFAULT_PORTS.get(name, 9000))

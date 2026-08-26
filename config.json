@@ -9,5 +9,9 @@
     "php81": 9081,
     "php82": 9000,
     "php85": 9085
+  },
+  "settings": {
+    "auto_recover_crash": false,
+    "auto_recover_limit": 3
   }
 }
