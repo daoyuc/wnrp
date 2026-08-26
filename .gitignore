@@ -1,0 +1,8 @@
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 本地运行时文件
+*.log
