@@ -6,3 +6,4 @@ __pycache__/
 
 # 本地运行时文件
 *.log
+recover_history.json

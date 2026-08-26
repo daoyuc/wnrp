@@ -8,7 +8,9 @@
 import glob
 import os
 import re
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 from . import process_utils as pu
@@ -96,22 +98,45 @@ class PhpManager:
 
         fast=True 时状态判定仅用「端口监听 + PID 存活」（适合定时刷新）；
         完整操作后校验用 fast=False（额外校验进程路径含 php-cgi）。
+        版本号解析带 mtime 缓存 + 并发执行（首次全量 ~7s，命中缓存近乎零成本）。
         """
-        for v in self.versions:
-            v.display = self.parse_version(v)
-            if refresh_status:
-                v.running, v.pid = self.get_status(v, fast=fast)
+        with ThreadPoolExecutor(max_workers=min(6, len(self.versions) or 1)) as ex:
+            for v, disp in zip(self.versions, ex.map(self.parse_version, self.versions)):
+                v.display = disp
+        if refresh_status:
+            if fast:
+                # 一次进程/端口快照内批量刷新全部版本状态
+                self.refresh_all_status(self.versions, fast=True)
+            else:
+                for v in self.versions:
+                    v.running, v.pid = self.get_status(v, fast=fast)
         return self.versions
 
+    # 版本号缓存：{exe 绝对路径: (版本号, exe mtime)}，mtime 未变即复用，
+    # 避免每次刷新都拉起 9 个 php.exe -v 子进程。
+    _VERSION_CACHE: dict[str, tuple[str, float]] = {}
+    _VERSION_CACHE_LOCK: threading.Lock = threading.Lock()
+
     def parse_version(self, v: PhpVersion) -> str:
-        """从 php -v 首行解析版本号，如 8.2.4。"""
+        """从 php -v 首行解析版本号，如 8.2.4。带 exe mtime 缓存。"""
         exe = os.path.join(v.dir, CLI_NAME)
         if not os.path.exists(exe):
             exe = v.cgi
-        code, out, err = pu.run_cmd([exe, "-v"], timeout=10)
+        try:
+            mtime = os.path.getmtime(exe)
+        except OSError:
+            mtime = 0.0
+        with self._VERSION_CACHE_LOCK:
+            cached = self._VERSION_CACHE.get(exe)
+            if cached is not None and cached[1] == mtime:
+                return cached[0]
+        _, out, err = pu.run_cmd([exe, "-v"], timeout=10)
         text = out or err
         m = re.search(r"PHP\s+([0-9]+\.[0-9]+\.[0-9]+)", text)
-        return m.group(1) if m else "未知"
+        version = m.group(1) if m else "未知"
+        with self._VERSION_CACHE_LOCK:
+            self._VERSION_CACHE[exe] = (version, mtime)
+        return version
 
     # ------------------------------------------------------------------ #
     # 状态判定（三重校验）

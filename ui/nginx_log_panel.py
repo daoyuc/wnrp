@@ -5,29 +5,42 @@
 - 首次加载读取文件尾部（最多 256KB / 2000 行），之后增量追加
 - 文件轮转（大小变小）自动重置为尾部读取
 - 「自动跟随」勾选时随主窗口 tick 增量刷新
+- 过滤框：关键字实时过滤显示（不区分大小写），匹配处高亮
+- 行级统计：error / warn 行计数展示在状态栏
+- 行内高亮：error 红、warn 橙、时间戳蓝、HTTP 4xx/5xx 高亮
 """
 import os
 import queue
+import re
 import threading
 import tkinter as tk
 from tkinter import ttk
 
-from .theme import ERR, FONT, GRAY, LOG_BG, LOG_FG, OK, TEXT_DIM
+from .theme import ERR, LOG_ACCENT, LOG_BG, LOG_FG, WARN
 
 NGINX_LOGS_DIR = r"C:\wnrp\nginx\logs"
 TAIL_BYTES = 256 * 1024
 MAX_LINES = 2000
 _DEFAULT_PREFER = ("error.log", "access.log")
 
+_TIME_RE = re.compile(r"\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}")
+_CODE_RE = re.compile(r"\s([45]\d{2})\s")
+_ERR_WORDS = ("[error]", "[crit]", "[alert]", "[emerg]")
+_WARN_WORDS = ("[warn]", "[notice]")
+
 
 class NginxLogPanel(ttk.Frame):
     def __init__(self, master, notify):
         super().__init__(master, padding=8)
         self.notify = notify
-        self._queue: queue.Queue = queue.Queue()
+        self._queue: queue.Queue[tuple] = queue.Queue()
         self._busy = False
         self._offset = 0  # 已读到的文件偏移
         self._files: list[str] = []
+        self._lines: list[str] = []  # 已读行缓存（用于过滤重绘）
+        self._stats = {"err": 0, "warn": 0, "other": 0}
+        self._size = 0
+        self._mtime = 0.0
         self._build()
         self.refresh_file_list()
 
@@ -38,7 +51,7 @@ class NginxLogPanel(ttk.Frame):
 
         ttk.Label(top, text="日志文件：", style="Section.TLabel").pack(side="left")
         self.file_var = tk.StringVar()
-        self.file_cb = ttk.Combobox(top, textvariable=self.file_var, state="readonly", width=28)
+        self.file_cb = ttk.Combobox(top, textvariable=self.file_var, state="readonly", width=22)
         self.file_cb.pack(side="left", padx=(0, 8))
         self.file_cb.bind("<<ComboboxSelected>>", lambda e: self._reset_and_reload())
 
@@ -47,7 +60,14 @@ class NginxLogPanel(ttk.Frame):
 
         ttk.Button(top, text="刷新", command=self.reload).pack(side="left", padx=(0, 4))
         ttk.Button(top, text="清屏", command=self.clear_view).pack(side="left", padx=(0, 4))
-        ttk.Button(top, text="打开目录", command=self._open_dir).pack(side="left")
+        ttk.Button(top, text="打开目录", command=self._open_dir).pack(side="left", padx=(0, 10))
+
+        ttk.Label(top, text="过滤：", style="Section.TLabel").pack(side="left")
+        self.filter_var = tk.StringVar()
+        filter_entry = ttk.Entry(top, textvariable=self.filter_var, width=16)
+        filter_entry.pack(side="left", padx=(0, 8))
+        filter_entry.bind("<KeyRelease>", lambda e: self._render_filtered())
+        filter_entry.bind("<Return>", lambda e: self._render_filtered())
 
         self.info_var = tk.StringVar(value="")
         ttk.Label(top, textvariable=self.info_var, style="SubTitle.TLabel").pack(side="left", padx=(10, 0))
@@ -64,7 +84,11 @@ class NginxLogPanel(ttk.Frame):
         self.text.pack(side="left", fill="both", expand=True)
         vsb.pack(side="right", fill="y")
         self.text.tag_configure("err", foreground=ERR)
-        self.text.tag_configure("warn", foreground="#FFD24A")
+        self.text.tag_configure("warn", foreground=WARN)
+        self.text.tag_configure("ts", foreground=LOG_ACCENT)
+        self.text.tag_configure("code4", foreground=WARN)
+        self.text.tag_configure("code5", foreground=ERR)
+        self.text.tag_configure("hl", background="#3B2F00")
 
     # ------------------------------------------------------------------ #
     def refresh_file_list(self) -> None:
@@ -90,12 +114,15 @@ class NginxLogPanel(ttk.Frame):
         return os.path.join(NGINX_LOGS_DIR, name) if name else None
 
     def _reset_and_reload(self) -> None:
-        """切换文件：清空显示并重置偏移后重新加载。"""
+        """切换文件：清空显示/缓存并重置偏移后重新加载。"""
         self._offset = 0
+        self._lines = []
+        self._stats = {"err": 0, "warn": 0, "other": 0}
         self._clear_text()
         self.reload()
 
     def clear_view(self) -> None:
+        """清屏：仅清显示区，行缓存保留（后续增量/过滤仍基于缓存）。"""
         self._clear_text()
 
     def _clear_text(self) -> None:
@@ -166,29 +193,110 @@ class NginxLogPanel(ttk.Frame):
             self.info_var.set(payload)
             return
         kind2, content, size, mtime = payload
-        size_txt = f"{size / 1024:.0f} KB" if size < 1024 * 1024 else f"{size / 1024 / 1024:.1f} MB"
-        from datetime import datetime
-        mt = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
-        self.info_var.set(f"{size_txt} · 修改 {mt}")
+        self._size, self._mtime = size, mtime
         if kind2 == "full":
             self._clear_text()
-            self._insert(content, "warn")
-        elif content:
-            self._insert(content, "err" if self._is_error_log() else "")
+            self._lines = []
+            self._stats = {"err": 0, "warn": 0, "other": 0}
+        self._append_lines(content.splitlines())
+        self._update_info()
 
-    def _is_error_log(self) -> bool:
-        return "error" in self.file_var.get().lower()
-
-    def _insert(self, content: str, tag: str) -> None:
+    def _append_lines(self, lines: list[str]) -> None:
+        """新增行：更新行缓存与统计，按过滤条件插入显示。"""
+        if not lines:
+            self._update_info()
+            return
+        self._lines.extend(lines)
+        if len(self._lines) > MAX_LINES:
+            self._lines = self._lines[-MAX_LINES:]
+        for line in lines:
+            cls = self._classify(line)
+            self._stats[cls or "other"] += 1
+        kw = self.filter_var.get().strip()
         self.text.configure(state="normal")
-        start = self.text.index("end-1c")
-        self.text.insert("end", content)
-        if not content.endswith("\n"):
-            self.text.insert("end", "\n")
-        if tag:
-            self.text.tag_add(tag, start, "end-1c")
+        for line in lines:
+            if kw and kw.lower() not in line.lower():
+                continue
+            self._insert_line(line)
         self.text.see("end")
         self.text.configure(state="disabled")
+        self._update_info()
+
+    def _render_filtered(self) -> None:
+        """过滤关键字变化：基于行缓存全量重绘。"""
+        kw = self.filter_var.get().strip()
+        self._clear_text()
+        self.text.configure(state="normal")
+        for line in self._lines:
+            if kw and kw.lower() not in line.lower():
+                continue
+            self._insert_line(line)
+        self.text.see("end")
+        self.text.configure(state="disabled")
+        self._update_info()
+
+    # ------------------------------------------------------------------ #
+    def _classify(self, line: str) -> str:
+        """返回 err / warn / ''（普通行）。error 日志按级别词，access 按状态码。"""
+        low = line.lower()
+        if any(w in low for w in _ERR_WORDS):
+            return "err"
+        if any(w in low for w in _WARN_WORDS):
+            return "warn"
+        m = _CODE_RE.search(line)
+        if m:
+            return "err" if m.group(1)[0] == "5" else "warn"
+        return ""
+
+    def _insert_line(self, line: str) -> None:
+        self.text.insert("end", line + "\n")
+        start = self.text.index("end-1c")
+        self._tag_line(start, line)
+
+    def _tag_line(self, start: str, line: str) -> None:
+        """单行着色：级别 / 时间戳 / HTTP 状态码 / 关键字高亮。"""
+        cls = self._classify(line)
+        if cls:
+            self.text.tag_add(cls, start, "end-1c")
+        m = _TIME_RE.search(line)
+        if m:
+            self.text.tag_add("ts", f"{start}+{m.start()}c", f"{start}+{m.end()}c")
+        m = _CODE_RE.search(line)
+        if m:
+            code = m.group(1)
+            tag = "code5" if code[0] == "5" else "code4"
+            self.text.tag_add(tag, f"{start}+{m.start(1)}c", f"{start}+{m.end(1)}c")
+        kw = self.filter_var.get().strip()
+        if kw:
+            low, k = line.lower(), kw.lower()
+            pos, step = 0, len(k)
+            while True:
+                i = low.find(k, pos)
+                if i < 0:
+                    break
+                self.text.tag_add("hl", f"{start}+{i}c", f"{start}+{i + step}c")
+                pos = i + step
+
+    # ------------------------------------------------------------------ #
+    def _update_info(self) -> None:
+        parts = []
+        size_txt = (
+            f"{self._size / 1024:.0f} KB" if self._size < 1024 * 1024
+            else f"{self._size / 1024 / 1024:.1f} MB"
+        )
+        from datetime import datetime
+        mt = datetime.fromtimestamp(self._mtime).strftime("%H:%M:%S")
+        total = len(self._lines)
+        parts.append(f"{size_txt} · {mt} · {total} 行")
+        kw = self.filter_var.get().strip()
+        if kw:
+            shown = sum(1 for ln in self._lines if kw.lower() in ln.lower())
+            parts.append(f"显示 {shown}")
+        if self._stats["err"]:
+            parts.append(f"错误 {self._stats['err']}")
+        if self._stats["warn"]:
+            parts.append(f"警告 {self._stats['warn']}")
+        self.info_var.set(" · ".join(parts))
 
     # ------------------------------------------------------------------ #
     def auto_refresh(self) -> None:

@@ -7,6 +7,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 from core import autostart, path_manager
+from core import recover_history
 from core.config import Config
 from core.health_monitor import HealthMonitor
 from core.nginx_manager import NginxManager
@@ -24,8 +25,9 @@ APP_TITLE = "phpvm · PHP 版本管理器"
 WNRP_ROOT_SHOW = r"C:\wnrp"
 CRASH_POLL_TICKS = 8  # 崩溃检测频率 ≈ 8 × 8s = 64s 一次
 # 崩溃自愈防抖 / 限次
-RECOVER_MIN_INTERVAL = 60.0   # 同一版本两次自愈最小间隔（秒）
-RECOVER_WINDOW = 3600.0       # 计数窗口（秒）
+RECOVER_MIN_INTERVAL = 60.0      # 同一版本两次自愈最小间隔（秒）
+RECOVER_WINDOW = 3600.0          # 计数窗口（秒）
+RECOVER_FAIL_ESCALATE = 3        # 同一版本连续自愈失败达到该次数 → 升级告警
 
 
 class MainWindow(tk.Tk):
@@ -297,11 +299,14 @@ class MainWindow(tk.Tk):
         """运行中检测到新崩溃时自动重启对应版本 php-cgi。
 
         防抖：同一版本两次自愈最小间隔 RECOVER_MIN_INTERVAL；
-        限次：每 RECOVER_WINDOW 窗口内每版本最多 auto_recover_limit 次。
+        限次：每 RECOVER_WINDOW 窗口内每版本最多 auto_recover_limit 次；
+        历史：每次决策（重启/失败/防抖跳过/达上限）记录到 recover_history.json；
+        升级：同一版本连续 RECOVER_FAIL_ESCALATE 次失败 → 托盘 + 状态栏升级告警。
         """
         limit = int(self.config.get_setting("auto_recover_limit", 3) or 3)
         now = time.time()
         self._recover_log = getattr(self, "_recover_log", {})
+        self._recover_fail_seq = getattr(self, "_recover_fail_seq", {})
 
         for e in events:
             ver = e.get("version")
@@ -314,10 +319,13 @@ class MainWindow(tk.Tk):
             if rec:
                 last_ts, count, window_start = rec
                 if now - last_ts < RECOVER_MIN_INTERVAL:
+                    recover_history.append(ver, "skip_interval", "与上次自愈间隔不足 60s，跳过")
+                    self.set_log(f"自愈防抖：{ver} 间隔不足，跳过自动重启")
                     continue
                 if now - window_start > RECOVER_WINDOW:
                     count, window_start = 0, now
                 if count >= limit:
+                    recover_history.append(ver, "skip_limit", f"已达上限（{limit} 次/小时）")
                     self.set_log(f"自愈已达上限（{limit} 次/小时），暂停自动重启 {ver}")
                     continue
             else:
@@ -327,6 +335,8 @@ class MainWindow(tk.Tk):
                 try:
                     msg = self.php_mgr.start(v)
                     self.set_log(f"自动恢复：{ver} → {msg}")
+                    recover_history.append(ver, "start", msg)
+                    self._recover_fail_seq[ver] = 0
                     if self._tray is not None:
                         try:
                             self._tray.show_balloon("php-cgi 崩溃自愈", f"{ver}\n{msg}")
@@ -334,6 +344,19 @@ class MainWindow(tk.Tk):
                             pass
                 except Exception as ex:  # noqa: BLE001
                     self.set_log(f"自动恢复失败 {ver}：{type(ex).__name__}：{ex}")
+                    recover_history.append(ver, "fail", f"{type(ex).__name__}：{ex}")
+                    seq = self._recover_fail_seq.get(ver, 0) + 1
+                    self._recover_fail_seq[ver] = seq
+                    if seq >= RECOVER_FAIL_ESCALATE:
+                        self.set_log(f"自愈连续失败 {seq} 次（{ver}），建议手动检查 php.ini / 扩展配置")
+                        if self._tray is not None:
+                            try:
+                                self._tray.show_balloon(
+                                    "崩溃自愈连续失败",
+                                    f"{ver} 连续 {seq} 次自愈失败，请手动检查 php.ini / 扩展配置。",
+                                )
+                            except Exception:  # noqa: BLE001
+                                pass
 
             threading.Thread(target=do, daemon=True).start()
             self._recover_log[ver] = (now, count + 1, window_start)
