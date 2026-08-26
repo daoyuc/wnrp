@@ -13,6 +13,7 @@ from core.config import Config
 from core.health_monitor import HealthMonitor
 from core.php_manager import PhpManager, PhpVersion, PortConflictError
 from .dialogs import IniDialog, IniEditDialog, PortDialog, SelfCheckDialog
+from .download_dialog import DownloadDialog
 from .theme import CARD_BG, ERR, FONT, GRAY, OK, PRIMARY, TEXT
 
 COLUMNS = [
@@ -54,9 +55,12 @@ class PhpPanel(ttk.Frame):
         self.btn_ini = ttk.Button(bar, text="查看配置", command=self._view_ini)
         self.btn_edit = ttk.Button(bar, text="编辑配置", command=self._edit_ini)
         self.btn_check = ttk.Button(bar, text="自检", command=self._self_check)
+        self.btn_download = ttk.Button(bar, text="下载新版本", style="Accent.TButton",
+                                       command=self._download_version)
         self.btn_refresh = ttk.Button(bar, text="刷新", command=self.refresh_versions)
         for b in (self.btn_start, self.btn_stop, self.btn_restart, self.btn_port,
-                  self.btn_ini, self.btn_edit, self.btn_check, self.btn_refresh):
+                  self.btn_ini, self.btn_edit, self.btn_check, self.btn_download,
+                  self.btn_refresh):
             b.pack(side="left", padx=(0, 6))
         ttk.Label(bar, text="选中版本后操作 · 双击行查看配置", style="SubTitle.TLabel").pack(
             side="left", padx=(4, 0)
@@ -318,3 +322,11 @@ class PhpPanel(ttk.Frame):
         if v is None:
             return
         SelfCheckDialog(self, v, HealthMonitor())
+
+    def _download_version(self) -> None:
+        """打开「下载 PHP 版本」对话框；安装完成后刷新版本列表。"""
+        def on_installed():
+            self.notify("新版本已安装，正在刷新列表…")
+            self.refresh_versions()
+
+        DownloadDialog(self, self.php_mgr, self.config, on_installed=on_installed)
