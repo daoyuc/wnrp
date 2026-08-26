@@ -7,7 +7,7 @@ import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-from core import path_manager
+from core import path_manager, recover_history
 from core.config import Config
 from core.php_manager import PhpManager, PhpVersion
 from core.vhost_manager import VhostManager
@@ -586,15 +586,18 @@ class CliSwitchDialog(tk.Toplevel):
 
 
 class CrashDialog(tk.Toplevel):
-    """php-cgi 崩溃事件详情（Windows 事件日志 Application/1000）。"""
+    """php-cgi 崩溃事件详情（Windows 事件日志 Application/1000）。
+
+    两个页签：崩溃事件 + 自愈历史（recover_history.json 可视化）。
+    """
 
     def __init__(self, master, events: list[dict], on_clear=None):
         super().__init__(master)
         self.events = events
         self.on_clear = on_clear
         self.title("php-cgi 崩溃事件")
-        self.geometry("820x640")
-        self.minsize(700, 520)
+        self.geometry("860x660")
+        self.minsize(720, 540)
         self.configure(bg=CARD_BG)
         self.transient(master)
 
@@ -606,43 +609,19 @@ class CrashDialog(tk.Toplevel):
             header,
             text="以下记录来自 Windows 事件日志。异常码 0xc0000005（访问冲突）通常是扩展/JIT/"
                  "代码段错误导致，崩溃后站点会 502。",
-            style="SubTitle.TLabel", wraplength=760,
+            style="SubTitle.TLabel", wraplength=800,
         ).pack(anchor="w", pady=(4, 0))
 
-        wrap = ttk.Frame(self)
-        wrap.pack(fill="both", expand=True, padx=16, pady=8)
-        cols = [("time", "崩溃时间", 150), ("version", "版本", 60), ("app", "进程", 110),
-                ("module", "故障模块", 140), ("exception", "异常码", 95), ("offset", "偏移", 160)]
-        self.tree = ttk.Treeview(wrap, columns=[c[0] for c in cols], show="headings", height=7)
-        for cid, text, w in cols:
-            self.tree.heading(cid, text=text)
-            self.tree.column(cid, width=w, anchor="w", stretch=(cid == "module"))
-        vsb = ttk.Scrollbar(wrap, orient="vertical", command=self.tree.yview)
-        self.tree.configure(yscrollcommand=vsb.set)
-        self.tree.pack(side="left", fill="both", expand=True)
-        vsb.pack(side="right", fill="y")
+        nb = ttk.Notebook(self)
+        nb.pack(fill="both", expand=True, padx=16, pady=8)
 
-        detail_wrap = ttk.Frame(self)
-        detail_wrap.pack(fill="both", expand=True, padx=16, pady=(0, 12))
-        detail = tk.Text(detail_wrap, height=10, wrap="char", font=("Consolas", 9),
-                         background="#FFFFFF", foreground=TEXT, relief="flat",
-                         padx=10, pady=8, state="disabled")
-        dvsb = ttk.Scrollbar(detail_wrap, orient="vertical", command=detail.yview)
-        detail.configure(yscrollcommand=dvsb.set)
-        detail.pack(side="left", fill="both", expand=True)
-        dvsb.pack(side="right", fill="y")
+        crash_tab = ttk.Frame(nb, padding=4)
+        recover_tab = ttk.Frame(nb, padding=4)
+        nb.add(crash_tab, text=" 崩溃事件 ")
+        nb.add(recover_tab, text=" 自愈历史 ")
 
-        if not events:
-            self.tree.insert("", "end", values=("—", "—", "—", "—", "—", "—"))
-            self._set_detail(detail, "（没有崩溃记录）")
-        else:
-            for e in events:
-                self.tree.insert("", "end", values=(
-                    e.get("time", "—"), e.get("version") or "—", e.get("app", "—"),
-                    e.get("module", "—"), e.get("exception", "—"), e.get("offset", "—"),
-                ))
-            self._set_detail(detail, events[0].get("message", ""))
-        self.tree.bind("<<TreeviewSelect>>", lambda ev: self._on_select(detail))
+        self._build_crash_tab(crash_tab)
+        self._build_recover_tab(recover_tab)
 
         btns = ttk.Frame(self, padding=(16, 0, 16, 14))
         btns.pack(fill="x")
@@ -653,26 +632,88 @@ class CrashDialog(tk.Toplevel):
             self.clear_btn.configure(state="disabled")
         self._center(master)
 
+    def _build_crash_tab(self, parent) -> None:
+        cols = [("time", "崩溃时间", 150), ("version", "版本", 60), ("app", "进程", 110),
+                ("module", "故障模块", 140), ("exception", "异常码", 95), ("offset", "偏移", 160)]
+        self.tree = ttk.Treeview(parent, columns=[c[0] for c in cols], show="headings", height=7)
+        for cid, text, w in cols:
+            self.tree.heading(cid, text=text)
+            self.tree.column(cid, width=w, anchor="w", stretch=(cid == "module"))
+        vsb = ttk.Scrollbar(parent, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=vsb.set)
+        self.tree.pack(side="left", fill="both", expand=True)
+        vsb.pack(side="right", fill="y")
+
+        detail_wrap = ttk.Frame(parent)
+        detail_wrap.pack(fill="both", expand=True, pady=(4, 0))
+        self.detail = tk.Text(detail_wrap, height=9, wrap="char", font=("Consolas", 9),
+                              background="#FFFFFF", foreground=TEXT, relief="flat",
+                              padx=10, pady=8, state="disabled")
+        dvsb = ttk.Scrollbar(detail_wrap, orient="vertical", command=self.detail.yview)
+        self.detail.configure(yscrollcommand=dvsb.set)
+        self.detail.pack(side="left", fill="both", expand=True)
+        dvsb.pack(side="right", fill="y")
+
+        if not self.events:
+            self.tree.insert("", "end", values=("—", "—", "—", "—", "—", "—"))
+            self._set_detail("（没有崩溃记录）")
+        else:
+            for e in self.events:
+                self.tree.insert("", "end", values=(
+                    e.get("time", "—"), e.get("version") or "—", e.get("app", "—"),
+                    e.get("module", "—"), e.get("exception", "—"), e.get("offset", "—"),
+                ))
+            self._set_detail(self.events[0].get("message", ""))
+        self.tree.bind("<<TreeviewSelect>>", lambda ev: self._on_select())
+
+    def _build_recover_tab(self, parent) -> None:
+        """自愈历史：recover_history.json 最新在前，失败行红色标记。"""
+        info = ttk.Label(parent, text="自愈操作历史（防抖/限次/重启/失败，存于 recover_history.json）",
+                         style="SubTitle.TLabel")
+        info.pack(anchor="w", pady=(0, 4))
+        cols = [("time", "时间", 150), ("version", "版本", 60), ("action", "动作", 90), ("detail", "详情", 480)]
+        self.rec_tree = ttk.Treeview(parent, columns=[c[0] for c in cols], show="headings")
+        for cid, text, w in cols:
+            self.rec_tree.heading(cid, text=text)
+            self.rec_tree.column(cid, width=w, anchor="w", stretch=(cid == "detail"))
+        rvsb = ttk.Scrollbar(parent, orient="vertical", command=self.rec_tree.yview)
+        self.rec_tree.configure(yscrollcommand=rvsb.set)
+        self.rec_tree.pack(side="left", fill="both", expand=True)
+        rvsb.pack(side="right", fill="y")
+        self.rec_tree.tag_configure("fail", foreground=ERR)
+        self.rec_tree.tag_configure("ok", foreground=OK)
+
+        rows = recover_history.load()
+        if not rows:
+            self.rec_tree.insert("", "end", values=("—", "—", "—", "（暂无自愈记录）"))
+        for r in rows:
+            action = r.get("action", "")
+            tag = "fail" if action == "fail" else ("ok" if action == "start" else "")
+            self.rec_tree.insert("", "end", values=(
+                r.get("time", "—"), r.get("version", "—"),
+                recover_history.ACTION_LABELS.get(action, action), r.get("detail", ""),
+            ), tags=(tag,) if tag else ())
+
     def _clear(self) -> None:
         """清空已读崩溃告警：回调主窗口重置游标并关闭状态栏告警。"""
         if self.on_clear is not None:
             self.on_clear()
         self.destroy()
 
-    def _on_select(self, detail: tk.Text) -> None:
+    def _on_select(self) -> None:
         sel = self.tree.selection()
         if not sel:
             return
         idx = self.tree.index(sel[0])
         if idx < len(self.events):
-            self._set_detail(detail, self.events[idx].get("message", ""))
+            self._set_detail(self.events[idx].get("message", ""))
 
-    def _set_detail(self, detail: tk.Text, text: str) -> None:
-        detail.configure(state="normal")
-        detail.delete("1.0", "end")
+    def _set_detail(self, text: str) -> None:
+        self.detail.configure(state="normal")
+        self.detail.delete("1.0", "end")
         # 完整展示；事件消息中的字段分隔符还原为换行，逐项可读
-        detail.insert("1.0", text.replace(" | ", "\n"))
-        detail.configure(state="disabled")
+        self.detail.insert("1.0", text.replace(" | ", "\n"))
+        self.detail.configure(state="disabled")
 
     def _center(self, master) -> None:
         self.update_idletasks()
