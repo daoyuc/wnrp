@@ -588,9 +588,10 @@ class CliSwitchDialog(tk.Toplevel):
 class CrashDialog(tk.Toplevel):
     """php-cgi 崩溃事件详情（Windows 事件日志 Application/1000）。"""
 
-    def __init__(self, master, events: list[dict]):
+    def __init__(self, master, events: list[dict], on_clear=None):
         super().__init__(master)
         self.events = events
+        self.on_clear = on_clear
         self.title("php-cgi 崩溃事件")
         self.geometry("760x460")
         self.minsize(620, 380)
@@ -621,10 +622,15 @@ class CrashDialog(tk.Toplevel):
         self.tree.pack(side="left", fill="both", expand=True)
         vsb.pack(side="right", fill="y")
 
-        detail = tk.Text(self, height=7, wrap="char", font=("Consolas", 9),
+        detail_wrap = ttk.Frame(self)
+        detail_wrap.pack(fill="both", expand=True, padx=16, pady=(0, 12))
+        detail = tk.Text(detail_wrap, height=8, wrap="char", font=("Consolas", 9),
                          background="#FFFFFF", foreground=TEXT, relief="flat",
                          padx=8, pady=6, state="disabled")
-        detail.pack(fill="x", padx=16, pady=(0, 12))
+        dvsb = ttk.Scrollbar(detail_wrap, orient="vertical", command=detail.yview)
+        detail.configure(yscrollcommand=dvsb.set)
+        detail.pack(side="left", fill="both", expand=True)
+        dvsb.pack(side="right", fill="y")
 
         if not events:
             self.tree.insert("", "end", values=("—", "—", "—", "—", "—", "—"))
@@ -641,7 +647,17 @@ class CrashDialog(tk.Toplevel):
         btns = ttk.Frame(self, padding=(16, 0, 16, 14))
         btns.pack(fill="x")
         ttk.Button(btns, text="关闭", command=self.destroy).pack(side="right")
+        self.clear_btn = ttk.Button(btns, text="清空记录", command=self._clear)
+        self.clear_btn.pack(side="right", padx=(0, 8))
+        if not events:
+            self.clear_btn.configure(state="disabled")
         self._center(master)
+
+    def _clear(self) -> None:
+        """清空已读崩溃告警：回调主窗口重置游标并关闭状态栏告警。"""
+        if self.on_clear is not None:
+            self.on_clear()
+        self.destroy()
 
     def _on_select(self, detail: tk.Text) -> None:
         sel = self.tree.selection()
@@ -654,7 +670,8 @@ class CrashDialog(tk.Toplevel):
     def _set_detail(self, detail: tk.Text, text: str) -> None:
         detail.configure(state="normal")
         detail.delete("1.0", "end")
-        detail.insert("1.0", text)
+        # 完整展示；事件消息中的字段分隔符还原为换行，逐项可读
+        detail.insert("1.0", text.replace(" | ", "\n"))
         detail.configure(state="disabled")
 
     def _center(self, master) -> None:

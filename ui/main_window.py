@@ -348,7 +348,14 @@ class MainWindow(tk.Tk):
         return "\n".join(lines) or "未知"
 
     def _show_crash_detail(self, events: list[dict] | None = None) -> None:
-        CrashDialog(self, events or self.health.recent_crashes)
+        CrashDialog(self, events or self.health.recent_crashes, on_clear=self._clear_crash_history)
+
+    def _clear_crash_history(self) -> None:
+        """清空崩溃告警：重置检测游标 + 关闭状态栏红色告警。"""
+        self.health.reset()
+        self._crash_alert_active = False
+        self._alert_label.configure(text="")
+        self.set_log("已清空崩溃告警记录")
 
     # ------------------------------------------------------------------ #
     # 系统托盘 / 关闭行为

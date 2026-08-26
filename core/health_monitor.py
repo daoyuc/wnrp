@@ -85,7 +85,7 @@ class HealthMonitor:
             "offset": _g1(_RE["offset"], msg),
             "path": path,
             "version": mv.group(1) if mv else None,
-            "message": msg[:300],
+            "message": msg,
         }
 
     def poll_new_crashes(self, hours: int = 24) -> list[dict]:
@@ -110,9 +110,13 @@ class HealthMonitor:
         return new
 
     def reset(self) -> None:
-        """重置游标（用户已读告警后调用）。"""
+        """清空已读告警：本地列表置空，游标推进到当前时刻。
+
+        注意：不能把 last_event_time 置 None——否则下一次轮询会把最近
+        hours 小时的历史事件全部当作新增再次告警（“清空”后又冒出来）。
+        """
         with self.lock:
-            self.last_event_time = None
+            self.last_event_time = datetime.now()
             self.recent_crashes = []
 
     # ---------------------------- 版本自检 ---------------------------- #
