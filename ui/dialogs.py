@@ -593,8 +593,8 @@ class CrashDialog(tk.Toplevel):
         self.events = events
         self.on_clear = on_clear
         self.title("php-cgi 崩溃事件")
-        self.geometry("760x460")
-        self.minsize(620, 380)
+        self.geometry("820x640")
+        self.minsize(700, 520)
         self.configure(bg=CARD_BG)
         self.transient(master)
 
@@ -606,14 +606,14 @@ class CrashDialog(tk.Toplevel):
             header,
             text="以下记录来自 Windows 事件日志。异常码 0xc0000005（访问冲突）通常是扩展/JIT/"
                  "代码段错误导致，崩溃后站点会 502。",
-            style="SubTitle.TLabel", wraplength=700,
+            style="SubTitle.TLabel", wraplength=760,
         ).pack(anchor="w", pady=(4, 0))
 
         wrap = ttk.Frame(self)
-        wrap.pack(fill="both", expand=True, padx=16, pady=10)
-        cols = [("time", "崩溃时间", 140), ("version", "版本", 60), ("app", "进程", 100),
-                ("module", "故障模块", 130), ("exception", "异常码", 90), ("offset", "偏移", 150)]
-        self.tree = ttk.Treeview(wrap, columns=[c[0] for c in cols], show="headings")
+        wrap.pack(fill="both", expand=True, padx=16, pady=8)
+        cols = [("time", "崩溃时间", 150), ("version", "版本", 60), ("app", "进程", 110),
+                ("module", "故障模块", 140), ("exception", "异常码", 95), ("offset", "偏移", 160)]
+        self.tree = ttk.Treeview(wrap, columns=[c[0] for c in cols], show="headings", height=7)
         for cid, text, w in cols:
             self.tree.heading(cid, text=text)
             self.tree.column(cid, width=w, anchor="w", stretch=(cid == "module"))
@@ -624,9 +624,9 @@ class CrashDialog(tk.Toplevel):
 
         detail_wrap = ttk.Frame(self)
         detail_wrap.pack(fill="both", expand=True, padx=16, pady=(0, 12))
-        detail = tk.Text(detail_wrap, height=8, wrap="char", font=("Consolas", 9),
+        detail = tk.Text(detail_wrap, height=10, wrap="char", font=("Consolas", 9),
                          background="#FFFFFF", foreground=TEXT, relief="flat",
-                         padx=8, pady=6, state="disabled")
+                         padx=10, pady=8, state="disabled")
         dvsb = ttk.Scrollbar(detail_wrap, orient="vertical", command=detail.yview)
         detail.configure(yscrollcommand=dvsb.set)
         detail.pack(side="left", fill="both", expand=True)
