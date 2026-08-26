@@ -14,6 +14,7 @@ from core.health_monitor import HealthMonitor
 from core.php_manager import PhpManager, PhpVersion, PortConflictError
 from .dialogs import IniDialog, IniEditDialog, PortDialog, SelfCheckDialog
 from .download_dialog import DownloadDialog
+from .extension_dialog import ExtensionDialog
 from .theme import CARD_BG, ERR, FONT, GRAY, OK, PRIMARY, TEXT
 
 COLUMNS = [
@@ -55,11 +56,13 @@ class PhpPanel(ttk.Frame):
         self.btn_ini = ttk.Button(bar, text="查看配置", command=self._view_ini)
         self.btn_edit = ttk.Button(bar, text="编辑配置", command=self._edit_ini)
         self.btn_check = ttk.Button(bar, text="自检", command=self._self_check)
+        self.btn_ext = ttk.Button(bar, text="安装扩展", command=self._manage_ext)
         self.btn_download = ttk.Button(bar, text="下载新版本", style="Accent.TButton",
                                        command=self._download_version)
         self.btn_refresh = ttk.Button(bar, text="刷新", command=self.refresh_versions)
         for b in (self.btn_start, self.btn_stop, self.btn_restart, self.btn_port,
-                  self.btn_ini, self.btn_edit, self.btn_check, self.btn_download,
+                  self.btn_ini, self.btn_edit, self.btn_check, self.btn_ext,
+                  self.btn_download,
                   self.btn_refresh):
             b.pack(side="left", padx=(0, 6))
         ttk.Label(bar, text="选中版本后操作 · 双击行查看配置", style="SubTitle.TLabel").pack(
@@ -288,7 +291,7 @@ class PhpPanel(ttk.Frame):
     def _update_buttons(self) -> None:
         has_sel = self._selected() is not None and not self._busy
         for b in (self.btn_start, self.btn_stop, self.btn_restart, self.btn_port,
-                  self.btn_ini, self.btn_edit, self.btn_check):
+                  self.btn_ini, self.btn_edit, self.btn_check, self.btn_ext):
             b.configure(state="normal" if has_sel else "disabled")
 
     def _set_busy(self, busy: bool) -> None:
@@ -330,3 +333,9 @@ class PhpPanel(ttk.Frame):
             self.refresh_versions()
 
         DownloadDialog(self, self.php_mgr, self.config, on_installed=on_installed)
+
+    def _manage_ext(self) -> None:
+        v = self._selected()
+        if v is None:
+            return
+        ExtensionDialog(self, v, self.php_mgr)
