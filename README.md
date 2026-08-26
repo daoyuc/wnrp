@@ -16,10 +16,21 @@ Windows 桌面 GUI 工具，用于统一管理 `C:\wnrp` 开发环境中的 **�
 - **自动发现**：扫描 `C:\wnrp\php*` 目录，自动识别 php / php56 / php72 / php73 / php74 / php8 / php81 / php82 / php85，无需手动注册
 - **状态灯**：`●` 绿色=运行中 / `○` 灰色=已停止；列表显示 PHP 版本号、FastCGI 端口、进程 PID、配置文件路径
 - **启动 / 停止 / 重启**：对选中版本操作，按端口精确定位进程，不影响其它版本
-- **编辑端口**：修改后持久化到 `config.json`；端口合法性（1-65535）与唯一性校验；保存后提示同步 nginx vhost 的 `fastcgi_pass`
-- **查看配置**：展示 `php.ini` 关键配置（memory_limit、post_max_size、upload_max_filesize、max_execution_time、扩展列表等）、完整 ini 内容，并可一键用编辑器打开
+- **编辑端口**：修改后持久化到 `config.json`；端口合法性（1-65535）与唯一性校验；保存后自动弹出「一键同步 vhost」流程（见下）
+- **查看配置 / 编辑配置**：查看 `php.ini` 关键配置与完整内容；「编辑配置」提供常用项表单（memory_limit、post_max_size、upload_max_filesize、max_execution_time、display_errors、date.timezone、opcache.enable 等），带类型校验与自动备份（`.bak`），改后提示重启生效
+- **版本自检**：对选中版本一键执行 `php -v`、`php -m`（核对 redis / pdo_mysql / openssl / curl / mbstring / gd 等 9 项关键扩展）、指定 ini 配置加载校验，结果分级展示（正常/异常）
 - **cmd php 版本切换**：顶部实时显示当前 `php` 命令行生效版本（如 `CMD php：php82 · PHP 8.2.4`），点击「切换」可选择任意版本置顶
-- 每 4 秒自动刷新运行状态与 cmd php 版本
+- 每 4 秒自动刷新运行状态（批量快照：一次系统调用完成全部版本状态判定）与 cmd php 版本（带缓存）
+
+### 站点映射页
+- **映射矩阵**：解析 `nginx.conf` 与 `vhost/*.conf` 的全部 server 块，展示「域名 / 配置文件 / fastcgi_pass 端口 / 对应 PHP 版本 / 项目 root」
+- **异常高亮**：端口未映射到任何已配置 PHP 版本的条目标红，一眼定位「端口改了但 vhost 没同步」等 502 根源
+- **一键同步 vhost**：修改端口保存后，自动扫描引用旧端口的配置文件 → 备份（`.bak`）→ 替换 `fastcgi_pass` → `nginx -t` 校验（失败自动还原全部备份）→ 一键平滑重载生效
+
+### 崩溃检测告警
+- 周期读取 Windows 事件日志（Application/1000），识别 `php-cgi.exe` 崩溃（如 JIT 导致的 0xc0000005）
+- 发现新崩溃：状态栏红色告警 + 托盘气泡 + 弹窗详情（崩溃时间、版本、故障模块、异常码、偏移、完整消息）
+- 启动时回溯最近 24h，仅状态栏/托盘提示，不打扰操作
 
 ### cmd php 版本切换（顶部栏）
 - 顶部右侧实时显示系统 `cmd` / 终端中 `php` 命令当前生效的版本目录与版本号
@@ -50,7 +61,8 @@ Windows 桌面 GUI 工具，用于统一管理 `C:\wnrp` 开发环境中的 **�
 | php85 | 9085 | 新增版本，ini 已含 redis 扩展 |
 
 > **端口与 vhost 的关系**：nginx vhost 中 `fastcgi_pass 127.0.0.1:9000;` 决定该站点由哪个 PHP 版本解析。
-> 在界面中修改端口后，**必须**同步修改对应 vhost 的 `fastcgi_pass` 才会生效（修改后弹窗会提示并可直接打开 vhost 目录 `C:\wnrp\nginx\conf\vhost`）。
+> 在界面中修改端口后，**必须**同步修改对应 vhost 的 `fastcgi_pass` 才会生效。phpvm 已内置「一键同步」：
+> 保存端口后自动列出引用旧端口的配置文件，一键替换 + `nginx -t` 校验（失败自动还原）+ 平滑重载，全程无需手动改文件。
 
 ## 目录结构
 
@@ -59,18 +71,24 @@ C:\wnrp\phpvm\
 ├── main.py                # 入口（单实例保护）
 ├── phpvm.bat              # 双击启动脚本
 ├── config.json            # 端口映射配置（首次运行自动生成）
+├── _bench.py              # 状态刷新性能基准（netstat / 单端口 / 批量快照对比）
 ├── README.md
 ├── core/                  # 服务层
 │   ├── config.py          # 配置加载/保存/端口校验
-│   ├── process_utils.py   # netstat/tasklist/taskkill/隐藏启动封装
-│   ├── php_manager.py     # 版本扫描/解析/启停/状态（三重校验）
-│   ├── path_manager.py    # cmd php 命令版本切换（用户 PATH 置顶）
-│   └── nginx_manager.py   # nginx 启停/重载/配置检查
+│   ├── process_utils.py   # 批量快照 API（GetExtendedTcpTable/EnumProcesses）+ 启停封装
+│   ├── php_manager.py     # 版本扫描/解析/启停/状态（三重校验）+ 批量状态刷新
+│   ├── path_manager.py    # cmd php 命令版本切换（用户 PATH 置顶）+ 版本缓存
+│   ├── nginx_manager.py   # nginx 启停/重载/配置检查
+│   ├── vhost_manager.py   # 站点映射解析 + 端口一键同步（备份/回滚/nginx -t 校验）
+│   ├── health_monitor.py  # php-cgi 崩溃检测（事件日志）+ 版本一键自检
+│   └── ini_editor.py      # ini 关键配置项表单编辑（校验/备份/精确行替换）
 └── ui/                    # 界面层
-    ├── main_window.py     # 主窗口（三页签 + 状态栏）
+    ├── main_window.py     # 主窗口（四页签 + 状态栏 + 崩溃告警）
     ├── php_panel.py       # PHP 版本管理页
     ├── nginx_panel.py     # Nginx 管理页
-    ├── dialogs.py         # 端口编辑/配置查看对话框
+    ├── vhost_panel.py     # 站点映射页
+    ├── dialogs.py         # 端口同步/配置查看编辑/自检/崩溃详情对话框
+    ├── tray.py            # 系统托盘（含气泡告警）
     └── theme.py           # 统一主题样式
 ```
 
@@ -85,6 +103,7 @@ C:\wnrp\phpvm\
 
 ## 常见问题
 
-- **端口被占用启动失败**：界面会提示占用进程（名称+PID）。请先停止占用进程，或在「编辑端口」中更换端口并同步 vhost。
-- **修改端口后站点 502/404**：检查对应 vhost 的 `fastcgi_pass` 是否已同步为新端口。
+- **端口被占用启动失败**：界面会提示占用进程（名称+PID）。请先停止占用进程，或在「编辑端口」中更换端口并用「一键同步」同步 vhost。
+- **修改端口后站点 502/404**：编辑端口保存后务必在弹出的一键同步对话框中执行替换并「重载 Nginx」；或在「站点映射」页检查异常高亮条目。
+- **php-cgi 反复崩溃（站点 502）**：状态栏会弹出崩溃告警，点击查看事件详情（故障模块/异常码/偏移）。异常码 0xc0000005 常见于 opcache JIT 或扩展冲突，可检查 `php-web.ini` 中 `opcache.jit` 设置。
 - **php82/php85 特殊**：FastCGI 使用 `php-web.ini`（与 CLI 的 `php.ini` 区分），工具已自动处理。

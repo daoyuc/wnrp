@@ -133,6 +133,28 @@ class PhpManager:
                 return True, pid
         return False, None
 
+    def refresh_all_status(self, versions: list[PhpVersion] | None = None, fast: bool = True) -> None:
+        """一次进程/端口快照内批量刷新全部版本状态。
+
+        相比逐版本调用 get_status（每版本一次 GetExtendedTcpTable 全表扫描），
+        这里只做 2 次系统调用：一次 TCP 全量快照 + 一次存活 PID 集合，
+        所有版本的「端口监听 + PID 存活」判定均在本地完成，耗时 O(版本数)。
+        仅当 ctypes 快照不可用（返回 None）时回退逐版本 get_status。
+        """
+        versions = versions if versions is not None else self.versions
+        if not versions:
+            return
+        snap = pu.get_tcp_snapshot()
+        if snap is None:
+            for v in versions:
+                v.running, v.pid = self.get_status(v, fast=fast)
+            return
+        alive = pu.get_process_snapshot()
+        for v in versions:
+            pids = snap.get(v.port) or []
+            pid = next((p for p in pids if p in alive), None)
+            v.running, v.pid = (True, pid) if pid else (False, None)
+
     # ------------------------------------------------------------------ #
     # 启停 / 重启
     # ------------------------------------------------------------------ #

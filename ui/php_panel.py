@@ -10,8 +10,9 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 from core.config import Config
+from core.health_monitor import HealthMonitor
 from core.php_manager import PhpManager, PhpVersion, PortConflictError
-from .dialogs import IniDialog, PortDialog
+from .dialogs import IniDialog, IniEditDialog, PortDialog, SelfCheckDialog
 from .theme import CARD_BG, ERR, FONT, GRAY, OK, PRIMARY, TEXT
 
 COLUMNS = [
@@ -51,8 +52,11 @@ class PhpPanel(ttk.Frame):
         self.btn_restart = ttk.Button(bar, text="重启", command=lambda: self._operate("restart"))
         self.btn_port = ttk.Button(bar, text="编辑端口", command=self._edit_port)
         self.btn_ini = ttk.Button(bar, text="查看配置", command=self._view_ini)
+        self.btn_edit = ttk.Button(bar, text="编辑配置", command=self._edit_ini)
+        self.btn_check = ttk.Button(bar, text="自检", command=self._self_check)
         self.btn_refresh = ttk.Button(bar, text="刷新", command=self.refresh_versions)
-        for b in (self.btn_start, self.btn_stop, self.btn_restart, self.btn_port, self.btn_ini, self.btn_refresh):
+        for b in (self.btn_start, self.btn_stop, self.btn_restart, self.btn_port,
+                  self.btn_ini, self.btn_edit, self.btn_check, self.btn_refresh):
             b.pack(side="left", padx=(0, 6))
         ttk.Label(bar, text="选中版本后操作 · 双击行查看配置", style="SubTitle.TLabel").pack(
             side="left", padx=(4, 0)
@@ -197,12 +201,12 @@ class PhpPanel(ttk.Frame):
         self._pending_row_refresh = True
 
         def worker():
-            results = {}
-            for v in self._versions:
-                try:
-                    results[v.name] = self.php_mgr.get_status(v, fast=True)
-                except Exception:  # noqa: BLE001
-                    results[v.name] = (False, None)
+            # 批量刷新：一次 TCP 快照 + 一次进程快照内完成全部版本状态判定
+            try:
+                self.php_mgr.refresh_all_status(self._versions, fast=True)
+                results = {v.name: (v.running, v.pid) for v in self._versions}
+            except Exception:  # noqa: BLE001
+                results = {}
             self._queue.put(("status", results))
 
         threading.Thread(target=worker, daemon=True).start()
@@ -279,7 +283,8 @@ class PhpPanel(ttk.Frame):
 
     def _update_buttons(self) -> None:
         has_sel = self._selected() is not None and not self._busy
-        for b in (self.btn_start, self.btn_stop, self.btn_restart, self.btn_port, self.btn_ini):
+        for b in (self.btn_start, self.btn_stop, self.btn_restart, self.btn_port,
+                  self.btn_ini, self.btn_edit, self.btn_check):
             b.configure(state="normal" if has_sel else "disabled")
 
     def _set_busy(self, busy: bool) -> None:
@@ -301,3 +306,15 @@ class PhpPanel(ttk.Frame):
         if v is None:
             return
         IniDialog(self, v, self.php_mgr)
+
+    def _edit_ini(self) -> None:
+        v = self._selected()
+        if v is None:
+            return
+        IniEditDialog(self, v, self.php_mgr)
+
+    def _self_check(self) -> None:
+        v = self._selected()
+        if v is None:
+            return
+        SelfCheckDialog(self, v, HealthMonitor())

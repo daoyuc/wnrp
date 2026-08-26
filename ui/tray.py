@@ -15,10 +15,13 @@ shell32 = ctypes.windll.shell32
 WM_USER = 0x0400
 WM_TRAYICON = WM_USER + 20
 NIM_ADD = 0x00000000
+NIM_MODIFY = 0x00000001
 NIM_DELETE = 0x00000002
 NIF_MESSAGE = 0x00000001
 NIF_ICON = 0x00000002
 NIF_TIP = 0x00000004
+NIF_INFO = 0x00000010
+NIIF_WARNING = 0x00000002
 WM_RBUTTONUP = 0x0205
 WM_LBUTTONDBLCLK = 0x0203
 WM_COMMAND = 0x0111
@@ -155,6 +158,23 @@ class TrayIcon:
                 self.on_exit()
             return 0
         return user32.CallWindowProcW(self._old_wndproc, hwnd, msg, wparam, lparam)
+
+    def show_balloon(self, title: str, message: str) -> None:
+        """在托盘图标上弹出气泡通知（NIF_INFO）。
+
+        仅修改 uFlags 增加 NIF_INFO 后 NIM_MODIFY，之后恢复原 flags。
+        """
+        nid = self._nid
+        nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP | NIF_INFO
+        nid.szInfoTitle = title[:63]
+        nid.szInfo = message[:255]
+        nid.dwInfoFlags = NIIF_WARNING
+        shell32.Shell_NotifyIconW(NIM_MODIFY, ctypes.byref(nid))
+        # 恢复常规 flags，避免后续重复展示旧气泡内容
+        nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP
+        nid.szInfo = ""
+        nid.szInfoTitle = ""
+        shell32.Shell_NotifyIconW(NIM_MODIFY, ctypes.byref(nid))
 
     def _popup_menu(self):
         if self._menu is None:

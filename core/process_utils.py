@@ -26,20 +26,21 @@ _MIB_TCP_STATE_LISTEN = 2
 
 _TCP_TABLE_OWNER_PID_ALL = 5
 
-# 端口 -> PID 映射的短时缓存，避免每轮轮询重复查全系统端口表
-_port_cache: dict[int, tuple[float, list[int]]] = {}
-_port_cache_lock = threading.Lock()
-_PORT_CACHE_TTL = 2.0  # 秒
+# TCP 端口 -> PID 全量快照缓存（一次 GetExtendedTcpTable 查询，本地匹配所有端口）
+_tcp_snapshot: tuple[float, dict[int, list[int]]] | None = None
+_tcp_snapshot_lock = threading.Lock()
+_TCP_SNAPSHOT_TTL = 2.0  # 秒
 
 
-def _get_tcp_table() -> list[tuple[int, int, int]]:
+def _get_tcp_table() -> list[tuple[int, int, int]] | None:
     """返回 [(local_addr, local_port, pid), ...]，仅 TCP 监听/已建立连接。
 
     使用 GetExtendedTcpTable（IP Helper API），比 netstat 快几个数量级，
-    且不创建任何外部进程。
+    且不创建任何外部进程。查询失败（API 不可用/调用出错）返回 None，
+    空列表表示查询成功但当前无任何监听端口。
     """
     if _iphlpapi is None:
-        return []
+        return None
     buf_size = ctypes.c_ulong(0)
     # 第一次调用拿所需缓冲区大小
     _iphlpapi.GetExtendedTcpTable(
@@ -50,7 +51,7 @@ def _get_tcp_table() -> list[tuple[int, int, int]]:
         buf, ctypes.byref(buf_size), False, 2, _TCP_TABLE_OWNER_PID_ALL, 0
     )
     if ret != 0:
-        return []
+        return None
 
     # MIB_TCPTABLE_OWNER_PID 布局：
     #   DWORD dwNumEntries;
@@ -75,30 +76,42 @@ def _get_tcp_table() -> list[tuple[int, int, int]]:
     return rows
 
 
-def port_to_pid_fast(port: int) -> list[int]:
-    """端口 -> PID 列表（带 2s TTL 缓存）。优先用 ctypes，失败时回退 netstat。"""
+def get_tcp_snapshot() -> dict[int, list[int]] | None:
+    """一次 GetExtendedTcpTable 返回全量 {port: [pid, ...]}（仅 TCP 监听）。
+
+    带 TTL 缓存：2s 内的重复调用直接命中缓存，避免反复查询全系统端口表。
+    返回 None 表示底层 API 不可用/查询失败（调用方应回退 netstat 等慢速路径）；
+    返回空 dict 表示查询成功但当前无任何监听端口。
+    """
+    global _tcp_snapshot
     now = time.monotonic()
-    with _port_cache_lock:
-        cached = _port_cache.get(port)
-        if cached and now - cached[0] < _PORT_CACHE_TTL:
-            return list(cached[1])
+    with _tcp_snapshot_lock:
+        cached = _tcp_snapshot
+        if cached and now - cached[0] < _TCP_SNAPSHOT_TTL:
+            return cached[1]
 
     rows = _get_tcp_table()
-    if rows:
-        # 收集所有监听该端口的 PID（仅 LISTENING 状态，state==2）
-        pids = []
-        for addr, p, pid in rows:
-            if p == port and pid > 0 and pid not in pids:
-                pids.append(pid)
-        with _port_cache_lock:
-            _port_cache[port] = (now, pids)
-        return list(pids)
+    if rows is None:
+        return None
 
-    # 回退：旧 netstat 实现
-    pids = port_to_pid(port)
-    with _port_cache_lock:
-        _port_cache[port] = (now, pids)
-    return list(pids)
+    snapshot: dict[int, list[int]] = {}
+    for addr, port, pid in rows:
+        if port > 0 and pid > 0:
+            lst = snapshot.setdefault(port, [])
+            if pid not in lst:
+                lst.append(pid)
+    with _tcp_snapshot_lock:
+        _tcp_snapshot = (now, snapshot)
+    return snapshot
+
+
+def port_to_pid_fast(port: int) -> list[int]:
+    """端口 -> PID 列表（带 TTL 缓存）。优先用 ctypes 全量快照，失败时回退 netstat。"""
+    snap = get_tcp_snapshot()
+    if snap is not None:
+        return list(snap.get(port, []))
+    # 回退：旧 netstat 实现（查询失败时按逐端口回退，不污染全量快照）
+    return port_to_pid(port)
 
 
 # 全局存活 PID 集合缓存（一次全量查询，本地匹配）
@@ -144,6 +157,15 @@ def alive_pids() -> set[int]:
     with _alive_cache_lock:
         _alive_cache = (now, pids)
     return pids
+
+
+def get_process_snapshot() -> set[int]:
+    """一次 EnumProcesses 返回当前全部存活 PID 集合（带 TTL 缓存）。
+
+    与 alive_pids() 等价，语义上强调「批量快照」用途：
+    一轮刷新中所有版本/服务的进程存活判断只需一次全量查询，本地匹配即可。
+    """
+    return alive_pids()
 
 
 def is_pid_alive_fast(pid: int) -> bool:

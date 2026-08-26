@@ -7,16 +7,20 @@ from tkinter import ttk
 
 from core import path_manager
 from core.config import Config
+from core.health_monitor import HealthMonitor
 from core.nginx_manager import NginxManager
 from core.php_manager import PhpManager
-from .dialogs import CliSwitchDialog
+from core.vhost_manager import VhostManager
+from .dialogs import CliSwitchDialog, CrashDialog
 from .nginx_panel import NginxPanel
 from .php_panel import PhpPanel
-from .theme import BG, CARD_BG, ERR, FONT, GRAY, OK, PRIMARY, TEXT, setup_style
+from .theme import BG, CARD_BG, ERR, FONT, GRAY, OK, PRIMARY, PRIMARY_LIGHT, TEXT, setup_style
 from .tray import TrayIcon
+from .vhost_panel import VhostPanel
 
 APP_TITLE = "phpvm · PHP 版本管理器"
 WNRP_ROOT_SHOW = r"C:\wnrp"
+CRASH_POLL_TICKS = 8  # 崩溃检测频率 ≈ 8 × 8s = 64s 一次
 
 
 class MainWindow(tk.Tk):
@@ -34,9 +38,15 @@ class MainWindow(tk.Tk):
 
         self._log_var = tk.StringVar(value="就绪")
         self._cli_queue: queue.Queue = queue.Queue()
+        self._crash_queue: queue.Queue = queue.Queue()
+        self.health = HealthMonitor()
+        self._crash_alert_active = False
+        self._crash_tick = 0
         self._build()
         self._refresh_cli()
         self.after(8000, self._tick)
+        # 启动后稍作延迟，回溯最近 24h 的 php-cgi 崩溃（不弹窗，仅状态栏/托盘提示）
+        self.after(1500, self._check_crash_startup)
 
         self._tray = None
         self._init_tray()
@@ -74,9 +84,11 @@ class MainWindow(tk.Tk):
         nb.pack(fill="both", expand=True, padx=12, pady=(0, 6))
         self.php_panel = PhpPanel(nb, self.php_mgr, self.config, self.set_log)
         self.nginx_panel = NginxPanel(nb, self.nginx_mgr, self.set_log)
+        self.vhost_panel = VhostPanel(nb, VhostManager(self.config), self.set_log)
         about = self._build_about(nb)
         nb.add(self.php_panel, text="  PHP 版本管理  ")
         nb.add(self.nginx_panel, text="  Nginx 管理  ")
+        nb.add(self.vhost_panel, text="  站点映射  ")
         nb.add(about, text="  关于  ")
 
         # 状态栏
@@ -85,6 +97,12 @@ class MainWindow(tk.Tk):
         ttk.Label(bar, textvariable=self._log_var, style="Status.TLabel").pack(
             side="left", fill="x", expand=True, padx=10, pady=4
         )
+        self._alert_label = tk.Label(
+            bar, text="", font=(FONT, 9, "bold"), foreground=ERR,
+            background=PRIMARY_LIGHT, cursor="hand2",
+        )
+        self._alert_label.pack(side="right", padx=10, pady=4)
+        self._alert_label.bind("<Button-1>", lambda e: self._show_crash_detail())
 
     def _build_about(self, master) -> ttk.Frame:
         frame = ttk.Frame(master, padding=18)
@@ -168,7 +186,76 @@ class MainWindow(tk.Tk):
         self._tick_count = getattr(self, "_tick_count", 0) + 1
         if self._tick_count % 4 == 0:
             self._refresh_cli()
+        # 崩溃检测（低频轮询事件日志）
+        self._crash_tick += 1
+        if self._crash_tick >= CRASH_POLL_TICKS:
+            self._crash_tick = 0
+            self._poll_crash()
         self.after(8000, self._tick)
+
+    # ------------------------------------------------------------------ #
+    # 崩溃告警
+    def _check_crash_startup(self) -> None:
+        """启动回溯：查询最近 24h 崩溃，仅状态栏 + 托盘气泡提示。"""
+
+        def worker():
+            try:
+                events = self.health.poll_new_crashes(24)
+            except Exception:  # noqa: BLE001
+                events = []
+            self._crash_queue.put(("startup", events))
+
+        threading.Thread(target=worker, daemon=True).start()
+        self._poll_crash_queue()
+
+    def _poll_crash(self) -> None:
+        """定时轮询新增崩溃事件。"""
+
+        def worker():
+            try:
+                events = self.health.poll_new_crashes(24)
+            except Exception:  # noqa: BLE001
+                events = []
+            self._crash_queue.put(("tick", events))
+
+        threading.Thread(target=worker, daemon=True).start()
+        self._poll_crash_queue()
+
+    def _poll_crash_queue(self) -> None:
+        try:
+            kind, events = self._crash_queue.get_nowait()
+        except queue.Empty:
+            self.after(120, self._poll_crash_queue)
+            return
+        if events:
+            self._on_crash(events, startup=(kind == "startup"))
+
+    def _on_crash(self, events: list[dict], startup: bool) -> None:
+        """收到崩溃事件：状态栏告警 + 托盘气泡；运行中新崩溃额外弹详情。"""
+        self._crash_alert_active = True
+        n = len(events)
+        summary = self._crash_summary(events)
+        self._alert_label.configure(text=f"⚠ php-cgi 崩溃 {n} 次，点击查看")
+        self.set_log(f"检测到 php-cgi 崩溃（{n} 次），详见状态栏告警")
+        if self._tray is not None:
+            try:
+                self._tray.show_balloon("php-cgi 崩溃告警", summary)
+            except Exception:  # noqa: BLE001
+                pass
+        if not startup:
+            self._show_crash_detail(events)
+
+    def _crash_summary(self, events: list[dict]) -> str:
+        lines = []
+        for e in events[:3]:
+            ver = f"[{e['version']}] " if e.get("version") else ""
+            lines.append(f"{e['time']} {ver}{e['app']} 异常码 {e['exception']}")
+        if len(events) > 3:
+            lines.append(f"…共 {len(events)} 次")
+        return "\n".join(lines) or "未知"
+
+    def _show_crash_detail(self, events: list[dict] | None = None) -> None:
+        CrashDialog(self, events or self.health.recent_crashes)
 
     # ------------------------------------------------------------------ #
     # 系统托盘 / 关闭行为

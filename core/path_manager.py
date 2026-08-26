@@ -12,6 +12,7 @@ import ctypes
 import os
 import re
 import sys
+import threading
 import winreg
 
 from .config import WNRP_ROOT
@@ -123,11 +124,20 @@ def set_cli_php(version_dir: str) -> str:
     return new_path
 
 
-def get_cli_version() -> str:
-    """执行当前生效 php -v 解析版本号；无生效版本时返回 '未知'。"""
-    d = get_effective_php_dir()
-    if not d:
-        return "未知"
+# cmd php 版本缓存：{版本目录: (版本号, php.exe mtime)}。
+# 版本号只依赖目录与 php.exe 本体，目录不变且 php.exe 未被替换（升级）时无需重跑子进程。
+_cli_version_cache: dict[str, tuple[str, float]] = {}
+_cli_version_lock = threading.Lock()
+
+
+def _php_exe_mtime(d: str) -> float:
+    try:
+        return os.path.getmtime(os.path.join(d, "php.exe"))
+    except OSError:
+        return -1.0
+
+
+def _run_php_v(d: str) -> str:
     try:
         import subprocess
         proc = subprocess.run(
@@ -140,6 +150,32 @@ def get_cli_version() -> str:
         return m.group(1) if m else "未知"
     except Exception:  # noqa: BLE001
         return "未知"
+
+
+def get_cli_version() -> str:
+    """解析当前生效 php 版本号；无生效版本时返回 '未知'。
+
+    带缓存：以「版本目录 + php.exe 文件 mtime」为键，两者均未变化时
+    直接返回上次结果，避免每轮轮询都拉起 php -v 子进程。
+    """
+    d = get_effective_php_dir()
+    if not d:
+        return "未知"
+    mtime = _php_exe_mtime(d)
+    with _cli_version_lock:
+        cached = _cli_version_cache.get(d)
+        if cached and cached[1] == mtime:
+            return cached[0]
+    version = _run_php_v(d)
+    with _cli_version_lock:
+        _cli_version_cache[d] = (version, mtime)
+    return version
+
+
+def clear_cli_version_cache() -> None:
+    """清空 cmd php 版本缓存（切换版本后调用，确保下次探测实时）。"""
+    with _cli_version_lock:
+        _cli_version_cache.clear()
 
 
 def get_cli_info() -> dict:

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""对话框：端口编辑（校验 + 保存 + 提示同步 vhost）、php.ini 配置查看、cmd php 版本切换。"""
+"""对话框：端口编辑（校验 + 保存 + 一键同步 vhost）、配置查看/编辑、自检、cmd php 切换。"""
 import os
 import queue
 import subprocess
@@ -10,6 +10,7 @@ from tkinter import messagebox, ttk
 from core import path_manager
 from core.config import Config
 from core.php_manager import PhpManager, PhpVersion
+from core.vhost_manager import VhostManager
 from .theme import CARD_BG, ERR, FONT, GRAY, OK, PRIMARY, PRIMARY_DARK, TEXT
 
 VHOST_DIR = r"C:\wnrp\nginx\conf\vhost"
@@ -84,23 +85,243 @@ class PortDialog(tk.Toplevel):
             messagebox.showerror("端口冲突", err, parent=self)
             return
 
+        old_port = self.version.port
         self.config.set_port(self.version.name, port)
         self.version.port = port
         self.destroy()
 
-        answer = messagebox.askyesno(
-            "端口已修改",
-            f"[{self.version.name}] 端口已改为 {port} 并保存。\n\n"
-            f"是否打开 nginx vhost 目录，同步修改对应配置文件的 fastcgi_pass ？",
-            parent=self.master,
-        )
-        if answer:
-            try:
-                os.startfile(VHOST_DIR)
-            except OSError as e:
-                messagebox.showerror("无法打开目录", str(e), parent=self.master)
+        # 保存后检查引用旧端口的 vhost，弹出一键同步对话框
+        try:
+            vm = VhostManager(self.config)
+        except Exception:  # noqa: BLE001
+            vm = None
+        if vm is not None:
+            VhostSyncDialog(self.master, vm, old_port, port)
+        else:
+            messagebox.showinfo(
+                "端口已修改",
+                f"[{self.version.name}] 端口已改为 {port} 并保存。\n\n"
+                f"若 nginx 配置引用了旧端口 {old_port}，请手动同步 fastcgi_pass。",
+                parent=self.master,
+            )
         if self.on_saved:
             self.on_saved()
+
+
+class VhostSyncDialog(tk.Toplevel):
+    """改端口后的一键同步：列出受影响配置文件 → 备份替换 → nginx -t 校验 → 可重载。
+
+    所有耗时操作（扫描、同步、校验、重载）均后台执行，结果经 queue 回传。
+    """
+
+    def __init__(self, master, vhost_mgr: VhostManager, old_port: int, new_port: int):
+        super().__init__(master)
+        self.vhost_mgr = vhost_mgr
+        self.old_port = old_port
+        self.new_port = new_port
+        self._queue: queue.Queue = queue.Queue()
+        self._busy = False
+        self._synced_ok = False
+        self._file_domains: dict[str, str] = {}
+
+        self.title(f"同步 vhost 端口 · {old_port} → {new_port}")
+        self.geometry("780x540")
+        self.minsize(660, 440)
+        self.configure(bg=CARD_BG)
+        self.transient(master)
+        self.grab_set()
+
+        header = ttk.Frame(self, padding=(16, 14, 16, 4))
+        header.pack(fill="x")
+        ttk.Label(header, text=f"一键同步 FastCGI 端口 {old_port} → {new_port}",
+                  style="Title.TLabel").pack(anchor="w")
+        ttk.Label(
+            header,
+            text="以下配置文件中的 fastcgi_pass 仍指向旧端口。一键同步会备份原文件（.bak）、"
+                 "替换端口并执行 nginx -t 校验，校验失败自动还原所有备份。",
+            style="SubTitle.TLabel", wraplength=720,
+        ).pack(anchor="w", pady=(4, 0))
+
+        wrap = ttk.Frame(self)
+        wrap.pack(fill="both", expand=True, padx=16, pady=10)
+        self.tree = ttk.Treeview(
+            wrap, columns=("file", "domains", "status", "detail"),
+            show="headings", selectmode="browse",
+        )
+        for col, text, w in (("file", "配置文件", 280), ("domains", "域名", 160),
+                             ("status", "状态", 70), ("detail", "详情", 260)):
+            self.tree.heading(col, text=text)
+            self.tree.column(col, width=w, anchor="w", stretch=(col == "file"))
+        vsb = ttk.Scrollbar(wrap, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=vsb.set)
+        self.tree.pack(side="left", fill="both", expand=True)
+        vsb.pack(side="right", fill="y")
+        self.tree.tag_configure("ok", foreground=OK)
+        self.tree.tag_configure("err", foreground=ERR)
+        self.tree.tag_configure("wait", foreground=GRAY)
+
+        ttk.Label(self, text="nginx -t 校验输出：", style="SubTitle.TLabel").pack(anchor="w", padx=16)
+        self.result_text = tk.Text(
+            self, height=7, wrap="char", font=("Consolas", 9),
+            background="#FFFFFF", foreground=TEXT, relief="flat", padx=8, pady=6, state="disabled",
+        )
+        self.result_text.pack(fill="x", padx=16, pady=(2, 8))
+
+        btns = ttk.Frame(self, padding=(16, 0, 16, 14))
+        btns.pack(fill="x")
+        ttk.Button(btns, text="打开 vhost 目录", command=self._open_dir).pack(side="left")
+        self.btn_reload = ttk.Button(btns, text="重载 Nginx", state="disabled", command=self._reload)
+        self.btn_reload.pack(side="left", padx=(0, 6))
+        ttk.Button(btns, text="关闭", command=self.destroy).pack(side="right")
+        self.btn_sync = ttk.Button(btns, text="一键同步", style="Accent.TButton", command=self._sync)
+        self.btn_sync.pack(side="right", padx=(0, 8))
+
+        self._center(master)
+        self._load()
+
+    # ------------------------------------------------------------------ #
+    def _load(self) -> None:
+        """后台扫描引用旧端口的配置文件。"""
+        self._set_busy(True)
+        self._append_result("正在扫描引用旧端口 {} 的配置文件…".format(self.old_port))
+
+        def worker():
+            try:
+                files = self.vhost_mgr._find_files_with_port(self.old_port)
+                domains = {}
+                for e in self.vhost_mgr.entries_with_port(self.old_port):
+                    domains.setdefault(e.file, []).append(e.server_name)
+                self._queue.put(("files", (files, domains)))
+            except Exception as e:  # noqa: BLE001
+                self._queue.put(("error", str(e)))
+
+        threading.Thread(target=worker, daemon=True).start()
+        self._poll()
+
+    def _poll(self) -> None:
+        try:
+            kind, payload = self._queue.get_nowait()
+        except queue.Empty:
+            self.after(80, self._poll)
+            return
+        self._set_busy(False)
+        if kind == "files":
+            files, domains = payload
+            self._file_domains = domains
+            if not files:
+                self._append_result("没有配置文件引用旧端口，无需同步。")
+                self.btn_sync.configure(state="disabled")
+                return
+            for path in files:
+                rel = os.path.relpath(path, VHOST_DIR)
+                if rel.startswith(".."):
+                    rel = path
+                dm = ", ".join(domains.get(path, [])) or "—"
+                self.tree.insert("", "end", values=(rel, dm, "待同步", ""),
+                                 tags=("wait",))
+            self._append_result("共 {} 个文件引用旧端口 {}{}。".format(
+                len(files), self.old_port,
+                "，点击「一键同步」执行" if not self._synced_ok else ""))
+        elif kind == "done":
+            self._on_done(payload)
+        elif kind == "reloaded":
+            ok, msg = payload
+            self._set_busy(False)
+            if ok:
+                self._append_result("[重载] " + msg)
+            else:
+                self._append_result("[重载失败] " + msg)
+            messagebox.showinfo("重载 Nginx", msg, parent=self)
+        else:
+            self._set_busy(False)
+            self._append_result("错误：" + str(payload))
+            messagebox.showerror("同步失败", str(payload), parent=self)
+
+    def _sync(self) -> None:
+        if self._busy:
+            return
+        self._set_busy(True)
+        self._append_result("正在替换端口并校验 nginx 配置…")
+        self.btn_sync.configure(state="disabled")
+
+        def worker():
+            try:
+                results = self.vhost_mgr.sync_port(self.old_port, self.new_port)
+                output = self.vhost_mgr.nginx.test_config()
+                self._queue.put(("done", (results, output)))
+            except Exception as e:  # noqa: BLE001
+                self._queue.put(("error", str(e)))
+
+        threading.Thread(target=worker, daemon=True).start()
+        self._poll()
+
+    def _on_done(self, payload) -> None:
+        results, output = payload
+        self._set_busy(False)
+        self.btn_sync.configure(state="normal")
+        self._append_result("nginx -t 输出：\n" + (output or "(无输出)"))
+        all_ok = True
+        for r in results:
+            path = r["file"]
+            rel = os.path.relpath(path, VHOST_DIR)
+            if rel.startswith(".."):
+                rel = path
+            if r["ok"]:
+                status, tag, detail = f"已替换 {r['replaced']} 处", "ok", r["message"]
+            else:
+                status, tag, detail = "失败", "err", r["message"]
+                all_ok = False
+            self.tree.insert("", "end", values=(rel, self._file_domains.get(path, "—"),
+                                                status, detail), tags=(tag,))
+        self._synced_ok = all_ok
+        if all_ok:
+            self.btn_reload.configure(state="normal")
+            self._append_result("全部同步完成：备份保留于各文件 .bak，可点击「重载 Nginx」生效。")
+            messagebox.showinfo(
+                "同步完成",
+                "vhost 配置已全部同步到新端口，并已通过 nginx -t 校验。\n\n"
+                "请点击「重载 Nginx」使新配置立即生效。",
+                parent=self,
+            )
+        else:
+            self._append_result("存在失败的同步（已自动还原备份），请检查上方详情。")
+
+    def _reload(self) -> None:
+        if self._busy:
+            return
+        self._set_busy(True)
+        self.btn_reload.configure(state="disabled")
+
+        def worker():
+            try:
+                msg = self.vhost_mgr.nginx.reload()
+                self._queue.put(("reloaded", (True, msg)))
+            except Exception as e:  # noqa: BLE001
+                self._queue.put(("reloaded", (False, str(e))))
+
+        threading.Thread(target=worker, daemon=True).start()
+        self._poll()
+
+    def _open_dir(self) -> None:
+        try:
+            os.startfile(VHOST_DIR)
+        except OSError as e:
+            messagebox.showerror("无法打开目录", str(e), parent=self)
+
+    def _append_result(self, text: str) -> None:
+        self.result_text.configure(state="normal")
+        self.result_text.insert("end", text + "\n")
+        self.result_text.configure(state="disabled")
+        self.result_text.see("end")
+
+    def _set_busy(self, busy: bool) -> None:
+        self._busy = busy
+
+    def _center(self, master) -> None:
+        self.update_idletasks()
+        x = master.winfo_rootx() + (master.winfo_width() - self.winfo_width()) // 2
+        y = master.winfo_rooty() + (master.winfo_height() - self.winfo_height()) // 3
+        self.geometry(f"+{max(x, 0)}+{max(y, 0)}")
 
 
 class IniDialog(tk.Toplevel):
@@ -356,6 +577,285 @@ class CliSwitchDialog(tk.Toplevel):
             )
         except OSError as e:
             messagebox.showerror("无法打开 cmd", str(e), parent=self)
+
+    def _center(self, master) -> None:
+        self.update_idletasks()
+        x = master.winfo_rootx() + (master.winfo_width() - self.winfo_width()) // 2
+        y = master.winfo_rooty() + (master.winfo_height() - self.winfo_height()) // 3
+        self.geometry(f"+{max(x, 0)}+{max(y, 0)}")
+
+
+class CrashDialog(tk.Toplevel):
+    """php-cgi 崩溃事件详情（Windows 事件日志 Application/1000）。"""
+
+    def __init__(self, master, events: list[dict]):
+        super().__init__(master)
+        self.events = events
+        self.title("php-cgi 崩溃事件")
+        self.geometry("760x460")
+        self.minsize(620, 380)
+        self.configure(bg=CARD_BG)
+        self.transient(master)
+
+        header = ttk.Frame(self, padding=(16, 14, 16, 4))
+        header.pack(fill="x")
+        ttk.Label(header, text="php-cgi 崩溃事件（事件日志 Application/1000）",
+                  style="Title.TLabel").pack(anchor="w")
+        ttk.Label(
+            header,
+            text="以下记录来自 Windows 事件日志。异常码 0xc0000005（访问冲突）通常是扩展/JIT/"
+                 "代码段错误导致，崩溃后站点会 502。",
+            style="SubTitle.TLabel", wraplength=700,
+        ).pack(anchor="w", pady=(4, 0))
+
+        wrap = ttk.Frame(self)
+        wrap.pack(fill="both", expand=True, padx=16, pady=10)
+        cols = [("time", "崩溃时间", 140), ("version", "版本", 60), ("app", "进程", 100),
+                ("module", "故障模块", 130), ("exception", "异常码", 90), ("offset", "偏移", 150)]
+        self.tree = ttk.Treeview(wrap, columns=[c[0] for c in cols], show="headings")
+        for cid, text, w in cols:
+            self.tree.heading(cid, text=text)
+            self.tree.column(cid, width=w, anchor="w", stretch=(cid == "module"))
+        vsb = ttk.Scrollbar(wrap, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=vsb.set)
+        self.tree.pack(side="left", fill="both", expand=True)
+        vsb.pack(side="right", fill="y")
+
+        detail = tk.Text(self, height=7, wrap="char", font=("Consolas", 9),
+                         background="#FFFFFF", foreground=TEXT, relief="flat",
+                         padx=8, pady=6, state="disabled")
+        detail.pack(fill="x", padx=16, pady=(0, 12))
+
+        if not events:
+            self.tree.insert("", "end", values=("—", "—", "—", "—", "—", "—"))
+            self._set_detail(detail, "（没有崩溃记录）")
+        else:
+            for e in events:
+                self.tree.insert("", "end", values=(
+                    e.get("time", "—"), e.get("version") or "—", e.get("app", "—"),
+                    e.get("module", "—"), e.get("exception", "—"), e.get("offset", "—"),
+                ))
+            self._set_detail(detail, events[0].get("message", ""))
+        self.tree.bind("<<TreeviewSelect>>", lambda ev: self._on_select(detail))
+
+        btns = ttk.Frame(self, padding=(16, 0, 16, 14))
+        btns.pack(fill="x")
+        ttk.Button(btns, text="关闭", command=self.destroy).pack(side="right")
+        self._center(master)
+
+    def _on_select(self, detail: tk.Text) -> None:
+        sel = self.tree.selection()
+        if not sel:
+            return
+        idx = self.tree.index(sel[0])
+        if idx < len(self.events):
+            self._set_detail(detail, self.events[idx].get("message", ""))
+
+    def _set_detail(self, detail: tk.Text, text: str) -> None:
+        detail.configure(state="normal")
+        detail.delete("1.0", "end")
+        detail.insert("1.0", text)
+        detail.configure(state="disabled")
+
+    def _center(self, master) -> None:
+        self.update_idletasks()
+        x = master.winfo_rootx() + (master.winfo_width() - self.winfo_width()) // 2
+        y = master.winfo_rooty() + (master.winfo_height() - self.winfo_height()) // 3
+        self.geometry(f"+{max(x, 0)}+{max(y, 0)}")
+
+
+class SelfCheckDialog(tk.Toplevel):
+    """版本一键自检：php -v / 关键扩展 / 配置加载，结果分级展示。"""
+
+    def __init__(self, master, version: PhpVersion, health):
+        super().__init__(master)
+        self.version = version
+        self.health = health
+        self._queue: queue.Queue = queue.Queue()
+
+        self.title(f"版本自检 · {version.name} (PHP {version.display})")
+        self.geometry("680x420")
+        self.minsize(560, 360)
+        self.configure(bg=CARD_BG)
+        self.transient(master)
+
+        header = ttk.Frame(self, padding=(16, 14, 16, 4))
+        header.pack(fill="x")
+        ttk.Label(header, text=f"自检 [{version.name}] · PHP {version.display}",
+                  style="Title.TLabel").pack(anchor="w")
+        self.state_label = ttk.Label(header, text="正在检测…", style="SubTitle.TLabel")
+        self.state_label.pack(anchor="w", pady=(4, 0))
+
+        wrap = ttk.Frame(self)
+        wrap.pack(fill="both", expand=True, padx=16, pady=10)
+        self.tree = ttk.Treeview(wrap, columns=("name", "status", "detail"),
+                                 show="headings", selectmode="browse")
+        for cid, text, w in (("name", "检查项", 200), ("status", "结果", 70), ("detail", "详情", 340)):
+            self.tree.heading(cid, text=text)
+            self.tree.column(cid, width=w, anchor="w", stretch=(cid == "detail"))
+        vsb = ttk.Scrollbar(wrap, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=vsb.set)
+        self.tree.pack(side="left", fill="both", expand=True)
+        vsb.pack(side="right", fill="y")
+        self.tree.tag_configure("ok", foreground=OK)
+        self.tree.tag_configure("err", foreground=ERR)
+
+        btns = ttk.Frame(self, padding=(16, 0, 16, 14))
+        btns.pack(fill="x")
+        ttk.Button(btns, text="关闭", command=self.destroy).pack(side="right")
+        ttk.Button(btns, text="重新检测", command=self._run).pack(side="right", padx=(0, 8))
+        self._center(master)
+        self._run()
+
+    def _run(self) -> None:
+        self.tree.delete(*self.tree.get_children())
+        self.state_label.configure(text="正在检测…")
+
+        def worker():
+            try:
+                result = self.health.self_check(self.version)
+                self._queue.put(("result", result))
+            except Exception as e:  # noqa: BLE001
+                self._queue.put(("error", str(e)))
+
+        threading.Thread(target=worker, daemon=True).start()
+        self._poll()
+
+    def _poll(self) -> None:
+        try:
+            kind, payload = self._queue.get_nowait()
+        except queue.Empty:
+            self.after(80, self._poll)
+            return
+        if kind == "error":
+            self.state_label.configure(text=f"自检失败：{payload}")
+            return
+        result = payload
+        for c in result["checks"]:
+            status = "正常" if c["ok"] else "异常"
+            tag = "ok" if c["ok"] else "err"
+            self.tree.insert("", "end", values=(c["name"], status, c["detail"]), tags=(tag,))
+        total = "全部通过" if result["ok"] else "存在异常"
+        self.state_label.configure(
+            text=f"{total} · 关键扩展核对 {len(result['checks'])} 项"
+        )
+        if not result["ok"]:
+            self.state_label.configure(foreground=ERR)
+
+    def _center(self, master) -> None:
+        self.update_idletasks()
+        x = master.winfo_rootx() + (master.winfo_width() - self.winfo_width()) // 2
+        y = master.winfo_rooty() + (master.winfo_height() - self.winfo_height()) // 3
+        self.geometry(f"+{max(x, 0)}+{max(y, 0)}")
+
+
+class IniEditDialog(tk.Toplevel):
+    """ini 关键配置项表单编辑：读写安全（备份 + 精确行替换），改后提示重启生效。"""
+
+    def __init__(self, master, version: PhpVersion, php_mgr: PhpManager):
+        super().__init__(master)
+        self.version = version
+        self.php_mgr = php_mgr
+        self._queue: queue.Queue = queue.Queue()
+        self._vars: dict[str, tk.Variable] = {}
+
+        self.title(f"编辑配置 · {version.name}")
+        self.geometry("680x520")
+        self.minsize(560, 420)
+        self.configure(bg=CARD_BG)
+        self.transient(master)
+
+        header = ttk.Frame(self, padding=(16, 14, 16, 4))
+        header.pack(fill="x")
+        ttk.Label(header, text=f"编辑常用配置项 · {os.path.basename(version.ini)}",
+                  style="Title.TLabel").pack(anchor="w")
+        ttk.Label(
+            header,
+            text="保存前自动备份原文件（.bak）；修改后需重启对应版本（FastCGI）才生效。",
+            style="SubTitle.TLabel",
+        ).pack(anchor="w", pady=(4, 0))
+
+        wrap = ttk.Frame(self)
+        wrap.pack(fill="both", expand=True, padx=16, pady=10)
+        canvas = tk.Canvas(wrap, background=CARD_BG, highlightthickness=0)
+        vsb = ttk.Scrollbar(wrap, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=vsb.set)
+        inner = ttk.Frame(canvas)
+        inner_id = canvas.create_window((0, 0), window=inner, anchor="nw")
+        inner.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>", lambda e: canvas.itemconfigure(inner_id, width=e.width))
+        canvas.pack(side="left", fill="both", expand=True)
+        vsb.pack(side="right", fill="y")
+        self._form = inner
+
+        btns = ttk.Frame(self, padding=(16, 0, 16, 14))
+        btns.pack(fill="x")
+        ttk.Button(btns, text="取消", command=self.destroy).pack(side="right")
+        ttk.Button(btns, text="保存", style="Accent.TButton", command=self._save).pack(
+            side="right", padx=(0, 8))
+        self._build_form()
+        self._center(master)
+
+    def _build_form(self) -> None:
+        from core import ini_editor
+        current = ini_editor.load_values(self.version.ini)
+        for i, meta in enumerate(ini_editor.INI_ITEMS_META):
+            row = ttk.Frame(self._form)
+            row.pack(fill="x", pady=4, padx=8)
+            ttk.Label(row, text=meta["key"], font=(FONT, 9, "bold"),
+                      background=CARD_BG, width=24, anchor="w").grid(
+                row=0, column=0, sticky="w")
+            var = tk.StringVar(value=current.get(meta["key"], ""))
+            self._vars[meta["key"]] = var
+            if meta.get("type") in ("onoff", "enum"):
+                options = meta.get("options") or ["On", "Off"]
+                cb = ttk.Combobox(row, textvariable=var, values=options,
+                                  state="readonly", width=30)
+                cb.grid(row=0, column=1, sticky="w")
+            else:
+                entry = ttk.Entry(row, textvariable=var, width=32)
+                entry.grid(row=0, column=1, sticky="w")
+            ttk.Label(row, text=meta.get("hint", ""), style="SubTitle.TLabel",
+                      background=CARD_BG).grid(row=0, column=2, sticky="w", padx=(8, 0))
+
+    def _save(self) -> None:
+        from core import ini_editor
+        changes: dict[str, str] = {}
+        for meta in ini_editor.INI_ITEMS_META:
+            key, value = meta["key"], self._vars[key].get().strip()
+            err = ini_editor.validate_value(meta, value)
+            if err:
+                messagebox.showerror("校验失败", f"{key}：{err}", parent=self)
+                return
+            changes[key] = value
+
+        def worker():
+            try:
+                count, backup = ini_editor.save_values(self.version.ini, changes)
+                self._queue.put(("saved", (count, backup)))
+            except Exception as e:  # noqa: BLE001
+                self._queue.put(("error", str(e)))
+
+        threading.Thread(target=worker, daemon=True).start()
+        self._poll_save()
+
+    def _poll_save(self) -> None:
+        try:
+            kind, payload = self._queue.get_nowait()
+        except queue.Empty:
+            self.after(80, self._poll_save)
+            return
+        if kind == "error":
+            messagebox.showerror("保存失败", str(payload), parent=self)
+            return
+        count, backup = payload
+        messagebox.showinfo(
+            "保存成功",
+            f"已更新 {count} 项配置，备份保留于：\n{backup}\n\n"
+            f"重启 [{self.version.name}]（停止后启动）即可生效。",
+            parent=self,
+        )
+        self.destroy()
 
     def _center(self, master) -> None:
         self.update_idletasks()
