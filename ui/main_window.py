@@ -1,17 +1,19 @@
 # -*- coding: utf-8 -*-
-"""主窗口：三页签（PHP 版本管理 / Nginx 管理 / 关于）+ 顶部 cmd php 状态 + 底部状态栏。"""
+"""主窗口：多页签（PHP 版本管理 / Nginx 管理 / 站点映射 / Nginx 日志 / 关于）+ 顶部 cmd php 状态 + 底部状态栏。"""
 import queue
 import threading
+import time
 import tkinter as tk
-from tkinter import ttk
+from tkinter import messagebox, ttk
 
-from core import path_manager
+from core import autostart, path_manager
 from core.config import Config
 from core.health_monitor import HealthMonitor
 from core.nginx_manager import NginxManager
 from core.php_manager import PhpManager
 from core.vhost_manager import VhostManager
 from .dialogs import CliSwitchDialog, CrashDialog
+from .nginx_log_panel import NginxLogPanel
 from .nginx_panel import NginxPanel
 from .php_panel import PhpPanel
 from .theme import BG, CARD_BG, ERR, FONT, GRAY, OK, PRIMARY, PRIMARY_LIGHT, TEXT, setup_style
@@ -21,6 +23,9 @@ from .vhost_panel import VhostPanel
 APP_TITLE = "phpvm · PHP 版本管理器"
 WNRP_ROOT_SHOW = r"C:\wnrp"
 CRASH_POLL_TICKS = 8  # 崩溃检测频率 ≈ 8 × 8s = 64s 一次
+# 崩溃自愈防抖 / 限次
+RECOVER_MIN_INTERVAL = 60.0   # 同一版本两次自愈最小间隔（秒）
+RECOVER_WINDOW = 3600.0       # 计数窗口（秒）
 
 
 class MainWindow(tk.Tk):
@@ -88,10 +93,12 @@ class MainWindow(tk.Tk):
         self.php_panel = PhpPanel(nb, self.php_mgr, self.config, self.set_log)
         self.nginx_panel = NginxPanel(nb, self.nginx_mgr, self.set_log)
         self.vhost_panel = VhostPanel(nb, VhostManager(self.config), self.set_log)
+        self.log_panel = NginxLogPanel(nb, self.set_log)
         about = self._build_about(nb)
         nb.add(self.php_panel, text="  PHP 版本管理  ")
         nb.add(self.nginx_panel, text="  Nginx 管理  ")
         nb.add(self.vhost_panel, text="  站点映射  ")
+        nb.add(self.log_panel, text="  Nginx 日志  ")
         nb.add(about, text="  关于  ")
 
         # 状态栏
@@ -135,6 +142,25 @@ class MainWindow(tk.Tk):
                 row=i, column=1, sticky="w", pady=3
             )
 
+        # 设置区：开机自启 + 崩溃自愈
+        settings = ttk.LabelFrame(frame, text="设置", padding=12)
+        settings.pack(fill="x", pady=(10, 0))
+        self._autostart_var = tk.BooleanVar(value=autostart.is_enabled())
+        ttk.Checkbutton(
+            settings, text="开机自动启动 phpvm（当前用户）",
+            variable=self._autostart_var, command=self._toggle_autostart,
+        ).pack(anchor="w", pady=(0, 6))
+        self._recover_var = tk.BooleanVar(value=bool(self.config.get_setting("auto_recover_crash", False)))
+        ttk.Checkbutton(
+            settings, text="php-cgi 崩溃后自动重启（自愈，默认关闭）",
+            variable=self._recover_var, command=self._toggle_recover,
+        ).pack(anchor="w")
+        ttk.Label(
+            settings,
+            text="自愈防抖 60 秒、每版本每小时最多 3 次，防止崩溃循环刷进程。",
+            style="SubTitle.TLabel",
+        ).pack(anchor="w", pady=(4, 0))
+
         ttk.Label(
             frame,
             text="\n提示：修改端口后需同步修改对应 nginx vhost 的 fastcgi_pass 才会生效。\n"
@@ -146,6 +172,21 @@ class MainWindow(tk.Tk):
     # ------------------------------------------------------------------ #
     def set_log(self, msg: str) -> None:
         self._log_var.set(msg)
+
+    # 设置区开关（关于页）
+    def _toggle_autostart(self) -> None:
+        target = self._autostart_var.get()
+        ok = autostart.enable() if target else autostart.disable()
+        if not ok:
+            self._autostart_var.set(autostart.is_enabled())
+            messagebox.showerror("开机自启", "修改注册表失败，请检查权限", parent=self)
+            return
+        self.set_log("开机自启已启用" if target else "开机自启已关闭")
+
+    def _toggle_recover(self) -> None:
+        enabled = self._recover_var.get()
+        self.config.set_setting("auto_recover_crash", enabled)
+        self.set_log("崩溃自愈已开启" if enabled else "崩溃自愈已关闭")
 
     # cmd php 版本展示 / 切换
     def _open_cli_switch(self) -> None:
@@ -183,6 +224,7 @@ class MainWindow(tk.Tk):
         try:
             self.php_panel.auto_refresh()
             self.nginx_panel.auto_refresh()
+            self.log_panel.auto_refresh()
         except Exception:  # noqa: BLE001
             pass
         # cmd php 版本号变化极少，降频刷新（每 4 轮 tick ≈ 32s 一次）
@@ -247,6 +289,54 @@ class MainWindow(tk.Tk):
                 pass
         if not startup:
             self._show_crash_detail(events)
+            # 崩溃自愈（默认关闭，可在「关于」页开启）
+            if self.config.get_setting("auto_recover_crash", False):
+                self._auto_recover(events)
+
+    def _auto_recover(self, events: list[dict]) -> None:
+        """运行中检测到新崩溃时自动重启对应版本 php-cgi。
+
+        防抖：同一版本两次自愈最小间隔 RECOVER_MIN_INTERVAL；
+        限次：每 RECOVER_WINDOW 窗口内每版本最多 auto_recover_limit 次。
+        """
+        limit = int(self.config.get_setting("auto_recover_limit", 3) or 3)
+        now = time.time()
+        self._recover_log = getattr(self, "_recover_log", {})
+
+        for e in events:
+            ver = e.get("version")
+            if not ver:
+                continue
+            v = next((x for x in self.php_mgr.versions if x.name == ver), None)
+            if v is None:
+                continue
+            rec = self._recover_log.get(ver)
+            if rec:
+                last_ts, count, window_start = rec
+                if now - last_ts < RECOVER_MIN_INTERVAL:
+                    continue
+                if now - window_start > RECOVER_WINDOW:
+                    count, window_start = 0, now
+                if count >= limit:
+                    self.set_log(f"自愈已达上限（{limit} 次/小时），暂停自动重启 {ver}")
+                    continue
+            else:
+                count, window_start = 0, now
+
+            def do(v=v, ver=ver):
+                try:
+                    msg = self.php_mgr.start(v)
+                    self.set_log(f"自动恢复：{ver} → {msg}")
+                    if self._tray is not None:
+                        try:
+                            self._tray.show_balloon("php-cgi 崩溃自愈", f"{ver}\n{msg}")
+                        except Exception:  # noqa: BLE001
+                            pass
+                except Exception as ex:  # noqa: BLE001
+                    self.set_log(f"自动恢复失败 {ver}：{type(ex).__name__}：{ex}")
+
+            threading.Thread(target=do, daemon=True).start()
+            self._recover_log[ver] = (now, count + 1, window_start)
 
     def _crash_summary(self, events: list[dict]) -> str:
         lines = []
@@ -290,6 +380,7 @@ class MainWindow(tk.Tk):
         try:
             self.php_panel.auto_refresh()
             self.nginx_panel.auto_refresh()
+            self.log_panel.auto_refresh()
         except Exception:  # noqa: BLE001
             pass
 
