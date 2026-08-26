@@ -55,7 +55,6 @@ class DownloadDialog(tk.Toplevel):
         self._busy = False
 
         self.title("下载 PHP 版本")
-        self.geometry("680x600")
         self.minsize(620, 540)
         self.resizable(True, True)
         self.transient(master)
@@ -164,11 +163,14 @@ class DownloadDialog(tk.Toplevel):
         self._btn_install.state(["disabled"])
 
     def _center(self):
+        """按屏幕尺寸自适应窗口大小并居中，保证右下角按钮可见。"""
         self.update_idletasks()
-        w, h = self.winfo_width(), self.winfo_height()
-        x = self.winfo_screenwidth() // 2 - w // 2
-        y = self.winfo_screenheight() // 2 - h // 2 - 40
-        self.geometry(f"+{max(x, 0)}+{max(y, 0)}")
+        sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
+        w = min(780, max(640, int(sw * 0.86)))
+        h = min(700, int(sh * 0.92))
+        x = max(0, (sw - w) // 2)
+        y = max(0, (sh - h) // 2 - 30)
+        self.geometry(f"{w}x{h}+{x}+{y}")
 
     # ---------------------------------------------------------- 加载候选列表 #
     def _start_load(self):
