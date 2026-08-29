@@ -76,10 +76,11 @@ def _get_tcp_table() -> list[tuple[int, int, int]] | None:
     return rows
 
 
-def get_tcp_snapshot() -> dict[int, list[int]] | None:
+def get_tcp_snapshot(force: bool = False) -> dict[int, list[int]] | None:
     """一次 GetExtendedTcpTable 返回全量 {port: [pid, ...]}（仅 TCP 监听）。
 
     带 TTL 缓存：2s 内的重复调用直接命中缓存，避免反复查询全系统端口表。
+    force=True 时跳过缓存强制重建（启停进程后必须强制，否则会命中旧快照）。
     返回 None 表示底层 API 不可用/查询失败（调用方应回退 netstat 等慢速路径）；
     返回空 dict 表示查询成功但当前无任何监听端口。
     """
@@ -87,7 +88,7 @@ def get_tcp_snapshot() -> dict[int, list[int]] | None:
     now = time.monotonic()
     with _tcp_snapshot_lock:
         cached = _tcp_snapshot
-        if cached and now - cached[0] < _TCP_SNAPSHOT_TTL:
+        if not force and cached and now - cached[0] < _TCP_SNAPSHOT_TTL:
             return cached[1]
 
     rows = _get_tcp_table()
@@ -105,9 +106,9 @@ def get_tcp_snapshot() -> dict[int, list[int]] | None:
     return snapshot
 
 
-def port_to_pid_fast(port: int) -> list[int]:
+def port_to_pid_fast(port: int, force: bool = False) -> list[int]:
     """端口 -> PID 列表（带 TTL 缓存）。优先用 ctypes 全量快照，失败时回退 netstat。"""
-    snap = get_tcp_snapshot()
+    snap = get_tcp_snapshot(force=force)
     if snap is not None:
         return list(snap.get(port, []))
     # 回退：旧 netstat 实现（查询失败时按逐端口回退，不污染全量快照）

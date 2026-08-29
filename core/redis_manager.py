@@ -170,8 +170,16 @@ class RedisManager:
             names = ", ".join(f"{pu.pid_to_name(p)}({p})" for p in others[:3])
             return (f"[{inst.name}] 端口 {inst.port} 已被占用：{names}\n"
                     f"请先停止占用进程，或修改 {inst.conf} 中的 port 配置。")
-        pu.start_hidden(inst.server, [inst.conf], workdir=inst.dir)
+        # msys2 移植版（如 Redis-8.4.4）不认 "C:\..." 反斜杠绝对路径参数，
+        # 会拼成相对路径导致 "can't open config file"。配置与工作目录同目录时
+        # 一律传相对文件名，对老版原生 Windows Redis 同样兼容。
+        conf_arg = inst.conf
+        if os.path.dirname(os.path.abspath(inst.conf)) == os.path.abspath(inst.dir):
+            conf_arg = os.path.basename(inst.conf)
+        pu.start_hidden(inst.server, [conf_arg], workdir=inst.dir)
         time.sleep(0.8)
+        # 强制重建 TCP 快照缓存，避免命中启动前的旧快照误判「未监听」
+        pu.get_tcp_snapshot(force=True)
         running, pids = self.get_status(inst)
         if running:
             return f"[{inst.name}] 启动成功（PID {', '.join(map(str, pids))}，端口 {inst.port}）"
@@ -187,6 +195,8 @@ class RedisManager:
             if not pu.kill_pid(pid):
                 ok = False
         time.sleep(0.3)
+        # 强制重建快照，避免命中停止前的旧快照误判「仍在运行」
+        pu.get_tcp_snapshot(force=True)
         running, _ = self.get_status(inst)
         if not running:
             return f"[{inst.name}] 已停止" if ok else f"[{inst.name}] 已停止（部分进程强制结束）"
