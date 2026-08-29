@@ -2,6 +2,7 @@
 """Redis 管理页：多实例选择 + 状态卡片 + 控制按钮 + 命令输出日志区。"""
 import os
 import queue
+import re
 import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
@@ -35,6 +36,8 @@ class RedisPanel(ttk.Frame):
                                         width=24, font=(FONT, 9))
         self.instance_cb.pack(side="left", padx=(4, 10))
         self.instance_cb.bind("<<ComboboxSelected>>", lambda e: self._on_select())
+        self.instance_cb["values"] = [i.name for i in self.redis_mgr.instances]
+        self.instance_var.set(self._default_name())
         ttk.Button(top, text="刷新状态", command=self.refresh_status).pack(side="left")
 
         # 左侧：状态卡片 + 控制按钮
@@ -118,10 +121,27 @@ class RedisPanel(ttk.Frame):
     # ------------------------------------------------------------------ #
     # 实例选择
     # ------------------------------------------------------------------ #
+    @staticmethod
+    def _version_key(name: str) -> tuple[int, ...]:
+        """从实例目录名提取版本号用于排序，如 Redis-8.4.4 → (8,4,4)。"""
+        nums = re.findall(r"\d+", name)
+        return tuple(int(x) for x in nums) if nums else (0,)
+
+    def _default_name(self) -> str:
+        """默认选中实例：版本号最高的目录（Redis-8.4.4 > Redis）。"""
+        if not self.redis_mgr.instances:
+            return ""
+        return max(self.redis_mgr.instances, key=lambda i: self._version_key(i.name)).name
+
     def _instance(self) -> RedisInstance | None:
         name = self.instance_var.get()
         for inst in self.redis_mgr.instances:
             if inst.name == name:
+                return inst
+        # 当前值不在实例列表中（如尚未设置）→ 回退默认高版本
+        default = self._default_name()
+        for inst in self.redis_mgr.instances:
+            if inst.name == default:
                 return inst
         return self.redis_mgr.instances[0] if self.redis_mgr.instances else None
 
@@ -169,7 +189,7 @@ class RedisPanel(ttk.Frame):
             sel_name, data, ver = payload
             names = [i.name for i in self.redis_mgr.instances]
             if not self.instance_var.get() or self.instance_var.get() not in names:
-                self.instance_var.set(names[0] if names else "")
+                self.instance_var.set(self._default_name())
             self._render_status(sel_name, data, ver)
         elif kind == "error":
             messagebox.showerror("错误", payload, parent=self)
