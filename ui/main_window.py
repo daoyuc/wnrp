@@ -12,11 +12,13 @@ from core.config import Config
 from core.health_monitor import HealthMonitor
 from core.nginx_manager import NginxManager
 from core.php_manager import PhpManager
+from core.redis_manager import RedisManager
 from core.vhost_manager import VhostManager
 from .dialogs import CliSwitchDialog, CrashDialog
 from .nginx_log_panel import NginxLogPanel
 from .nginx_panel import NginxPanel
 from .php_panel import PhpPanel
+from .redis_panel import RedisPanel
 from .theme import BG, CARD_BG, ERR, FONT, GRAY, OK, PRIMARY, PRIMARY_LIGHT, TEXT, setup_style
 from .tray import TrayIcon
 from .vhost_panel import VhostPanel
@@ -31,10 +33,12 @@ RECOVER_FAIL_ESCALATE = 3        # 同一版本连续自愈失败达到该次数
 
 
 class MainWindow(tk.Tk):
-    def __init__(self, php_mgr: PhpManager, nginx_mgr: NginxManager, config: Config):
+    def __init__(self, php_mgr: PhpManager, nginx_mgr: NginxManager,
+                 redis_mgr: RedisManager, config: Config):
         super().__init__()
         self.php_mgr = php_mgr
         self.nginx_mgr = nginx_mgr
+        self.redis_mgr = redis_mgr
         self.config = config
 
         self.title(APP_TITLE)
@@ -94,11 +98,13 @@ class MainWindow(tk.Tk):
         nb.pack(fill="both", expand=True, padx=12, pady=(0, 6))
         self.php_panel = PhpPanel(nb, self.php_mgr, self.config, self.set_log)
         self.nginx_panel = NginxPanel(nb, self.nginx_mgr, self.set_log)
+        self.redis_panel = RedisPanel(nb, self.redis_mgr, self.set_log)
         self.vhost_panel = VhostPanel(nb, VhostManager(self.config), self.set_log)
         self.log_panel = NginxLogPanel(nb, self.set_log)
         about = self._build_about(nb)
         nb.add(self.php_panel, text="  PHP 版本管理  ")
         nb.add(self.nginx_panel, text="  Nginx 管理  ")
+        nb.add(self.redis_panel, text="  Redis 管理  ")
         nb.add(self.vhost_panel, text="  站点映射  ")
         nb.add(self.log_panel, text="  Nginx 日志  ")
         nb.add(about, text="  关于  ")
@@ -122,7 +128,7 @@ class MainWindow(tk.Tk):
         ttk.Label(
             frame,
             text="管理 C:\\wnrp 下多个 PHP 版本的启动 / 停止 / 重启 / 状态 / 端口 / 配置，"
-                 "并附带 Nginx 管理。",
+                 "并附带 Nginx 与 Redis 管理。",
             style="SubTitle.TLabel",
         ).pack(anchor="w", pady=(0, 14))
 
@@ -226,6 +232,7 @@ class MainWindow(tk.Tk):
         try:
             self.php_panel.auto_refresh()
             self.nginx_panel.auto_refresh()
+            self.redis_panel.auto_refresh()
             self.log_panel.auto_refresh()
         except Exception:  # noqa: BLE001
             pass
@@ -410,12 +417,13 @@ class MainWindow(tk.Tk):
         try:
             self.php_panel.auto_refresh()
             self.nginx_panel.auto_refresh()
+            self.redis_panel.auto_refresh()
             self.log_panel.auto_refresh()
         except Exception:  # noqa: BLE001
             pass
 
     # ------------------------------------------------------------------ #
-    # 托盘动态菜单：PHP 版本 + Nginx 快捷启停
+    # 托盘动态菜单：PHP 版本 + Nginx + Redis 快捷启停
     def _build_tray_menu(self) -> list[dict]:
         items: list[dict] = []
         # 隐藏到托盘（窗口可见时可用）
@@ -449,6 +457,42 @@ class MainWindow(tk.Tk):
                             "cmd": lambda: self._tray_action("nginx", "test_config")})
         items.append({"type": "submenu", "label": "Nginx", "items": nginx_items})
 
+        # Redis 快捷启停（多实例时每个实例一个子菜单）
+        redis_items: list[dict] = []
+        try:
+            self.redis_mgr.get_status_all()
+        except Exception:  # noqa: BLE001
+            pass
+        redis_insts = self.redis_mgr.instances
+        if redis_insts:
+            def _redis_submenu(inst) -> list[dict]:
+                pid_txt = f" · PID {', '.join(map(str, inst.pids))}" if inst.running and inst.pids else ""
+                sub = [
+                    {"type": "item",
+                     "label": f"状态：{'运行中' if inst.running else '已停止'}{pid_txt} · 端口 {inst.port}",
+                     "enabled": False},
+                    {"type": "sep"},
+                    {"type": "item", "label": "启动", "enabled": not inst.running,
+                     "cmd": lambda i=inst: self._tray_action("redis", "start", i)},
+                    {"type": "item", "label": "停止", "enabled": inst.running,
+                     "cmd": lambda i=inst: self._tray_action("redis", "stop", i)},
+                    {"type": "item", "label": "重启",
+                     "cmd": lambda i=inst: self._tray_action("redis", "restart", i)},
+                ]
+                return sub
+
+            if len(redis_insts) == 1:
+                inst = redis_insts[0]
+                items.append({"type": "submenu", "label": f"Redis [{inst.name}]",
+                              "items": _redis_submenu(inst)})
+            else:
+                for inst in redis_insts:
+                    items.append({"type": "submenu",
+                                  "label": f"Redis [{inst.name}]",
+                                  "items": _redis_submenu(inst)})
+        else:
+            items.append({"type": "item", "label": "Redis：未发现实例", "enabled": False})
+
         # 各 PHP 版本快捷启停
         versions = self.php_mgr.versions or self.php_mgr.scan_versions()
         for v in versions:
@@ -472,17 +516,24 @@ class MainWindow(tk.Tk):
 
         return items
 
-    def _tray_action(self, target, action: str) -> None:
-        """托盘菜单操作：后台线程执行（start/stop 含等待探测），结果经队列回 UI。"""
-        mgr = self.php_mgr if target != "nginx" else self.nginx_mgr
-        arg = None if target == "nginx" else target
+    def _tray_action(self, target, action: str, arg=None) -> None:
+        """托盘菜单操作：后台线程执行（start/stop 含等待探测），结果经队列回 UI。
+
+        target：php 版本对象 / "nginx" / "redis"；redis 时 arg 为实例对象。
+        """
+        if target == "nginx":
+            mgr, call_arg = self.nginx_mgr, None
+        elif target == "redis":
+            mgr, call_arg = self.redis_mgr, arg
+        else:
+            mgr, call_arg = self.php_mgr, target
 
         def worker():
             try:
-                if arg is None:
+                if call_arg is None:
                     msg = getattr(mgr, action)()
                 else:
-                    msg = getattr(mgr, action)(arg)
+                    msg = getattr(mgr, action)(call_arg)
             except Exception as e:  # noqa: BLE001
                 msg = f"{type(e).__name__}：{e}"
             self._tray_queue.put(msg)
@@ -506,6 +557,7 @@ class MainWindow(tk.Tk):
         try:
             self.php_panel.auto_refresh()
             self.nginx_panel.auto_refresh()
+            self.redis_panel.auto_refresh()
         except Exception:  # noqa: BLE001
             pass
 
