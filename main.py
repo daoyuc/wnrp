@@ -28,10 +28,11 @@ def main() -> None:
     from core.config import Config
     from core.nginx_manager import NginxManager
     from core.php_manager import PhpManager
+    from core.redis_manager import RedisManager
     from ui.main_window import MainWindow
 
     config = Config()
-    app = MainWindow(PhpManager(config), NginxManager(), config)
+    app = MainWindow(PhpManager(config), NginxManager(), RedisManager(), config)
     try:
         app.mainloop()
     finally:
