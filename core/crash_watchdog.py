@@ -30,7 +30,7 @@ if _APP_DIR not in sys.path:
 
 from core import process_utils as pu  # noqa: E402
 from core import recover_history  # noqa: E402
-from core.config import Config  # noqa: E402
+from core.config import Config, IS_WIN  # noqa: E402
 from core.health_monitor import HealthMonitor  # noqa: E402
 from core.php_manager import PhpManager  # noqa: E402
 
@@ -68,11 +68,14 @@ def _pid_alive(pid: int) -> bool:
 
 def _pid_is_watchdog(pid: int) -> bool:
     """pid 对应的进程命令行是否包含本守护脚本（防误判其它 python）。"""
-    code, out, _ = pu.run_cmd(
-        ["powershell", "-NoProfile", "-NonInteractive", "-Command",
-         f"(Get-CimInstance Win32_Process -Filter 'ProcessId={pid}').CommandLine"],
-        timeout=8,
-    )
+    if IS_WIN:
+        code, out, _ = pu.run_cmd(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command",
+             f"(Get-CimInstance Win32_Process -Filter 'ProcessId={pid}').CommandLine"],
+            timeout=8,
+        )
+        return code == 0 and "crash_watchdog.py" in (out or "")
+    code, out, _ = pu.run_cmd(["ps", "-p", str(pid), "-o", "command="], timeout=8)
     return code == 0 and "crash_watchdog.py" in (out or "")
 
 
@@ -113,19 +116,29 @@ def _release() -> None:
 
 
 def spawn() -> tuple[bool, str]:
-    """以 pythonw（无窗口）拉起守护进程。幂等：已有实例则不重复拉起。"""
+    """以无窗口后台方式拉起守护进程（win 用 pythonw）。幂等：已有实例不重复拉起。"""
     if is_running():
         return True, "崩溃自愈守护进程已在运行"
-    pyw = r"C:\Python312\pythonw.exe"
-    if not os.path.exists(pyw):
-        pyw = "pythonw"
     script = os.path.join(_APP_DIR, "core", "crash_watchdog.py")
     try:
-        subprocess.Popen(
-            [pyw, script],
-            creationflags=subprocess.CREATE_NO_WINDOW,
-            close_fds=True,
-        )
+        if IS_WIN:
+            pyw = r"C:\Python312\pythonw.exe"
+            if not os.path.exists(pyw):
+                pyw = "pythonw"
+            subprocess.Popen(
+                [pyw, script],
+                creationflags=subprocess.CREATE_NO_WINDOW,
+                close_fds=True,
+            )
+        else:
+            subprocess.Popen(
+                [sys.executable, script],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+                close_fds=True,
+            )
     except OSError as e:
         return False, f"启动守护进程失败：{e}"
     # 短暂等待，确认子进程接管锁后返回（GUI 侧在后台线程调用，可接受）

@@ -15,6 +15,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 from typing import Any
 
+from core import process_utils as pu
 from core.redis_manager import RedisInstance, RedisManager  # pyright: ignore[reportImplicitRelativeImport]
 from .theme import (
     CARD_BG, ERR, FONT, GRAY, LOG_ACCENT, LOG_BG, LOG_FG, OK,
@@ -182,7 +183,7 @@ class RedisPanel(ttk.Frame):
                     f"发现实例 [{inst.name}]：{inst.server}（端口 {inst.port}）", "info"
                 )
         else:
-            self._append_log("未在 C:\\wnrp 下找到 redis-server.exe 实例", "warn")
+            self._append_log("未找到 redis-server 实例（请将 redis 安装目录放入环境根目录下的 Redis* 文件夹）", "warn")
         return page
 
     # ------------------------------------------------------------------ #
@@ -435,7 +436,7 @@ class RedisPanel(ttk.Frame):
             try:
                 msg = getattr(self.redis_mgr, action)(inst)
                 if action == "ping" and not msg:
-                    msg = "未找到 redis-cli.exe，无法测试连接"
+                    msg = "未找到 redis-cli 可执行文件，无法测试连接"
                 self._queue.put(("op", (action, msg)))
             except Exception as e:  # noqa: BLE001
                 self._queue.put(("error", f"{action} 失败：{e}"))
@@ -587,10 +588,7 @@ class RedisPanel(ttk.Frame):
         if inst is None or not inst.conf:
             messagebox.showwarning("提示", "未找到配置文件。", parent=self)
             return
-        try:
-            os.startfile(inst.conf)  # noqa: S606 - 用系统默认程序打开文本文件
-        except OSError as e:
-            messagebox.showerror("错误", f"打开配置失败：{e}", parent=self)
+        pu.open_path(inst.conf)
 
     def _append_log(self, text: str, tag: str = "") -> None:
         self.log_text.configure(state="normal")

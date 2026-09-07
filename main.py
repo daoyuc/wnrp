@@ -1,18 +1,75 @@
 # -*- coding: utf-8 -*-
-"""phpvm 入口：单实例保护 + 初始化配置 + 启动 GUI。"""
-import ctypes
+"""phpvm 入口：单实例保护 + 初始化配置 + 启动 GUI。
+
+- Windows：命名互斥体（Global\\wnrp_phpvm_singleton_mutex），已运行则弹提示并退出；
+- macOS/Linux：Unix domain socket 锁（/tmp/phpvm_singleton.sock），
+  探测到活实例即静默退出（已运行实例会在 Dock/窗口栏可见）。
+"""
 import os
+import socket
 import sys
+import tempfile
 
 # 保证无论从哪个目录启动都能正确导入包
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 MUTEX_NAME = "Global\\wnrp_phpvm_singleton_mutex"
 ERROR_ALREADY_EXISTS = 183
+SOCK_PATH = os.path.join(tempfile.gettempdir(), "phpvm_singleton.sock")
+
+_lock_sock: socket.socket | None = None
+
+
+def _acquire_posix_lock() -> bool:
+    """占用单实例 socket 锁；返回 False 表示已有实例在运行。"""
+    global _lock_sock
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    try:
+        s.bind(SOCK_PATH)
+        s.listen(1)  # 进入监听态，第二实例才能 connect 探测到活实例
+        _lock_sock = s
+        return True
+    except OSError:
+        # 已有 socket 文件：能连上说明是活实例，否则属上次异常残留，清掉重建
+        try:
+            c = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            c.settimeout(0.5)
+            c.connect(SOCK_PATH)
+            c.close()
+            return False
+        except OSError:
+            try:
+                os.unlink(SOCK_PATH)
+            except OSError:
+                pass
+            try:
+                s.bind(SOCK_PATH)
+                s.listen(1)
+                _lock_sock = s
+                return True
+            except OSError:
+                return False
+
+
+def _release_posix_lock() -> None:
+    global _lock_sock
+    if _lock_sock is not None:
+        try:
+            _lock_sock.close()
+        except OSError:
+            pass
+        _lock_sock = None
+    try:
+        os.unlink(SOCK_PATH)
+    except OSError:
+        pass
 
 
 def main() -> None:
+    handle = None
     if sys.platform.startswith("win"):
+        import ctypes
+
         handle = ctypes.windll.kernel32.CreateMutexW(None, False, MUTEX_NAME)
         if ctypes.windll.kernel32.GetLastError() == ERROR_ALREADY_EXISTS:
             ctypes.windll.user32.MessageBoxW(
@@ -23,7 +80,8 @@ def main() -> None:
             )
             return
     else:
-        handle = None
+        if not _acquire_posix_lock():
+            return
 
     from core.config import Config
     from core.nginx_manager import NginxManager
@@ -36,8 +94,11 @@ def main() -> None:
     try:
         app.mainloop()
     finally:
-        if handle:
+        if handle is not None:
+            import ctypes
+
             ctypes.windll.kernel32.ReleaseMutex(handle)
+        _release_posix_lock()
 
 
 if __name__ == "__main__":

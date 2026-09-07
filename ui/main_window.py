@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 """主窗口：多页签（PHP 版本管理 / Nginx 管理 / 站点映射 / Nginx 日志 / 关于）+ 顶部 cmd php 状态 + 底部状态栏。"""
+import os
 import queue
 import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
 
 from core import autostart, crash_watchdog, path_manager
-from core.config import Config
+from core.config import Config, IS_WIN, WNRP_ROOT
 from core.health_monitor import HealthMonitor
 from core.nginx_manager import NginxManager
 from core.php_manager import PhpManager
@@ -18,11 +19,11 @@ from .nginx_panel import NginxPanel
 from .php_panel import PhpPanel
 from .redis_panel import RedisPanel
 from .theme import BG, CARD_BG, ERR, FONT, GRAY, OK, PRIMARY, PRIMARY_LIGHT, TEXT, setup_style
-from .tray import TrayIcon
 from .vhost_panel import VhostPanel
 
 APP_TITLE = "phpvm · PHP 版本管理器"
-WNRP_ROOT_SHOW = r"C:\wnrp"
+WNRP_ROOT_SHOW = WNRP_ROOT
+CLI_PREFIX = "CMD php" if IS_WIN else "终端 php"
 CRASH_POLL_TICKS = 8  # 崩溃检测频率 ≈ 8 × 8s = 64s 一次（仅告警展示用）
 
 
@@ -80,7 +81,7 @@ class MainWindow(tk.Tk):
         )
         self.cli_dot.pack(side="left", padx=(0, 6))
         self.cli_label = tk.Label(
-            cli_box, text="CMD php：检测中…", font=(FONT, 9, "bold"),
+            cli_box, text=f"{CLI_PREFIX}：检测中…", font=(FONT, 9, "bold"),
             background=CARD_BG, foreground=TEXT,
         )
         self.cli_label.pack(side="left", padx=(0, 10))
@@ -121,7 +122,7 @@ class MainWindow(tk.Tk):
         ttk.Label(frame, text="phpvm · PHP 版本管理器", style="Title.TLabel").pack(anchor="w", pady=(0, 6))
         ttk.Label(
             frame,
-            text="管理 C:\\wnrp 下多个 PHP 版本的启动 / 停止 / 重启 / 状态 / 端口 / 配置，"
+            text=f"管理 {WNRP_ROOT} 下多个 PHP 版本的启动 / 停止 / 重启 / 状态 / 端口 / 配置，"
                  "并附带 Nginx 与 Redis 管理。",
             style="SubTitle.TLabel",
         ).pack(anchor="w", pady=(0, 14))
@@ -132,10 +133,11 @@ class MainWindow(tk.Tk):
             ("环境根目录", WNRP_ROOT_SHOW),
             ("PHP FastCGI 配置", "php82/php85 → php-web.ini，其余 → php.ini"),
             ("FastCGI 监听", "127.0.0.1:端口（按版本配置，见 PHP 版本管理页）"),
-            ("Nginx 前缀", r"C:\wnrp\nginx"),
-            ("隐藏启动器", r"C:\wnrp\RunHiddenConsole.exe"),
-            ("配置持久化", r"C:\wnrp\phpvm\config.json"),
+            ("Nginx 前缀", os.path.join(WNRP_ROOT, "nginx")),
+            ("配置持久化", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config.json")),
         ]
+        if IS_WIN:
+            rows.insert(4, ("隐藏启动器", os.path.join(WNRP_ROOT, "RunHiddenConsole.exe")))
         for i, (k, v) in enumerate(rows):
             ttk.Label(info, text=f"{k}：", font=(FONT, 9, "bold"), background=CARD_BG).grid(
                 row=i, column=0, sticky="w", padx=(8, 4), pady=3
@@ -229,11 +231,11 @@ class MainWindow(tk.Tk):
         name, version = info.get("name"), info.get("version")
         if not name:
             self.cli_dot.configure(foreground=GRAY)
-            self.cli_label.configure(text="CMD php：未启用 wnrp 版本")
+            self.cli_label.configure(text=f"{CLI_PREFIX}：未启用 wnrp 版本")
             return
         running_fg = OK if version != "未知" else ERR
         self.cli_dot.configure(foreground=running_fg)
-        self.cli_label.configure(text=f"CMD php：{name} · PHP {version}")
+        self.cli_label.configure(text=f"{CLI_PREFIX}：{name} · PHP {version}")
 
     def _tick(self) -> None:
         # 自动轻量刷新状态（面板内部自行排队异步执行）
@@ -356,6 +358,12 @@ class MainWindow(tk.Tk):
     # ------------------------------------------------------------------ #
     # 系统托盘 / 关闭行为
     def _init_tray(self) -> None:
+        """初始化系统托盘。仅 Windows 支持；macOS/Linux 暂以 Dock 驻留代替。"""
+        if not IS_WIN:
+            self._tray = None
+            return
+        from .tray import TrayIcon  # 延迟导入：tray 模块依赖 Win32，仅 Windows 可用
+
         try:
             self._tray = TrayIcon(
                 self.winfo_id(),
@@ -368,9 +376,9 @@ class MainWindow(tk.Tk):
             self._tray = None
 
     def _on_unmap(self, event) -> None:
-        """最小化（iconic）时隐藏到托盘；withdraw/退出触发的 Unmap 不处理。"""
+        """最小化（iconic）时：有托盘则隐藏到托盘；无托盘交给 Dock 正常最小化。"""
         try:
-            if self.state() == "iconic":
+            if self._tray is not None and self.state() == "iconic":
                 self.withdraw()
         except tk.TclError:
             pass
@@ -538,7 +546,11 @@ class MainWindow(tk.Tk):
             pass
 
     def _on_close(self) -> None:
-        """点击关闭按钮：弹确认框，可选最小化到托盘 / 退出 / 取消。"""
+        """点击关闭按钮：无托盘（macOS/Linux）直接确认退出；否则弹「托盘/退出」选择框。"""
+        if self._tray is None:
+            if messagebox.askokcancel("退出 phpvm", "确定要退出 phpvm 吗？", parent=self):
+                self._real_quit()
+            return
         dlg = tk.Toplevel(self)
         dlg.title("关闭 phpvm")
         dlg.geometry("320x150")

@@ -128,3 +128,21 @@ C:\wnrp\phpvm\
 - **修改端口后站点 502/404**：编辑端口保存后务必在弹出的一键同步对话框中执行替换并「重载 Nginx」；或在「站点映射」页检查异常高亮条目。
 - **php-cgi 反复崩溃（站点 502）**：状态栏会弹出崩溃告警，点击查看事件详情（故障模块/异常码/偏移）。异常码 0xc0000005 常见于 opcache JIT 或扩展冲突，可检查 `php-web.ini` 中 `opcache.jit` 设置。
 - **php82/php85 特殊**：FastCGI 使用 `php-web.ini`（与 CLI 的 `php.ini` 区分），工具已自动处理。
+
+## macOS 运行（进行中）
+
+phpvm 正被移植为可在 macOS 管理本地多版本 PHP + Nginx + Redis 的工具，Windows 路径全部保留。
+
+- **环境根目录**：macOS/Linux 默认 `~/wnrp`（可用环境变量 `WNRP_ROOT` 覆盖）；Windows 仍为 `C:\wnrp`。
+- **运行依赖**：Python ≥ 3.10 且带 tkinter（Homebrew：`brew install python-tk@3.13`），启动方式：
+  ```bash
+  cd <phpvm 目录>
+  python3 main.py
+  ```
+- **当前进度（P0：GUI 可启动）**：
+  - `core/process_utils.py` 双平台化：macOS/Linux 用 `lsof`/`ps` 做端口→PID、存活进程快照，接口与 Windows 一致；
+  - `run_cmd`/`start_hidden` 等去掉 Windows 专属标志，mac 后台启动用 `start_new_session`；
+  - `config.py`/`main_window.py` 等去除硬编码 `C:\wnrp`，`ui/tray.py` 延迟导入（仅 Windows），mac 关闭即确认退出；
+  - `path_manager.py`（终端 php 切换 → 写 `~/.zshrc` 的 phpvm PATH 块）、`autostart.py`（LaunchAgent）已按平台分流；
+  - `os.startfile` 全部改为跨平台 `open_path`（`open`）。
+- **尚在规划（P1/P2）**：PHP/Nginx/Redis 服务管理模块的可执行文件名与进程判定按平台适配（php-fpm / Homebrew 包装目录）；mac 菜单栏托盘；崩溃看护读 mac 崩溃日志等。
