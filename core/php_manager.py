@@ -199,8 +199,16 @@ class PhpManager:
             )
 
         pu.start_hidden(v.cgi, ["-b", f"127.0.0.1:{v.port}", "-c", v.ini], workdir=v.dir)
-        time.sleep(0.8)
-        running, pid = self.get_status(v)
+        # php-cgi 冷启动（加载扩展/ini）可能超过 1s，单次 0.8s 判定过严会误报启动失败
+        # （进程实际已拉起）；改为轮询等待最多约 5s。
+        running, pid = False, None
+        for _ in range(15):
+            time.sleep(0.3)
+            # 强制刷新 TCP 快照，避免命中启动前的旧缓存误判「未监听」
+            pu.get_tcp_snapshot(force=True)
+            running, pid = self.get_status(v)
+            if running:
+                break
         if running:
             return f"[{v.name}] 启动成功（PID {pid}，端口 {v.port}）"
         raise RuntimeError(

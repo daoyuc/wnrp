@@ -47,8 +47,12 @@ class HealthMonitor:
         self.recent_crashes: list[dict] = []
 
     # ---------------------------- 崩溃检测 ---------------------------- #
-    def fetch_crash_events(self, hours: int = 24) -> list[dict]:
-        """查询最近 N 小时 Application/1000 中 php-cgi.exe 崩溃（时间倒序）。"""
+    def fetch_crash_events(self, hours: int = 24) -> list[dict] | None:
+        """查询最近 N 小时 Application/1000 中 php-cgi.exe 崩溃（时间倒序）。
+
+        返回 None 表示查询失败（Get-WinEvent 不可用/超时），调用方不应推进
+        检测游标，否则会漏掉失败窗口内产生的崩溃事件。
+        """
         since = (datetime.now() - timedelta(hours=hours)).strftime(_TS_FMT)
         ps = (
             "$e = Get-WinEvent -FilterHashtable @{LogName='Application'; Id=1000} "
@@ -61,7 +65,7 @@ class HealthMonitor:
             ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps], timeout=10
         )
         if code != 0:
-            return []
+            return None
         events = []
         for line in out.splitlines():
             line = line.strip()
@@ -95,6 +99,9 @@ class HealthMonitor:
         后续仅返回严格晚于游标的事件。
         """
         events = self.fetch_crash_events(hours=hours)
+        if events is None:
+            # 查询失败：不推进游标，避免漏掉窗口内崩溃，下轮重试
+            return []
         now = datetime.now()
         with self.lock:
             last = self.last_event_time

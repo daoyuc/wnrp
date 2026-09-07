@@ -9,6 +9,7 @@ import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
 
+from core import crash_watchdog
 from core.config import Config
 from core.health_monitor import HealthMonitor
 from core.php_manager import PhpManager, PhpVersion, PortConflictError
@@ -167,10 +168,16 @@ class PhpPanel(ttk.Frame):
             try:
                 if action == "start":
                     msg = self.php_mgr.start(v)
+                    # 启动/已在运行 → 纳入守护进程看护（失联自动恢复）
+                    crash_watchdog.watch_version(v.name)
                 elif action == "stop":
                     msg = self.php_mgr.stop(v)
+                    # 用户手动停止 → 解除守护进程看护，避免失联探测将其重新拉起
+                    if "已停止" in msg or "未在运行" in msg:
+                        crash_watchdog.unwatch(v.name)
                 else:
                     msg = self.php_mgr.restart(v)
+                    crash_watchdog.watch_version(v.name)
                 self._queue.put(("op", (v.name, msg)))
             except PortConflictError as e:
                 self._queue.put(("conflict", (v.name, str(e))))

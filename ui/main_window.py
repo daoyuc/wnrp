@@ -2,12 +2,10 @@
 """主窗口：多页签（PHP 版本管理 / Nginx 管理 / 站点映射 / Nginx 日志 / 关于）+ 顶部 cmd php 状态 + 底部状态栏。"""
 import queue
 import threading
-import time
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-from core import autostart, path_manager
-from core import recover_history
+from core import autostart, crash_watchdog, path_manager
 from core.config import Config
 from core.health_monitor import HealthMonitor
 from core.nginx_manager import NginxManager
@@ -25,11 +23,7 @@ from .vhost_panel import VhostPanel
 
 APP_TITLE = "phpvm · PHP 版本管理器"
 WNRP_ROOT_SHOW = r"C:\wnrp"
-CRASH_POLL_TICKS = 8  # 崩溃检测频率 ≈ 8 × 8s = 64s 一次
-# 崩溃自愈防抖 / 限次
-RECOVER_MIN_INTERVAL = 60.0      # 同一版本两次自愈最小间隔（秒）
-RECOVER_WINDOW = 3600.0          # 计数窗口（秒）
-RECOVER_FAIL_ESCALATE = 3        # 同一版本连续自愈失败达到该次数 → 升级告警
+CRASH_POLL_TICKS = 8  # 崩溃检测频率 ≈ 8 × 8s = 64s 一次（仅告警展示用）
 
 
 class MainWindow(tk.Tk):
@@ -192,9 +186,23 @@ class MainWindow(tk.Tk):
         self.set_log("开机自启已启用" if target else "开机自启已关闭")
 
     def _toggle_recover(self) -> None:
+        """自愈开关：开启 → 拉起独立守护进程；关闭 → 守护进程下轮自行退出。
+
+        自愈由 core.crash_watchdog 常驻执行（与 GUI 生命周期解耦），
+        关闭时无需杀进程，守护进程读到配置即退出。
+        """
         enabled = self._recover_var.get()
         self.config.set_setting("auto_recover_crash", enabled)
-        self.set_log("崩溃自愈已开启" if enabled else "崩溃自愈已关闭")
+        if enabled:
+            self.set_log("崩溃自愈已开启，正在启动守护进程…")
+
+            def spawn():
+                ok, msg = crash_watchdog.spawn()
+                self._crash_queue.put(("wd", msg if ok else f"自愈守护异常：{msg}"))
+
+            threading.Thread(target=spawn, daemon=True).start()
+        else:
+            self.set_log("崩溃自愈已关闭（守护进程将自动退出）")
 
     # cmd php 版本展示 / 切换
     def _open_cli_switch(self) -> None:
@@ -240,12 +248,30 @@ class MainWindow(tk.Tk):
         self._tick_count = getattr(self, "_tick_count", 0) + 1
         if self._tick_count % 4 == 0:
             self._refresh_cli()
-        # 崩溃检测（低频轮询事件日志）
+        # 崩溃检测（低频轮询事件日志，仅用于告警展示）+ 自愈守护保活
         self._crash_tick += 1
         if self._crash_tick >= CRASH_POLL_TICKS:
             self._crash_tick = 0
             self._poll_crash()
+            self._ensure_recover_daemon()
         self.after(8000, self._tick)
+
+    def _ensure_recover_daemon(self) -> None:
+        """若开启了崩溃自愈，确保独立守护进程存活（后台探测/拉起，不阻塞 UI）。"""
+
+        def worker():
+            try:
+                if not self.config.get_setting("auto_recover_crash", False):
+                    return
+                if crash_watchdog.is_running():
+                    return
+                ok, msg = crash_watchdog.spawn()
+                if not ok:
+                    self._crash_queue.put(("wd", f"自愈守护进程异常：{msg}"))
+            except Exception:  # noqa: BLE001
+                pass
+
+        threading.Thread(target=worker, daemon=True).start()
 
     # ------------------------------------------------------------------ #
     # 崩溃告警
@@ -281,6 +307,10 @@ class MainWindow(tk.Tk):
         except queue.Empty:
             self.after(120, self._poll_crash_queue)
             return
+        if kind == "wd":
+            # 守护进程操作反馈（自愈开关/保活线程回传）
+            self.set_log(events)
+            return
         if events:
             self._on_crash(events, startup=(kind == "startup"))
 
@@ -298,75 +328,11 @@ class MainWindow(tk.Tk):
                 pass
         if not startup:
             self._show_crash_detail(events)
-            # 崩溃自愈（默认关闭，可在「关于」页开启）
+            # 崩溃自愈由独立守护进程执行（core/crash_watchdog，与 GUI 解耦）；
+            # 此处仅确保守护进程存活。故障若未产生崩溃事件（如进程被清理），
+            # 守护进程的失联探测仍会兜底恢复。
             if self.config.get_setting("auto_recover_crash", False):
-                self._auto_recover(events)
-
-    def _auto_recover(self, events: list[dict]) -> None:
-        """运行中检测到新崩溃时自动重启对应版本 php-cgi。
-
-        防抖：同一版本两次自愈最小间隔 RECOVER_MIN_INTERVAL；
-        限次：每 RECOVER_WINDOW 窗口内每版本最多 auto_recover_limit 次；
-        历史：每次决策（重启/失败/防抖跳过/达上限）记录到 recover_history.json；
-        升级：同一版本连续 RECOVER_FAIL_ESCALATE 次失败 → 托盘 + 状态栏升级告警。
-        """
-        limit = int(self.config.get_setting("auto_recover_limit", 3) or 3)
-        now = time.time()
-        self._recover_log = getattr(self, "_recover_log", {})
-        self._recover_fail_seq = getattr(self, "_recover_fail_seq", {})
-
-        for e in events:
-            ver = e.get("version")
-            if not ver:
-                continue
-            v = next((x for x in self.php_mgr.versions if x.name == ver), None)
-            if v is None:
-                continue
-            rec = self._recover_log.get(ver)
-            if rec:
-                last_ts, count, window_start = rec
-                if now - last_ts < RECOVER_MIN_INTERVAL:
-                    recover_history.append(ver, "skip_interval", "与上次自愈间隔不足 60s，跳过")
-                    self.set_log(f"自愈防抖：{ver} 间隔不足，跳过自动重启")
-                    continue
-                if now - window_start > RECOVER_WINDOW:
-                    count, window_start = 0, now
-                if count >= limit:
-                    recover_history.append(ver, "skip_limit", f"已达上限（{limit} 次/小时）")
-                    self.set_log(f"自愈已达上限（{limit} 次/小时），暂停自动重启 {ver}")
-                    continue
-            else:
-                count, window_start = 0, now
-
-            def do(v=v, ver=ver):
-                try:
-                    msg = self.php_mgr.start(v)
-                    self.set_log(f"自动恢复：{ver} → {msg}")
-                    recover_history.append(ver, "start", msg)
-                    self._recover_fail_seq[ver] = 0
-                    if self._tray is not None:
-                        try:
-                            self._tray.show_balloon("php-cgi 崩溃自愈", f"{ver}\n{msg}")
-                        except Exception:  # noqa: BLE001
-                            pass
-                except Exception as ex:  # noqa: BLE001
-                    self.set_log(f"自动恢复失败 {ver}：{type(ex).__name__}：{ex}")
-                    recover_history.append(ver, "fail", f"{type(ex).__name__}：{ex}")
-                    seq = self._recover_fail_seq.get(ver, 0) + 1
-                    self._recover_fail_seq[ver] = seq
-                    if seq >= RECOVER_FAIL_ESCALATE:
-                        self.set_log(f"自愈连续失败 {seq} 次（{ver}），建议手动检查 php.ini / 扩展配置")
-                        if self._tray is not None:
-                            try:
-                                self._tray.show_balloon(
-                                    "崩溃自愈连续失败",
-                                    f"{ver} 连续 {seq} 次自愈失败，请手动检查 php.ini / 扩展配置。",
-                                )
-                            except Exception:  # noqa: BLE001
-                                pass
-
-            threading.Thread(target=do, daemon=True).start()
-            self._recover_log[ver] = (now, count + 1, window_start)
+                self._ensure_recover_daemon()
 
     def _crash_summary(self, events: list[dict]) -> str:
         lines = []
@@ -536,6 +502,16 @@ class MainWindow(tk.Tk):
                     msg = getattr(mgr, action)(call_arg)
             except Exception as e:  # noqa: BLE001
                 msg = f"{type(e).__name__}：{e}"
+            # 手动停止 → 解除守护看护；启动/重启 → 纳入守护看护
+            if not isinstance(target, str):
+                try:
+                    if action == "stop":
+                        if "已停止" in msg or "未在运行" in msg:
+                            crash_watchdog.unwatch(target.name)
+                    elif action in ("start", "restart"):
+                        crash_watchdog.watch_version(target.name)
+                except Exception:  # noqa: BLE001
+                    pass
             self._tray_queue.put(msg)
 
         threading.Thread(target=worker, daemon=True).start()

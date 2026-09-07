@@ -7,3 +7,7 @@ __pycache__/
 # 本地运行时文件
 *.log
 recover_history.json
+
+# 崩溃自愈守护进程运行时状态
+crash_watchdog.json
+crash_watchdog.lock
