@@ -10,7 +10,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 from core import crash_watchdog
-from core.config import Config
+from core.config import Config, IS_WIN
 from core.health_monitor import HealthMonitor
 from core.php_manager import PhpManager, PhpVersion, PortConflictError
 from .dialogs import IniDialog, IniEditDialog, PortDialog, SelfCheckDialog
@@ -342,7 +342,19 @@ class PhpPanel(ttk.Frame):
         SelfCheckDialog(self, v, HealthMonitor())
 
     def _download_version(self) -> None:
-        """打开「下载 PHP 版本」对话框；安装完成后刷新版本列表。"""
+        """macOS 引导 Homebrew；Windows 打开官方下载安装对话框。"""
+        if not IS_WIN:
+            messagebox.showinfo(
+                "macOS 安装 PHP 版本",
+                "macOS 下请用 Homebrew 安装，phpvm 会自动发现已安装的 keg：\n\n"
+                "  brew install php@8.1        # 示例：PHP 8.1\n"
+                "  brew install php@7.4 php@5.6\n\n"
+                "安装完成回到本页点「刷新」即出现新版本。\n"
+                "也可以自行放置官方二进制到 ~/wnrp/phpNN/（含 bin/php-cgi）后刷新。",
+                parent=self,
+            )
+            return
+
         def on_installed():
             self.notify("新版本已安装，正在刷新列表…")
             self.refresh_versions()
@@ -352,5 +364,20 @@ class PhpPanel(ttk.Frame):
     def _manage_ext(self) -> None:
         v = self._selected()
         if v is None:
+            return
+        if not IS_WIN:
+            messagebox.showinfo(
+                "macOS 扩展管理",
+                f"[{v.name}] 运行于 macOS，扩展不再使用 Windows .dll 安装页：\n\n"
+                "已随 brew 公式编译的扩展（redis/memcached/imap 等）装好即默认加载；\n"
+                "其它 PECL 扩展请在终端安装（默认装到当前 brew 默认 PHP，多版本并存时\n"
+                "建议先切 keg：brew link php@8.1 --force）：\n"
+                "  pecl install redis\n\n"
+                "启用/禁用请点上方「编辑配置」改对应 php.ini：\n"
+                "  extension=redis.so\n"
+                "brew 的 ini 一般在 /opt/homebrew/etc/php/<版本>/php.ini"
+                "（Intel 前缀为 /usr/local）。",
+                parent=self,
+            )
             return
         ExtensionDialog(self, v, self.php_mgr)

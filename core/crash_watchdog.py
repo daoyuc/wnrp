@@ -12,7 +12,8 @@
 1) 由 phpvm 在 auto_recover_crash 开启时拉起（pythonw 隐藏运行），与 GUI
    生命周期解耦；settings.auto_recover_crash 关闭后下一轮自行退出；
 2) 双重检测：
-   - 事件日志新崩溃（Get-WinEvent Application/1000，复用 HealthMonitor）；
+   - 崩溃事件新记录（Windows Application/1000 事件日志 / macOS DiagnosticReports
+     .ips 崩溃报告，复用 HealthMonitor）；
    - 看护版本的端口/进程失联探测（进程消失且无崩溃事件也能兜底恢复）；
 3) 防抖 60s / 每版本每小时 auto_recover_limit 次 / 每次决策写入
    recover_history.json（供崩溃详情对话框可视化）；
@@ -283,13 +284,13 @@ def _try_restart(cfg: Config, pm: PhpManager, versions: dict,
 def _tick_once(cfg: Config, pm: PhpManager, versions: dict,
                hm: HealthMonitor, state: dict, event_round: bool) -> None:
 
-    # 1) 事件日志（仅 Windows）：新崩溃事件 → 进入看护并尝试立即重启
-    #    mac/Linux 无 Application/1000 事件源，统一由下方「端口失联探测」兜底
+    # 1) 崩溃事件（Windows 事件日志 / macOS 崩溃报告）：新崩溃 → 进入看护并
+    #    尝试立即重启；Linux 无数据源（hm=None），统一由「失联探测」兜底
     if event_round and hm is not None:
         events = hm.fetch_crash_events(hours=LOOKBACK_HOURS)
         if events is None:
             # 查询失败：本轮不推进游标，避免漏掉窗口内的崩溃
-            _log("事件日志查询失败（Get-WinEvent），本轮跳过崩溃检测")
+            _log("崩溃事件查询失败（无可用数据源），本轮跳过崩溃检测")
         else:
             latest = events[0]["time"] if events else None
             prev = state.get("last_event_ts")
@@ -371,7 +372,8 @@ def run(once: bool = False) -> None:
             try:
                 pm = PhpManager(cfg)
                 versions = {v.name: v for v in pm.scan_versions()}
-                hm = HealthMonitor() if IS_WIN else None  # 事件日志仅 Windows
+                # 崩溃事件数据源：Windows 事件日志 / macOS 崩溃报告，Linux 无
+                hm = HealthMonitor() if (IS_WIN or sys.platform == "darwin") else None
                 if round_no == 0:
                     # 启动首轮：纳入当前运行中的版本作为看护基线
                     _baseline_watch(state, pm, versions)
