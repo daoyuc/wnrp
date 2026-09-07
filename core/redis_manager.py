@@ -216,3 +216,52 @@ class RedisManager:
         code, out, err = pu.run_cmd([inst.cli, "-p", str(inst.port), "ping"], timeout=10)
         text = (out or err).strip()
         return "PONG" if code == 0 and "PONG" in text else text or "无响应"
+
+    # ------------------------------------------------------------------ #
+    # 命令执行 / 键空间统计（Redis 管理页「Redis 命令」「DB 键空间」用）
+    # ------------------------------------------------------------------ #
+    def run_command(self, inst: RedisInstance, db: int = 0, command: str = "") -> str:
+        """对指定逻辑库执行一条 Redis 命令，返回文本输出。
+
+        通过 redis-cli 的 stdin 逐行执行模式传入整行命令（不拆 argv，
+        兼容含引号/空格的参数）；输出按 utf-8→gbk 顺序尝试解码
+        （老版 3.2 输出 GBK，新版输出 UTF-8）。
+        """
+        if not inst.cli:
+            return "未找到 redis-cli.exe，无法执行命令"
+        command = command.strip()
+        if not command:
+            return ""
+        code, out, err = pu.run_cmd_stdin(
+            [inst.cli, "-p", str(inst.port), "-n", str(db)],
+            command + "\n",
+            timeout=15,
+        )
+        text = (out or "").rstrip("\n")
+        if err:
+            text = f"{text}\n{err}".strip()
+        if not text:
+            text = f"命令执行失败（退出码 {code}）" if code != 0 else "(空输出)"
+        return text
+
+    def keyspace_stats(self, inst: RedisInstance) -> list[tuple[int, int]] | None:
+        """返回各逻辑库 key 数 [(db, keys), ...]（仅非空库，按 db 升序）。
+
+        连接失败 / 实例未运行返回 None；连接成功但所有库均为空返回 []。
+        """
+        if not inst.cli:
+            return None
+        code, out, err = pu.run_cmd(
+            [inst.cli, "-p", str(inst.port), "info", "keyspace"], timeout=10
+        )
+        if code != 0:
+            return None
+        text = out or err
+        # 失败提示会出现在输出里（rc 也可能为 0），显式排除
+        if ("could not connect" in text.lower()
+                or "connection refused" in text.lower()
+                or "NOAUTH" in text):
+            return None
+        stats = [(int(m.group(1)), int(m.group(2)))
+                 for m in re.finditer(r"db(\d+):keys=(\d+)", text)]
+        return sorted(stats)
