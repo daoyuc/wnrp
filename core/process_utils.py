@@ -209,6 +209,29 @@ def run_cmd(args: list[str], timeout: int = 15) -> tuple[int, str, str]:
         return -1, "", str(e)
 
 
+def run_cmd_stdin(args: list[str], stdin_text: str = "", timeout: int = 15) -> tuple[int, str, str]:
+    """执行命令并写入 stdin，返回 (returncode, stdout, stderr)。
+
+    适用于需要把任意一行（含引号/空格）原样交给子进程交互程序
+    （如 redis-cli 的 stdin 逐行执行模式），避免手工拆分 argv。
+    """
+    try:
+        p = subprocess.run(
+            args,
+            input=stdin_text.encode("utf-8", errors="replace"),
+            capture_output=True,
+            timeout=timeout,
+            creationflags=subprocess.CREATE_NO_WINDOW,
+        )
+        return p.returncode, _decode(p.stdout), _decode(p.stderr)
+    except subprocess.TimeoutExpired:
+        return -1, "", "命令执行超时"
+    except OSError as e:
+        return -1, "", f"无法执行 {args[0]}：{e}"
+    except Exception as e:  # noqa: BLE001
+        return -1, "", str(e)
+
+
 def port_to_pid(port: int) -> list[int]:
     """返回监听指定端口的 PID 列表（仅 TCP）。"""
     code, out, _ = run_cmd(["netstat", "-ano"], timeout=10)
