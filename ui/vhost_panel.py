@@ -11,6 +11,7 @@ import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
 
+from core import process_utils as pu
 from core.config import WNRP_ROOT
 from core.vhost_manager import VhostEntry, VhostManager
 from .theme import CARD_BG, ERR, TEXT
@@ -133,19 +134,13 @@ class VhostPanel(ttk.Frame):
             return
         path = self._entries[idx].file
         if os.path.exists(path):
-            try:
-                os.startfile(path)  # noqa: S606 —— 用默认关联程序打开
-            except OSError as e:
-                messagebox.showerror("打开失败", str(e), parent=self)
+            pu.open_path(path)
         else:
             messagebox.showwarning("文件不存在", f"配置文件不存在：\n{path}", parent=self)
 
     def _open_dir(self) -> None:
         target = NGINX_CONF_DIR if os.path.isdir(NGINX_CONF_DIR) else WNRP_ROOT
-        try:
-            os.startfile(target)  # noqa: S606
-        except OSError as e:
-            messagebox.showerror("打开失败", str(e), parent=self)
+        pu.open_path(target)
 
     def _set_busy(self, busy: bool) -> None:
         self._busy = busy

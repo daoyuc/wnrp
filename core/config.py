@@ -10,8 +10,14 @@
 """
 import json
 import os
+import sys
 
-WNRP_ROOT = r"C:\wnrp"
+IS_WIN = sys.platform.startswith("win")
+
+# 环境根目录：Windows 默认 C:\wnrp；macOS/Linux 默认 ~/wnrp（可用 WNRP_ROOT 覆盖）
+WNRP_ROOT = os.environ.get("WNRP_ROOT") or (
+    r"C:\wnrp" if IS_WIN else os.path.join(os.path.expanduser("~"), "wnrp")
+)
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config.json")
 
 DEFAULT_PORTS = {

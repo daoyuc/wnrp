@@ -7,13 +7,16 @@ import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-from core import path_manager, recover_history
-from core.config import Config
+from core import path_manager, process_utils as pu, recover_history
+from core.config import Config, IS_WIN, WNRP_ROOT
 from core.php_manager import PhpManager, PhpVersion
 from core.vhost_manager import VhostManager
 from .theme import CARD_BG, ERR, FONT, GRAY, OK, PRIMARY, PRIMARY_DARK, TEXT
 
-VHOST_DIR = r"C:\wnrp\nginx\conf\vhost"
+VHOST_DIR = os.path.join(WNRP_ROOT, "nginx", "conf", "vhost")
+
+# 终端别名文案（Windows 的 cmd / macOS 的终端）
+_CLI_DISP = "cmd" if IS_WIN else "终端"
 
 
 class PortDialog(tk.Toplevel):
@@ -303,10 +306,7 @@ class VhostSyncDialog(tk.Toplevel):
         self._poll()
 
     def _open_dir(self) -> None:
-        try:
-            os.startfile(VHOST_DIR)
-        except OSError as e:
-            messagebox.showerror("无法打开目录", str(e), parent=self)
+        pu.open_path(VHOST_DIR)
 
     def _append_result(self, text: str) -> None:
         self.result_text.configure(state="normal")
@@ -414,10 +414,7 @@ class IniDialog(tk.Toplevel):
 
     # ------------------------------------------------------------------ #
     def _open_ini(self) -> None:
-        try:
-            os.startfile(self.version.ini)
-        except OSError as e:
-            messagebox.showerror("无法打开文件", str(e), parent=self)
+        pu.open_path(self.version.ini)
 
     def _center(self, master) -> None:
         self.update_idletasks()
@@ -434,7 +431,7 @@ class CliSwitchDialog(tk.Toplevel):
         ("ver", "PHP 版本", 90, "center"),
         ("port", "端口", 70, "center"),
         ("status", "FastCGI", 80, "center"),
-        ("mark", "cmd 生效", 100, "center"),
+        ("mark", f"{_CLI_DISP} 生效", 100, "center"),
     ]
 
     def __init__(self, master, php_mgr: PhpManager, on_switched=None):
@@ -446,7 +443,7 @@ class CliSwitchDialog(tk.Toplevel):
         self._name_to_iid: dict[str, str] = {}
         self._effective = path_manager.get_effective_php_dir()
 
-        self.title("切换 cmd php 命令版本")
+        self.title(f"切换{_CLI_DISP} php 命令版本")
         self.geometry("660x440")
         self.minsize(580, 380)
         self.configure(bg=CARD_BG)
@@ -454,11 +451,17 @@ class CliSwitchDialog(tk.Toplevel):
 
         header = ttk.Frame(self, padding=(16, 14, 16, 4))
         header.pack(fill="x")
-        ttk.Label(header, text="切换系统 cmd / 终端 中的 php 命令版本", style="Title.TLabel").pack(anchor="w")
+        ttk.Label(header, text=f"切换{_CLI_DISP}中的 php 命令版本", style="Title.TLabel").pack(anchor="w")
         ttk.Label(
             header,
-            text="原理：修改用户环境变量 PATH（User 优先级高于系统），将所选版本置顶。"
-                 "新打开的 cmd 生效，无需管理员权限。",
+            text=(
+                "原理：修改用户环境变量 PATH（User 优先级高于系统），将所选版本置顶。"
+                "新打开的 cmd 生效，无需管理员权限。"
+                if IS_WIN
+                else
+                "原理：把所选版本目录写入 shell 配置的 phpvm PATH 块（~/.zshrc 等），"
+                "新开的终端生效，无需管理员权限。"
+            ),
             style="SubTitle.TLabel",
         ).pack(anchor="w", pady=(4, 0))
 
@@ -482,9 +485,12 @@ class CliSwitchDialog(tk.Toplevel):
         btns = ttk.Frame(self, padding=(16, 0, 16, 14))
         btns.pack(fill="x")
         ttk.Button(btns, text="在新窗口测试 php -v", command=self._test_cmd).pack(side="left")
-        ttk.Label(btns, text="已打开的 cmd 不会自动切换，需重开窗口", style="SubTitle.TLabel").pack(
-            side="left", padx=(10, 0)
-        )
+        ttk.Label(
+            btns,
+            text=("已打开的 cmd 不会自动切换，需重开窗口"
+                  if IS_WIN else "已打开的终端不会自动切换，需重开终端窗口"),
+            style="SubTitle.TLabel",
+        ).pack(side="left", padx=(10, 0))
         ttk.Button(btns, text="取消", command=self.destroy).pack(side="right")
         ttk.Button(btns, text="设为当前", style="Accent.TButton", command=self._apply).pack(
             side="right", padx=(0, 8)
@@ -561,22 +567,31 @@ class CliSwitchDialog(tk.Toplevel):
         self._render(self._versions)
         messagebox.showinfo(
             "切换成功",
-            f"已切换 cmd php 命令 → [{v.name}]（PHP {v.display}）\n\n"
-            f"注意：已打开的 cmd / 终端不会自动感知，请新开窗口执行 php -v 验证。",
+            f"已切换{_CLI_DISP} php 命令 → [{v.name}]（PHP {v.display}）\n\n"
+            f"注意：已打开的 {'cmd / 终端' if IS_WIN else '终端'}不会自动感知，"
+            "请新开窗口执行 php -v 验证。",
             parent=self,
         )
         if self.on_switched:
             self.on_switched()
 
     def _test_cmd(self) -> None:
-        """新开一个 cmd 窗口执行 php -v，直观验证当前生效版本。"""
+        """新开一个 cmd / Terminal 窗口执行 php -v，直观验证当前生效版本。"""
         try:
-            subprocess.Popen(
-                ["cmd", "/k", "php", "-v"],
-                creationflags=subprocess.CREATE_NEW_CONSOLE,
-            )
+            if IS_WIN:
+                subprocess.Popen(
+                    ["cmd", "/k", "php", "-v"],
+                    creationflags=subprocess.CREATE_NEW_CONSOLE,
+                )
+            else:
+                subprocess.Popen(
+                    ["osascript", "-e", 'tell application "Terminal" to do script "php -v"'],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    start_new_session=True,
+                )
         except OSError as e:
-            messagebox.showerror("无法打开 cmd", str(e), parent=self)
+            messagebox.showerror("无法打开终端", str(e), parent=self)
 
     def _center(self, master) -> None:
         self.update_idletasks()

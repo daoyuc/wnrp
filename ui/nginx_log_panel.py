@@ -16,9 +16,11 @@ import threading
 import tkinter as tk
 from tkinter import ttk
 
+from core import process_utils as pu
+from core.config import WNRP_ROOT
 from .theme import ERR, LOG_ACCENT, LOG_BG, LOG_FG, WARN
 
-NGINX_LOGS_DIR = r"C:\wnrp\nginx\logs"
+NGINX_LOGS_DIR = os.path.join(WNRP_ROOT, "nginx", "logs")
 TAIL_BYTES = 256 * 1024
 MAX_LINES = 2000
 _DEFAULT_PREFER = ("error.log", "access.log")
@@ -131,10 +133,7 @@ class NginxLogPanel(ttk.Frame):
         self.text.configure(state="disabled")
 
     def _open_dir(self) -> None:
-        try:
-            os.startfile(NGINX_LOGS_DIR)
-        except OSError as e:
-            self.notify(f"打开目录失败：{e}")
+        pu.open_path(NGINX_LOGS_DIR)
 
     # ------------------------------------------------------------------ #
     def reload(self) -> None:

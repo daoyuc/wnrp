@@ -7,6 +7,8 @@
 - 功能色：绿=运行 / 红=异常 / 灰=停止 / 橙=警告
 - 字体：Microsoft YaHei
 """
+import sys
+
 import tkinter as tk
 from tkinter import ttk
 
@@ -26,7 +28,8 @@ LOG_BG = "#1E1E1E"
 LOG_FG = "#C8C8C8"
 LOG_ACCENT = "#7FB0FF"
 
-FONT = "Microsoft YaHei"
+# 界面字体：Windows 用微软雅黑；macOS 用苹方
+FONT = "Microsoft YaHei" if sys.platform.startswith("win") else "PingFang SC"
 
 
 def setup_style(root: tk.Misc) -> ttk.Style:
