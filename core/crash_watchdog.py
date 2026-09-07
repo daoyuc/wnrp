@@ -283,8 +283,9 @@ def _try_restart(cfg: Config, pm: PhpManager, versions: dict,
 def _tick_once(cfg: Config, pm: PhpManager, versions: dict,
                hm: HealthMonitor, state: dict, event_round: bool) -> None:
 
-    # 1) 事件日志：新崩溃事件 → 进入看护并尝试立即重启
-    if event_round:
+    # 1) 事件日志（仅 Windows）：新崩溃事件 → 进入看护并尝试立即重启
+    #    mac/Linux 无 Application/1000 事件源，统一由下方「端口失联探测」兜底
+    if event_round and hm is not None:
         events = hm.fetch_crash_events(hours=LOOKBACK_HOURS)
         if events is None:
             # 查询失败：本轮不推进游标，避免漏掉窗口内的崩溃
@@ -370,7 +371,7 @@ def run(once: bool = False) -> None:
             try:
                 pm = PhpManager(cfg)
                 versions = {v.name: v for v in pm.scan_versions()}
-                hm = HealthMonitor()
+                hm = HealthMonitor() if IS_WIN else None  # 事件日志仅 Windows
                 if round_no == 0:
                     # 启动首轮：纳入当前运行中的版本作为看护基线
                     _baseline_watch(state, pm, versions)

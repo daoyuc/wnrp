@@ -325,6 +325,14 @@ class PhpPanel(ttk.Frame):
         v = self._selected()
         if v is None:
             return
+        if not v.ini:
+            messagebox.showwarning(
+                "无独立配置文件",
+                f"[{v.name}] 未使用独立 php.ini（读取 PHP 编译默认配置）。\n"
+                f"如需按版本定制配置，请在版本目录中放置 php.ini 后重新刷新。",
+                parent=self,
+            )
+            return
         IniEditDialog(self, v, self.php_mgr)
 
     def _self_check(self) -> None:
