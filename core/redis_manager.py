@@ -2,11 +2,14 @@
 """Redis 进程管理：多实例发现 / 状态 / 启动 / 停止 / 重启。
 
 约定：
-- 实例 = C:\\wnrp 下含 redis-server.exe 的 Redis* 目录（Redis、Redis-8.4.4 …）；
+- 实例 = 含 redis-server（*.exe）的 Redis* 目录（Windows：C:\\wnrp\\Redis*，
+  二进制在目录根；mac/Linux：WNRP_ROOT 下 Redis* 目录 + 自动发现 Homebrew
+  redis keg，二进制在 dir/bin）；
 - 端口从实例配置文件（redis.conf / redis.windows.conf）解析，默认 6379；
-- 状态判定：tasklist 过滤 redis-server.exe 与 TCP 监听快照求交集，
-  避免把占用同端口的其它程序误判为 Redis；
-- 启动复用 RunHiddenConsole.exe 隐藏后台运行（与各 start_phpXX.bat 一致）。
+  目录内无配置时回退使用 brew 的 /opt/homebrew/etc/redis.conf；
+- 状态判定：进程名（redis-server）与 TCP 监听快照求交集，同端口多实例
+  再按进程命令行路径精确归属；
+- 启动：Windows 复用 RunHiddenConsole.exe；posix 脱离终端后台运行。
 """
 import glob
 import os
@@ -15,16 +18,23 @@ import time
 from dataclasses import dataclass
 
 from . import process_utils as pu
-from .config import WNRP_ROOT
+from .config import IS_WIN, WNRP_ROOT, brew_prefixes
+
+if IS_WIN:
+    SERVER_NAME = "redis-server.exe"
+    CLI_NAME = "redis-cli.exe"
+else:
+    SERVER_NAME = "redis-server"
+    CLI_NAME = "redis-cli"
 
 
 @dataclass
 class RedisInstance:
     """单个 Redis 实例（目录）。"""
-    name: str        # 目录名：Redis / Redis-8.4.4
+    name: str        # 目录名：Redis / Redis-8.4.4 / redis@6.2
     dir: str         # 实例根目录
-    server: str      # redis-server.exe 路径
-    cli: str         # redis-cli.exe 路径（可能为空）
+    server: str      # redis-server 可执行文件路径
+    cli: str         # redis-cli 路径（可能为空）
     conf: str        # 配置文件路径
     port: int        # 解析出的监听端口
     version: str = ""   # 版本号（首次探测后缓存）
@@ -39,6 +49,15 @@ class RedisInstance:
 _CONF_PREFERENCE = ("redis.conf", "redis.windows.conf")
 
 
+def _locate_exe(d: str, name: str) -> str:
+    """目录根 → bin/ 查找可执行文件。"""
+    for rel in ("", "bin"):
+        p = os.path.join(d, rel, name)
+        if os.path.exists(p):
+            return p
+    return ""
+
+
 class RedisManager:
     def __init__(self, root: str = WNRP_ROOT):
         self.root = root
@@ -48,37 +67,54 @@ class RedisManager:
     # ------------------------------------------------------------------ #
     # 实例发现
     # ------------------------------------------------------------------ #
+    def _candidate_dirs(self) -> list[str]:
+        """发现目录：WNRP_ROOT 下 Redis*（优先）+ Homebrew redis keg（仅 posix）。"""
+        dirs: list[str] = []
+        for d in sorted(glob.glob(os.path.join(self.root, "Redis*"))):
+            if os.path.isdir(d) and _locate_exe(d, SERVER_NAME):
+                dirs.append(d)
+        if not IS_WIN:
+            for prefix in brew_prefixes():
+                for d in sorted(glob.glob(os.path.join(prefix, "opt", "redis*"))):
+                    if os.path.isdir(d) and _locate_exe(d, SERVER_NAME) and d not in dirs:
+                        dirs.append(d)
+        return dirs
+
     def refresh_instances(self) -> list[RedisInstance]:
         self.instances = []
-        for d in sorted(glob.glob(os.path.join(self.root, "Redis*"))):
-            if not os.path.isdir(d):
-                continue
-            server = os.path.join(d, "redis-server.exe")
-            if not os.path.exists(server):
+        for d in self._candidate_dirs():
+            server = _locate_exe(d, SERVER_NAME)
+            if not server:
                 continue
             self.instances.append(self._build_instance(d, server))
         return self.instances
 
     def _build_instance(self, d: str, server: str) -> RedisInstance:
+        cli = _locate_exe(d, CLI_NAME)
         conf = self._find_conf(d)
         return RedisInstance(
             name=os.path.basename(d),
             dir=d,
             server=server,
-            cli=os.path.join(d, "redis-cli.exe") if os.path.exists(
-                os.path.join(d, "redis-cli.exe")) else "",
+            cli=cli,
             conf=conf,
             port=self._read_port(conf),
         )
 
     @staticmethod
     def _find_conf(d: str) -> str:
+        """目录内配置优先；无则回退该 brew 前缀的 /etc/redis.conf。"""
         for name in _CONF_PREFERENCE:
             p = os.path.join(d, name)
             if os.path.exists(p):
                 return p
         for f in sorted(glob.glob(os.path.join(d, "*.conf"))):
             return f
+        if not IS_WIN:
+            for prefix in brew_prefixes():
+                p = os.path.join(prefix, "etc", "redis.conf")
+                if os.path.exists(p):
+                    return p
         return ""
 
     @staticmethod
@@ -100,21 +136,29 @@ class RedisManager:
     # 状态
     # ------------------------------------------------------------------ #
     def _redis_server_pids(self) -> set[int]:
-        """全部 redis-server.exe 进程 PID（一次 tasklist）。"""
-        code, out, _ = pu.run_cmd(
-            ["tasklist", "/FI", "IMAGENAME eq redis-server.exe", "/FO", "CSV", "/NH"],
-            timeout=10,
-        )
-        if code != 0:
-            return set()
-        return {int(m) for m in re.findall(r'"redis-server\.exe","(\d+)"', out)}
+        """全部 redis-server 进程 PID。win：tasklist 一次；posix：ps 快照一次。"""
+        if IS_WIN:
+            code, out, _ = pu.run_cmd(
+                ["tasklist", "/FI", "IMAGENAME eq redis-server.exe", "/FO", "CSV", "/NH"],
+                timeout=10,
+            )
+            if code != 0:
+                return set()
+            return {int(m) for m in re.findall(r'"redis-server\.exe","(\d+)"', out)}
+        return set(pu.cmdline_matches_pids((SERVER_NAME,)))
+
+    def _pid_belongs(self, inst: RedisInstance, pid: int) -> bool:
+        """进程是否属于本实例（多实例同端口时精确归属）。"""
+        path = pu.pid_to_path(pid).lower()
+        if not path:
+            return True
+        if IS_WIN:
+            return path == inst.server.lower()
+        # posix：命令行包含实例服务器路径（目录/bin/redis-server）即归属
+        return inst.server.lower() in path
 
     def get_status(self, inst: RedisInstance) -> tuple[bool, list[int]]:
-        """(是否运行, PID 列表)：redis-server 进程 ∩ 实例端口监听。
-
-        多个实例配置相同端口时，额外按进程可执行路径精确归属，
-        避免把同端口其它实例的进程误判为本实例运行中。
-        """
+        """(是否运行, PID 列表)：redis-server 进程 ∩ 实例端口监听。"""
         all_redis = self._redis_server_pids()
         if not all_redis:
             inst.running, inst.pids = False, []
@@ -126,18 +170,11 @@ class RedisManager:
             return False, []
         # 端口唯一 → 直接归属；多实例同端口 → 按进程路径精确匹配
         same_port = [i for i in self.instances if i is not inst and i.port == inst.port]
-        if not same_port:
-            pids = candidates
-        else:
-            target = inst.server.lower()
-            pids = []
-            for pid in candidates:
-                path = pu.pid_to_path(pid).lower()
-                if path == target:
-                    pids.append(pid)
-        inst.running = bool(pids)
-        inst.pids = pids
-        return inst.running, pids
+        if same_port:
+            candidates = [p for p in candidates if self._pid_belongs(inst, p)]
+        inst.running = bool(candidates)
+        inst.pids = candidates
+        return inst.running, candidates
 
     def get_status_all(self) -> list[RedisInstance]:
         for inst in self.instances:
@@ -160,26 +197,25 @@ class RedisManager:
         if not os.path.exists(inst.server):
             return f"[{inst.name}] 未找到 {inst.server}"
         if not inst.conf:
-            return f"[{inst.name}] 未找到配置文件，无法启动"
+            return (f"[{inst.name}] 未找到配置文件，无法启动。\n"
+                    f"请在 {inst.dir} 放置 redis.conf，或安装 Homebrew redis 并配置 "
+                    f"对应 /etc/redis.conf。")
         running, pids = self.get_status(inst)
         if running:
             return f"[{inst.name}] 已在运行（PID {', '.join(map(str, pids))}，端口 {inst.port}）"
-        # 端口被非 Redis 进程占用则提示，不强杀
         others = [p for p in pu.port_to_pid_fast(inst.port) if p not in self._redis_server_pids()]
         if others:
             names = ", ".join(f"{pu.pid_to_name(p)}({p})" for p in others[:3])
             return (f"[{inst.name}] 端口 {inst.port} 已被占用：{names}\n"
                     f"请先停止占用进程，或修改 {inst.conf} 中的 port 配置。")
-        # msys2 移植版（如 Redis-8.4.4）不认 "C:\..." 反斜杠绝对路径参数，
-        # 会拼成相对路径导致 "can't open config file"。配置与工作目录同目录时
-        # 一律传相对文件名，对老版原生 Windows Redis 同样兼容。
+        # 配置与工作目录同目录时传相对文件名（兼容 msys2 移植版不认反斜杠路径）；
+        # 其它情况（如 brew 的 /etc/redis.conf）传绝对路径。
         conf_arg = inst.conf
         if os.path.dirname(os.path.abspath(inst.conf)) == os.path.abspath(inst.dir):
             conf_arg = os.path.basename(inst.conf)
         pu.start_hidden(inst.server, [conf_arg], workdir=inst.dir)
         time.sleep(0.8)
-        # 强制重建 TCP 快照缓存，避免命中启动前的旧快照误判「未监听」
-        pu.get_tcp_snapshot(force=True)
+        pu.invalidate_process_cache()
         running, pids = self.get_status(inst)
         if running:
             return f"[{inst.name}] 启动成功（PID {', '.join(map(str, pids))}，端口 {inst.port}）"
@@ -195,8 +231,7 @@ class RedisManager:
             if not pu.kill_pid(pid):
                 ok = False
         time.sleep(0.3)
-        # 强制重建快照，避免命中停止前的旧快照误判「仍在运行」
-        pu.get_tcp_snapshot(force=True)
+        pu.invalidate_process_cache()
         running, _ = self.get_status(inst)
         if not running:
             return f"[{inst.name}] 已停止" if ok else f"[{inst.name}] 已停止（部分进程强制结束）"
@@ -221,14 +256,9 @@ class RedisManager:
     # 命令执行 / 键空间统计（Redis 管理页「Redis 命令」「DB 键空间」用）
     # ------------------------------------------------------------------ #
     def run_command(self, inst: RedisInstance, db: int = 0, command: str = "") -> str:
-        """对指定逻辑库执行一条 Redis 命令，返回文本输出。
-
-        通过 redis-cli 的 stdin 逐行执行模式传入整行命令（不拆 argv，
-        兼容含引号/空格的参数）；输出按 utf-8→gbk 顺序尝试解码
-        （老版 3.2 输出 GBK，新版输出 UTF-8）。
-        """
+        """对指定逻辑库执行一条 Redis 命令，返回文本输出。"""
         if not inst.cli:
-            return "未找到 redis-cli.exe，无法执行命令"
+            return "未找到 redis-cli，无法执行命令"
         command = command.strip()
         if not command:
             return ""
@@ -245,10 +275,7 @@ class RedisManager:
         return text
 
     def keyspace_stats(self, inst: RedisInstance) -> list[tuple[int, int]] | None:
-        """返回各逻辑库 key 数 [(db, keys), ...]（仅非空库，按 db 升序）。
-
-        连接失败 / 实例未运行返回 None；连接成功但所有库均为空返回 []。
-        """
+        """返回各逻辑库 key 数 [(db, keys), ...]（仅非空库，按 db 升序）。"""
         if not inst.cli:
             return None
         code, out, err = pu.run_cmd(
@@ -257,7 +284,6 @@ class RedisManager:
         if code != 0:
             return None
         text = out or err
-        # 失败提示会出现在输出里（rc 也可能为 0），显式排除
         if ("could not connect" in text.lower()
                 or "connection refused" in text.lower()
                 or "NOAUTH" in text):

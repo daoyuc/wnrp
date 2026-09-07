@@ -10,6 +10,7 @@
 """
 import json
 import os
+import re
 import sys
 
 IS_WIN = sys.platform.startswith("win")
@@ -37,6 +38,40 @@ DEFAULT_SETTINGS = {
     "auto_recover_crash": False,  # php-cgi 崩溃后自动重启（自愈），默认关闭
     "auto_recover_limit": 3,      # 每小时每版本自愈次数上限
 }
+
+
+def brew_prefixes() -> list[str]:
+    """返回存在的 Homebrew 前缀根（仅 posix；Windows 返回空）。
+
+    用于 mac/Linux 自动发现 brew 安装的 php/nginx/redis。常见前缀：
+    /opt/homebrew（Apple Silicon）、/usr/local（Intel）、/home/linuxbrew/.linuxbrew。
+    """
+    if IS_WIN:
+        return []
+    cands = [
+        os.environ.get("HOMEBREW_PREFIX", ""),
+        "/opt/homebrew",
+        "/usr/local",
+        "/home/linuxbrew/.linuxbrew",
+    ]
+    out: list[str] = []
+    for c in cands:
+        c = c.rstrip("/")
+        if c and c not in out and os.path.isdir(os.path.join(c, "opt")):
+            out.append(c)
+    return out
+
+
+def _derive_port(name: str) -> int:
+    """未在默认映射表中的版本名推导端口。
+
+    规则与目录约定一致：php{两位版本号} → 9000+版本号（php74→9074、
+    php83→9083），保证多版本自动发现时默认端口互不冲突；无规则可循时回落 9000。
+    """
+    m = re.fullmatch(r"php(\d{2,3})", name)
+    if m:
+        return 9000 + int(m.group(1))
+    return 9000
 
 
 class Config:
@@ -84,7 +119,7 @@ class Config:
         self.save()
 
     def get_port(self, name: str) -> int:
-        return self.ports.get(name, DEFAULT_PORTS.get(name, 9000))
+        return self.ports.get(name, _derive_port(name))
 
     def set_port(self, name: str, port: int) -> None:
         self.ports[name] = int(port)

@@ -225,8 +225,9 @@ def port_to_pid_fast(port: int, force: bool = False) -> list[int]:
 def port_to_pid(port: int) -> list[int]:
     """返回监听指定端口的 PID 列表（仅 TCP，逐端口慢速查询，作为回退路径）。"""
     if not IS_WIN:
+        # 注意：macOS 的 lsof 要求 -i 值与参数连写（-iTCP:9001），拆开会被当成文件名
         code, out, _ = run_cmd(
-            ["lsof", "-nP", "-iTCP", f":{port}", "-sTCP:LISTEN", "-F", "p"], timeout=10
+            ["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-F", "p"], timeout=10
         )
         pids: list[int] = []
         if code == 0:
@@ -256,6 +257,68 @@ def port_to_pid(port: int) -> list[int]:
                 if pid > 0 and pid not in pids:
                     pids.append(pid)
     return pids
+
+
+# --------------------------------------------------------------------------- #
+# 进程命令行全量快照（posix；Windows 走 tasklist 专用路径）
+# --------------------------------------------------------------------------- #
+_posix_proc_snap: tuple[float, dict[int, str]] | None = None
+_posix_proc_lock = threading.Lock()
+_POSIX_PROC_TTL = 2.5  # 秒
+
+
+def get_process_cmd_snapshot(force: bool = False) -> dict[int, str] | None:
+    """全进程 {pid: 完整命令行} 快照，带 TTL 缓存。
+
+    posix：一次 `ps -axo pid=,command=` 即得全部进程，各 manager 在本地按
+    命令行子串/进程名过滤，避免每服务各跑一次 ps。
+    Windows：返回 None（上层继续使用 tasklist 专用路径）。
+    """
+    if IS_WIN:
+        return None
+    global _posix_proc_snap
+    now = time.monotonic()
+    with _posix_proc_lock:
+        cached = _posix_proc_snap
+        if not force and cached and now - cached[0] < _POSIX_PROC_TTL:
+            return cached[1]
+    code, out, _ = run_cmd(["ps", "-axo", "pid=,command="], timeout=15)
+    if code != 0:
+        return None
+    snapshot: dict[int, str] = {}
+    for raw in out.splitlines():
+        sp = raw.find(" ")
+        if sp <= 0:
+            continue
+        try:
+            pid = int(raw[:sp].strip())
+        except ValueError:
+            continue
+        cmd = raw[sp:].strip()
+        if cmd:
+            snapshot[pid] = cmd
+    with _posix_proc_lock:
+        _posix_proc_snap = (now, snapshot)
+    return snapshot
+
+
+def cmdline_matches_pids(needles, force: bool = False) -> dict[int, str]:
+    """返回命令行中含任一 needle（大小写不敏感）的 {pid: 命令行}。
+
+    Windows 返回空 dict（上层沿用 tasklist 等专用路径）。
+    """
+    snap = get_process_cmd_snapshot(force=force)
+    if not snap:
+        return {}
+    lows = [str(n).lower() for n in needles if str(n).strip()]
+    if not lows:
+        return {}
+    hits: dict[int, str] = {}
+    for pid, cmd in snap.items():
+        cl = cmd.lower()
+        if any(x in cl for x in lows):
+            hits[pid] = cmd
+    return hits
 
 
 # --------------------------------------------------------------------------- #
@@ -320,6 +383,21 @@ def get_process_snapshot() -> set[int]:
     一轮刷新中所有版本/服务的进程存活判断只需一次全量查询，本地匹配即可。
     """
     return alive_pids()
+
+
+def invalidate_process_cache() -> None:
+    """清空 TCP / 存活 PID / posix 命令行三层快照缓存。
+
+    启停进程后必须调用（立即反映新进程/已退出进程），否则轮询判定会命中
+    操作前的旧快照而误报「未监听/仍在运行」。
+    """
+    global _tcp_snapshot, _alive_cache, _posix_proc_snap
+    with _tcp_snapshot_lock:
+        _tcp_snapshot = None
+    with _alive_cache_lock:
+        _alive_cache = None
+    with _posix_proc_lock:
+        _posix_proc_snap = None
 
 
 def is_pid_alive_fast(pid: int) -> bool:
