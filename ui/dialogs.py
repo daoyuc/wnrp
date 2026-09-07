@@ -601,7 +601,7 @@ class CliSwitchDialog(tk.Toplevel):
 
 
 class CrashDialog(tk.Toplevel):
-    """php-cgi 崩溃事件详情（Windows 事件日志 Application/1000）。
+    """php-cgi 崩溃事件详情（Windows 事件日志 / macOS 崩溃报告）。
 
     两个页签：崩溃事件 + 自愈历史（recover_history.json 可视化）。
     """
@@ -616,14 +616,21 @@ class CrashDialog(tk.Toplevel):
         self.configure(bg=CARD_BG)
         self.transient(master)
 
+        if IS_WIN:
+            src = "事件日志 Application/1000"
+            hint = ("以下记录来自 Windows 事件日志。异常码 0xc0000005（访问冲突）通常是扩展/JIT/"
+                    "代码段错误导致，崩溃后站点会 502。")
+        else:
+            src = "macOS 崩溃报告 DiagnosticReports"
+            hint = ("以下记录来自 macOS 崩溃报告（~/Library/Logs/DiagnosticReports 的 "
+                    "php-cgi-*.ips）。SIGSEGV/SIGABRT 通常是扩展或 opcache JIT 导致，崩溃后站点会 502。")
         header = ttk.Frame(self, padding=(16, 14, 16, 4))
         header.pack(fill="x")
-        ttk.Label(header, text="php-cgi 崩溃事件（事件日志 Application/1000）",
+        ttk.Label(header, text=f"php-cgi 崩溃事件（{src}）",
                   style="Title.TLabel").pack(anchor="w")
         ttk.Label(
             header,
-            text="以下记录来自 Windows 事件日志。异常码 0xc0000005（访问冲突）通常是扩展/JIT/"
-                 "代码段错误导致，崩溃后站点会 502。",
+            text=hint,
             style="SubTitle.TLabel", wraplength=800,
         ).pack(anchor="w", pady=(4, 0))
 
@@ -661,7 +668,8 @@ class CrashDialog(tk.Toplevel):
 
         detail_wrap = ttk.Frame(parent)
         detail_wrap.pack(fill="both", expand=True, pady=(4, 0))
-        self.detail = tk.Text(detail_wrap, height=9, wrap="char", font=("Consolas", 9),
+        self.detail = tk.Text(detail_wrap, height=9, wrap="char",
+                              font=(("Menlo", 9) if not IS_WIN else ("Consolas", 9)),
                               background="#FFFFFF", foreground=TEXT, relief="flat",
                               padx=10, pady=8, state="disabled")
         dvsb = ttk.Scrollbar(detail_wrap, orient="vertical", command=self.detail.yview)
