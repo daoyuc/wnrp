@@ -15,6 +15,7 @@ import zipfile
 from dataclasses import dataclass
 
 from . import process_utils as pu
+from .i18n import t
 from .php_downloader import (
     USER_AGENT,
     _http_get,
@@ -250,22 +251,25 @@ def _pick_pecl(ext_key: str, rt: RuntimeInfo, progress=None) -> tuple[str, str]:
     """在 PECL 版本目录（新→旧）中找首个匹配的 zip，返回 (zip_url, zip_file)。"""
     base = f"{PECL_BASE}/{ext_key}"
     if progress:
-        progress(f"获取 {ext_key} 版本列表…")
+        progress(t("获取 {ext} 版本列表…", ext=ext_key))
     html = _http_get(base + "/").decode("utf-8", errors="replace")
     versions = [h.split("/")[0] for h in re.findall(r'href="([\d.]+)/"', html)]
     versions.sort(key=_ver_key, reverse=True)
     if not versions:
-        raise RuntimeError(f"PECL 未找到 {ext_key} 的版本目录")
+        raise RuntimeError(t("PECL 未找到 {ext} 的版本目录", ext=ext_key))
     for ver in versions:
         if progress:
-            progress(f"匹配 {ext_key}-{ver} 与 PHP {rt.series} {rt.ts.upper()} {rt.arch}…")
+            progress(t("匹配 {ext}-{ver} 与 PHP {series} {ts} {arch}…",
+                       ext=ext_key, ver=ver, series=rt.series,
+                       ts=rt.ts.upper(), arch=rt.arch))
         page = _http_get(f"{base}/{ver}/").decode("utf-8", errors="replace")
         fname = _match_file(page, ext_key, rt, dll_mode=False)
         if fname:
             return f"{base}/{ver}/{fname}", fname
     raise RuntimeError(
-        f"PECL 无适配本机 {rt.series} {rt.ts.upper()} {rt.arch} 的 {ext_key} 构建。\n"
-        f"该扩展可能尚未提供当前 PHP 主版本的 Windows 包。"
+        t("PECL 无适配本机 {series} {ts} {arch} 的 {ext} 构建。\n"
+          "该扩展可能尚未提供当前 PHP 主版本的 Windows 包。",
+          series=rt.series, ts=rt.ts.upper(), arch=rt.arch, ext=ext_key)
     )
 
 
@@ -290,7 +294,10 @@ def install_online(catalog_item: dict, php_dir: str, rt: RuntimeInfo,
     # 已存在同名 dll（无论是否启用）直接跳过
     existing = [f for f in os.listdir(ext_dir) if _norm(f) == ext_key]
     if existing:
-        return True, f"{ext_key} 扩展已存在于 {ext_dir}\\{existing[0]}，无需重复下载。", existing[0]
+        return (True,
+                t("{ext} 扩展已存在于 {dir}\\{dll}，无需重复下载。",
+                  ext=ext_key, dir=ext_dir, dll=existing[0]),
+                existing[0])
 
     tmp = os.path.join(php_dir, "..", "phpvm", ".tmp")
     os.makedirs(tmp, exist_ok=True)
@@ -298,21 +305,22 @@ def install_online(catalog_item: dict, php_dir: str, rt: RuntimeInfo,
     try:
         if catalog_item.get("source") == "xdebug":
             if progress:
-                report("获取 xdebug.org 文件列表…")
+                report(t("获取 xdebug.org 文件列表…"))
             html = _http_get(XDEBUG_URL).decode("utf-8", errors="replace")
             fname = _match_file(html, ext_key, rt, dll_mode=True)
             if not fname:
                 raise RuntimeError(
-                    f"xdebug.org 无适配本机 {rt.series} {rt.ts.upper()} {rt.arch} 的构建。"
+                    t("xdebug.org 无适配本机 {series} {ts} {arch} 的构建。",
+                      series=rt.series, ts=rt.ts.upper(), arch=rt.arch)
                 )
             url = XDEBUG_URL + fname
             tmp_file = os.path.join(tmp, fname)
-            report(f"下载 {fname} …")
+            report(t("下载 {file} …", file=fname))
             _download(url, tmp_file)
         else:
             url, fname = _pick_pecl(ext_key, rt, report)
             tmp_file = os.path.join(tmp, fname)
-            report(f"下载 {fname} …")
+            report(t("下载 {file} …", file=fname))
             _download(url, tmp_file)
 
         # 从 zip 中提取 dll（PECL）；dll 模式直接使用
@@ -321,18 +329,18 @@ def install_online(catalog_item: dict, php_dir: str, rt: RuntimeInfo,
             extract_dir = os.path.join(tmp, f"ext_{ext_key}_src")
             if os.path.exists(extract_dir):
                 shutil.rmtree(extract_dir, ignore_errors=True)
-            report(f"解压 {fname} …")
+            report(t("解压 {file} …", file=fname))
             extract_zip_safe(tmp_file, extract_dir)
             dlls = [f for f in os.listdir(extract_dir)
                     if f.lower().endswith(".dll") and f.lower().startswith("php_")]
             if not dlls:
-                raise RuntimeError(f"压缩包内未找到 php_{ext_key}.dll")
+                raise RuntimeError(t("压缩包内未找到 php_{ext}.dll", ext=ext_key))
             dll_name = dlls[0]
             src = os.path.join(extract_dir, dll_name)
         else:
             src = tmp_file
             if not src.lower().endswith(".dll"):
-                raise RuntimeError(f"下载内容不是 .dll 文件：{fname}")
+                raise RuntimeError(t("下载内容不是 .dll 文件：{file}", file=fname))
 
         # 落入 ext/：同名覆盖前保留 .bak
         dest = os.path.join(ext_dir, dll_name)
@@ -341,9 +349,9 @@ def install_online(catalog_item: dict, php_dir: str, rt: RuntimeInfo,
                 shutil.copy2(dest, dest + ".bak")
             except OSError:
                 pass
-        report(f"写入 {dll_name} …")
+        report(t("写入 {file} …", file=dll_name))
         shutil.copy2(src, dest)
-        return True, f"已安装 {dll_name}（可通过「本地扩展」页启用）。", dll_name
+        return True, t("已安装 {dll}（可通过「本地扩展」页启用）。", dll=dll_name), dll_name
     finally:
         for p in (tmp_file, os.path.join(tmp, f"ext_{ext_key}_src")):
             try:

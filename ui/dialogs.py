@@ -908,7 +908,7 @@ class IniEditDialog(tk.Toplevel):
             else:
                 entry = ttk.Entry(row, textvariable=var, width=32)
                 entry.grid(row=0, column=1, sticky="w")
-            ttk.Label(row, text=meta.get("hint", ""), style="SubTitle.TLabel",
+            ttk.Label(row, text=t(meta.get("hint", "")), style="SubTitle.TLabel",
                       background=CARD_BG).grid(row=0, column=2, sticky="w", padx=(8, 0))
 
     def _save(self) -> None:

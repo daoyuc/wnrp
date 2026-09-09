@@ -17,6 +17,12 @@
    "ui/site_wizard.py"
   ]
  },
+ "           {reasons}": {
+  "count": 1,
+  "files": [
+   "core/health_monitor.py"
+  ]
+ },
  " 泛解析": {
   "count": 1,
   "files": [
@@ -70,6 +76,18 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "=== 崩溃自愈守护进程启动 ===": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
+  ]
+ },
+ "=== 崩溃自愈守护进程退出 ===": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
   ]
  },
  "DB 键空间": {
@@ -186,6 +204,18 @@
    "core/nginx_manager.py"
   ]
  },
+ "PECL 无适配本机 {series} {ts} {arch} 的 {ext} 构建。\n该扩展可能尚未提供当前 PHP 主版本的 Windows 包。": {
+  "count": 1,
+  "files": [
+   "core/php_extension.py"
+  ]
+ },
+ "PECL 未找到 {ext} 的版本目录": {
+  "count": 1,
+  "files": [
+   "core/php_extension.py"
+  ]
+ },
  "PHP FastCGI 配置": {
   "count": 1,
   "files": [
@@ -198,13 +228,20 @@
    "ui/site_wizard.py"
   ]
  },
+ "PHP {version} 安装成功（{name}，默认端口 {port}）": {
+  "count": 1,
+  "files": [
+   "core/php_installer.py"
+  ]
+ },
  "PHP 版本": {
-  "count": 4,
+  "count": 5,
   "files": [
    "ui/dialogs.py",
    "ui/download_dialog.py",
    "ui/php_panel.py",
-   "ui/vhost_panel.py"
+   "ui/vhost_panel.py",
+   "core/health_monitor.py"
   ]
  },
  "PHP 版本未知": {
@@ -265,6 +302,12 @@
   "count": 1,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "SHA-256 校验失败：文件可能被篡改或下载不完整，已自动清理临时文件。": {
+  "count": 1,
+  "files": [
+   "core/php_installer.py"
   ]
  },
  "TS（线程安全）": {
@@ -399,6 +442,54 @@
    "ui/php_panel.py"
   ]
  },
+ "[{ver}] {reason} → {msg}": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
+  ]
+ },
+ "[{ver}] {reason} 失败：{err}": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
+  ]
+ },
+ "[{ver}] {reason}：处于手动停止宽限期，跳过": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
+  ]
+ },
+ "[{ver}] {reason}：已达自愈上限（{limit} 次/小时）": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
+  ]
+ },
+ "[{ver}] {reason}：防抖跳过": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
+  ]
+ },
+ "[{ver}] 已被手动停止，移除崩溃看护并进入 {sec}s 宽限": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
+  ]
+ },
+ "[{ver}] 检测到崩溃事件：{time} {module} 异常码 {code}": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
+  ]
+ },
+ "[{ver}] 连续 {n} 次自愈失败，解除看护，需人工介入": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
+  ]
+ },
  "[重载] {msg}": {
   "count": 1,
   "files": [
@@ -409,6 +500,12 @@
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "auto_recover_crash 已关闭，守护进程退出": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
   ]
  },
  "cmd 生效": {
@@ -573,10 +670,28 @@
    "main.py"
   ]
  },
+ "releases.json 内容无法解析": {
+  "count": 1,
+  "files": [
+   "core/php_downloader.py"
+  ]
+ },
+ "releases.json 结构异常": {
+  "count": 1,
+  "files": [
+   "core/php_downloader.py"
+  ]
+ },
  "vhost 配置已全部同步到新端口，并已通过 nginx -t 校验。\n\n请点击「重载 Nginx」使新配置立即生效。": {
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "xdebug.org 无适配本机 {series} {ts} {arch} 的构建。": {
+  "count": 1,
+  "files": [
+   "core/php_extension.py"
   ]
  },
  "{action} 失败：{err}": {
@@ -590,6 +705,30 @@
   "count": 1,
   "files": [
    "ui/php_panel.py"
+  ]
+ },
+ "{conflict}\n请在安装完成后到「编辑端口」中为该版本调整端口，并同步修改 nginx vhost 的 fastcgi_pass。": {
+  "count": 1,
+  "files": [
+   "core/php_installer.py"
+  ]
+ },
+ "{count} 项全部就绪": {
+  "count": 1,
+  "files": [
+   "core/health_monitor.py"
+  ]
+ },
+ "{ext} 扩展已存在于 {dir}\\{dll}，无需重复下载。": {
+  "count": 1,
+  "files": [
+   "core/php_extension.py"
+  ]
+ },
+ "{ini} 加载正常{extra}": {
+  "count": 1,
+  "files": [
+   "core/health_monitor.py"
   ]
  },
  "{key}：{err}": {
@@ -614,6 +753,18 @@
   "count": 1,
   "files": [
    "ui/extension_dialog.py"
+  ]
+ },
+ "{name} 已安装，但 php -v 验证失败：\n{detail}": {
+  "count": 1,
+  "files": [
+   "core/php_installer.py"
+  ]
+ },
+ "{name} 已安装，但缺少 VC 运行时导致无法运行：\n{detail}\n请下载安装对应的 vc_redist.x64.exe（{compiler} 对应运行库）后重试。": {
+  "count": 1,
+  "files": [
+   "core/php_installer.py"
   ]
  },
  "{name}（FastCGI 端口 {port}）": {
@@ -657,6 +808,30 @@
   "count": 1,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "{reason} → {err}": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
+  ]
+ },
+ "{reason} → {msg}": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
+  ]
+ },
+ "{reason}：已达上限（{limit} 次/小时），暂停自动重启": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
+  ]
+ },
+ "{reason}：距上次自愈不足 {sec}s，跳过": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
   ]
  },
  "{time} {ver}{app} 异常码 {code}": {
@@ -803,6 +978,18 @@
    "ui/download_dialog.py"
   ]
  },
+ "下载 {file} …": {
+  "count": 2,
+  "files": [
+   "core/php_extension.py"
+  ]
+ },
+ "下载内容不是 .dll 文件：{file}": {
+  "count": 1,
+  "files": [
+   "core/php_extension.py"
+  ]
+ },
  "下载安装进行中，请稍候…": {
   "count": 1,
   "files": [
@@ -831,6 +1018,12 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "不能为空": {
+  "count": 2,
+  "files": [
+   "core/ini_editor.py"
   ]
  },
  "主配置 {path} 中未找到 http 块，无法确认站点加载": {
@@ -998,6 +1191,12 @@
    "ui/main_window.py"
   ]
  },
+ "关键扩展": {
+  "count": 1,
+  "files": [
+   "core/health_monitor.py"
+  ]
+ },
  "关键配置": {
   "count": 1,
   "files": [
@@ -1059,6 +1258,12 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "写入 {file} …": {
+  "count": 1,
+  "files": [
+   "core/php_extension.py"
   ]
  },
  "写入失败：{err}": {
@@ -1174,6 +1379,12 @@
    "ui/dialogs.py"
   ]
  },
+ "匹配 {ext}-{ver} 与 PHP {series} {ts} {arch}…": {
+  "count": 1,
+  "files": [
+   "core/php_extension.py"
+  ]
+ },
  "匹配目标：PHP {series} · {ts} · {arch} · {compiler}": {
   "count": 1,
   "files": [
@@ -1184,6 +1395,18 @@
   "count": 1,
   "files": [
    "ui/redis_panel.py"
+  ]
+ },
+ "压缩包内未找到 php_{ext}.dll": {
+  "count": 1,
+  "files": [
+   "core/php_extension.py"
+  ]
+ },
+ "压缩包包含非法路径：{path}": {
+  "count": 1,
+  "files": [
+   "core/php_downloader.py"
   ]
  },
  "原理：修改用户环境变量 PATH（User 优先级高于系统），将所选版本置顶。新打开的 cmd 生效，无需管理员权限。": {
@@ -1210,6 +1433,12 @@
    "ui/dialogs.py",
    "ui/main_window.py",
    "ui/site_wizard.py"
+  ]
+ },
+ "只能从 {options} 中选择": {
+  "count": 1,
+  "files": [
+   "core/ini_editor.py"
   ]
  },
  "可在主界面直接启动该版本。": {
@@ -1303,6 +1532,18 @@
   "count": 1,
   "files": [
    "ui/redis_panel.py"
+  ]
+ },
+ "启动守护进程失败：{err}": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
+  ]
+ },
+ "启动快照：{count} 个运行中的版本已纳入崩溃看护": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
   ]
  },
  "命令 {cmd} 会删除数据或影响运行，确定要执行吗？": {
@@ -1405,6 +1646,18 @@
    "ui/dialogs.py"
   ]
  },
+ "守护循环异常：{err}": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
+  ]
+ },
+ "守护进程已拉起（稍后自动接管）": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
+  ]
+ },
  "安装失败": {
   "count": 3,
   "files": [
@@ -1413,9 +1666,10 @@
   ]
  },
  "安装失败：{err}": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/download_dialog.py"
+   "ui/download_dialog.py",
+   "core/php_installer.py"
   ]
  },
  "安装完成": {
@@ -1496,6 +1750,24 @@
    "ui/dialogs.py"
   ]
  },
+ "崩溃事件 {code}": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
+  ]
+ },
+ "崩溃事件查询失败（无可用数据源），本轮跳过崩溃检测": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
+  ]
+ },
+ "崩溃位置：模块 {module} 偏移 {offset}": {
+  "count": 1,
+  "files": [
+   "core/health_monitor.py"
+  ]
+ },
  "崩溃报告 DiagnosticReports": {
   "count": 1,
   "files": [
@@ -1506,6 +1778,24 @@
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "崩溃时间：{ts}": {
+  "count": 1,
+  "files": [
+   "core/health_monitor.py"
+  ]
+ },
+ "崩溃自愈守护进程已启动": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
+  ]
+ },
+ "崩溃自愈守护进程已在运行": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
   ]
  },
  "崩溃自愈已关闭（守护进程将自动退出）": {
@@ -1620,6 +1910,12 @@
    "ui/download_dialog.py"
   ]
  },
+ "已安装 {dll}（可通过「本地扩展」页启用）。": {
+  "count": 1,
+  "files": [
+   "core/php_extension.py"
+  ]
+ },
  "已打开的 cmd 不会自动切换，需重开窗口": {
   "count": 1,
   "files": [
@@ -1648,6 +1944,12 @@
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "已有守护进程在运行，本实例退出": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
   ]
  },
  "已清空崩溃告警记录": {
@@ -1758,6 +2060,12 @@
    "ui/dialogs.py"
   ]
  },
+ "异常：{exception}": {
+  "count": 1,
+  "files": [
+   "core/health_monitor.py"
+  ]
+ },
  "当前生效": {
   "count": 1,
   "files": [
@@ -1768,6 +2076,30 @@
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "必须为 -1 或正整数": {
+  "count": 1,
+  "files": [
+   "core/ini_editor.py"
+  ]
+ },
+ "必须是 On 或 Off": {
+  "count": 1,
+  "files": [
+   "core/ini_editor.py"
+  ]
+ },
+ "必须是数字，可带 K/M/G 后缀（如 128M）": {
+  "count": 1,
+  "files": [
+   "core/ini_editor.py"
+  ]
+ },
+ "必须是整数": {
+  "count": 1,
+  "files": [
+   "core/ini_editor.py"
   ]
  },
  "成功": {
@@ -1837,6 +2169,12 @@
   "count": 1,
   "files": [
    "ui/php_panel.py"
+  ]
+ },
+ "报告：{file}": {
+  "count": 1,
+  "files": [
+   "core/health_monitor.py"
   ]
  },
  "按步骤填写信息并选择应用模板，向导将自动生成 vhost 配置、写入 hosts 映射并执行 nginx -t 校验。": {
@@ -1940,6 +2278,12 @@
    "core/redis_manager.py"
   ]
  },
+ "无效时区（如 Asia/Shanghai）": {
+  "count": 1,
+  "files": [
+   "core/ini_editor.py"
+  ]
+ },
  "无数据：所有逻辑库均为空": {
   "count": 1,
   "files": [
@@ -1956,6 +2300,12 @@
   "count": 1,
   "files": [
    "ui/extension_dialog.py"
+  ]
+ },
+ "无法获取版本": {
+  "count": 1,
+  "files": [
+   "core/health_monitor.py"
   ]
  },
  "无独立配置文件": {
@@ -2124,9 +2474,10 @@
   ]
  },
  "未知": {
-  "count": 5,
+  "count": 7,
   "files": [
    "ui/main_window.py",
+   "core/health_monitor.py",
    "core/nginx_manager.py",
    "core/php_manager.py",
    "core/redis_manager.py"
@@ -2504,6 +2855,12 @@
    "ui/redis_panel.py"
   ]
  },
+ "目标目录 {dir} 已存在，请勿重复安装。": {
+  "count": 1,
+  "files": [
+   "core/php_installer.py"
+  ]
+ },
  "确定": {
   "count": 1,
   "files": [
@@ -2639,6 +2996,12 @@
    "ui/download_dialog.py"
   ]
  },
+ "终止原因：{reason}": {
+  "count": 1,
+  "files": [
+   "core/health_monitor.py"
+  ]
+ },
  "终端": {
   "count": 1,
   "files": [
@@ -2697,6 +3060,12 @@
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "缺失：{list}": {
+  "count": 1,
+  "files": [
+   "core/health_monitor.py"
   ]
  },
  "缺少 PHP 版本": {
@@ -2783,6 +3152,18 @@
    "ui/dialogs.py"
   ]
  },
+ "获取 xdebug.org 文件列表…": {
+  "count": 1,
+  "files": [
+   "core/php_extension.py"
+  ]
+ },
+ "获取 {ext} 版本列表…": {
+  "count": 1,
+  "files": [
+   "core/php_extension.py"
+  ]
+ },
  "获取版本列表失败：{err}（请检查网络后重试）": {
   "count": 1,
   "files": [
@@ -2793,6 +3174,18 @@
   "count": 1,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "解压 {file} …": {
+  "count": 1,
+  "files": [
+   "core/php_extension.py"
+  ]
+ },
+ "解压内容异常：未找到 php.exe / php-cgi.exe": {
+  "count": 1,
+  "files": [
+   "core/php_installer.py"
   ]
  },
  "警告 {n}": {
@@ -2905,6 +3298,12 @@
    "core/vhost_manager.py"
   ]
  },
+ "调用栈：": {
+  "count": 1,
+  "files": [
+   "core/health_monitor.py"
+  ]
+ },
  "输入 Redis 命令后回车执行，输出显示在此区。": {
   "count": 1,
   "files": [
@@ -2938,6 +3337,24 @@
    "ui/dialogs.py"
   ]
  },
+ "进程失联（端口 {port} 无监听）": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
+  ]
+ },
+ "进程路径：{path}": {
+  "count": 1,
+  "files": [
+   "core/health_monitor.py"
+  ]
+ },
+ "连续 {n} 次失败，已解除看护，请手动检查 php.ini/端口": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
+  ]
+ },
  "退出": {
   "count": 2,
   "files": [
@@ -2967,6 +3384,12 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "配置加载 ({ini})": {
+  "count": 1,
+  "files": [
+   "core/health_monitor.py"
   ]
  },
  "配置持久化": {
@@ -3159,6 +3582,12 @@
    "ui/vhost_panel.py"
   ]
  },
+ "非法版本系列：{series}": {
+  "count": 1,
+  "files": [
+   "core/php_installer.py"
+  ]
+ },
  "项目根目录": {
   "count": 1,
   "files": [
@@ -3181,6 +3610,12 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "首轮就绪：事件游标已推进，{count} 条历史事件进入看护待复核": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
   ]
  },
  "（全新安装）": {
@@ -3272,6 +3707,12 @@
   "count": 1,
   "files": [
    "ui/nginx_panel.py"
+  ]
+ },
+ "，存在警告": {
+  "count": 1,
+  "files": [
+   "core/health_monitor.py"
   ]
  },
  "，点击「一键同步」执行": {

@@ -33,6 +33,7 @@ from core import process_utils as pu  # noqa: E402
 from core import recover_history  # noqa: E402
 from core.config import Config, IS_WIN  # noqa: E402
 from core.health_monitor import HealthMonitor  # noqa: E402
+from core.i18n import t  # noqa: E402
 from core.php_manager import PhpManager  # noqa: E402
 
 LOCK_FILE = os.path.join(_APP_DIR, "crash_watchdog.lock")
@@ -119,7 +120,7 @@ def _release() -> None:
 def spawn() -> tuple[bool, str]:
     """以无窗口后台方式拉起守护进程（win 用 pythonw）。幂等：已有实例不重复拉起。"""
     if is_running():
-        return True, "崩溃自愈守护进程已在运行"
+        return True, t("崩溃自愈守护进程已在运行")
     script = os.path.join(_APP_DIR, "core", "crash_watchdog.py")
     try:
         if IS_WIN:
@@ -141,13 +142,13 @@ def spawn() -> tuple[bool, str]:
                 close_fds=True,
             )
     except OSError as e:
-        return False, f"启动守护进程失败：{e}"
+        return False, t("启动守护进程失败：{err}", err=e)
     # 短暂等待，确认子进程接管锁后返回（GUI 侧在后台线程调用，可接受）
     for _ in range(10):
         time.sleep(0.3)
         if is_running():
-            return True, "崩溃自愈守护进程已启动"
-    return True, "守护进程已拉起（稍后自动接管）"
+            return True, t("崩溃自愈守护进程已启动")
+    return True, t("守护进程已拉起（稍后自动接管）")
 
 
 def watch_version(version: str) -> None:
@@ -173,7 +174,8 @@ def unwatch(version: str) -> None:
         watch.pop(version)
     state.setdefault("manual_stops", {})[version] = time.time()
     _save_state(state)
-    _log(f"[{version}] 已被手动停止，移除崩溃看护并进入 {int(MANUAL_GRACE)}s 宽限")
+    _log(t("[{ver}] 已被手动停止，移除崩溃看护并进入 {sec}s 宽限",
+           ver=version, sec=int(MANUAL_GRACE)))
 
 
 def _manual_grace(version: str) -> bool:
@@ -243,21 +245,26 @@ def _try_restart(cfg: Config, pm: PhpManager, versions: dict,
         return
     # 刚被 GUI 手动停止 → 宽限期内不自动拉回
     if _manual_grace(version):
-        _log(f"[{version}] {reason}：处于手动停止宽限期，跳过")
+        _log(t("[{ver}] {reason}：处于手动停止宽限期，跳过", ver=version, reason=reason))
         return
 
     if rec["last_restart"] and now - rec["last_restart"] < MIN_INTERVAL:
-        recover_history.append(version, "skip_interval",
-                               f"{reason}：距上次自愈不足 {int(MIN_INTERVAL)}s，跳过")
-        _log(f"[{version}] {reason}：防抖跳过")
+        recover_history.append(
+            version, "skip_interval",
+            t("{reason}：距上次自愈不足 {sec}s，跳过",
+              reason=reason, sec=int(MIN_INTERVAL)))
+        _log(t("[{ver}] {reason}：防抖跳过", ver=version, reason=reason))
         return
     if now - rec["window_start"] > WINDOW:
         rec["window_start"], rec["count"] = now, 0
     limit = int(cfg.get_setting("auto_recover_limit", 3) or 3)
     if rec["count"] >= limit:
-        recover_history.append(version, "skip_limit",
-                               f"{reason}：已达上限（{limit} 次/小时），暂停自动重启")
-        _log(f"[{version}] {reason}：已达自愈上限（{limit} 次/小时）")
+        recover_history.append(
+            version, "skip_limit",
+            t("{reason}：已达上限（{limit} 次/小时），暂停自动重启",
+              reason=reason, limit=limit))
+        _log(t("[{ver}] {reason}：已达自愈上限（{limit} 次/小时）",
+               ver=version, reason=reason, limit=limit))
         return
 
     try:
@@ -265,17 +272,22 @@ def _try_restart(cfg: Config, pm: PhpManager, versions: dict,
         rec["last_restart"] = now
         rec["count"] += 1
         rec["fails"] = 0
-        recover_history.append(version, "start", f"{reason} → {msg}")
-        _log(f"[{version}] {reason} → {msg}")
+        recover_history.append(version, "start", t("{reason} → {msg}",
+                                                   reason=reason, msg=msg))
+        _log(t("[{ver}] {reason} → {msg}", ver=version, reason=reason, msg=msg))
     except Exception as ex:  # noqa: BLE001
         rec["fails"] += 1
-        recover_history.append(version, "fail", f"{reason} → {type(ex).__name__}: {ex}")
-        _log(f"[{version}] {reason} 失败：{ex}")
+        recover_history.append(version, "fail",
+                               t("{reason} → {err}", reason=reason,
+                                 err=f"{type(ex).__name__}: {ex}"))
+        _log(t("[{ver}] {reason} 失败：{err}", ver=version, reason=reason, err=ex))
         if rec["fails"] >= ESCALATE:
             state["watch"].pop(version, None)
-            recover_history.append(version, "fail",
-                                   f"连续 {ESCALATE} 次失败，已解除看护，请手动检查 php.ini/端口")
-            _log(f"[{version}] 连续 {ESCALATE} 次自愈失败，解除看护，需人工介入")
+            recover_history.append(
+                version, "fail",
+                t("连续 {n} 次失败，已解除看护，请手动检查 php.ini/端口", n=ESCALATE))
+            _log(t("[{ver}] 连续 {n} 次自愈失败，解除看护，需人工介入",
+                   ver=version, n=ESCALATE))
 
 
 # --------------------------------------------------------------------- #
@@ -290,7 +302,7 @@ def _tick_once(cfg: Config, pm: PhpManager, versions: dict,
         events = hm.fetch_crash_events(hours=LOOKBACK_HOURS)
         if events is None:
             # 查询失败：本轮不推进游标，避免漏掉窗口内的崩溃
-            _log("崩溃事件查询失败（无可用数据源），本轮跳过崩溃检测")
+            _log(t("崩溃事件查询失败（无可用数据源），本轮跳过崩溃检测"))
         else:
             latest = events[0]["time"] if events else None
             prev = state.get("last_event_ts")
@@ -302,7 +314,8 @@ def _tick_once(cfg: Config, pm: PhpManager, versions: dict,
                     ver = e.get("version")
                     if ver and versions.get(ver):
                         _ensure_watch(state, ver)
-                _log(f"首轮就绪：事件游标已推进，{len(events)} 条历史事件进入看护待复核")
+                _log(t("首轮就绪：事件游标已推进，{count} 条历史事件进入看护待复核",
+                       count=len(events)))
             elif latest and latest > prev:
                 fresh = [e for e in events if e.get("time", "") > prev]
                 state["last_event_ts"] = latest
@@ -310,10 +323,11 @@ def _tick_once(cfg: Config, pm: PhpManager, versions: dict,
                     ver = e.get("version")
                     if not ver or ver not in versions:
                         continue
-                    _log(f"[{ver}] 检测到崩溃事件：{e.get('time')} "
-                         f"{e.get('module')} 异常码 {e.get('exception')}")
+                    _log(t("[{ver}] 检测到崩溃事件：{time} {module} 异常码 {code}",
+                           ver=ver, time=e.get("time"), module=e.get("module"),
+                           code=e.get("exception")))
                     _try_restart(cfg, pm, versions, state, ver,
-                                 f"崩溃事件 {e.get('exception')}")
+                                 t("崩溃事件 {code}", code=e.get("exception")))
 
     # 2) 失联探测：看护中的版本若已不在监听 → 兜底重启（无崩溃事件也能恢复）。
     #    看护持续有效（覆盖「进程消失但无崩溃事件」的故障），停止请走 phpvm
@@ -329,7 +343,7 @@ def _tick_once(cfg: Config, pm: PhpManager, versions: dict,
             running = False
         if not running:
             _try_restart(cfg, pm, versions, state, ver,
-                         f"进程失联（端口 {v.port} 无监听）")
+                         t("进程失联（端口 {port} 无监听）", port=v.port))
 
 
 def _baseline_watch(state: dict, pm: PhpManager, versions: dict) -> None:
@@ -348,16 +362,16 @@ def _baseline_watch(state: dict, pm: PhpManager, versions: dict) -> None:
             _ensure_watch(state, name)
             added += 1
     if added:
-        _log(f"启动快照：{added} 个运行中的版本已纳入崩溃看护")
+        _log(t("启动快照：{count} 个运行中的版本已纳入崩溃看护", count=added))
     state["boot"] = time.strftime("%Y-%m-%d %H:%M:%S")
 
 
 def run(once: bool = False) -> None:
     if not _acquire():
-        _log("已有守护进程在运行，本实例退出")
+        _log(t("已有守护进程在运行，本实例退出"))
         print("crash_watchdog already running, exit") if not once else None
         return
-    _log("=== 崩溃自愈守护进程启动 ===")
+    _log(t("=== 崩溃自愈守护进程启动 ==="))
     try:
         state = _load_state()
         # 忽略历史手动停止标记（跨会话）；本会话新标记由 unwatch 写入
@@ -366,7 +380,7 @@ def run(once: bool = False) -> None:
         while True:
             cfg = Config()
             if not cfg.get_setting("auto_recover_crash", False):
-                _log("auto_recover_crash 已关闭，守护进程退出")
+                _log(t("auto_recover_crash 已关闭，守护进程退出"))
                 break
             event_round = (round_no % EVENT_EVERY == 0)
             try:
@@ -380,15 +394,18 @@ def run(once: bool = False) -> None:
                 _tick_once(cfg, pm, versions, hm, state, event_round)
                 _save_state(state)
             except Exception as ex:  # noqa: BLE001
-                _log(f"守护循环异常：{type(ex).__name__}: {ex}")
+                _log(t("守护循环异常：{err}", err=f"{type(ex).__name__}: {ex}"))
             round_no += 1
             if once:
                 break
             time.sleep(POLL_INTERVAL)
     finally:
         _release()
-        _log("=== 崩溃自愈守护进程退出 ===")
+        _log(t("=== 崩溃自愈守护进程退出 ==="))
 
 
 if __name__ == "__main__":
+    from core.i18n import set_language  # noqa: E402
+
+    set_language(Config().get_lang())
     run(once=("--once" in sys.argv))

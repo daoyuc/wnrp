@@ -175,7 +175,7 @@ class ExtensionDialog(tk.Toplevel):
             ttk.Checkbutton(row, variable=var, command=self._update_dirty).pack(side="left")
             ttk.Label(row, text=info.dll, font=(FONT, 9, "bold"),
                       background=CARD_BG, width=24, anchor="w").pack(side="left", padx=(2, 8))
-            ttk.Label(row, text=info.desc, style="SubTitle.TLabel", background=CARD_BG,
+            ttk.Label(row, text=t(info.desc), style="SubTitle.TLabel", background=CARD_BG,
                       width=26, anchor="w").pack(side="left")
             status = t("已启用") if info.enabled else t("未启用")
             ttk.Label(row, text=status, foreground=OK if info.enabled else GRAY,
@@ -201,7 +201,8 @@ class ExtensionDialog(tk.Toplevel):
                 status, tag = t("已下载（未启用）"), "warn"
             else:
                 status, tag = t("可安装"), ""
-            self.online_tree.insert("", "end", values=(key, item["name"], item["desc"], status),
+            self.online_tree.insert("", "end",
+                                    values=(key, t(item["name"]), t(item["desc"]), status),
                                     tags=(tag,) if tag else ())
 
     def _update_dirty(self) -> None:
