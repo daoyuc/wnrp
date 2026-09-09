@@ -11,18 +11,20 @@ import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-from core import process_utils as pu
+from core import hosts_manager, process_utils as pu
 from core.config import WNRP_ROOT
 from core.vhost_manager import VhostEntry, VhostManager
+from .site_wizard import SiteWizardDialog
 from .theme import CARD_BG, ERR, TEXT
 
 COLUMNS = [
     ("server_name", "域名", 230, "w"),
+    ("hosts", "hosts 映射", 150, "w"),
     ("file", "配置文件", 130, "w"),
     ("port", "端口", 70, "center"),
     ("php", "PHP 版本", 90, "center"),
-    ("root", "项目根目录", 330, "w"),
-    ("note", "说明", 170, "w"),
+    ("root", "项目根目录", 300, "w"),
+    ("note", "说明", 150, "w"),
 ]
 NGINX_CONF_DIR = os.path.join(WNRP_ROOT, "nginx", "conf")
 
@@ -45,13 +47,17 @@ class VhostPanel(ttk.Frame):
     def _build(self) -> None:
         bar = ttk.Frame(self)
         bar.pack(fill="x", pady=(0, 6))
+        self.btn_new = ttk.Button(bar, text="＋ 新建站点…", style="Accent.TButton",
+                                  command=self._open_wizard)
+        self.btn_new.pack(side="left", padx=(0, 6))
         self.btn_refresh = ttk.Button(bar, text="刷新", command=self.refresh)
         self.btn_open_dir = ttk.Button(bar, text="打开 vhost 目录", command=self._open_dir)
         self.btn_open_dir.pack(side="left", padx=(0, 6))
         self.btn_refresh.pack(side="left", padx=(0, 6))
         ttk.Label(
             bar,
-            text="nginx 中 fastcgi_pass 端口 ↔ phpvm 各版本端口映射；双击行打开配置文件",
+            text="「新建站点」按向导生成 Laravel/WordPress/ThinkPHP 等配置，并自动写 hosts；"
+                 "双击行打开配置文件",
             style="SubTitle.TLabel",
         ).pack(side="left", padx=(4, 0))
 
@@ -108,6 +114,10 @@ class VhostPanel(ttk.Frame):
     def _render(self, entries: list[VhostEntry]) -> None:
         self._entries = entries
         self.tree.delete(*self.tree.get_children())
+        # 一次性读取 hosts，避免逐行重读
+        all_doms = [d for e in entries for d in e.server_name.split()
+                    if not d.startswith("*.")]
+        mapping = hosts_manager.mapping_for_domains(all_doms)
         for i, e in enumerate(entries):
             is_warn = bool(e.note) or (e.port is not None and not e.php_version)
             tags = ["warn" if is_warn else "ok", "odd" if i % 2 else "even"]
@@ -115,6 +125,7 @@ class VhostPanel(ttk.Frame):
                 "", "end",
                 values=(
                     e.server_name,
+                    self._hosts_cell(e.server_name, mapping),
                     e.file_rel,
                     e.port if e.port is not None else "—",
                     e.php_version or "—",
@@ -123,6 +134,29 @@ class VhostPanel(ttk.Frame):
                 ),
                 tags=tags,
             )
+
+    @staticmethod
+    def _hosts_cell(server_name: str, mapping: dict) -> str:
+        """域名 → hosts 状态摘要（✓本机 / ✗缺失 / 指向其它 IP）。"""
+        parts = []
+        for d in server_name.split():
+            if d.startswith("*."):
+                parts.append(d.replace("*.", "*") + " 泛解析")
+                continue
+            ip = mapping.get(d)
+            if ip == "127.0.0.1":
+                parts.append("✓ 本机")
+            elif ip is None:
+                parts.append("✗ 未映射")
+            else:
+                parts.append(f"⚠ {ip}")
+        return ", ".join(parts) or "—"
+
+    # ------------------------------------------------------------------ #
+    def _open_wizard(self) -> None:
+        """打开「新建站点」可视化向导，完成后刷新列表。"""
+        SiteWizardDialog(self.winfo_toplevel(), self.vhost_mgr.config,
+                         on_done=self.refresh)
 
     # ------------------------------------------------------------------ #
     def _open_config(self) -> None:

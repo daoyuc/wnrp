@@ -24,8 +24,16 @@ Windows 桌面 GUI 工具，用于统一管理 `C:\wnrp` 开发环境中的 **�
 
 ### 站点映射页
 - **映射矩阵**：解析 `nginx.conf` 与 `vhost/*.conf` 的全部 server 块，展示「域名 / 配置文件 / fastcgi_pass 端口 / 对应 PHP 版本 / 项目 root」
+- **hosts 状态列**：逐域名显示当前 hosts 映射状态（✓ 本机 / ✗ 未映射 / ⚠ 指向其它 IP），新建站点后自动刷新
 - **异常高亮**：端口未映射到任何已配置 PHP 版本的条目标红，一眼定位「端口改了但 vhost 没同步」等 502 根源
 - **一键同步 vhost**：修改端口保存后，自动扫描引用旧端口的配置文件 → 备份（`.bak`）→ 替换 `fastcgi_pass` → `nginx -t` 校验（失败自动还原全部备份）→ 一键平滑重载生效
+
+### 新建站点向导（可视化分步建站）
+- **入口**：站点映射页与 Nginx 管理页的「＋ 新建站点…」按钮
+- **第 1 步 基本信息**：填域名（支持多个、`*.test`/`*.dev` 泛解析）、选择项目目录、选择 PHP 版本（自动决定 `fastcgi_pass` 端口）
+- **第 2 步 应用模板**：内置 **Laravel / WordPress / ThinkPHP / 通用 PHP / 静态站点 / 前端 SPA（history 回退）** 六套模板，自动拼文档根（Laravel/ThinkPHP → `/public`），右侧**实时预览**最终 nginx 配置
+- **第 3 步 hosts 映射**：一键把域名写入 hosts 指向 `127.0.0.1` —— 已指向本机自动跳过、指向其它 IP 不覆盖仅提示；无写权限时 Windows 弹 UAC、macOS 弹系统授权框完成提权写入
+- **第 4 步 确认创建**：自动完成「写 `conf/vhost/<域名>.conf`（同名自动备份 `.bak`）→ 主配置未 include vhost 时自动补行 → `nginx -t` 校验 → 写入 hosts → 平滑重载」；校验失败询问保留或一键回滚，全程日志可视化
 
 ### 崩溃检测告警
 - 周期读取 Windows 事件日志（Application/1000），识别 `php-cgi.exe` 崩溃（如 JIT 导致的 0xc0000005）
@@ -98,15 +106,18 @@ C:\wnrp\phpvm\
 │   ├── php_manager.py     # 版本扫描/解析/启停/状态（三重校验）+ 批量状态刷新
 │   ├── path_manager.py    # cmd php 命令版本切换（用户 PATH 置顶）+ 版本缓存
 │   ├── nginx_manager.py   # nginx 启停/重载/配置检查
-│   ├── vhost_manager.py   # 站点映射解析 + 端口一键同步（备份/回滚/nginx -t 校验）
+│   ├── vhost_manager.py   # 站点映射解析 + 端口一键同步 + 站点文件写入/include 自动补全
+│   ├── site_templates.py  # 常用站点 nginx 模板（Laravel/WordPress/ThinkPHP/静态/SPA…）
+│   ├── hosts_manager.py   # hosts 自动映射（跨平台；UAC / macOS 授权框提权写入）
 │   ├── health_monitor.py  # php-cgi 崩溃检测（事件日志）+ 版本一键自检
 │   ├── ini_editor.py      # ini 关键配置项表单编辑（校验/备份/精确行替换）
 │   └── autostart.py       # 开机自启（HKCU Run 注册表项，pythonw 隐藏运行）
 └── ui/                    # 界面层
     ├── main_window.py     # 主窗口（五页签 + 状态栏 + 崩溃告警/自愈 + 设置区）
     ├── php_panel.py       # PHP 版本管理页
-    ├── nginx_panel.py     # Nginx 管理页
-    ├── vhost_panel.py     # 站点映射页
+    ├── nginx_panel.py     # Nginx 管理页（含新建站点向导入口）
+    ├── vhost_panel.py     # 站点映射页（hosts 状态列 + 新建站点向导入口）
+    ├── site_wizard.py     # 新建站点可视化向导（4 步 + 配置实时预览 + 自动校验/回滚）
     ├── nginx_log_panel.py # Nginx 日志页（tail 增量 / 自动跟随）
     ├── dialogs.py         # 端口同步/配置查看编辑/自检/崩溃详情对话框
     ├── tray.py            # 系统托盘（动态右键菜单/气泡告警/最小化到托盘）

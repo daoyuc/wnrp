@@ -18,6 +18,7 @@ from .nginx_log_panel import NginxLogPanel
 from .nginx_panel import NginxPanel
 from .php_panel import PhpPanel
 from .redis_panel import RedisPanel
+from .site_wizard import SiteWizardDialog
 from .theme import BG, CARD_BG, ERR, FONT, GRAY, OK, PRIMARY, PRIMARY_LIGHT, TEXT, setup_style
 from .vhost_panel import VhostPanel
 
@@ -92,7 +93,8 @@ class MainWindow(tk.Tk):
         nb = ttk.Notebook(self)
         nb.pack(fill="both", expand=True, padx=12, pady=(0, 6))
         self.php_panel = PhpPanel(nb, self.php_mgr, self.config, self.set_log)
-        self.nginx_panel = NginxPanel(nb, self.nginx_mgr, self.set_log)
+        self.nginx_panel = NginxPanel(nb, self.nginx_mgr, self.set_log,
+                                      on_new_site=self._open_site_wizard)
         self.redis_panel = RedisPanel(nb, self.redis_mgr, self.set_log)
         self.vhost_panel = VhostPanel(nb, VhostManager(self.config), self.set_log)
         self.log_panel = NginxLogPanel(nb, self.set_log)
@@ -176,6 +178,10 @@ class MainWindow(tk.Tk):
     # ------------------------------------------------------------------ #
     def set_log(self, msg: str) -> None:
         self._log_var.set(msg)
+
+    def _open_site_wizard(self) -> None:
+        """打开「新建站点」向导（Nginx 管理页入口），完成后刷新站点映射列表。"""
+        SiteWizardDialog(self, self.config, on_done=lambda: self.vhost_panel.refresh())
 
     # 设置区开关（关于页）
     def _toggle_autostart(self) -> None:

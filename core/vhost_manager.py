@@ -185,10 +185,120 @@ class VhostManager:
             except OSError:
                 pass
 
+    # ------------------------------------------------------------------ #
+    # 新建站点（向导用）
+    # ------------------------------------------------------------------ #
+    def ensure_vhost_dir(self) -> None:
+        """确保 vhost 目录存在。"""
+        try:
+            os.makedirs(VHOST_DIR, exist_ok=True)
+        except OSError:
+            pass
+
+    def write_vhost(self, filename: str, content: str) -> dict:
+        """把站点配置写入 vhost/<filename>。
+
+        已存在时先备份为 <filename>.bak（不覆盖删除）。
+        返回 {path, existed, backup, ok, message}。
+        """
+        self.ensure_vhost_dir()
+        path = os.path.join(VHOST_DIR, filename)
+        backup = None
+        existed = os.path.exists(path)
+        try:
+            if existed:
+                backup = path + ".bak"
+                shutil.copy2(path, backup)
+            with open(path, "w", encoding="utf-8", newline="") as f:
+                f.write(content)
+            return {"path": path, "existed": existed, "backup": backup,
+                    "ok": True, "message": "已写入"}
+        except OSError as e:
+            return {"path": path, "existed": existed, "backup": backup,
+                    "ok": False, "message": f"写入失败：{e}"}
+
+    def include_exists(self) -> bool:
+        """nginx.conf 是否已包含 vhost 目录（任意形式）。"""
+        if not os.path.exists(NGINX_MAIN_CONF):
+            return False
+        try:
+            with open(NGINX_MAIN_CONF, "r", encoding="utf-8") as f:
+                text = f.read()
+        except OSError:
+            return False
+        return _include_vhost.search(_strip_comments(text)) is not None
+
+    def ensure_include(self) -> dict:
+        """若 nginx.conf 未 include vhost/*.conf，则在 http 块内自动补一行。
+
+        改前备份 nginx.conf → <name>.bak。返回
+        {changed, ok, message, backup}。校验失败回滚由调用方（向导）负责。
+        """
+        if self.include_exists():
+            return {"changed": False, "ok": True,
+                    "message": "nginx.conf 已 include vhost 目录，无需修改", "backup": None}
+        if not os.path.exists(NGINX_MAIN_CONF):
+            return {"changed": False, "ok": False,
+                    "message": f"未找到主配置 {NGINX_MAIN_CONF}，无法自动补 include，请手动配置",
+                    "backup": None}
+        try:
+            with open(NGINX_MAIN_CONF, "r", encoding="utf-8") as f:
+                text = f.read()
+        except OSError as e:
+            return {"changed": False, "ok": False, "message": f"读取失败：{e}", "backup": None}
+
+        close_idx = _find_http_close_index(text)
+        if close_idx is None:
+            return {"changed": False, "ok": False,
+                    "message": "未在 nginx.conf 中找到 http 块，无法自动补 include",
+                    "backup": None}
+        backup = NGINX_MAIN_CONF + ".bak"
+        try:
+            shutil.copy2(NGINX_MAIN_CONF, backup)
+        except OSError as e:
+            return {"changed": False, "ok": False, "message": f"备份失败：{e}", "backup": None}
+        insert = "\n    # phpvm: 自动加载 conf/vhost 下的站点配置\n    include vhost/*.conf;\n"
+        new_text = text[:close_idx] + insert + text[close_idx:]
+        try:
+            with open(NGINX_MAIN_CONF, "w", encoding="utf-8", newline="") as f:
+                f.write(new_text)
+        except OSError as e:
+            return {"changed": False, "ok": False, "message": f"写入失败：{e}", "backup": backup}
+        return {"changed": True, "ok": True,
+                "message": "已自动在 http 块补上 include vhost/*.conf", "backup": backup}
+
 
 # --------------------------------------------------------------------- #
 # 文本解析工具
 # --------------------------------------------------------------------- #
+_include_vhost = re.compile(r"^\s*include\s+[^;]*vhost[^;]*;", re.M)
+
+
+def _strip_comments(text: str) -> str:
+    """行注释替换为等长空格，保持坐标一致。"""
+    return _RE_LINE_COMMENT.sub(lambda m: " " * len(m.group(0)), text)
+
+
+def _find_http_close_index(text: str) -> int | None:
+    """返回 http 块闭合 '}' 在原文中的下标；未找到返回 None。"""
+    no_comment = _strip_comments(text)
+    m = re.search(r"\bhttp\s*\{", no_comment)
+    if not m:
+        return None
+    open_idx = no_comment.find("{", m.start())
+    depth = 0
+    n = len(no_comment)
+    i = open_idx
+    while i < n:
+        c = no_comment[i]
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return i
+        i += 1
+    return None
 def _iter_server_blocks(text: str):
     """按大括号匹配切分所有 server 块（支持嵌套 location、忽略行注释）。
 

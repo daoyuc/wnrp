@@ -10,10 +10,11 @@ from .theme import ERR, FONT, GRAY, LOG_ACCENT, LOG_BG, LOG_FG, OK, PRIMARY_DARK
 
 
 class NginxPanel(ttk.Frame):
-    def __init__(self, master, nginx_mgr: NginxManager, notify):
+    def __init__(self, master, nginx_mgr: NginxManager, notify, on_new_site=None):
         super().__init__(master, padding=8)
         self.nginx_mgr = nginx_mgr
         self.notify = notify
+        self.on_new_site = on_new_site
 
         self._queue: queue.Queue = queue.Queue()
         self._busy = False
@@ -51,6 +52,11 @@ class NginxPanel(ttk.Frame):
 
         btns = ttk.Frame(left)
         btns.pack(fill="x", pady=(10, 0))
+        if self.on_new_site:
+            self.btn_new_site = ttk.Button(btns, text="＋ 新建站点向导…",
+                                           style="Accent.TButton",
+                                           command=self.on_new_site)
+            self.btn_new_site.pack(fill="x", pady=(0, 6))
         self.btn_start = ttk.Button(btns, text="启动 Nginx", style="Accent.TButton", command=lambda: self._run("start"))
         self.btn_start.pack(fill="x", pady=(0, 6))
         self.btn_reload = ttk.Button(btns, text="平滑重载", command=lambda: self._run("reload"))
