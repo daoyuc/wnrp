@@ -22,7 +22,7 @@ from core.config import Config, IS_WIN, WNRP_ROOT
 from core.nginx_manager import NginxManager
 from core.php_manager import PhpManager
 from core.site_templates import TEMPLATES, TEMPLATE_MAP, render_config
-from core.vhost_manager import NGINX_MAIN_CONF, VHOST_DIR, VhostManager
+from core.vhost_manager import VhostManager
 from .theme import CARD_BG, ERR, FONT, OK, PRIMARY, TEXT
 
 STEP_TITLES = ["基本信息", "应用模板", "hosts 映射", "确认创建"]
@@ -188,8 +188,8 @@ class SiteWizardDialog(tk.Toplevel):
         info.pack(fill="x", pady=(12, 0))
         ttk.Label(
             info,
-            text="· 生成独立 vhost 配置文件（conf/vhost/<域名>.conf）\n"
-                 "· 如 nginx.conf 尚未 include vhost 目录，会自动补一行 include vhost/*.conf\n"
+            text=f"· 生成独立站点配置文件（{self.vhost_mgr.vhost_dir}/<域名>.conf）\n"
+                 "· 如生效 nginx.conf 尚未 include 站点目录，会自动补一行 include（备份 .bak）\n"
                  "· 写入 hosts 把域名指向 127.0.0.1，nginx -t 校验通过后平滑重载",
             style="SubTitle.TLabel", justify="left", background=CARD_BG,
         ).pack(anchor="w")
@@ -215,7 +215,8 @@ class SiteWizardDialog(tk.Toplevel):
             anchor="w", pady=(12, 0))
         self.entry_fn = ttk.Entry(left, textvariable=self.v_filename, width=28)
         self.entry_fn.pack(anchor="w", pady=(4, 0))
-        ttk.Label(left, text="将生成到 conf/vhost/ 目录下", style="SubTitle.TLabel").pack(
+        ttk.Label(left, text=f"将生成到 {self.vhost_mgr.vhost_dir} 目录下",
+                  style="SubTitle.TLabel", wraplength=280, justify="left").pack(
             anchor="w", pady=(2, 0))
 
         right = ttk.Frame(top)
@@ -573,7 +574,7 @@ class SiteWizardDialog(tk.Toplevel):
         fname = self.v_filename.get().strip() or base + ".conf"
         root = self.v_root.get().strip()
         doc = self._docroot() if root else ""
-        file_path = os.path.join(VHOST_DIR, fname)
+        file_path = os.path.join(self.vhost_mgr.vhost_dir, fname)
         self.conf_path = file_path
         self._fname = fname
         php_txt = (f"{sel['name']}（FastCGI 端口 {sel['port']}）"
@@ -617,7 +618,7 @@ class SiteWizardDialog(tk.Toplevel):
         if not fname.endswith(".conf"):
             fname += ".conf"
         self._fname = fname
-        self.conf_path = os.path.join(VHOST_DIR, fname)
+        self.conf_path = os.path.join(self.vhost_mgr.vhost_dir, fname)
 
         # 主线程快照全部入参（后台线程不得触碰 Tk 变量）
         snapshot = {
@@ -671,10 +672,10 @@ class SiteWizardDialog(tk.Toplevel):
         if res["changed"]:
             self._changed["include"] = True
             self._backups.append((res["backup"].rsplit(".bak", 1)[0], res["backup"]))
-        if not os.path.exists(NGINX_MAIN_CONF):
-            # 工具环境还没有 nginx 主配置：不视为失败，仅提示
+        if not os.path.exists(self.vhost_mgr.main_conf):
+            # 工具环境还没有生效的 nginx 主配置：不视为失败，仅提示
             res["skip"] = True
-            res["message"] = (res["message"] or "未找到主配置，跳过 include 自动补全")
+            res["message"] = (res["message"] or "未找到生效主配置，跳过 include 自动补全")
             res["ok"] = False
         return res
 

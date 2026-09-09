@@ -8,12 +8,10 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 from core import path_manager, process_utils as pu, recover_history
-from core.config import Config, IS_WIN, WNRP_ROOT
+from core.config import Config, IS_WIN
 from core.php_manager import PhpManager, PhpVersion
 from core.vhost_manager import VhostManager
 from .theme import CARD_BG, ERR, FONT, GRAY, OK, PRIMARY, PRIMARY_DARK, TEXT
-
-VHOST_DIR = os.path.join(WNRP_ROOT, "nginx", "conf", "vhost")
 
 # 终端别名文案（Windows 的 cmd / macOS 的终端）
 _CLI_DISP = "cmd" if IS_WIN else "终端"
@@ -216,7 +214,7 @@ class VhostSyncDialog(tk.Toplevel):
                 self.btn_sync.configure(state="disabled")
                 return
             for path in files:
-                rel = os.path.relpath(path, VHOST_DIR)
+                rel = os.path.relpath(path, self.vhost_mgr.vhost_dir)
                 if rel.startswith(".."):
                     rel = path
                 dm = ", ".join(domains.get(path, [])) or "—"
@@ -266,7 +264,7 @@ class VhostSyncDialog(tk.Toplevel):
         all_ok = True
         for r in results:
             path = r["file"]
-            rel = os.path.relpath(path, VHOST_DIR)
+            rel = os.path.relpath(path, self.vhost_mgr.vhost_dir)
             if rel.startswith(".."):
                 rel = path
             if r["ok"]:
@@ -306,7 +304,11 @@ class VhostSyncDialog(tk.Toplevel):
         self._poll()
 
     def _open_dir(self) -> None:
-        pu.open_path(VHOST_DIR)
+        dir_ = self.vhost_mgr.vhost_dir if os.path.isdir(self.vhost_mgr.vhost_dir) \
+            else self.vhost_mgr.conf_dir
+        if not os.path.isdir(dir_):
+            dir_ = self.vhost_mgr.nginx.prefix
+        pu.open_path(dir_)
 
     def _append_result(self, text: str) -> None:
         self.result_text.configure(state="normal")

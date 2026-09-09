@@ -12,10 +12,9 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 from core import hosts_manager, process_utils as pu
-from core.config import WNRP_ROOT
 from core.vhost_manager import VhostEntry, VhostManager
 from .site_wizard import SiteWizardDialog
-from .theme import CARD_BG, ERR, TEXT
+from .theme import CARD_BG, ERR, GRAY, OK, TEXT, WARN
 
 COLUMNS = [
     ("server_name", "域名", 230, "w"),
@@ -26,7 +25,8 @@ COLUMNS = [
     ("root", "项目根目录", 300, "w"),
     ("note", "说明", 150, "w"),
 ]
-NGINX_CONF_DIR = os.path.join(WNRP_ROOT, "nginx", "conf")
+_OK_MARK = "✔"
+_WARN_MARK = "⚠"
 
 
 class VhostPanel(ttk.Frame):
@@ -61,6 +61,20 @@ class VhostPanel(ttk.Frame):
             style="SubTitle.TLabel",
         ).pack(side="left", padx=(4, 0))
 
+        # 生效 nginx.conf 是否 include 站点目录：自动检测状态行
+        self._inc_wrap = tk.Frame(self, bg=CARD_BG)
+        self._inc_wrap.pack(fill="x", pady=(0, 6))
+        self._inc_label = tk.Label(
+            self._inc_wrap, anchor="w", justify="left", wraplength=760,
+            font=("", 10), bg=CARD_BG, fg=TEXT,
+        )
+        self._inc_label.pack(side="left", fill="x", expand=True, padx=6, pady=4)
+        self._btn_fix_inc = ttk.Button(
+            self._inc_wrap, text="自动补 include 并校验", command=self._fix_include
+        )
+        self._btn_fix_inc.pack_forget()  # 默认隐藏，仅在「未 include」时显示
+        self._inc_status: dict | None = None
+
         wrap = ttk.Frame(self)
         wrap.pack(fill="both", expand=True)
         self.tree = ttk.Treeview(
@@ -90,7 +104,8 @@ class VhostPanel(ttk.Frame):
         def worker():
             try:
                 entries = self.vhost_mgr.scan()
-                self._queue.put(("entries", entries))
+                inc = self.vhost_mgr.include_status()
+                self._queue.put(("data", (entries, inc)))
             except Exception as e:  # noqa: BLE001
                 self._queue.put(("error", str(e)))
 
@@ -104,10 +119,13 @@ class VhostPanel(ttk.Frame):
             self.after(80, self._poll)
             return
         self._set_busy(False)
-        if kind == "entries":
-            self._render(payload)
-            self.notify(f"已扫描 {len(payload)} 个 server 块")
+        if kind == "data":
+            entries, inc = payload
+            self._render(entries)
+            self._render_include_status(inc)
+            self.notify(f"已扫描 {len(entries)} 个 server 块")
         else:
+            self._render_include_status(None)
             messagebox.showerror("扫描失败", payload, parent=self)
             self.notify("扫描失败")
 
@@ -173,8 +191,77 @@ class VhostPanel(ttk.Frame):
             messagebox.showwarning("文件不存在", f"配置文件不存在：\n{path}", parent=self)
 
     def _open_dir(self) -> None:
-        target = NGINX_CONF_DIR if os.path.isdir(NGINX_CONF_DIR) else WNRP_ROOT
+        """打开站点配置所在目录（已建则 vhost，否则主配置所在目录）。"""
+        target = self.vhost_mgr.vhost_dir if os.path.isdir(self.vhost_mgr.vhost_dir) \
+            else self.vhost_mgr.conf_dir
+        if not os.path.isdir(target):
+            target = self.vhost_mgr.nginx.prefix
         pu.open_path(target)
+
+    # ------------------------------------------------------------------ #
+    # include 状态检测 / 一键修复
+    # ------------------------------------------------------------------ #
+    def _render_include_status(self, st: dict | None) -> None:
+        """根据检测结果刷新状态行：✔已加载 / ⚠未 include(可修复) / ⚠配置缺失。"""
+        self._inc_status = st
+        self._btn_fix_inc.pack_forget()
+        if st is None:
+            self._inc_label.configure(fg=GRAY, text="正在检测站点目录加载状态…")
+            return
+        main = st.get("main_conf") or ""
+        lines = "、".join(st.get("lines") or []) or "（无）"
+        if st.get("covered"):
+            self._inc_label.configure(
+                fg=OK,
+                text=f"{_OK_MARK} 生效主配置已 include 站点目录 {st['vhost_dir']}\n{main}  → include：{lines}",
+            )
+        elif not os.path.exists(main):
+            self._inc_label.configure(fg=WARN, text=f"{_WARN_MARK} {st['reason']}")
+        else:
+            self._inc_label.configure(
+                fg=ERR,
+                text=f"{_WARN_MARK} 站点目录未被 nginx 加载，新建/修改站点不会生效！\n{st['reason']}",
+            )
+            self._btn_fix_inc.pack(side="right", padx=6, pady=4)
+
+    def _fix_include(self) -> None:
+        """自动补 include → nginx -t 校验 → 询问是否平滑重载。"""
+        if self._inc_status is None:
+            return
+        self._btn_fix_inc.state(["disabled"])
+        try:
+            if self.vhost_mgr.include_status().get("covered"):
+                self.notify("站点目录已被主配置 include，无需修复")
+                self.refresh()
+                return
+            self.notify("正在自动补 include 并校验…")
+            res = self.vhost_mgr.ensure_include()
+            final = res["message"]
+            cfg_ok = not res["ok"]
+            if res["ok"]:
+                out = (self.vhost_mgr.nginx.test_config() or "").strip()
+                if out:
+                    final = f"{final}\n{out}"
+                cfg_ok = "successful" in out or out == "配置检查通过"
+            self._render_include_status(self.vhost_mgr.include_status())
+            if not res["ok"]:
+                messagebox.showerror("修复失败", final, parent=self)
+            elif not cfg_ok:
+                messagebox.showwarning("配置校验未通过", final, parent=self)
+            else:
+                messagebox.showinfo("已修复", final, parent=self)
+                running, _ = self.vhost_mgr.nginx.get_status()
+                if running and messagebox.askyesno(
+                    "include 已补上",
+                    "需要平滑重载 nginx 才会加载站点目录。\n是否立即重载？",
+                    parent=self,
+                ):
+                    self.notify(self.vhost_mgr.nginx.reload())
+        except Exception as e:  # noqa: BLE001
+            messagebox.showerror("修复失败", str(e), parent=self)
+        finally:
+            self._btn_fix_inc.state(["!disabled"])
+            self.refresh()
 
     def _set_busy(self, busy: bool) -> None:
         self._busy = busy
