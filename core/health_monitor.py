@@ -21,6 +21,7 @@ from datetime import datetime, timedelta
 
 from . import process_utils as pu
 from .config import IS_WIN
+from .i18n import t
 from .php_manager import PhpVersion
 
 _IS_DARWIN = sys.platform == "darwin"
@@ -171,31 +172,32 @@ def _parse_mac_ips(path: str) -> dict | None:
         sig = exc.get("signal") or ""
         exception_str = etype + (f" ({sig})" if sig else "")
     if not exception_str:
-        exception_str = "未知"
+        exception_str = t("未知")
 
     term = body.get("termination") if isinstance(body.get("termination"), dict) else {}
-    lines = [f"报告：{os.path.basename(path)}"]
+    lines = [t("报告：{file}", file=os.path.basename(path))]
     if proc_path:
-        lines.append(f"进程路径：{proc_path}")
+        lines.append(t("进程路径：{path}", path=proc_path))
     if ts:
-        lines.append(f"崩溃时间：{ts}")
-    lines.append(f"异常：{exception_str}")
+        lines.append(t("崩溃时间：{ts}", ts=ts))
+    lines.append(t("异常：{exception}", exception=exception_str))
     if term:
         ind = term.get("indicator")
         if ind:
-            lines.append(f"终止原因：{ind}")
+            lines.append(t("终止原因：{reason}", reason=ind))
             reasons = term.get("reasons")
             if reasons:
-                lines.append(f"           {reasons}")
+                lines.append(t("           {reasons}", reasons=reasons))
     if module or offset:
-        lines.append(f"崩溃位置：模块 {module or '?'} 偏移 {offset or '?'}")
+        lines.append(t("崩溃位置：模块 {module} 偏移 {offset}",
+                       module=module or "?", offset=offset or "?"))
     shown: list[str] = []
     for fr in frames[:6]:
         sym = fr.get("symbol") if isinstance(fr, dict) else ""
         if sym and sym not in shown:
             shown.append(f"  at {sym}")
     if shown:
-        lines.append("调用栈：")
+        lines.append(t("调用栈："))
         lines.extend(shown)
 
     return {
@@ -347,15 +349,15 @@ class HealthMonitor:
         code, out, err = pu.run_cmd([exe, "-v"], timeout=20)
         first = (out or err).strip().splitlines()[0] if (out or err).strip() else ""
         ok_v = code == 0 and "PHP" in first
-        checks.append({"name": "PHP 版本", "ok": ok_v,
-                       "detail": first or (err.strip()[:200] or "无法获取版本")})
+        checks.append({"name": t("PHP 版本"), "ok": ok_v,
+                       "detail": first or (err.strip()[:200] or t("无法获取版本"))})
 
         code, out, _ = pu.run_cmd([exe, "-m"], timeout=20)
         modules = {m for m in re.findall(r"^([A-Za-z0-9_]+)$", out, re.M)}
         missing = [k for k in KEY_EXTENSIONS if k not in modules]
-        checks.append({"name": "关键扩展", "ok": not missing,
-                       "detail": "缺失：" + ", ".join(missing) if missing
-                       else f"{len(KEY_EXTENSIONS)} 项全部就绪"})
+        checks.append({"name": t("关键扩展"), "ok": not missing,
+                       "detail": t("缺失：{list}", list=", ".join(missing)) if missing
+                       else t("{count} 项全部就绪", count=len(KEY_EXTENSIONS))})
 
         ini_name = os.path.basename(v.ini)
         code, out, err = pu.run_cmd([exe, "-c", v.ini, "-r", "echo 'OK';"], timeout=20)
@@ -365,8 +367,10 @@ class HealthMonitor:
         if not load_ok:
             detail = warn[:300] if warn else out.strip()[:200]
         else:
-            detail = f"{ini_name} 加载正常" + ("，存在警告" if warn else "")
-        checks.append({"name": f"配置加载 ({ini_name})", "ok": load_ok, "detail": detail})
+            detail = t("{ini} 加载正常{extra}", ini=ini_name,
+                       extra=t("，存在警告") if warn else "")
+        checks.append({"name": t("配置加载 ({ini})", ini=ini_name),
+                       "ok": load_ok, "detail": detail})
 
         return {
             "version": v.display or v.name,
@@ -376,6 +380,6 @@ class HealthMonitor:
         }
 
 
-def _g1(pattern: re.Pattern, text: str, default: str = "未知") -> str:
+def _g1(pattern: re.Pattern, text: str, default: str = "") -> str:
     m = pattern.search(text)
-    return m.group(1) if m else default
+    return m.group(1) if m else (default or t("未知"))

@@ -19,6 +19,8 @@ import urllib.request
 import zipfile
 from dataclasses import dataclass, field
 
+from .i18n import t
+
 RELEASES_URL = "https://windows.php.net/downloads/releases/releases.json"
 ARCHIVES_URL = "https://windows.php.net/downloads/releases/archives/"
 DOWNLOAD_BASE = "https://windows.php.net/downloads/releases/"
@@ -104,9 +106,9 @@ def fetch_releases_json(timeout: int = TIMEOUT) -> dict:
     try:
         parsed = __import__("json").loads(data.decode("utf-8"))
     except Exception:
-        raise RuntimeError("releases.json 内容无法解析")
+        raise RuntimeError(t("releases.json 内容无法解析"))
     if not isinstance(parsed, dict):
-        raise RuntimeError("releases.json 结构异常")
+        raise RuntimeError(t("releases.json 结构异常"))
     return parsed
 
 
@@ -316,7 +318,7 @@ def extract_zip_safe(zip_path: str, dest_dir: str, progress_cb=None) -> None:
             clean = name.replace("\\", "/")
             parts = clean.split("/")
             if clean.startswith("/") or ".." in parts or (parts and ":" in parts[0]):
-                raise RuntimeError(f"压缩包包含非法路径：{name}")
+                raise RuntimeError(t("压缩包包含非法路径：{path}", path=name))
             target = os.path.join(dest_dir, *parts)
             os.makedirs(os.path.dirname(target), exist_ok=True)
             with zf.open(name) as src, open(target, "wb") as dst:

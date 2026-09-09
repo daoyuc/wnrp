@@ -12,6 +12,8 @@ import re
 import shutil
 import zoneinfo
 
+from .i18n import t
+
 # 键名（匹配行首，大小写不敏感）+ 类型 + 中文标签/提示
 INI_ITEMS_META = [
     {"key": "memory_limit", "type": "size", "label": "内存上限",
@@ -55,30 +57,30 @@ def get_meta(key: str) -> dict | None:
 def validate_value(meta: dict, value: str) -> str | None:
     """校验表单值，返回错误信息；合法返回 None。"""
     value = (value or "").strip()
-    t = meta.get("type", "str")
-    if t == "int":
+    kind = meta.get("type", "str")
+    if kind == "int":
         if not _INT_RE.match(value):
-            return "必须是整数"
+            return t("必须是整数")
         if int(value) < -1:
-            return "必须为 -1 或正整数"
-    elif t == "size":
+            return t("必须为 -1 或正整数")
+    elif kind == "size":
         if not _SIZE_RE.match(value):
-            return "必须是数字，可带 K/M/G 后缀（如 128M）"
-    elif t == "onoff":
+            return t("必须是数字，可带 K/M/G 后缀（如 128M）")
+    elif kind == "onoff":
         if value.lower() not in ("on", "off", "1", "0"):
-            return "必须是 On 或 Off"
-    elif t == "timezone":
+            return t("必须是 On 或 Off")
+    elif kind == "timezone":
         if not value:
-            return "不能为空"
+            return t("不能为空")
         if value not in zoneinfo.available_timezones():
-            return "无效时区（如 Asia/Shanghai）"
-    elif t == "enum":
+            return t("无效时区（如 Asia/Shanghai）")
+    elif kind == "enum":
         options = meta.get("options") or []
         if options and value not in options:
-            return f"只能从 {', '.join(options)} 中选择"
-    elif t == "str":
+            return t("只能从 {options} 中选择", options=", ".join(options))
+    elif kind == "str":
         if not value:
-            return "不能为空"
+            return t("不能为空")
     return None
 
 

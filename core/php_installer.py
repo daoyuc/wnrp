@@ -13,6 +13,7 @@ from dataclasses import dataclass
 
 from . import process_utils as pu
 from .config import DEFAULT_PORTS, WNRP_ROOT, Config
+from .i18n import t
 from .php_downloader import (
     PhpPackage,
     download_with_progress,
@@ -69,7 +70,7 @@ def install_dir_for(series: str) -> str:
     try:
         major, minor = (int(x) for x in series.split("."))
     except (ValueError, AttributeError):
-        raise ValueError(f"非法版本系列：{series!r}")
+        raise ValueError(t("非法版本系列：{series}", series=repr(series)))
     if major == 8:
         return "php8" if minor == 0 else f"php{major}{minor}"
     if major == 5:
@@ -165,15 +166,17 @@ def install(pkg: PhpPackage, config: Config, progress=None) -> InstallResult:
     name = install_dir_for(pkg.series)
     target_dir = os.path.join(WNRP_ROOT, name)
     if os.path.exists(target_dir):
-        return InstallResult(False, f"目标目录 {target_dir} 已存在，请勿重复安装。", name=name)
+        return InstallResult(False, t("目标目录 {dir} 已存在，请勿重复安装。",
+                                      dir=target_dir), name=name)
 
     port = default_port_for(name, config)
     conflict = config.validate_unique(name, port)
     if conflict:
         return InstallResult(
             False,
-            f"{conflict}。\n请在安装完成后到「编辑端口」中为该版本调整端口，"
-            f"并同步修改 nginx vhost 的 fastcgi_pass。",
+            t("{conflict}\n请在安装完成后到「编辑端口」中为该版本调整端口，"
+              "并同步修改 nginx vhost 的 fastcgi_pass。",
+              conflict=conflict),
             name=name, port=port,
         )
 
@@ -193,7 +196,11 @@ def install(pkg: PhpPackage, config: Config, progress=None) -> InstallResult:
         # 2. SHA-256 校验（archives 无元数据时跳过，空串 verify_sha256 返回 True）
         report("校验", None)
         if not verify_sha256(zip_path, pkg.sha256):
-            return InstallResult(False, "SHA-256 校验失败：文件可能被篡改或下载不完整，已自动清理临时文件。", name=name)
+            return InstallResult(
+                False,
+                t("SHA-256 校验失败：文件可能被篡改或下载不完整，已自动清理临时文件。"),
+                name=name,
+            )
 
         # 3. 解压到临时目录
         report("解压", 0.0)
@@ -204,7 +211,7 @@ def install(pkg: PhpPackage, config: Config, progress=None) -> InstallResult:
         root = _find_real_root(extract_dir)
         if not os.path.exists(os.path.join(root, "php-cgi.exe")) and \
                 not os.path.exists(os.path.join(root, CLI_NAME)):
-            raise RuntimeError("解压内容异常：未找到 php.exe / php-cgi.exe")
+            raise RuntimeError(t("解压内容异常：未找到 php.exe / php-cgi.exe"))
 
         # 4. 落盘到 C:\wnrp\php{XX}
         report("落盘", None)
@@ -230,22 +237,26 @@ def install(pkg: PhpPackage, config: Config, progress=None) -> InstallResult:
         ver_m = re.search(r"PHP\s+([0-9]+\.[0-9]+\.[0-9]+)", text)
         if ver_m:
             return InstallResult(
-                True, f"PHP {ver_m.group(1)} 安装成功（{name}，默认端口 {port}）",
+                True, t("PHP {version} 安装成功（{name}，默认端口 {port}）",
+                        version=ver_m.group(1), name=name, port=port),
                 name=name, version=ver_m.group(1), port=port, dir=target_dir,
             )
         if _detect_vc_missing(text):
             return InstallResult(
                 False,
-                f"{name} 已安装，但缺少 VC 运行时导致无法运行：\n{text.strip()[:300]}\n"
-                f"请下载安装对应的 vc_redist.x64.exe（{pkg.compiler} 对应运行库）后重试。",
+                t("{name} 已安装，但缺少 VC 运行时导致无法运行：\n{detail}\n"
+                  "请下载安装对应的 vc_redist.x64.exe（{compiler} 对应运行库）后重试。",
+                  name=name, detail=text.strip()[:300], compiler=pkg.compiler),
                 name=name, port=port, dir=target_dir,
             )
         return InstallResult(
-            False, f"{name} 已安装，但 php -v 验证失败：\n{text.strip()[:300]}",
+            False, t("{name} 已安装，但 php -v 验证失败：\n{detail}",
+                     name=name, detail=text.strip()[:300]),
             name=name, port=port, dir=target_dir,
         )
     except Exception as e:  # noqa: BLE001
-        return InstallResult(False, f"安装失败：{type(e).__name__}：{e}", name=name)
+        return InstallResult(False, t("安装失败：{err}",
+                                      err=f"{type(e).__name__}: {e}"), name=name)
     finally:
         # 清理临时文件（下载包 + 解压目录）
         for p in (zip_path, extract_dir):
