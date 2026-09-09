@@ -1,10 +1,16 @@
 # -*- coding: utf-8 -*-
 """vhost ↔ PHP 端口映射与一键同步。
 
-- 解析 nginx/conf/nginx.conf 与 vhost/*.conf 中的 server 块，
-  提取 server_name / root / fastcgi_pass 端口，并通过 Config.ports 反查 PHP 版本；
+站点配置目录（主配置 / vhost 写入目录）跟随 NginxManager 推导出的
+「实际生效」布局，而非写死 WNRP_ROOT：Windows/自定义 root 布局用
+<prefix>/conf，Homebrew 布局用 <prefix>（/opt/homebrew/etc/nginx）。
+
+- 解析主配置 nginx.conf 与 vhost/*.conf 中的 server 块，提取
+  server_name / root / fastcgi_pass 端口，并通过 Config.ports 反查 PHP 版本；
 - sync_port() 一键替换所有引用旧端口的 fastcgi_pass，随后 nginx -t 校验，
-  校验失败自动还原备份，杜绝「改坏配置导致站点全挂」。
+  校验失败自动还原备份，杜绝「改坏配置导致站点全挂」；
+- include_status() 自动检测「生效 nginx.conf 是否 include 了站点目录」，
+  ensure_include() 未覆盖时注入绝对路径 include（经备份，可回滚）。
 """
 import os
 import re
@@ -12,12 +18,8 @@ import shutil
 
 from dataclasses import dataclass
 
-from .config import WNRP_ROOT, Config
+from .config import Config
 from .nginx_manager import NginxManager
-
-NGINX_CONF_DIR = os.path.join(WNRP_ROOT, "nginx", "conf")
-NGINX_MAIN_CONF = os.path.join(NGINX_CONF_DIR, "nginx.conf")
-VHOST_DIR = os.path.join(NGINX_CONF_DIR, "vhost")
 
 # 匹配行首（可带缩进）fastcgi_pass 指向本机端口，保留行尾注释
 _RE_FCGI_LOCAL = re.compile(r"^(\s*)fastcgi_pass\s+127\.0\.0\.1:(\d+)(\s*;.*)$", re.M)
@@ -27,6 +29,8 @@ _RE_SERVER_NAME = re.compile(r"^\s*server_name\s+(.+?)\s*;\s*$", re.M)
 _RE_ROOT = re.compile(r"^\s*root\s+(.+?)\s*;\s*$", re.M)
 _RE_SERVER_KEYWORD = re.compile(r"\bserver\s*$")
 _RE_LINE_COMMENT = re.compile(r"#[^\n]*")
+# 行首 include 指令（目标到分号前，可带引号）
+_RE_INCLUDE = re.compile(r"^\s*include\s+(\S+)\s*;", re.M)
 
 
 @dataclass
@@ -39,11 +43,14 @@ class VhostEntry:
     port: int | None = None  # fastcgi_pass 指向的本机端口；无 PHP 处理/指向 upstream 时为 None
     php_version: str | None = None  # 反查到的 PHP 版本名（可多个，逗号分隔）
     note: str = ""  # 异常说明（如端口未映射到任何版本）
+    conf_dir: str = ""  # 主配置所在目录（相对展示基准）；空则显示绝对路径
 
     @property
     def file_rel(self) -> str:
-        """相对 nginx/conf 的展示路径；不在其下则原样返回。"""
-        rel = os.path.relpath(self.file, NGINX_CONF_DIR)
+        """相对主配置所在目录的展示路径；不在其下则原样返回。"""
+        if not self.conf_dir:
+            return self.file
+        rel = os.path.relpath(self.file, self.conf_dir)
         return rel if not rel.startswith("..") else self.file
 
 
@@ -55,17 +62,35 @@ class VhostManager:
         self.nginx = NginxManager()
 
     # ------------------------------------------------------------------ #
+    # 站点目录（派生自实际生效的 nginx 布局，而非硬编码 WNRP_ROOT）
+    # ------------------------------------------------------------------ #
+    @property
+    def conf_dir(self) -> str:
+        """实际生效主配置所在目录（扫描 / 相对展示基准）。"""
+        return self.nginx.site_base
+
+    @property
+    def main_conf(self) -> str:
+        """实际生效主配置 nginx.conf 的绝对路径。"""
+        return self.nginx.main_conf
+
+    @property
+    def vhost_dir(self) -> str:
+        """phpvm 生成的站点配置文件目录（须被主配置 include 才会加载）。"""
+        return self.nginx.vhost_dir
+
+    # ------------------------------------------------------------------ #
     # 扫描
     # ------------------------------------------------------------------ #
     def scan_files(self) -> list[str]:
-        """返回需扫描的配置文件：主配置 nginx.conf + vhost/*.conf。"""
+        """返回需扫描的配置文件：生效主配置 nginx.conf + 站点目录 vhost/*.conf。"""
         files: list[str] = []
-        if os.path.exists(NGINX_MAIN_CONF):
-            files.append(NGINX_MAIN_CONF)
-        if os.path.isdir(VHOST_DIR):
+        if os.path.exists(self.main_conf):
+            files.append(self.main_conf)
+        if os.path.isdir(self.vhost_dir):
             files.extend(
-                os.path.join(VHOST_DIR, f)
-                for f in sorted(os.listdir(VHOST_DIR))
+                os.path.join(self.vhost_dir, f)
+                for f in sorted(os.listdir(self.vhost_dir))
                 if f.endswith(".conf")
             )
         return files
@@ -88,7 +113,7 @@ class VhostManager:
             except OSError:
                 continue
             for block in _iter_server_blocks(text):
-                entries.append(_parse_block(block, path, port_versions))
+                entries.append(_parse_block(block, path, port_versions, self.conf_dir))
         return entries
 
     def entries_with_port(self, port: int) -> list[VhostEntry]:
@@ -189,20 +214,20 @@ class VhostManager:
     # 新建站点（向导用）
     # ------------------------------------------------------------------ #
     def ensure_vhost_dir(self) -> None:
-        """确保 vhost 目录存在。"""
+        """确保站点目录存在。"""
         try:
-            os.makedirs(VHOST_DIR, exist_ok=True)
+            os.makedirs(self.vhost_dir, exist_ok=True)
         except OSError:
             pass
 
     def write_vhost(self, filename: str, content: str) -> dict:
-        """把站点配置写入 vhost/<filename>。
+        """把站点配置写入站点目录/<filename>。
 
         已存在时先备份为 <filename>.bak（不覆盖删除）。
         返回 {path, existed, backup, ok, message}。
         """
         self.ensure_vhost_dir()
-        path = os.path.join(VHOST_DIR, filename)
+        path = os.path.join(self.vhost_dir, filename)
         backup = None
         existed = os.path.exists(path)
         try:
@@ -217,32 +242,69 @@ class VhostManager:
             return {"path": path, "existed": existed, "backup": backup,
                     "ok": False, "message": f"写入失败：{e}"}
 
-    def include_exists(self) -> bool:
-        """nginx.conf 是否已包含 vhost 目录（任意形式）。"""
-        if not os.path.exists(NGINX_MAIN_CONF):
-            return False
+    # ------------------------------------------------------------------ #
+    # include 自动检测 / 补全（针对「实际生效的 nginx.conf」）
+    # ------------------------------------------------------------------ #
+    def include_status(self) -> dict:
+        """检测生效 nginx.conf 是否已 include phpvm 站点目录。
+
+        返回 {covered, main_conf, vhost_dir, reason, lines}：
+        - covered=True：站点目录已被主配置加载（新站点写入即可生效）；
+        - 否则 reason 说明为何未加载（主配置缺失 / http 块缺失 / 尚未 include）。
+        """
+        info = {"covered": False, "main_conf": self.main_conf,
+                "vhost_dir": self.vhost_dir, "reason": "", "lines": []}
+        if not os.path.exists(self.main_conf):
+            info["reason"] = f"未找到生效主配置：{self.main_conf}\n站点不会被 nginx 加载"
+            return info
         try:
-            with open(NGINX_MAIN_CONF, "r", encoding="utf-8") as f:
+            with open(self.main_conf, "r", encoding="utf-8") as f:
                 text = f.read()
-        except OSError:
-            return False
-        return _include_vhost.search(_strip_comments(text)) is not None
+        except OSError as e:
+            info["reason"] = f"读取主配置失败：{e}"
+            return info
+        http = _http_block_text(_strip_comments(text))
+        if http is None:
+            info["reason"] = f"主配置 {self.main_conf} 中未找到 http 块，无法确认站点加载"
+            return info
+        targets = [m.group(1).strip().strip('"').strip("'") for m in _RE_INCLUDE.finditer(http)]
+        info["lines"] = targets
+        vhost = os.path.normpath(self.vhost_dir)
+        conf_root = os.path.normpath(self.conf_dir)
+        for t in targets:
+            head = t.split("*")[0].rstrip("/") or t.rstrip("/")
+            if not head:
+                continue
+            full = head if os.path.isabs(head) else os.path.join(conf_root, head)
+            if os.path.normpath(full) == vhost:
+                info["covered"] = True
+                break
+        if not info["covered"]:
+            cur = "、".join(targets) or "（无）"
+            info["reason"] = (f"生效主配置 {self.main_conf} 尚未 include 站点目录："
+                              f"{self.vhost_dir}\n当前 http 块 include：{cur}")
+        return info
+
+    def include_exists(self) -> bool:
+        """是否已 include 站点目录（兼容旧调用）。"""
+        return bool(self.include_status()["covered"])
 
     def ensure_include(self) -> dict:
-        """若 nginx.conf 未 include vhost/*.conf，则在 http 块内自动补一行。
+        """若生效 nginx.conf 未 include 站点目录，在 http 块内自动补一行（绝对路径）。
 
         改前备份 nginx.conf → <name>.bak。返回
         {changed, ok, message, backup}。校验失败回滚由调用方（向导）负责。
         """
-        if self.include_exists():
+        status = self.include_status()
+        if status["covered"]:
             return {"changed": False, "ok": True,
-                    "message": "nginx.conf 已 include vhost 目录，无需修改", "backup": None}
-        if not os.path.exists(NGINX_MAIN_CONF):
+                    "message": "生效 nginx.conf 已 include 站点目录，无需修改", "backup": None}
+        if not os.path.exists(self.main_conf):
             return {"changed": False, "ok": False,
-                    "message": f"未找到主配置 {NGINX_MAIN_CONF}，无法自动补 include，请手动配置",
+                    "message": f"未找到生效主配置 {self.main_conf}，无法自动补 include，请手动配置",
                     "backup": None}
         try:
-            with open(NGINX_MAIN_CONF, "r", encoding="utf-8") as f:
+            with open(self.main_conf, "r", encoding="utf-8") as f:
                 text = f.read()
         except OSError as e:
             return {"changed": False, "ok": False, "message": f"读取失败：{e}", "backup": None}
@@ -250,29 +312,29 @@ class VhostManager:
         close_idx = _find_http_close_index(text)
         if close_idx is None:
             return {"changed": False, "ok": False,
-                    "message": "未在 nginx.conf 中找到 http 块，无法自动补 include",
+                    "message": "未在生效 nginx.conf 中找到 http 块，无法自动补 include",
                     "backup": None}
-        backup = NGINX_MAIN_CONF + ".bak"
+        backup = self.main_conf + ".bak"
         try:
-            shutil.copy2(NGINX_MAIN_CONF, backup)
+            shutil.copy2(self.main_conf, backup)
         except OSError as e:
             return {"changed": False, "ok": False, "message": f"备份失败：{e}", "backup": None}
-        insert = "\n    # phpvm: 自动加载 conf/vhost 下的站点配置\n    include vhost/*.conf;\n"
+        include_dir = self.vhost_dir.replace("\\", "/")
+        insert = (f"\n    # phpvm: 自动加载站点目录 {include_dir} 下的配置\n"
+                  f"    include {include_dir}/*.conf;\n")
         new_text = text[:close_idx] + insert + text[close_idx:]
         try:
-            with open(NGINX_MAIN_CONF, "w", encoding="utf-8", newline="") as f:
+            with open(self.main_conf, "w", encoding="utf-8", newline="") as f:
                 f.write(new_text)
         except OSError as e:
             return {"changed": False, "ok": False, "message": f"写入失败：{e}", "backup": backup}
         return {"changed": True, "ok": True,
-                "message": "已自动在 http 块补上 include vhost/*.conf", "backup": backup}
+                "message": f"已自动在 http 块补上 include {include_dir}/*.conf", "backup": backup}
 
 
 # --------------------------------------------------------------------- #
 # 文本解析工具
 # --------------------------------------------------------------------- #
-_include_vhost = re.compile(r"^\s*include\s+[^;]*vhost[^;]*;", re.M)
-
 
 def _strip_comments(text: str) -> str:
     """行注释替换为等长空格，保持坐标一致。"""
@@ -299,6 +361,29 @@ def _find_http_close_index(text: str) -> int | None:
                 return i
         i += 1
     return None
+
+
+def _http_block_text(no_comment: str) -> str | None:
+    """返回 http 块文本切片（含首尾大括号）；未找到 http 块返回 None。"""
+    m = re.search(r"\bhttp\s*\{", no_comment)
+    if not m:
+        return None
+    open_idx = no_comment.find("{", m.start())
+    depth = 0
+    n = len(no_comment)
+    i = open_idx
+    while i < n:
+        c = no_comment[i]
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return no_comment[open_idx:i + 1]
+        i += 1
+    return None
+
+
 def _iter_server_blocks(text: str):
     """按大括号匹配切分所有 server 块（支持嵌套 location、忽略行注释）。
 
@@ -335,7 +420,8 @@ def _iter_server_blocks(text: str):
         i = block_end
 
 
-def _parse_block(block: str, path: str, port_versions: dict[int, list[str]]) -> VhostEntry:
+def _parse_block(block: str, path: str, port_versions: dict[int, list[str]],
+                 conf_dir: str = "") -> VhostEntry:
     """解析单个 server 块文本为 VhostEntry。"""
     m = _RE_SERVER_NAME.search(block)
     server_name = m.group(1).strip() if m else "(无 server_name)"
@@ -357,4 +443,5 @@ def _parse_block(block: str, path: str, port_versions: dict[int, list[str]]) -> 
     return VhostEntry(
         server_name=server_name, file=path, root=root,
         port=port, php_version=php_version, note=note,
+        conf_dir=conf_dir,
     )

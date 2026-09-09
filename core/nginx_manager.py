@@ -46,6 +46,30 @@ class NginxManager:
         return self.prefix
 
     # ------------------------------------------------------------------ #
+    # 站点配置目录推导（唯一事实来源，供 vhost 写入 / include / 扫描共用）
+    # ------------------------------------------------------------------ #
+    @property
+    def site_base(self) -> str:
+        """phpvm 站点管理基准目录 = 实际生效主配置所在目录：
+        - root/Windows 布局（nginx 带 `-p <prefix>`）：主配置默认读
+          <prefix>/conf/nginx.conf → 基准 = <prefix>/conf；
+        - brew 布局（无 -p）：主配置默认读 <prefix>/nginx.conf → 基准 = <prefix>。
+        """
+        if IS_WIN or self.mode == "root":
+            return os.path.join(self.prefix, "conf")
+        return self.prefix
+
+    @property
+    def main_conf(self) -> str:
+        """当前实际生效的 nginx.conf（phpvm 视角，也用于 include 注入/检测）。"""
+        return os.path.join(self.site_base, "nginx.conf")
+
+    @property
+    def vhost_dir(self) -> str:
+        """phpvm 生成站点配置的目录（写入后需被主配置 include）。"""
+        return os.path.join(self.site_base, "vhost")
+
+    # ------------------------------------------------------------------ #
     def _cmd(self, extra: list[str]) -> list[str]:
         """拼完整命令。brew 版不传 -p（使用编译期默认配置）。"""
         if IS_WIN or self.mode == "root":
@@ -146,20 +170,22 @@ class NginxManager:
         running, pids = self.get_status()
         if not running:
             return "Nginx 未在运行，无法重载"
-        if IS_WIN:
-            code, out, err_text = pu.run_cmd(self._cmd(["-s", "reload"]), timeout=10)
-            text = (out or err_text).strip()
-            if code == 0 and not text:
-                return "Nginx 已平滑重载"
-            return f"Nginx 重载完成：{text}" if "error" not in text.lower() else f"Nginx 重载失败：{text}"
-        # posix：向 master 发 SIGUSR1 平滑重载（不依赖 pid 文件）
-        import signal as _signal
-        for pid in pids:
-            try:
-                os.kill(pid, _signal.SIGUSR1)
-            except (ProcessLookupError, PermissionError):
-                pass
-        return "Nginx 已平滑重载"
+        # 统一执行 `nginx -s reload`（root 模式带 -p，brew 不带）。
+        # 注意：nginx 的 SIGUSR1 是「重开日志文件」，不是重载配置，故不能发给 master 代替。
+        code, out, err_text = pu.run_cmd(self._cmd(["-s", "reload"]), timeout=10)
+        text = (out or err_text).strip()
+        if code == 0:
+            return "Nginx 已平滑重载" if not text else f"Nginx 已平滑重载：{text}"
+        if not IS_WIN:
+            # 命令通道失败时兜底向 master 发 SIGHUP（nginx 重载配置信号）
+            import signal as _signal
+            for pid in pids:
+                try:
+                    os.kill(pid, _signal.SIGHUP)
+                except (ProcessLookupError, PermissionError):
+                    pass
+            return f"Nginx 已平滑重载（SIGHUP 兜底）：{text}"
+        return f"Nginx 重载失败：{text or '未知错误'}"
 
     def test_config(self) -> str:
         code, out, err_text = pu.run_cmd(self._cmd(["-t"]), timeout=10)
