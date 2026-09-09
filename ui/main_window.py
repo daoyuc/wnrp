@@ -76,7 +76,9 @@ class MainWindow(tk.Tk):
                 command=lambda c=code: self._on_lang_selected(c),
             )
         menubar.add_cascade(label=t("语言"), menu=lang_menu)
-        self.config(menu=menubar)
+        # 注意：实例属性 self.config 是 Config 对象（覆盖了 tk 的 .config 别名），
+        # 这里必须用 .configure 才能给根窗口挂上菜单栏。
+        self.configure(menu=menubar)
 
     def _on_lang_selected(self, code: str) -> None:
         """保存语言选择；界面文本在重启后切换，因此仅提示。"""
