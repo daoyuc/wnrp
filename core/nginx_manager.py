@@ -15,6 +15,7 @@ import time
 
 from . import process_utils as pu
 from .config import IS_WIN, WNRP_ROOT, brew_prefixes
+from .i18n import t
 
 # Windows / 自定义目录布局
 ROOT_NGINX = os.path.join(WNRP_ROOT, "nginx")
@@ -111,13 +112,13 @@ class NginxManager:
         code, out, err = pu.run_cmd(self._cmd(["-V"]), timeout=10)
         text = err or out
         m = re.search(r"nginx/(\d+\.\d+\.\d+)", text)
-        return m.group(1) if m else "未知"
+        return m.group(1) if m else t("未知")
 
     def _ensure_exe(self) -> str | None:
         if not os.path.exists(self.exe):
             if self.mode == "brew":
-                return "未找到 Homebrew nginx，请先安装：brew install nginx"
-            return f"未找到 {self.exe}"
+                return t("未找到 Homebrew nginx，请先安装：brew install nginx")
+            return t("未找到 {path}", path=self.exe)
         return None
 
     # ------------------------------------------------------------------ #
@@ -127,21 +128,21 @@ class NginxManager:
             return err
         running, pids = self.get_status()
         if running:
-            return f"Nginx 已在运行（PID {', '.join(map(str, pids))}）"
+            return t("Nginx 已在运行（PID {pids}）", pids=", ".join(map(str, pids)))
         code, out, err_text = pu.run_cmd(self._cmd([]), timeout=10)
         time.sleep(0.8)
         pu.invalidate_process_cache()
         running, pids = self.get_status()
         if running:
-            return f"Nginx 启动成功（PID {', '.join(map(str, pids))}）"
-        return f"Nginx 启动失败：{err_text.strip() or out.strip() or '未知错误'}"
+            return t("Nginx 启动成功（PID {pids}）", pids=", ".join(map(str, pids)))
+        return t("Nginx 启动失败：{detail}", detail=err_text.strip() or out.strip() or t("未知错误"))
 
     def stop(self) -> str:
         import signal as _signal
 
         running, pids = self.get_status()
         if not running:
-            return "Nginx 未在运行"
+            return t("Nginx 未在运行")
         if IS_WIN:
             pu.run_cmd(self._cmd(["-s", "quit"]), timeout=10)
         else:
@@ -155,7 +156,7 @@ class NginxManager:
         pu.invalidate_process_cache()
         running, _ = self.get_status()
         if not running:
-            return "Nginx 已停止"
+            return t("Nginx 已停止")
         # 优雅退出未生效时兜底强制结束
         for pid in pids:
             pu.kill_pid(pid)
@@ -163,19 +164,19 @@ class NginxManager:
         pu.invalidate_process_cache()
         running, _ = self.get_status()
         if not running:
-            return "Nginx 已停止（强制结束）"
-        return "Nginx 停止失败，请手动检查进程"
+            return t("Nginx 已停止（强制结束）")
+        return t("Nginx 停止失败，请手动检查进程")
 
     def reload(self) -> str:
         running, pids = self.get_status()
         if not running:
-            return "Nginx 未在运行，无法重载"
+            return t("Nginx 未在运行，无法重载")
         # 统一执行 `nginx -s reload`（root 模式带 -p，brew 不带）。
         # 注意：nginx 的 SIGUSR1 是「重开日志文件」，不是重载配置，故不能发给 master 代替。
         code, out, err_text = pu.run_cmd(self._cmd(["-s", "reload"]), timeout=10)
         text = (out or err_text).strip()
         if code == 0:
-            return "Nginx 已平滑重载" if not text else f"Nginx 已平滑重载：{text}"
+            return t("Nginx 已平滑重载") if not text else t("Nginx 已平滑重载：{text}", text=text)
         if not IS_WIN:
             # 命令通道失败时兜底向 master 发 SIGHUP（nginx 重载配置信号）
             import signal as _signal
@@ -184,10 +185,10 @@ class NginxManager:
                     os.kill(pid, _signal.SIGHUP)
                 except (ProcessLookupError, PermissionError):
                     pass
-            return f"Nginx 已平滑重载（SIGHUP 兜底）：{text}"
-        return f"Nginx 重载失败：{text or '未知错误'}"
+            return t("Nginx 已平滑重载（SIGHUP 兜底）：{text}", text=text)
+        return t("Nginx 重载失败：{text}", text=text or t("未知错误"))
 
     def test_config(self) -> str:
         code, out, err_text = pu.run_cmd(self._cmd(["-t"]), timeout=10)
         text = (out or err_text).strip()
-        return text or ("配置检查通过" if code == 0 else "配置检查失败")
+        return text or (t("配置检查通过") if code == 0 else t("配置检查失败"))

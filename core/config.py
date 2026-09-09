@@ -37,6 +37,7 @@ DEFAULT_PORTS = {
 DEFAULT_SETTINGS = {
     "auto_recover_crash": False,  # php-cgi 崩溃后自动重启（自愈），默认关闭
     "auto_recover_limit": 3,      # 每小时每版本自愈次数上限
+    "lang": None,                 # 界面语言；None = 跟随系统 locale（en/zh_CN/zh_TW/ja/ko）
 }
 
 
@@ -118,6 +119,22 @@ class Config:
         self.settings[key] = value
         self.save()
 
+    # ---- 界面语言 ----
+    def get_lang(self) -> str:
+        """返回当前界面语言 code；配置为空时按系统 locale 探测。"""
+        from .i18n import LANGS, detect_language
+
+        saved = self.settings.get("lang")
+        return saved if saved in LANGS else detect_language()
+
+    def set_lang(self, lang: str) -> None:
+        """持久化界面语言（None 表示恢复“跟随系统”）。"""
+        from .i18n import LANGS
+
+        if lang in LANGS or lang is None:
+            self.settings["lang"] = lang
+            self.save()
+
     def get_port(self, name: str) -> int:
         return self.ports.get(name, _derive_port(name))
 
@@ -128,15 +145,19 @@ class Config:
     @staticmethod
     def validate_port(port: int) -> str | None:
         """端口合法性校验，返回错误信息；合法返回 None。"""
+        from .i18n import t
+
         if not isinstance(port, int):
-            return "端口必须是整数"
+            return t("端口必须是整数")
         if not (1 <= port <= 65535):
-            return "端口必须在 1-65535 之间"
+            return t("端口必须在 1-65535 之间")
         return None
 
     def validate_unique(self, name: str, port: int) -> str | None:
         """校验端口在所有版本间唯一（排除自身）。"""
+        from .i18n import t
+
         for other, p in self.ports.items():
             if other != name and p == port:
-                return f"端口 {port} 已被 [{other}] 占用"
+                return t("端口 {port} 已被 [{other}] 占用", port=port, other=other)
         return None

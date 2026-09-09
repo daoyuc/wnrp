@@ -19,6 +19,7 @@ import shutil
 from dataclasses import dataclass
 
 from .config import Config
+from .i18n import t
 from .nginx_manager import NginxManager
 
 # 匹配行首（可带缩进）fastcgi_pass 指向本机端口，保留行尾注释
@@ -148,7 +149,7 @@ class VhostManager:
         """
         if old_port == new_port:
             return [{"file": f, "replaced": 0, "ok": True,
-                     "message": "端口未变化，跳过", "backup": None}
+                     "message": t("端口未变化，跳过"), "backup": None}
                     for f in (files or self._find_files_with_port(old_port))]
         files = files if files is not None else self._find_files_with_port(old_port)
         if not files:
@@ -162,24 +163,25 @@ class VhostManager:
                     applied.append((path, backup, replaced))
                 except OSError as e:
                     results.append({"file": path, "replaced": 0, "ok": False,
-                                    "message": f"写入失败：{e}", "backup": None})
+                                    "message": t("写入失败：{err}", err=e), "backup": None})
             output = self.nginx.test_config()
             ok = "successful" in output.lower() and "failed" not in output.lower()
             for path, backup, replaced in applied:
                 if ok:
                     results.append({"file": path, "replaced": replaced, "ok": True,
-                                    "message": "已同步，备份保留于 .bak", "backup": backup})
+                                    "message": t("已同步，备份保留于 .bak"), "backup": backup})
                 else:
                     self._restore_backup(backup, path)
                     results.append({"file": path, "replaced": replaced, "ok": False,
-                                    "message": f"nginx -t 校验失败，已自动还原：{output}",
+                                    "message": t("nginx -t 校验失败，已自动还原：{output}",
+                                                 output=output),
                                     "backup": None})
         except Exception as e:  # noqa: BLE001 —— 兜底还原已写文件
             for path, backup, _ in applied:
                 self._restore_backup(backup, path)
             if not results:
                 results.append({"file": "", "replaced": 0, "ok": False,
-                                "message": f"同步过程异常：{e}", "backup": None})
+                                "message": t("同步过程异常：{err}", err=e), "backup": None})
         return results
 
     def _replace_in_file(self, path: str, old_port: int, new_port: int) -> tuple[int, str]:
@@ -237,10 +239,10 @@ class VhostManager:
             with open(path, "w", encoding="utf-8", newline="") as f:
                 f.write(content)
             return {"path": path, "existed": existed, "backup": backup,
-                    "ok": True, "message": "已写入"}
+                    "ok": True, "message": t("已写入")}
         except OSError as e:
             return {"path": path, "existed": existed, "backup": backup,
-                    "ok": False, "message": f"写入失败：{e}"}
+                    "ok": False, "message": t("写入失败：{err}", err=e)}
 
     # ------------------------------------------------------------------ #
     # include 自动检测 / 补全（针对「实际生效的 nginx.conf」）
@@ -255,17 +257,19 @@ class VhostManager:
         info = {"covered": False, "main_conf": self.main_conf,
                 "vhost_dir": self.vhost_dir, "reason": "", "lines": []}
         if not os.path.exists(self.main_conf):
-            info["reason"] = f"未找到生效主配置：{self.main_conf}\n站点不会被 nginx 加载"
+            info["reason"] = t("未找到生效主配置：{path}\n站点不会被 nginx 加载",
+                               path=self.main_conf)
             return info
         try:
             with open(self.main_conf, "r", encoding="utf-8") as f:
                 text = f.read()
         except OSError as e:
-            info["reason"] = f"读取主配置失败：{e}"
+            info["reason"] = t("读取主配置失败：{err}", err=e)
             return info
         http = _http_block_text(_strip_comments(text))
         if http is None:
-            info["reason"] = f"主配置 {self.main_conf} 中未找到 http 块，无法确认站点加载"
+            info["reason"] = t("主配置 {path} 中未找到 http 块，无法确认站点加载",
+                               path=self.main_conf)
             return info
         targets = [m.group(1).strip().strip('"').strip("'") for m in _RE_INCLUDE.finditer(http)]
         info["lines"] = targets
@@ -280,9 +284,10 @@ class VhostManager:
                 info["covered"] = True
                 break
         if not info["covered"]:
-            cur = "、".join(targets) or "（无）"
-            info["reason"] = (f"生效主配置 {self.main_conf} 尚未 include 站点目录："
-                              f"{self.vhost_dir}\n当前 http 块 include：{cur}")
+            cur = "、".join(targets) or t("（无）")
+            info["reason"] = (t("生效主配置 {main} 尚未 include 站点目录：{vhost}\n"
+                                "当前 http 块 include：{cur}",
+                                main=self.main_conf, vhost=self.vhost_dir, cur=cur))
         return info
 
     def include_exists(self) -> bool:
@@ -298,27 +303,30 @@ class VhostManager:
         status = self.include_status()
         if status["covered"]:
             return {"changed": False, "ok": True,
-                    "message": "生效 nginx.conf 已 include 站点目录，无需修改", "backup": None}
+                    "message": t("生效 nginx.conf 已 include 站点目录，无需修改"), "backup": None}
         if not os.path.exists(self.main_conf):
             return {"changed": False, "ok": False,
-                    "message": f"未找到生效主配置 {self.main_conf}，无法自动补 include，请手动配置",
+                    "message": t("未找到生效主配置 {path}，无法自动补 include，请手动配置",
+                                 path=self.main_conf),
                     "backup": None}
         try:
             with open(self.main_conf, "r", encoding="utf-8") as f:
                 text = f.read()
         except OSError as e:
-            return {"changed": False, "ok": False, "message": f"读取失败：{e}", "backup": None}
+            return {"changed": False, "ok": False,
+                    "message": t("读取失败：{err}", err=e), "backup": None}
 
         close_idx = _find_http_close_index(text)
         if close_idx is None:
             return {"changed": False, "ok": False,
-                    "message": "未在生效 nginx.conf 中找到 http 块，无法自动补 include",
+                    "message": t("未在生效 nginx.conf 中找到 http 块，无法自动补 include"),
                     "backup": None}
         backup = self.main_conf + ".bak"
         try:
             shutil.copy2(self.main_conf, backup)
         except OSError as e:
-            return {"changed": False, "ok": False, "message": f"备份失败：{e}", "backup": None}
+            return {"changed": False, "ok": False,
+                    "message": t("备份失败：{err}", err=e), "backup": None}
         include_dir = self.vhost_dir.replace("\\", "/")
         insert = (f"\n    # phpvm: 自动加载站点目录 {include_dir} 下的配置\n"
                   f"    include {include_dir}/*.conf;\n")
@@ -327,9 +335,11 @@ class VhostManager:
             with open(self.main_conf, "w", encoding="utf-8", newline="") as f:
                 f.write(new_text)
         except OSError as e:
-            return {"changed": False, "ok": False, "message": f"写入失败：{e}", "backup": backup}
+            return {"changed": False, "ok": False,
+                    "message": t("写入失败：{err}", err=e), "backup": backup}
         return {"changed": True, "ok": True,
-                "message": f"已自动在 http 块补上 include {include_dir}/*.conf", "backup": backup}
+                "message": t("已自动在 http 块补上 include {path}/*.conf", path=include_dir),
+                "backup": backup}
 
 
 # --------------------------------------------------------------------- #
@@ -439,7 +449,7 @@ def _parse_block(block: str, path: str, port_versions: dict[int, list[str]],
 
     versions = port_versions.get(port, []) if port else []
     php_version = ", ".join(versions) if versions else None
-    note = f"端口 {port} 未映射到任何 PHP 版本" if port and not versions else ""
+    note = t("端口 {port} 未映射到任何 PHP 版本", port=port) if port and not versions else ""
     return VhostEntry(
         server_name=server_name, file=path, root=root,
         port=port, php_version=php_version, note=note,

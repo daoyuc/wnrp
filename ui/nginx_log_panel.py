@@ -18,6 +18,7 @@ from tkinter import ttk
 
 from core import process_utils as pu
 from core.config import WNRP_ROOT
+from core.i18n import t
 from .theme import ERR, LOG_ACCENT, LOG_BG, LOG_FG, WARN
 
 NGINX_LOGS_DIR = os.path.join(WNRP_ROOT, "nginx", "logs")
@@ -51,20 +52,21 @@ class NginxLogPanel(ttk.Frame):
         top = ttk.Frame(self)
         top.pack(fill="x", pady=(0, 6))
 
-        ttk.Label(top, text="日志文件：", style="Section.TLabel").pack(side="left")
+        ttk.Label(top, text=t("日志文件："), style="Section.TLabel").pack(side="left")
         self.file_var = tk.StringVar()
         self.file_cb = ttk.Combobox(top, textvariable=self.file_var, state="readonly", width=22)
         self.file_cb.pack(side="left", padx=(0, 8))
         self.file_cb.bind("<<ComboboxSelected>>", lambda e: self._reset_and_reload())
 
         self.follow_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(top, text="自动跟随", variable=self.follow_var).pack(side="left", padx=(0, 8))
+        ttk.Checkbutton(top, text=t("自动跟随"), variable=self.follow_var).pack(
+            side="left", padx=(0, 8))
 
-        ttk.Button(top, text="刷新", command=self.reload).pack(side="left", padx=(0, 4))
-        ttk.Button(top, text="清屏", command=self.clear_view).pack(side="left", padx=(0, 4))
-        ttk.Button(top, text="打开目录", command=self._open_dir).pack(side="left", padx=(0, 10))
+        ttk.Button(top, text=t("刷新"), command=self.reload).pack(side="left", padx=(0, 4))
+        ttk.Button(top, text=t("清屏"), command=self.clear_view).pack(side="left", padx=(0, 4))
+        ttk.Button(top, text=t("打开目录"), command=self._open_dir).pack(side="left", padx=(0, 10))
 
-        ttk.Label(top, text="过滤：", style="Section.TLabel").pack(side="left")
+        ttk.Label(top, text=t("过滤："), style="Section.TLabel").pack(side="left")
         self.filter_var = tk.StringVar()
         filter_entry = ttk.Entry(top, textvariable=self.filter_var, width=16)
         filter_entry.pack(side="left", padx=(0, 8))
@@ -109,7 +111,7 @@ class NginxLogPanel(ttk.Frame):
                 self.file_var.set(prefer)
             self._reset_and_reload()
         else:
-            self.info_var.set("logs 目录无 .log 文件")
+            self.info_var.set(t("logs 目录无 .log 文件"))
 
     def _current_path(self) -> str | None:
         name = self.file_var.get()
@@ -141,7 +143,7 @@ class NginxLogPanel(ttk.Frame):
             return
         path = self._current_path()
         if not path or not os.path.exists(path):
-            self.info_var.set("文件不存在")
+            self.info_var.set(t("文件不存在"))
             return
         self._busy = True
 
@@ -161,7 +163,7 @@ class NginxLogPanel(ttk.Frame):
                 self._offset = size
                 self._queue.put(("data", (kind, content, size, mtime)))
             except Exception as e:  # noqa: BLE001
-                self._queue.put(("error", f"{type(e).__name__}：{e}"))
+                self._queue.put(("error", t("{name}：{text}", name=type(e).__name__, text=e)))
 
         threading.Thread(target=worker, daemon=True).start()
         self._poll()
@@ -286,15 +288,15 @@ class NginxLogPanel(ttk.Frame):
         from datetime import datetime
         mt = datetime.fromtimestamp(self._mtime).strftime("%H:%M:%S")
         total = len(self._lines)
-        parts.append(f"{size_txt} · {mt} · {total} 行")
+        parts.append(f"{size_txt} · {mt} · " + t("{n} 行", n=total))
         kw = self.filter_var.get().strip()
         if kw:
             shown = sum(1 for ln in self._lines if kw.lower() in ln.lower())
-            parts.append(f"显示 {shown}")
+            parts.append(t("显示 {n}", n=shown))
         if self._stats["err"]:
-            parts.append(f"错误 {self._stats['err']}")
+            parts.append(t("错误 {n}", n=self._stats["err"]))
         if self._stats["warn"]:
-            parts.append(f"警告 {self._stats['warn']}")
+            parts.append(t("警告 {n}", n=self._stats["warn"]))
         self.info_var.set(" · ".join(parts))
 
     # ------------------------------------------------------------------ #

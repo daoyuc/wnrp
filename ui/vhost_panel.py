@@ -12,18 +12,19 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 from core import hosts_manager, process_utils as pu
+from core.i18n import t
 from core.vhost_manager import VhostEntry, VhostManager
 from .site_wizard import SiteWizardDialog
 from .theme import CARD_BG, ERR, GRAY, OK, TEXT, WARN
 
 COLUMNS = [
-    ("server_name", "域名", 230, "w"),
-    ("hosts", "hosts 映射", 150, "w"),
-    ("file", "配置文件", 130, "w"),
-    ("port", "端口", 70, "center"),
-    ("php", "PHP 版本", 90, "center"),
-    ("root", "项目根目录", 300, "w"),
-    ("note", "说明", 150, "w"),
+    ("server_name", t("域名"), 230, "w"),
+    ("hosts", t("hosts 映射"), 150, "w"),
+    ("file", t("配置文件"), 130, "w"),
+    ("port", t("端口"), 70, "center"),
+    ("php", t("PHP 版本"), 90, "center"),
+    ("root", t("项目根目录"), 300, "w"),
+    ("note", t("说明"), 150, "w"),
 ]
 _OK_MARK = "✔"
 _WARN_MARK = "⚠"
@@ -47,17 +48,17 @@ class VhostPanel(ttk.Frame):
     def _build(self) -> None:
         bar = ttk.Frame(self)
         bar.pack(fill="x", pady=(0, 6))
-        self.btn_new = ttk.Button(bar, text="＋ 新建站点…", style="Accent.TButton",
+        self.btn_new = ttk.Button(bar, text=t("＋ 新建站点…"), style="Accent.TButton",
                                   command=self._open_wizard)
         self.btn_new.pack(side="left", padx=(0, 6))
-        self.btn_refresh = ttk.Button(bar, text="刷新", command=self.refresh)
-        self.btn_open_dir = ttk.Button(bar, text="打开 vhost 目录", command=self._open_dir)
+        self.btn_refresh = ttk.Button(bar, text=t("刷新"), command=self.refresh)
+        self.btn_open_dir = ttk.Button(bar, text=t("打开 vhost 目录"), command=self._open_dir)
         self.btn_open_dir.pack(side="left", padx=(0, 6))
         self.btn_refresh.pack(side="left", padx=(0, 6))
         ttk.Label(
             bar,
-            text="「新建站点」按向导生成 Laravel/WordPress/ThinkPHP 等配置，并自动写 hosts；"
-                 "双击行打开配置文件",
+            text=t("「新建站点」按向导生成 Laravel/WordPress/ThinkPHP 等配置，并自动写 hosts；"
+                   "双击行打开配置文件"),
             style="SubTitle.TLabel",
         ).pack(side="left", padx=(4, 0))
 
@@ -70,7 +71,7 @@ class VhostPanel(ttk.Frame):
         )
         self._inc_label.pack(side="left", fill="x", expand=True, padx=6, pady=4)
         self._btn_fix_inc = ttk.Button(
-            self._inc_wrap, text="自动补 include 并校验", command=self._fix_include
+            self._inc_wrap, text=t("自动补 include 并校验"), command=self._fix_include
         )
         self._btn_fix_inc.pack_forget()  # 默认隐藏，仅在「未 include」时显示
         self._inc_status: dict | None = None
@@ -99,7 +100,7 @@ class VhostPanel(ttk.Frame):
         if self._busy:
             return
         self._set_busy(True)
-        self.notify("正在扫描 nginx 配置…")
+        self.notify(t("正在扫描 nginx 配置…"))
 
         def worker():
             try:
@@ -123,11 +124,11 @@ class VhostPanel(ttk.Frame):
             entries, inc = payload
             self._render(entries)
             self._render_include_status(inc)
-            self.notify(f"已扫描 {len(entries)} 个 server 块")
+            self.notify(t("已扫描 {count} 个 server 块", count=len(entries)))
         else:
             self._render_include_status(None)
-            messagebox.showerror("扫描失败", payload, parent=self)
-            self.notify("扫描失败")
+            messagebox.showerror(t("扫描失败"), payload, parent=self)
+            self.notify(t("扫描失败"))
 
     def _render(self, entries: list[VhostEntry]) -> None:
         self._entries = entries
@@ -159,13 +160,13 @@ class VhostPanel(ttk.Frame):
         parts = []
         for d in server_name.split():
             if d.startswith("*."):
-                parts.append(d.replace("*.", "*") + " 泛解析")
+                parts.append(d.replace("*.", "*") + t(" 泛解析"))
                 continue
             ip = mapping.get(d)
             if ip == "127.0.0.1":
-                parts.append("✓ 本机")
+                parts.append(t("✓ 本机"))
             elif ip is None:
-                parts.append("✗ 未映射")
+                parts.append(t("✗ 未映射"))
             else:
                 parts.append(f"⚠ {ip}")
         return ", ".join(parts) or "—"
@@ -188,7 +189,8 @@ class VhostPanel(ttk.Frame):
         if os.path.exists(path):
             pu.open_path(path)
         else:
-            messagebox.showwarning("文件不存在", f"配置文件不存在：\n{path}", parent=self)
+            messagebox.showwarning(t("文件不存在"), t("配置文件不存在：\n{path}", path=path),
+                                   parent=self)
 
     def _open_dir(self) -> None:
         """打开站点配置所在目录（已建则 vhost，否则主配置所在目录）。"""
@@ -206,21 +208,23 @@ class VhostPanel(ttk.Frame):
         self._inc_status = st
         self._btn_fix_inc.pack_forget()
         if st is None:
-            self._inc_label.configure(fg=GRAY, text="正在检测站点目录加载状态…")
+            self._inc_label.configure(fg=GRAY, text=t("正在检测站点目录加载状态…"))
             return
         main = st.get("main_conf") or ""
-        lines = "、".join(st.get("lines") or []) or "（无）"
+        lines = "、".join(st.get("lines") or []) or t("（无）")
         if st.get("covered"):
             self._inc_label.configure(
                 fg=OK,
-                text=f"{_OK_MARK} 生效主配置已 include 站点目录 {st['vhost_dir']}\n{main}  → include：{lines}",
+                text=t("{mark} 生效主配置已 include 站点目录 {dir}\n{main}  → include：{lines}",
+                       mark=_OK_MARK, dir=st["vhost_dir"], main=main, lines=lines),
             )
         elif not os.path.exists(main):
             self._inc_label.configure(fg=WARN, text=f"{_WARN_MARK} {st['reason']}")
         else:
             self._inc_label.configure(
                 fg=ERR,
-                text=f"{_WARN_MARK} 站点目录未被 nginx 加载，新建/修改站点不会生效！\n{st['reason']}",
+                text=t("{mark} 站点目录未被 nginx 加载，新建/修改站点不会生效！\n{reason}",
+                       mark=_WARN_MARK, reason=st["reason"]),
             )
             self._btn_fix_inc.pack(side="right", padx=6, pady=4)
 
@@ -231,10 +235,10 @@ class VhostPanel(ttk.Frame):
         self._btn_fix_inc.state(["disabled"])
         try:
             if self.vhost_mgr.include_status().get("covered"):
-                self.notify("站点目录已被主配置 include，无需修复")
+                self.notify(t("站点目录已被主配置 include，无需修复"))
                 self.refresh()
                 return
-            self.notify("正在自动补 include 并校验…")
+            self.notify(t("正在自动补 include 并校验…"))
             res = self.vhost_mgr.ensure_include()
             final = res["message"]
             cfg_ok = not res["ok"]
@@ -242,23 +246,23 @@ class VhostPanel(ttk.Frame):
                 out = (self.vhost_mgr.nginx.test_config() or "").strip()
                 if out:
                     final = f"{final}\n{out}"
-                cfg_ok = "successful" in out or out == "配置检查通过"
+                cfg_ok = "successful" in out or out == t("配置检查通过")
             self._render_include_status(self.vhost_mgr.include_status())
             if not res["ok"]:
-                messagebox.showerror("修复失败", final, parent=self)
+                messagebox.showerror(t("修复失败"), final, parent=self)
             elif not cfg_ok:
-                messagebox.showwarning("配置校验未通过", final, parent=self)
+                messagebox.showwarning(t("配置校验未通过"), final, parent=self)
             else:
-                messagebox.showinfo("已修复", final, parent=self)
+                messagebox.showinfo(t("已修复"), final, parent=self)
                 running, _ = self.vhost_mgr.nginx.get_status()
                 if running and messagebox.askyesno(
-                    "include 已补上",
-                    "需要平滑重载 nginx 才会加载站点目录。\n是否立即重载？",
+                    t("include 已补上"),
+                    t("需要平滑重载 nginx 才会加载站点目录。\n是否立即重载？"),
                     parent=self,
                 ):
                     self.notify(self.vhost_mgr.nginx.reload())
         except Exception as e:  # noqa: BLE001
-            messagebox.showerror("修复失败", str(e), parent=self)
+            messagebox.showerror(t("修复失败"), str(e), parent=self)
         finally:
             self._btn_fix_inc.state(["!disabled"])
             self.refresh()

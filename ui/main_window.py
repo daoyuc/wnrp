@@ -8,6 +8,7 @@ from tkinter import messagebox, ttk
 
 from core import autostart, crash_watchdog, path_manager
 from core.config import Config, IS_WIN, WNRP_ROOT
+from core.i18n import LANGS, t
 from core.health_monitor import HealthMonitor
 from core.nginx_manager import NginxManager
 from core.php_manager import PhpManager
@@ -22,9 +23,9 @@ from .site_wizard import SiteWizardDialog
 from .theme import BG, CARD_BG, ERR, FONT, GRAY, OK, PRIMARY, PRIMARY_LIGHT, TEXT, setup_style
 from .vhost_panel import VhostPanel
 
-APP_TITLE = "phpvm · PHP 版本管理器"
+APP_TITLE = t("phpvm · PHP 版本管理器")
 WNRP_ROOT_SHOW = WNRP_ROOT
-CLI_PREFIX = "CMD php" if IS_WIN else "终端 php"
+CLI_PREFIX = "CMD php" if IS_WIN else t("终端 php")
 CRASH_POLL_TICKS = 8  # 崩溃检测频率 ≈ 8 × 8s = 64s 一次（仅告警展示用）
 
 
@@ -42,8 +43,9 @@ class MainWindow(tk.Tk):
         self.minsize(960, 600)
         self.configure(bg=BG)
         setup_style(self)
+        self._build_menubar()
 
-        self._log_var = tk.StringVar(value="就绪")
+        self._log_var = tk.StringVar(value=t("就绪"))
         self._cli_queue: queue.Queue = queue.Queue()
         self._crash_queue: queue.Queue = queue.Queue()
         self._tray_queue: queue.Queue = queue.Queue()
@@ -63,14 +65,40 @@ class MainWindow(tk.Tk):
         self.bind("<Unmap>", self._on_unmap)
 
     # ------------------------------------------------------------------ #
+    def _build_menubar(self) -> None:
+        """顶部菜单栏：目前提供界面语言切换（重启后生效）。"""
+        menubar = tk.Menu(self)
+        lang_menu = tk.Menu(menubar, tearoff=0)
+        self._lang_var = tk.StringVar(value=self.config.get_lang())
+        for code, name in LANGS.items():
+            lang_menu.add_radiobutton(
+                label=name, value=code, variable=self._lang_var,
+                command=lambda c=code: self._on_lang_selected(c),
+            )
+        menubar.add_cascade(label=t("语言"), menu=lang_menu)
+        self.config(menu=menubar)
+
+    def _on_lang_selected(self, code: str) -> None:
+        """保存语言选择；界面文本在重启后切换，因此仅提示。"""
+        self._lang_var.set(code)
+        if code == self.config.get_lang():
+            return
+        self.config.set_lang(code)
+        messagebox.showinfo(
+            t("语言已切换"),
+            t("界面语言已保存为 {name}。重启 phpvm 后生效。", name=LANGS[code]),
+            parent=self,
+        )
+
     def _build(self) -> None:
         # 标题区
         header = ttk.Frame(self, style="Card.TFrame")
         header.pack(fill="x", padx=12, pady=(12, 8))
-        ttk.Label(header, text="PHP 版本管理器", style="Title.TLabel").pack(
+        ttk.Label(header, text=t("PHP 版本管理器"), style="Title.TLabel").pack(
             side="left", padx=(16, 8), pady=12
         )
-        ttk.Label(header, text=f"环境根目录 {WNRP_ROOT_SHOW}", style="SubTitle.TLabel").pack(
+        ttk.Label(header, text=t("环境根目录 {dir}", dir=WNRP_ROOT_SHOW),
+                  style="SubTitle.TLabel").pack(
             side="left", pady=12
         )
 
@@ -82,11 +110,11 @@ class MainWindow(tk.Tk):
         )
         self.cli_dot.pack(side="left", padx=(0, 6))
         self.cli_label = tk.Label(
-            cli_box, text=f"{CLI_PREFIX}：检测中…", font=(FONT, 9, "bold"),
-            background=CARD_BG, foreground=TEXT,
+            cli_box, text=t("{prefix}：检测中…", prefix=CLI_PREFIX),
+            font=(FONT, 9, "bold"), background=CARD_BG, foreground=TEXT,
         )
         self.cli_label.pack(side="left", padx=(0, 10))
-        self.btn_cli = ttk.Button(cli_box, text="切换", command=self._open_cli_switch)
+        self.btn_cli = ttk.Button(cli_box, text=t("切换"), command=self._open_cli_switch)
         self.btn_cli.pack(side="left")
 
         # 页签
@@ -99,12 +127,12 @@ class MainWindow(tk.Tk):
         self.vhost_panel = VhostPanel(nb, VhostManager(self.config), self.set_log)
         self.log_panel = NginxLogPanel(nb, self.set_log)
         about = self._build_about(nb)
-        nb.add(self.php_panel, text="  PHP 版本管理  ")
-        nb.add(self.nginx_panel, text="  Nginx 管理  ")
-        nb.add(self.redis_panel, text="  Redis 管理  ")
-        nb.add(self.vhost_panel, text="  站点映射  ")
-        nb.add(self.log_panel, text="  Nginx 日志  ")
-        nb.add(about, text="  关于  ")
+        nb.add(self.php_panel, text=f"  {t('PHP 版本管理')}  ")
+        nb.add(self.nginx_panel, text=f"  {t('Nginx 管理')}  ")
+        nb.add(self.redis_panel, text=f"  {t('Redis 管理')}  ")
+        nb.add(self.vhost_panel, text=f"  {t('站点映射')}  ")
+        nb.add(self.log_panel, text=f"  {t('Nginx 日志')}  ")
+        nb.add(about, text=f"  {t('关于')}  ")
 
         # 状态栏
         bar = ttk.Frame(self, style="Status.TFrame")
@@ -121,25 +149,25 @@ class MainWindow(tk.Tk):
 
     def _build_about(self, master) -> ttk.Frame:
         frame = ttk.Frame(master, padding=18)
-        ttk.Label(frame, text="phpvm · PHP 版本管理器", style="Title.TLabel").pack(anchor="w", pady=(0, 6))
+        ttk.Label(frame, text=APP_TITLE, style="Title.TLabel").pack(anchor="w", pady=(0, 6))
         ttk.Label(
             frame,
-            text=f"管理 {WNRP_ROOT} 下多个 PHP 版本的启动 / 停止 / 重启 / 状态 / 端口 / 配置，"
-                 "并附带 Nginx 与 Redis 管理。",
+            text=t("管理 {root} 下多个 PHP 版本的启动 / 停止 / 重启 / 状态 / 端口 / 配置，"
+                    "并附带 Nginx 与 Redis 管理。", root=WNRP_ROOT),
             style="SubTitle.TLabel",
         ).pack(anchor="w", pady=(0, 14))
 
-        info = ttk.LabelFrame(frame, text="环境信息", padding=12)
+        info = ttk.LabelFrame(frame, text=t("环境信息"), padding=12)
         info.pack(fill="x")
         rows = [
-            ("环境根目录", WNRP_ROOT_SHOW),
-            ("PHP FastCGI 配置", "php82/php85 → php-web.ini，其余 → php.ini"),
-            ("FastCGI 监听", "127.0.0.1:端口（按版本配置，见 PHP 版本管理页）"),
-            ("Nginx 前缀", os.path.join(WNRP_ROOT, "nginx")),
-            ("配置持久化", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config.json")),
+            (t("环境根目录"), WNRP_ROOT_SHOW),
+            (t("PHP FastCGI 配置"), t("php82/php85 → php-web.ini，其余 → php.ini")),
+            (t("FastCGI 监听"), t("127.0.0.1:端口（按版本配置，见 PHP 版本管理页）")),
+            (t("Nginx 前缀"), os.path.join(WNRP_ROOT, "nginx")),
+            (t("配置持久化"), os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config.json")),
         ]
         if IS_WIN:
-            rows.insert(4, ("隐藏启动器", os.path.join(WNRP_ROOT, "RunHiddenConsole.exe")))
+            rows.insert(4, (t("隐藏启动器"), os.path.join(WNRP_ROOT, "RunHiddenConsole.exe")))
         for i, (k, v) in enumerate(rows):
             ttk.Label(info, text=f"{k}：", font=(FONT, 9, "bold"), background=CARD_BG).grid(
                 row=i, column=0, sticky="w", padx=(8, 4), pady=3
@@ -148,32 +176,62 @@ class MainWindow(tk.Tk):
                 row=i, column=1, sticky="w", pady=3
             )
 
-        # 设置区：开机自启 + 崩溃自愈
-        settings = ttk.LabelFrame(frame, text="设置", padding=12)
+        # 设置区：开机自启 + 崩溃自愈 + 界面语言
+        settings = ttk.LabelFrame(frame, text=t("设置"), padding=12)
         settings.pack(fill="x", pady=(10, 0))
         self._autostart_var = tk.BooleanVar(value=autostart.is_enabled())
         ttk.Checkbutton(
-            settings, text="开机自动启动 phpvm（当前用户）",
+            settings, text=t("开机自动启动 phpvm（当前用户）"),
             variable=self._autostart_var, command=self._toggle_autostart,
         ).pack(anchor="w", pady=(0, 6))
         self._recover_var = tk.BooleanVar(value=bool(self.config.get_setting("auto_recover_crash", False)))
         ttk.Checkbutton(
-            settings, text="php-cgi 崩溃后自动重启（自愈，默认关闭）",
+            settings, text=t("php-cgi 崩溃后自动重启（自愈，默认关闭）"),
             variable=self._recover_var, command=self._toggle_recover,
         ).pack(anchor="w")
         ttk.Label(
             settings,
-            text="自愈防抖 60 秒、每版本每小时最多 3 次，防止崩溃循环刷进程。",
+            text=t("自愈防抖 60 秒、每版本每小时最多 3 次，防止崩溃循环刷进程。"),
             style="SubTitle.TLabel",
         ).pack(anchor="w", pady=(4, 0))
+        lang_row = ttk.Frame(settings)
+        lang_row.pack(anchor="w", pady=(8, 0))
+        ttk.Label(lang_row, text=t("界面语言："), font=(FONT, 9, "bold"),
+                  background=CARD_BG).pack(side="left")
+        self._lang_box = ttk.Combobox(
+            lang_row, state="readonly", width=16,
+            values=[f"{name}（{code}）" for code, name in LANGS.items()],
+        )
+        self._lang_box.current(list(LANGS).index(self.config.get_lang()))
+        self._lang_box.pack(side="left", padx=(4, 0))
+        ttk.Button(lang_row, text=t("应用"), command=self._apply_lang_box).pack(
+            side="left", padx=(8, 0)
+        )
 
         ttk.Label(
             frame,
-            text="\n提示：修改端口后需同步修改对应 nginx vhost 的 fastcgi_pass 才会生效。\n"
-                 "phpvm 按端口精确启停，不会像旧的 start_phpXX.bat 那样误杀其它版本进程。",
+            text=t("\n提示：修改端口后需同步修改对应 nginx vhost 的 fastcgi_pass 才会生效。\n"
+                   "phpvm 按端口精确启停，不会像旧的 start_phpXX.bat 那样误杀其它版本进程。"),
             style="SubTitle.TLabel",
         ).pack(anchor="w", pady=(14, 0))
         return frame
+
+    def _apply_lang_box(self) -> None:
+        """关于页语言下拉：应用所选语言并提示重启生效。"""
+        codes = list(LANGS)
+        idx = self._lang_box.current()
+        if idx < 0 or idx >= len(codes):
+            return
+        code = codes[idx]
+        self._lang_var.set(code)
+        if code == self.config.get_lang():
+            return
+        self.config.set_lang(code)
+        messagebox.showinfo(
+            t("语言已切换"),
+            t("界面语言已保存为 {name}。重启 phpvm 后生效。", name=LANGS[code]),
+            parent=self,
+        )
 
     # ------------------------------------------------------------------ #
     def set_log(self, msg: str) -> None:
@@ -189,9 +247,9 @@ class MainWindow(tk.Tk):
         ok = autostart.enable() if target else autostart.disable()
         if not ok:
             self._autostart_var.set(autostart.is_enabled())
-            messagebox.showerror("开机自启", "修改注册表失败，请检查权限", parent=self)
+            messagebox.showerror(t("开机自启"), t("修改注册表失败，请检查权限"), parent=self)
             return
-        self.set_log("开机自启已启用" if target else "开机自启已关闭")
+        self.set_log(t("开机自启已启用") if target else t("开机自启已关闭"))
 
     def _toggle_recover(self) -> None:
         """自愈开关：开启 → 拉起独立守护进程；关闭 → 守护进程下轮自行退出。
@@ -202,15 +260,15 @@ class MainWindow(tk.Tk):
         enabled = self._recover_var.get()
         self.config.set_setting("auto_recover_crash", enabled)
         if enabled:
-            self.set_log("崩溃自愈已开启，正在启动守护进程…")
+            self.set_log(t("崩溃自愈已开启，正在启动守护进程…"))
 
             def spawn():
                 ok, msg = crash_watchdog.spawn()
-                self._crash_queue.put(("wd", msg if ok else f"自愈守护异常：{msg}"))
+                self._crash_queue.put(("wd", msg if ok else t("自愈守护异常：{msg}", msg=msg)))
 
             threading.Thread(target=spawn, daemon=True).start()
         else:
-            self.set_log("崩溃自愈已关闭（守护进程将自动退出）")
+            self.set_log(t("崩溃自愈已关闭（守护进程将自动退出）"))
 
     # cmd php 版本展示 / 切换
     def _open_cli_switch(self) -> None:
@@ -237,11 +295,13 @@ class MainWindow(tk.Tk):
         name, version = info.get("name"), info.get("version")
         if not name:
             self.cli_dot.configure(foreground=GRAY)
-            self.cli_label.configure(text=f"{CLI_PREFIX}：未启用 wnrp 版本")
+            self.cli_label.configure(text=t("{prefix}：未启用 wnrp 版本", prefix=CLI_PREFIX))
             return
-        running_fg = OK if version != "未知" else ERR
+        running_fg = OK if version != t("未知") else ERR
         self.cli_dot.configure(foreground=running_fg)
-        self.cli_label.configure(text=f"{CLI_PREFIX}：{name} · PHP {version}")
+        self.cli_label.configure(
+            text=t("{prefix}：{name} · PHP {version}",
+                   prefix=CLI_PREFIX, name=name, version=version))
 
     def _tick(self) -> None:
         # 自动轻量刷新状态（面板内部自行排队异步执行）
@@ -275,7 +335,7 @@ class MainWindow(tk.Tk):
                     return
                 ok, msg = crash_watchdog.spawn()
                 if not ok:
-                    self._crash_queue.put(("wd", f"自愈守护进程异常：{msg}"))
+                    self._crash_queue.put(("wd", t("自愈守护进程异常：{msg}", msg=msg)))
             except Exception:  # noqa: BLE001
                 pass
 
@@ -327,11 +387,11 @@ class MainWindow(tk.Tk):
         self._crash_alert_active = True
         n = len(events)
         summary = self._crash_summary(events)
-        self._alert_label.configure(text=f"⚠ php-cgi 崩溃 {n} 次，点击查看")
-        self.set_log(f"检测到 php-cgi 崩溃（{n} 次），详见状态栏告警")
+        self._alert_label.configure(text=t("⚠ php-cgi 崩溃 {n} 次，点击查看", n=n))
+        self.set_log(t("检测到 php-cgi 崩溃（{n} 次），详见状态栏告警", n=n))
         if self._tray is not None:
             try:
-                self._tray.show_balloon("php-cgi 崩溃告警", summary)
+                self._tray.show_balloon(t("php-cgi 崩溃告警"), summary)
             except Exception:  # noqa: BLE001
                 pass
         if not startup:
@@ -346,10 +406,11 @@ class MainWindow(tk.Tk):
         lines = []
         for e in events[:3]:
             ver = f"[{e['version']}] " if e.get("version") else ""
-            lines.append(f"{e['time']} {ver}{e['app']} 异常码 {e['exception']}")
+            lines.append(t("{time} {ver}{app} 异常码 {code}",
+                           time=e["time"], ver=ver, app=e["app"], code=e["exception"]))
         if len(events) > 3:
-            lines.append(f"…共 {len(events)} 次")
-        return "\n".join(lines) or "未知"
+            lines.append(t("…共 {count} 次", count=len(events)))
+        return "\n".join(lines) or t("未知")
 
     def _show_crash_detail(self, events: list[dict] | None = None) -> None:
         CrashDialog(self, events or self.health.recent_crashes, on_clear=self._clear_crash_history)
@@ -359,7 +420,7 @@ class MainWindow(tk.Tk):
         self.health.reset()
         self._crash_alert_active = False
         self._alert_label.configure(text="")
-        self.set_log("已清空崩溃告警记录")
+        self.set_log(t("已清空崩溃告警记录"))
 
     # ------------------------------------------------------------------ #
     # 系统托盘 / 关闭行为
@@ -409,7 +470,7 @@ class MainWindow(tk.Tk):
         # 隐藏到托盘（窗口可见时可用）
         items.append({
             "type": "item",
-            "label": "隐藏到托盘",
+            "label": t("隐藏到托盘"),
             "enabled": self.state() == "normal",
             "cmd": self.withdraw,
         })
@@ -422,18 +483,18 @@ class MainWindow(tk.Tk):
         except Exception:  # noqa: BLE001
             running, pids = False, []
         if running:
-            state_txt = f"运行中 · PID {pids[0]}" if pids else "运行中"
+            state_txt = t("状态：运行中 · PID {pid}", pid=pids[0]) if pids else t("状态：运行中")
         else:
-            state_txt = "已停止"
-        nginx_items.append({"type": "item", "label": f"状态：{state_txt}", "enabled": False})
+            state_txt = t("状态：已停止")
+        nginx_items.append({"type": "item", "label": state_txt, "enabled": False})
         nginx_items.append({"type": "sep"})
-        nginx_items.append({"type": "item", "label": "启动", "enabled": not running,
+        nginx_items.append({"type": "item", "label": t("启动"), "enabled": not running,
                             "cmd": lambda: self._tray_action("nginx", "start")})
-        nginx_items.append({"type": "item", "label": "停止", "enabled": running,
+        nginx_items.append({"type": "item", "label": t("停止"), "enabled": running,
                             "cmd": lambda: self._tray_action("nginx", "stop")})
-        nginx_items.append({"type": "item", "label": "重载配置", "enabled": running,
+        nginx_items.append({"type": "item", "label": t("重载配置"), "enabled": running,
                             "cmd": lambda: self._tray_action("nginx", "reload")})
-        nginx_items.append({"type": "item", "label": "配置检查",
+        nginx_items.append({"type": "item", "label": t("配置检查"),
                             "cmd": lambda: self._tray_action("nginx", "test_config")})
         items.append({"type": "submenu", "label": "Nginx", "items": nginx_items})
 
@@ -446,49 +507,57 @@ class MainWindow(tk.Tk):
         redis_insts = self.redis_mgr.instances
         if redis_insts:
             def _redis_submenu(inst) -> list[dict]:
-                pid_txt = f" · PID {', '.join(map(str, inst.pids))}" if inst.running and inst.pids else ""
+                if inst.running and inst.pids:
+                    state_txt = t("状态：运行中 · PID {pids} · 端口 {port}",
+                                  pids=", ".join(map(str, inst.pids)), port=inst.port)
+                elif inst.running:
+                    state_txt = t("状态：运行中 · 端口 {port}", port=inst.port)
+                else:
+                    state_txt = t("状态：已停止 · 端口 {port}", port=inst.port)
                 sub = [
-                    {"type": "item",
-                     "label": f"状态：{'运行中' if inst.running else '已停止'}{pid_txt} · 端口 {inst.port}",
-                     "enabled": False},
+                    {"type": "item", "label": state_txt, "enabled": False},
                     {"type": "sep"},
-                    {"type": "item", "label": "启动", "enabled": not inst.running,
+                    {"type": "item", "label": t("启动"), "enabled": not inst.running,
                      "cmd": lambda i=inst: self._tray_action("redis", "start", i)},
-                    {"type": "item", "label": "停止", "enabled": inst.running,
+                    {"type": "item", "label": t("停止"), "enabled": inst.running,
                      "cmd": lambda i=inst: self._tray_action("redis", "stop", i)},
-                    {"type": "item", "label": "重启",
+                    {"type": "item", "label": t("重启"),
                      "cmd": lambda i=inst: self._tray_action("redis", "restart", i)},
                 ]
                 return sub
 
+            def _redis_label(inst) -> str:
+                return f"Redis [{inst.name}]"
+
             if len(redis_insts) == 1:
                 inst = redis_insts[0]
-                items.append({"type": "submenu", "label": f"Redis [{inst.name}]",
+                items.append({"type": "submenu", "label": _redis_label(inst),
                               "items": _redis_submenu(inst)})
             else:
                 for inst in redis_insts:
                     items.append({"type": "submenu",
-                                  "label": f"Redis [{inst.name}]",
+                                  "label": _redis_label(inst),
                                   "items": _redis_submenu(inst)})
         else:
-            items.append({"type": "item", "label": "Redis：未发现实例", "enabled": False})
+            items.append({"type": "item", "label": t("Redis：未发现实例"), "enabled": False})
 
         # 各 PHP 版本快捷启停
         versions = self.php_mgr.versions or self.php_mgr.scan_versions()
         for v in versions:
             sub: list[dict] = []
-            pid_txt = f" · PID {v.pid}" if v.running and v.pid else ""
-            sub.append({
-                "type": "item",
-                "label": f"状态：{'运行中' if v.running else '已停止'}{pid_txt} · 端口 {v.port}",
-                "enabled": False,
-            })
+            if v.running and v.pid:
+                state_txt = t("状态：运行中 · PID {pid} · 端口 {port}", pid=v.pid, port=v.port)
+            elif v.running:
+                state_txt = t("状态：运行中 · 端口 {port}", port=v.port)
+            else:
+                state_txt = t("状态：已停止 · 端口 {port}", port=v.port)
+            sub.append({"type": "item", "label": state_txt, "enabled": False})
             sub.append({"type": "sep"})
-            sub.append({"type": "item", "label": "启动", "enabled": not v.running,
+            sub.append({"type": "item", "label": t("启动"), "enabled": not v.running,
                         "cmd": lambda v=v: self._tray_action(v, "start")})
-            sub.append({"type": "item", "label": "停止", "enabled": v.running,
+            sub.append({"type": "item", "label": t("停止"), "enabled": v.running,
                         "cmd": lambda v=v: self._tray_action(v, "stop")})
-            sub.append({"type": "item", "label": "重启", "enabled": v.running,
+            sub.append({"type": "item", "label": t("重启"), "enabled": v.running,
                         "cmd": lambda v=v: self._tray_action(v, "restart")})
             display = f"（{v.display}）" if v.display else ""
             mark = "● " if v.running else ""
@@ -515,12 +584,12 @@ class MainWindow(tk.Tk):
                 else:
                     msg = getattr(mgr, action)(call_arg)
             except Exception as e:  # noqa: BLE001
-                msg = f"{type(e).__name__}：{e}"
+                msg = t("{name}：{text}", name=type(e).__name__, text=str(e))
             # 手动停止 → 解除守护看护；启动/重启 → 纳入守护看护
             if not isinstance(target, str):
                 try:
                     if action == "stop":
-                        if "已停止" in msg or "未在运行" in msg:
+                        if t("已停止") in msg or t("未在运行") in msg:
                             crash_watchdog.unwatch(target.name)
                     elif action in ("start", "restart"):
                         crash_watchdog.watch_version(target.name)
@@ -554,11 +623,11 @@ class MainWindow(tk.Tk):
     def _on_close(self) -> None:
         """点击关闭按钮：无托盘（macOS/Linux）直接确认退出；否则弹「托盘/退出」选择框。"""
         if self._tray is None:
-            if messagebox.askokcancel("退出 phpvm", "确定要退出 phpvm 吗？", parent=self):
+            if messagebox.askokcancel(t("退出 phpvm"), t("确定要退出 phpvm 吗？"), parent=self):
                 self._real_quit()
             return
         dlg = tk.Toplevel(self)
-        dlg.title("关闭 phpvm")
+        dlg.title(t("关闭 phpvm"))
         dlg.geometry("320x150")
         dlg.resizable(False, False)
         dlg.transient(self)
@@ -567,10 +636,10 @@ class MainWindow(tk.Tk):
         setup_style(dlg)
 
         ttk.Label(
-            dlg, text="要如何关闭 phpvm？", style="Title.TLabel"
+            dlg, text=t("要如何关闭 phpvm？"), style="Title.TLabel"
         ).pack(pady=(14, 6))
         ttk.Label(
-            dlg, text="可最小化到系统托盘后台运行，或完全退出。",
+            dlg, text=t("可最小化到系统托盘后台运行，或完全退出。"),
             style="SubTitle.TLabel",
         ).pack(pady=(0, 10))
 
@@ -583,13 +652,13 @@ class MainWindow(tk.Tk):
 
         frm = ttk.Frame(dlg)
         frm.pack(pady=(0, 10))
-        ttk.Button(frm, text="最小化到托盘", command=lambda: choose("tray")).pack(
+        ttk.Button(frm, text=t("最小化到托盘"), command=lambda: choose("tray")).pack(
             side="left", padx=6
         )
-        ttk.Button(frm, text="退出", command=lambda: choose("exit")).pack(
+        ttk.Button(frm, text=t("退出"), command=lambda: choose("exit")).pack(
             side="left", padx=6
         )
-        ttk.Button(frm, text="取消", command=dlg.destroy).pack(side="left", padx=6)
+        ttk.Button(frm, text=t("取消"), command=dlg.destroy).pack(side="left", padx=6)
 
         dlg.wait_window()
 

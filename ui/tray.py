@@ -9,6 +9,8 @@ import itertools
 import os
 from ctypes import wintypes
 
+from core.i18n import t
+
 user32 = ctypes.windll.user32
 shell32 = ctypes.windll.shell32
 
@@ -228,13 +230,13 @@ class TrayIcon:
             cmd_map[cmd] = item.get("cmd")
             user32.AppendMenuW(hmenu, flags, cmd, item.get("label", ""))
 
-        user32.AppendMenuW(menu, MF_STRING, MENU_SHOW, "显示 phpvm")
+        user32.AppendMenuW(menu, MF_STRING, MENU_SHOW, t("显示 phpvm"))
         if items:
             user32.AppendMenuW(menu, MF_SEPARATOR, 0, None)
             for item in items:
                 append(menu, item)
             user32.AppendMenuW(menu, MF_SEPARATOR, 0, None)
-        user32.AppendMenuW(menu, MF_STRING, MENU_EXIT, "退出")
+        user32.AppendMenuW(menu, MF_STRING, MENU_EXIT, t("退出"))
 
         pt = wintypes.POINT()
         user32.GetCursorPos(ctypes.byref(pt))

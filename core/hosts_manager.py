@@ -21,6 +21,7 @@ import sys
 
 from . import process_utils as pu
 from .config import IS_WIN
+from .i18n import t
 
 MANAGED_TAG = "phpvm-managed"
 DEFAULT_IP = "127.0.0.1"
@@ -117,7 +118,7 @@ def ensure_entries(domains: list[str], ip: str = DEFAULT_IP) -> dict:
         mapping = parse_mapping(read_text())
     except OSError as e:
         return {"ok": False, "elevated": False, "added": [], "already": [],
-                "conflict": [], "message": f"读取 hosts 失败：{e}"}
+                "conflict": [], "message": t("读取 hosts 失败：{err}", err=e)}
     for d in domains:
         d = (d or "").strip().lower()
         if not d:
@@ -132,9 +133,11 @@ def ensure_entries(domains: list[str], ip: str = DEFAULT_IP) -> dict:
 
     if not todo:
         detail = "、".join(already) or "—"
-        msg = f"hosts 无需修改（已指向 {ip}：{detail})"
         if conflict:
-            msg += f"；以下域名指向其它 IP，未改动：{', '.join(conflict)}"
+            msg = t("hosts 无需修改（已指向 {ip}：{detail}）；以下域名指向其它 IP，未改动：{others}",
+                    ip=ip, detail=detail, others=", ".join(conflict))
+        else:
+            msg = t("hosts 无需修改（已指向 {ip}：{detail}）", ip=ip, detail=detail)
         return {"ok": True, "elevated": False, "added": [], "already": already,
                 "conflict": conflict, "message": msg}
 
@@ -149,12 +152,12 @@ def ensure_entries(domains: list[str], ip: str = DEFAULT_IP) -> dict:
             f.write(block)
         return {"ok": True, "elevated": False, "added": todo, "already": already,
                 "conflict": conflict,
-                "message": f"已写入 hosts：{ip} {' '.join(todo)}"}
+                "message": t("已写入 hosts：{ip} {doms}", ip=ip, doms=" ".join(todo))}
     except PermissionError:
         return _write_elevated(block, todo, already, conflict)
     except OSError as e:
         return {"ok": False, "elevated": False, "added": [], "already": already,
-                "conflict": conflict, "message": f"写入 hosts 失败：{e}"}
+                "conflict": conflict, "message": t("写入 hosts 失败：{err}", err=e)}
 
 
 def _write_elevated(block: str, todo: list[str], already: list[str],
@@ -180,11 +183,11 @@ def _write_elevated(block: str, todo: list[str], already: list[str],
         if code == 0:
             return {"ok": True, "elevated": True, "added": todo, "already": already,
                     "conflict": conflict,
-                    "message": f"已通过管理员授权写入 hosts：{' '.join(todo)}"}
+                    "message": t("已通过管理员授权写入 hosts：{doms}", doms=" ".join(todo))}
         return {"ok": False, "elevated": True, "added": [], "already": already,
                 "conflict": conflict,
-                "message": "写入 hosts 需要管理员权限（授权被取消或失败）。\n"
-                           "可手动打开 hosts 文件追加：127.0.0.1 " + " ".join(todo)}
+                "message": t("写入 hosts 需要管理员权限（授权被取消或失败）。\n"
+                             "可手动打开 hosts 文件追加：127.0.0.1 {doms}", doms=" ".join(todo))}
     if sys.platform == "darwin":
         cmd = [
             "osascript", "-e",
@@ -195,14 +198,15 @@ def _write_elevated(block: str, todo: list[str], already: list[str],
         if code == 0:
             return {"ok": True, "elevated": True, "added": todo, "already": already,
                     "conflict": conflict,
-                    "message": f"已通过系统授权写入 hosts：{' '.join(todo)}"}
+                    "message": t("已通过系统授权写入 hosts：{doms}", doms=" ".join(todo))}
         return {"ok": False, "elevated": True, "added": [], "already": already,
                 "conflict": conflict,
-                "message": f"写入 /etc/hosts 需要管理员授权（已取消或失败：{err.strip() or '无输出'}）。\n"
-                           "可手动编辑 /etc/hosts 追加：127.0.0.1 " + " ".join(todo)}
+                "message": t("写入 /etc/hosts 需要管理员授权（已取消或失败：{err}）。\n"
+                             "可手动编辑 /etc/hosts 追加：127.0.0.1 {doms}",
+                             err=err.strip() or t("无输出"), doms=" ".join(todo))}
     # 其它 Linux：无密码弹框手段，交用户手动处理
     return {"ok": False, "elevated": False, "added": [], "already": already,
             "conflict": conflict,
-            "message": "写入 /etc/hosts 需要 root 权限。请在终端手动执行：\n"
-                       "sudo sh -c 'echo \"127.0.0.1 " + " ".join(todo)
-                       + "\" >> /etc/hosts'"}
+            "message": t("写入 /etc/hosts 需要 root 权限。请在终端手动执行：\n"
+                         "sudo sh -c 'echo \"127.0.0.1 {doms}\" >> /etc/hosts'",
+                         doms=" ".join(todo))}
