@@ -12,6 +12,7 @@ import tkinter.ttk as ttk
 from tkinter import messagebox
 
 from core.config import Config
+from core.i18n import t
 from core.php_downloader import (
     build_candidates,
     detect_arch,
@@ -21,18 +22,18 @@ from core.php_installer import default_port_for, install, install_dir_for
 from core.php_manager import PhpManager
 from .theme import CARD_BG, GRAY, PRIMARY_LIGHT, TEXT, WARN, setup_style
 
-STATE_INSTALLED = "已安装"
-STATE_UPDATE = "可更新"
-STATE_READY = "可安装"
+STATE_INSTALLED = t("已安装")
+STATE_UPDATE = t("可更新")
+STATE_READY = t("可安装")
 
 # 进度阶段 → 界面文案
 _STAGE_TEXT = {
-    "下载": "正在下载",
-    "校验": "正在校验 SHA-256",
-    "解压": "正在解压",
-    "落盘": "正在落盘到目标目录",
-    "生成配置": "正在生成 php.ini / php-web.ini",
-    "验证": "正在运行 php -v 验证",
+    "下载": t("正在下载"),
+    "校验": t("正在校验 SHA-256"),
+    "解压": t("正在解压"),
+    "落盘": t("正在落盘到目标目录"),
+    "生成配置": t("正在生成 php.ini / php-web.ini"),
+    "验证": t("正在运行 php -v 验证"),
 }
 
 
@@ -54,7 +55,7 @@ class DownloadDialog(tk.Toplevel):
         self._selected_state = STATE_READY
         self._busy = False
 
-        self.title("下载 PHP 版本")
+        self.title(t("下载 PHP 版本"))
         self.minsize(620, 540)
         self.resizable(True, True)
         self.transient(master)
@@ -74,14 +75,14 @@ class DownloadDialog(tk.Toplevel):
         # 标题区
         head = ttk.Frame(root, style="Card.TFrame")
         head.pack(fill="x", pady=(0, 12))
-        ttk.Label(head, text="下载 PHP 版本", style="Title.TLabel").pack(anchor="w")
+        ttk.Label(head, text=t("下载 PHP 版本"), style="Title.TLabel").pack(anchor="w")
         ttk.Label(
             head,
-            text="数据源 windows.php.net，自动适配当前系统架构",
+            text=t("数据源 windows.php.net，自动适配当前系统架构"),
             style="SubTitle.TLabel",
         ).pack(anchor="w", pady=(2, 0))
         arch_badge = tk.Label(
-            head, text=f"本机 {self.arch.upper()}",
+            head, text=t("本机 {arch}", arch=self.arch.upper()),
             bg=PRIMARY_LIGHT, fg=TEXT, font=("Microsoft YaHei", 9, "bold"),
             padx=12, pady=4,
         )
@@ -92,10 +93,10 @@ class DownloadDialog(tk.Toplevel):
         list_frame.pack(fill="both", expand=True, pady=(0, 12))
         self._hint_bar = ttk.Frame(list_frame, style="Card.TFrame")
         self._hint_bar.pack(fill="x", pady=(0, 6))
-        self._hint = ttk.Label(self._hint_bar, text="正在获取可用版本…",
+        self._hint = ttk.Label(self._hint_bar, text=t("正在获取可用版本…"),
                                style="SubTitle.TLabel", anchor="w")
         self._hint.pack(side="left")
-        self._retry_btn = ttk.Button(self._hint_bar, text="重试",
+        self._retry_btn = ttk.Button(self._hint_bar, text=t("重试"),
                                      command=self._on_retry)
         self._retry_btn.pack(side="right")
         self._retry_btn.pack_forget()
@@ -106,10 +107,11 @@ class DownloadDialog(tk.Toplevel):
             list_frame, columns=cols, show="headings", selectmode="browse",
             height=10,
         )
+        col_text = {"series": t("PHP 版本"), "ts": t("线程"),
+                    "compiler": t("编译器"), "size": t("大小"),
+                    "state": t("状态")}
         for col in cols:
-            self._tree.heading(col, text={"series": "PHP 版本", "ts": "线程",
-                                          "compiler": "编译器", "size": "大小",
-                                          "state": "状态"}[col])
+            self._tree.heading(col, text=col_text[col])
             self._tree.column(col, width=widths[col], anchor="w" if col == "series" else "center",
                               stretch=col in ("series",))
         self._tree.tag_configure("installed", foreground=GRAY)
@@ -124,14 +126,14 @@ class DownloadDialog(tk.Toplevel):
         # 配置区（卡片）
         cfg = ttk.Frame(root, style="Card.TFrame", relief="solid", padding=12)
         cfg.pack(fill="x", pady=(0, 12))
-        ttk.Label(cfg, text="安装配置", style="Section.TLabel").grid(
+        ttk.Label(cfg, text=t("安装配置"), style="Section.TLabel").grid(
             row=0, column=0, columnspan=3, sticky="w", pady=(0, 8))
 
-        ttk.Label(cfg, text="线程安全模式：", style="SubTitle.TLabel").grid(
+        ttk.Label(cfg, text=t("线程安全模式："), style="SubTitle.TLabel").grid(
             row=1, column=0, sticky="w")
         ts_frame = ttk.Frame(cfg, style="Card.TFrame")
         ts_frame.grid(row=1, column=1, sticky="w")
-        for val, label in (("nts", "NTS（FastCGI 推荐）"), ("ts", "TS（线程安全）")):
+        for val, label in (("nts", t("NTS（FastCGI 推荐）")), ("ts", t("TS（线程安全）"))):
             rb = tk.Radiobutton(
                 ts_frame, text=label, value=val, variable=self.ts_mode,
                 command=self._on_ts_change, bg=CARD_BG, fg=TEXT,
@@ -141,7 +143,7 @@ class DownloadDialog(tk.Toplevel):
             )
             rb.pack(side="left", padx=(0, 14))
 
-        self._summary = ttk.Label(cfg, text="请选择一个版本", style="SubTitle.TLabel",
+        self._summary = ttk.Label(cfg, text=t("请选择一个版本"), style="SubTitle.TLabel",
                                   background=CARD_BG, anchor="w")
         self._summary.grid(row=2, column=0, columnspan=3, sticky="w", pady=(8, 0))
 
@@ -156,10 +158,10 @@ class DownloadDialog(tk.Toplevel):
         # 操作区
         actions = ttk.Frame(root, style="Card.TFrame")
         actions.pack(fill="x")
-        self._btn_install = ttk.Button(actions, text="开始下载", style="Accent.TButton",
+        self._btn_install = ttk.Button(actions, text=t("开始下载"), style="Accent.TButton",
                                        command=self._on_install)
         self._btn_install.pack(side="right")
-        ttk.Button(actions, text="关闭", command=self._on_close).pack(side="right", padx=(0, 10))
+        ttk.Button(actions, text=t("关闭"), command=self._on_close).pack(side="right", padx=(0, 10))
         self._btn_install.state(["disabled"])
 
     def _center(self):
@@ -179,7 +181,7 @@ class DownloadDialog(tk.Toplevel):
 
     def _on_retry(self):
         self._retry_btn.pack_forget()
-        self._hint.config(text="正在获取可用版本…")
+        self._hint.config(text=t("正在获取可用版本…"))
         self._start_load()
 
     def _load_worker(self):
@@ -212,15 +214,17 @@ class DownloadDialog(tk.Toplevel):
                 values=(cand.version, ts, pkg.compiler.upper(), pkg.size or "-", state),
                 tags=(tag,),
             )
-        self._hint.config(text=f"共 {len(self._candidates)} 个可用版本（含历史归档）"
-                           if self._candidates else "暂无可安装的版本")
+        if self._candidates:
+            self._hint.config(text=t("共 {n} 个可用版本（含历史归档）", n=len(self._candidates)))
+        else:
+            self._hint.config(text=t("暂无可安装的版本"))
 
     def _on_select(self, _evt=None):
         sel = self._tree.selection()
         if not sel:
             self._selected = None
             self._btn_install.state(["disabled"])
-            self._summary.config(text="请选择一个版本")
+            self._summary.config(text=t("请选择一个版本"))
             return
         series = sel[0]
         cand = next((c for c in self._candidates if c.series == series), None)
@@ -242,7 +246,7 @@ class DownloadDialog(tk.Toplevel):
     def _update_summary(self):
         cand = self._selected
         if cand is None:
-            self._summary.config(text="请选择一个版本")
+            self._summary.config(text=t("请选择一个版本"))
             return
         name = install_dir_for(cand.series)
         port = default_port_for(name, self.config)
@@ -252,14 +256,16 @@ class DownloadDialog(tk.Toplevel):
         size = pkg.size if pkg else "-"
         if self._selected_state == STATE_UPDATE:
             inst = self._installed.get(name, "?")
-            status = f"（已装 {inst}，可更新到 {cand.version}）"
+            status = t("（已装 {old}，可更新到 {new}）", old=inst, new=cand.version)
         elif self._selected_state == STATE_INSTALLED:
-            status = f"（已安装 {self._installed.get(name, cand.version)}）"
+            status = t("（已安装 {inst}）", inst=self._installed.get(name, cand.version))
         else:
-            status = "（全新安装）"
+            status = t("（全新安装）")
         self._summary.config(
-            text=f"将安装 PHP {cand.version} {self.ts_mode.get().upper()} → 目录 {name}，"
-                 f"默认端口 {port}，包大小 {size} {status}")
+            text=t("将安装 PHP {ver} {ts} → 目录 {name}，默认端口 {port}，包大小 {size}{status}",
+                   ver=cand.version, ts=self.ts_mode.get().upper(), name=name,
+                   port=port, size=size, status=status)
+        )
 
     # ------------------------------------------------------------ 下载安装 #
     def _on_install(self):
@@ -267,15 +273,15 @@ class DownloadDialog(tk.Toplevel):
         if cand is None or self._busy:
             return
         if self._selected_state == STATE_INSTALLED:
-            messagebox.showinfo("提示", "该版本已安装，请选择其他版本。", parent=self)
+            messagebox.showinfo(t("提示"), t("该版本已安装，请选择其他版本。"), parent=self)
             return
         pkg = cand.package(self.ts_mode.get(), self.arch)
         if pkg is None:
-            messagebox.showerror("错误", "该版本在当前架构下没有可用安装包。", parent=self)
+            messagebox.showerror(t("错误"), t("该版本在当前架构下没有可用安装包。"), parent=self)
             return
         self._set_busy(True)
         self._prog.configure(mode="determinate", value=0)
-        self._prog_text.config(text="正在下载… 0%")
+        self._prog_text.config(text=f"{t('正在下载')}… 0%")
         t = threading.Thread(target=self._install_worker, args=(pkg,), daemon=True)
         t.start()
 
@@ -284,7 +290,7 @@ class DownloadDialog(tk.Toplevel):
             result = install(pkg, self.config, progress=self._on_progress)
             self.queue.put(("installed", result))
         except Exception as e:  # noqa: BLE001
-            self.queue.put(("install_error", f"安装失败：{type(e).__name__}: {e}"))
+            self.queue.put(("install_error", f"{type(e).__name__}: {e}"))
 
     def _on_progress(self, stage: str, ratio: float | None):
         self.queue.put(("progress", stage, ratio))
@@ -310,7 +316,7 @@ class DownloadDialog(tk.Toplevel):
                                 break
                 elif kind == "load_error":
                     _, err = msg
-                    self._hint.config(text=f"获取版本列表失败：{err}（请检查网络后重试）")
+                    self._hint.config(text=t("获取版本列表失败：{err}（请检查网络后重试）", err=err))
                     self._tree.delete(*self._tree.get_children())
                     self._retry_btn.pack(side="right")
                 elif kind == "progress":
@@ -322,7 +328,7 @@ class DownloadDialog(tk.Toplevel):
                     self._set_busy(False)
                     self._prog.configure(mode="determinate", value=0)
                     self._prog_text.config(text="")
-                    messagebox.showerror("安装失败", msg[1], parent=self)
+                    messagebox.showerror(t("安装失败"), t("安装失败：{err}", err=msg[1]), parent=self)
         except queue.Empty:
             pass
         if self.winfo_exists():
@@ -341,9 +347,10 @@ class DownloadDialog(tk.Toplevel):
     def _handle_result(self, result):
         self._set_busy(False)
         if result.ok:
-            msg = (f"{result.message}\n\n已自动完成：ini 配置生成、端口分配（{result.port}）。"
-                   f"可在主界面直接启动该版本。")
-            messagebox.showinfo("安装完成", msg, parent=self)
+            msg = (f"{result.message}\n\n"
+                   + t("已自动完成：ini 配置生成、端口分配（{port}）。", port=result.port)
+                   + "\n" + t("可在主界面直接启动该版本。"))
+            messagebox.showinfo(t("安装完成"), msg, parent=self)
             if callable(self.on_installed):
                 try:
                     self.on_installed()
@@ -351,7 +358,7 @@ class DownloadDialog(tk.Toplevel):
                     pass
             self._safe_destroy()
         else:
-            messagebox.showerror("安装失败", result.message, parent=self)
+            messagebox.showerror(t("安装失败"), result.message, parent=self)
             self._set_busy(False)
             self._prog.configure(mode="determinate", value=0)
             self._prog_text.config(text="")
@@ -367,7 +374,7 @@ class DownloadDialog(tk.Toplevel):
 
     def _on_close(self):
         if self._busy:
-            messagebox.showwarning("提示", "下载安装进行中，请稍候…", parent=self)
+            messagebox.showwarning(t("提示"), t("下载安装进行中，请稍候…"), parent=self)
             return
         self._safe_destroy()
 

@@ -19,6 +19,7 @@ from dataclasses import dataclass
 
 from . import process_utils as pu
 from .config import IS_WIN, WNRP_ROOT, brew_prefixes
+from .i18n import t
 
 if IS_WIN:
     SERVER_NAME = "redis-server.exe"
@@ -187,7 +188,7 @@ class RedisManager:
         code, out, err = pu.run_cmd([inst.server, "--version"], timeout=10)
         text = out or err
         m = re.search(r"v\s*=\s*([\d.]+)", text) or re.search(r"version\s+([\d.]+)", text)
-        inst.version = m.group(1) if m else "未知"
+        inst.version = m.group(1) if m else t("未知")
         return inst.version
 
     # ------------------------------------------------------------------ #
@@ -195,19 +196,21 @@ class RedisManager:
     # ------------------------------------------------------------------ #
     def start(self, inst: RedisInstance) -> str:
         if not os.path.exists(inst.server):
-            return f"[{inst.name}] 未找到 {inst.server}"
+            return t("[{name}] 未找到 {path}", name=inst.name, path=inst.server)
         if not inst.conf:
-            return (f"[{inst.name}] 未找到配置文件，无法启动。\n"
-                    f"请在 {inst.dir} 放置 redis.conf，或安装 Homebrew redis 并配置 "
-                    f"对应 /etc/redis.conf。")
+            return (t("[{name}] 未找到配置文件，无法启动。\n请在 {dir} 放置 redis.conf，"
+                      "或安装 Homebrew redis 并配置对应 /etc/redis.conf。",
+                      name=inst.name, dir=inst.dir))
         running, pids = self.get_status(inst)
         if running:
-            return f"[{inst.name}] 已在运行（PID {', '.join(map(str, pids))}，端口 {inst.port}）"
+            return t("[{name}] 已在运行（PID {pids}，端口 {port}）",
+                     name=inst.name, pids=", ".join(map(str, pids)), port=inst.port)
         others = [p for p in pu.port_to_pid_fast(inst.port) if p not in self._redis_server_pids()]
         if others:
             names = ", ".join(f"{pu.pid_to_name(p)}({p})" for p in others[:3])
-            return (f"[{inst.name}] 端口 {inst.port} 已被占用：{names}\n"
-                    f"请先停止占用进程，或修改 {inst.conf} 中的 port 配置。")
+            return (t("[{name}] 端口 {port} 已被占用：{names}\n请先停止占用进程，"
+                      "或修改 {conf} 中的 port 配置。",
+                      name=inst.name, port=inst.port, names=names, conf=inst.conf))
         # 配置与工作目录同目录时传相对文件名（兼容 msys2 移植版不认反斜杠路径）；
         # 其它情况（如 brew 的 /etc/redis.conf）传绝对路径。
         conf_arg = inst.conf
@@ -218,14 +221,15 @@ class RedisManager:
         pu.invalidate_process_cache()
         running, pids = self.get_status(inst)
         if running:
-            return f"[{inst.name}] 启动成功（PID {', '.join(map(str, pids))}，端口 {inst.port}）"
-        return (f"[{inst.name}] 启动失败：端口 {inst.port} 未能监听。\n"
-                f"请检查 {inst.conf} 配置与目录权限。")
+            return t("[{name}] 启动成功（PID {pids}，端口 {port}）",
+                     name=inst.name, pids=", ".join(map(str, pids)), port=inst.port)
+        return (t("[{name}] 启动失败：端口 {port} 未能监听。\n请检查 {conf} 配置与目录权限。",
+                  name=inst.name, port=inst.port, conf=inst.conf))
 
     def stop(self, inst: RedisInstance) -> str:
         running, pids = self.get_status(inst)
         if not running:
-            return f"[{inst.name}] 未在运行"
+            return t("[{name}] 未在运行", name=inst.name)
         ok = True
         for pid in pids:
             if not pu.kill_pid(pid):
@@ -234,12 +238,13 @@ class RedisManager:
         pu.invalidate_process_cache()
         running, _ = self.get_status(inst)
         if not running:
-            return f"[{inst.name}] 已停止" if ok else f"[{inst.name}] 已停止（部分进程强制结束）"
-        return f"[{inst.name}] 停止失败，请手动检查进程"
+            return (t("[{name}] 已停止", name=inst.name) if ok
+                    else t("[{name}] 已停止（部分进程强制结束）", name=inst.name))
+        return t("[{name}] 停止失败，请手动检查进程", name=inst.name)
 
     def restart(self, inst: RedisInstance) -> str:
         parts = [self.stop(inst)]
-        if "未在运行" not in parts[0]:
+        if t("未在运行") not in parts[0]:
             time.sleep(0.4)
         parts.append(self.start(inst))
         return "\n".join(parts)
@@ -250,7 +255,7 @@ class RedisManager:
             return ""
         code, out, err = pu.run_cmd([inst.cli, "-p", str(inst.port), "ping"], timeout=10)
         text = (out or err).strip()
-        return "PONG" if code == 0 and "PONG" in text else text or "无响应"
+        return "PONG" if code == 0 and "PONG" in text else text or t("无响应")
 
     # ------------------------------------------------------------------ #
     # 命令执行 / 键空间统计（Redis 管理页「Redis 命令」「DB 键空间」用）
@@ -258,7 +263,7 @@ class RedisManager:
     def run_command(self, inst: RedisInstance, db: int = 0, command: str = "") -> str:
         """对指定逻辑库执行一条 Redis 命令，返回文本输出。"""
         if not inst.cli:
-            return "未找到 redis-cli，无法执行命令"
+            return t("未找到 redis-cli，无法执行命令")
         command = command.strip()
         if not command:
             return ""
@@ -271,7 +276,7 @@ class RedisManager:
         if err:
             text = f"{text}\n{err}".strip()
         if not text:
-            text = f"命令执行失败（退出码 {code}）" if code != 0 else "(空输出)"
+            text = t("命令执行失败（退出码 {code}）", code=code) if code != 0 else t("(空输出)")
         return text
 
     def keyspace_stats(self, inst: RedisInstance) -> list[tuple[int, int]] | None:

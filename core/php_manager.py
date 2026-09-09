@@ -22,6 +22,7 @@ from dataclasses import dataclass
 
 from . import process_utils as pu
 from .config import Config, IS_WIN, WNRP_ROOT, brew_prefixes
+from .i18n import t
 
 CGI_NAME = "php-cgi.exe" if IS_WIN else "php-cgi"
 CLI_NAME = "php.exe" if IS_WIN else "php"
@@ -228,7 +229,7 @@ class PhpManager:
         _, out, err = pu.run_cmd([exe, "-v"], timeout=10)
         text = out or err
         m = re.search(r"PHP\s+([0-9]+\.[0-9]+\.[0-9]+)", text)
-        version = m.group(1) if m else "未知"
+        version = m.group(1) if m else t("未知")
         with self._VERSION_CACHE_LOCK:
             self._VERSION_CACHE[exe] = (version, mtime)
         return version
@@ -290,15 +291,17 @@ class PhpManager:
     def start(self, v: PhpVersion) -> str:
         running, pid = self.get_status(v)
         if running:
-            return f"[{v.name}] 已在运行（PID {pid}，端口 {v.port}）"
+            return t("[{name}] 已在运行（PID {pid}，端口 {port}）",
+                     name=v.name, pid=pid, port=v.port)
 
         pids = pu.port_to_pid(v.port)
         if pids:
             names = ", ".join(f"{pu.pid_to_name(p)}({p})" for p in pids[:3])
             raise PortConflictError(
-                f"[{v.name}] 端口 {v.port} 已被占用：{names}\n"
-                f"请先停止占用进程，或在界面中修改 {v.name} 的端口，"
-                f"并同步修改 nginx vhost 的 fastcgi_pass。"
+                t("[{name}] 端口 {port} 已被占用：{names}\n"
+                  "请先停止占用进程，或在界面中修改 {name} 的端口，"
+                  "并同步修改 nginx vhost 的 fastcgi_pass。",
+                  name=v.name, port=v.port, names=names)
             )
 
         args = ["-b", f"127.0.0.1:{v.port}"]
@@ -314,15 +317,17 @@ class PhpManager:
             if running:
                 break
         if running:
-            return f"[{v.name}] 启动成功（PID {pid}，端口 {v.port}）"
+            return t("[{name}] 启动成功（PID {pid}，端口 {port}）",
+                     name=v.name, pid=pid, port=v.port)
         raise RuntimeError(
-            f"[{v.name}] 启动失败：端口 {v.port} 未能监听，请查看 php.ini 配置或端口是否被占用。"
+            t("[{name}] 启动失败：端口 {port} 未能监听，请查看 php.ini 配置或端口是否被占用。",
+              name=v.name, port=v.port)
         )
 
     def stop(self, v: PhpVersion) -> str:
         pids = pu.port_to_pid(v.port)
         if not pids:
-            return f"[{v.name}] 未在运行（端口 {v.port} 无监听）"
+            return t("[{name}] 未在运行（端口 {port} 无监听）", name=v.name, port=v.port)
         killed = []
         for pid in pids:
             if pu.kill_pid(pid):
@@ -331,8 +336,9 @@ class PhpManager:
         pu.invalidate_process_cache()
         running, _ = self.get_status(v)
         if not running:
-            return f"[{v.name}] 已停止（结束 PID {', '.join(map(str, killed))}）"
-        raise RuntimeError(f"[{v.name}] 停止失败，请手动结束相关进程")
+            return t("[{name}] 已停止（结束 PID {pids}）",
+                     name=v.name, pids=", ".join(map(str, killed)))
+        raise RuntimeError(t("[{name}] 停止失败，请手动结束相关进程", name=v.name))
 
     def restart(self, v: PhpVersion) -> str:
         self.stop(v)
@@ -344,19 +350,20 @@ class PhpManager:
     def read_ini(self, v: PhpVersion) -> str:
         """返回 ini 完整内容。"""
         if not v.ini:
-            return "（未使用独立配置文件：将读取 PHP 编译默认配置，如需独立配置请在版本目录放置 php.ini）"
+            return t("（未使用独立配置文件：将读取 PHP 编译默认配置，"
+                     "如需独立配置请在版本目录放置 php.ini）")
         try:
             with open(v.ini, "r", encoding="utf-8", errors="replace") as f:
                 return f.read()
         except OSError as e:
-            return f"读取失败：{e}"
+            return t("读取失败：{err}", err=e)
 
     def read_key_ini(self, v: PhpVersion) -> dict:
         """提取关键配置项 + 已启用扩展列表。"""
         result: dict = {}
         enabled_ext: list[str] = []
         if not v.ini:
-            return {"__error__": "未使用独立配置文件（将读取 PHP 编译默认配置）"}
+            return {"__error__": t("未使用独立配置文件（将读取 PHP 编译默认配置）")}
         try:
             with open(v.ini, "r", encoding="utf-8", errors="replace") as f:
                 lines = f.readlines()

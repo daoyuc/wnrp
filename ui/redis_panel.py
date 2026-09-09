@@ -16,6 +16,7 @@ from tkinter import messagebox, ttk
 from typing import Any
 
 from core import process_utils as pu
+from core.i18n import current_language, t
 from core.redis_manager import RedisInstance, RedisManager  # pyright: ignore[reportImplicitRelativeImport]
 from .theme import (
     CARD_BG, ERR, FONT, GRAY, LOG_ACCENT, LOG_BG, LOG_FG, OK,
@@ -28,6 +29,15 @@ _DANGEROUS_CMDS = {
 }
 
 _DBS = [str(i) for i in range(16)]  # 逻辑库下拉 0..15（databases 默认 16）
+
+# 左侧信息卡：行 ID -> (显示标签 msgid)
+_INFO_ROWS = [
+    ("pid", "PID"),
+    ("ver", "版本"),
+    ("port", "端口"),
+    ("conf", "配置"),
+    ("dir", "数据目录"),
+]
 
 
 class RedisPanel(ttk.Frame):
@@ -76,7 +86,7 @@ class RedisPanel(ttk.Frame):
         # 顶部：实例选择（全部页签共享）
         top = ttk.Frame(self)
         top.pack(fill="x", pady=(0, 6))
-        ttk.Label(top, text="Redis 实例：", font=(FONT, 9, "bold")).pack(side="left")
+        ttk.Label(top, text=t("Redis 实例："), font=(FONT, 9, "bold")).pack(side="left")
         self.instance_var = tk.StringVar()
         self.instance_cb = ttk.Combobox(top, textvariable=self.instance_var, state="readonly",
                                         width=24, font=(FONT, 9))
@@ -84,7 +94,7 @@ class RedisPanel(ttk.Frame):
         self.instance_cb.bind("<<ComboboxSelected>>", lambda e: self._on_select())
         self.instance_cb["values"] = [i.name for i in self.redis_mgr.instances]
         self.instance_var.set(self._default_name())
-        ttk.Button(top, text="刷新状态", command=self.refresh_status).pack(side="left")
+        ttk.Button(top, text=t("刷新状态"), command=self.refresh_status).pack(side="left")
 
         # 主体：三个页签
         nb = ttk.Notebook(self)
@@ -92,9 +102,9 @@ class RedisPanel(ttk.Frame):
         self.page_status = self._build_status_page(nb)
         self.page_cmd = self._build_cmd_page(nb)
         self.page_keyspace = self._build_keyspace_page(nb)
-        nb.add(self.page_status, text="  状态与日志  ")
-        nb.add(self.page_cmd, text="  Redis 命令  ")
-        nb.add(self.page_keyspace, text="  DB 键空间  ")
+        nb.add(self.page_status, text=f"  {t('状态与日志')}  ")
+        nb.add(self.page_cmd, text=f"  {t('Redis 命令')}  ")
+        nb.add(self.page_keyspace, text=f"  {t('DB 键空间')}  ")
 
     # ------------------------------------------------------------------ #
     # 页签 1：状态与日志（原布局迁入）
@@ -105,23 +115,23 @@ class RedisPanel(ttk.Frame):
         left = ttk.Frame(page)
         left.pack(side="left", fill="y", padx=(0, 10))
 
-        card = ttk.LabelFrame(left, text="运行状态", padding=14)
+        card = ttk.LabelFrame(left, text=t("运行状态"), padding=14)
         card.pack(fill="x")
         self.dot_label = ttk.Label(card, text="●", font=(FONT, 16, "bold"), foreground=GRAY)
         self.dot_label.pack(anchor="w")
-        self.state_label = ttk.Label(card, text="检测中…", font=(FONT, 12, "bold"),
+        self.state_label = ttk.Label(card, text=t("检测中…"), font=(FONT, 12, "bold"),
                                      foreground=PRIMARY_DARK)
         self.state_label.pack(anchor="w", pady=(4, 8))
 
         info_grid = ttk.Frame(card)
         info_grid.pack(anchor="w")
         self.info_vars = {}
-        for i, (k, _) in enumerate(INFO_ROWS):
-            ttk.Label(info_grid, text=f"{k}：", font=(FONT, 9, "bold")).grid(
+        for i, (rid, label) in enumerate(_INFO_ROWS):
+            ttk.Label(info_grid, text=f"{t(label)}：", font=(FONT, 9, "bold")).grid(
                 row=i, column=0, sticky="e", pady=2
             )
             var = tk.StringVar(value="—")
-            self.info_vars[k] = var
+            self.info_vars[rid] = var
             ttk.Label(info_grid, textvariable=var, font=(FONT, 9)).grid(
                 row=i, column=1, sticky="w", padx=(6, 0), pady=2
             )
@@ -129,12 +139,12 @@ class RedisPanel(ttk.Frame):
         btns = ttk.Frame(left)
         btns.pack(fill="x", pady=(10, 0))
         btn_defs = [
-            ("btn_start", "启动 Redis", "Accent.TButton", lambda: self._run("start")),
-            ("btn_restart", "重启", None, lambda: self._run("restart")),
-            ("btn_stop", "停止 Redis", "Danger.TButton", lambda: self._run("stop")),
-            ("btn_ping", "测试连接 (PING)", None, lambda: self._run("ping")),
-            ("btn_conf", "打开配置文件", None, self._open_conf),
-            ("btn_rrefresh", "刷新状态", None, self.refresh_status),
+            ("btn_start", t("启动 Redis"), "Accent.TButton", lambda: self._run("start")),
+            ("btn_restart", t("重启"), None, lambda: self._run("restart")),
+            ("btn_stop", t("停止 Redis"), "Danger.TButton", lambda: self._run("stop")),
+            ("btn_ping", t("测试连接 (PING)"), None, lambda: self._run("ping")),
+            ("btn_conf", t("打开配置文件"), None, self._open_conf),
+            ("btn_rrefresh", t("刷新状态"), None, self.refresh_status),
         ]
         self._ctrl_btns: list[ttk.Button] = []
         for idx, (attr, text, style, cmd) in enumerate(btn_defs):
@@ -149,7 +159,7 @@ class RedisPanel(ttk.Frame):
 
         ttk.Label(
             left,
-            text="提示：Redis 监听端口在各自配置文件中\n（port 项），修改后重启 Redis 生效。",
+            text=t("提示：Redis 监听端口在各自配置文件中\n（port 项），修改后重启 Redis 生效。"),
             foreground=TEXT_DIM,
             font=(FONT, 8),
             justify="left",
@@ -158,7 +168,7 @@ class RedisPanel(ttk.Frame):
         # 右侧：命令输出日志
         right = ttk.Frame(page)
         right.pack(side="left", fill="both", expand=True)
-        ttk.Label(right, text="命令输出", foreground=PRIMARY_DARK,
+        ttk.Label(right, text=t("命令输出"), foreground=PRIMARY_DARK,
                   font=(FONT, 9, "bold")).pack(anchor="w", pady=(0, 4))
         log_wrap = ttk.Frame(right)
         log_wrap.pack(fill="both", expand=True)
@@ -176,14 +186,17 @@ class RedisPanel(ttk.Frame):
         self.log_text.tag_configure("warn", foreground=WARN)
         self.log_text.tag_configure("info", foreground=LOG_ACCENT)
 
-        self._append_log("== phpvm Redis 管理器 ==", "info")
+        self._append_log(t("== phpvm Redis 管理器 =="), "info")
         if self.redis_mgr.instances:
             for inst in self.redis_mgr.instances:
                 self._append_log(
-                    f"发现实例 [{inst.name}]：{inst.server}（端口 {inst.port}）", "info"
+                    t("发现实例 [{name}]：{server}（端口 {port}）",
+                      name=inst.name, server=inst.server, port=inst.port), "info"
                 )
         else:
-            self._append_log("未找到 redis-server 实例（请将 redis 安装目录放入环境根目录下的 Redis* 文件夹）", "warn")
+            self._append_log(
+                t("未找到 redis-server 实例（请将 redis 安装目录放入环境根目录下的 Redis* 文件夹）"),
+                "warn")
         return page
 
     # ------------------------------------------------------------------ #
@@ -194,22 +207,23 @@ class RedisPanel(ttk.Frame):
 
         bar = ttk.Frame(page)
         bar.pack(fill="x", pady=(0, 6))
-        ttk.Label(bar, text="目标 DB：", font=(FONT, 9, "bold")).pack(side="left")
+        ttk.Label(bar, text=t("目标 DB："), font=(FONT, 9, "bold")).pack(side="left")
         self.db_var = tk.StringVar(value="0")
         db_cb = ttk.Combobox(bar, textvariable=self.db_var, state="readonly",
                              values=_DBS, width=4, font=(FONT, 9))
         db_cb.pack(side="left", padx=(0, 10))
-        ttk.Label(bar, text="命令：", font=(FONT, 9, "bold")).pack(side="left")
+        ttk.Label(bar, text=t("命令："), font=(FONT, 9, "bold")).pack(side="left")
         self.cmd_entry = ttk.Entry(bar, font=("Consolas", 9))
         self.cmd_entry.pack(side="left", fill="x", expand=True, padx=(0, 8))
         self.cmd_entry.bind("<Return>", self._exec_cmd)
-        self.btn_exec = ttk.Button(bar, text="执 行", style="Accent.TButton",
+        self.btn_exec = ttk.Button(bar, text=t("执 行"), style="Accent.TButton",
                                    command=self._exec_cmd)
         self.btn_exec.pack(side="left")
 
         ttk.Label(
             page,
-            text="示例：SET k1 hello / GET k1 / INFO / DBSIZE / KEYS *  （FLUSHALL、FLUSHDB、SHUTDOWN 等危险命令执行前需确认）",
+            text=t("示例：SET k1 hello / GET k1 / INFO / DBSIZE / KEYS *  "
+                   "（FLUSHALL、FLUSHDB、SHUTDOWN 等危险命令执行前需确认）"),
             foreground=TEXT_DIM, font=(FONT, 8),
         ).pack(anchor="w", pady=(0, 6))
 
@@ -230,7 +244,7 @@ class RedisPanel(ttk.Frame):
         self.cmd_out.tag_configure("info", foreground=LOG_ACCENT)
         self.cmd_state = ttk.Label(page, text="", foreground=TEXT_DIM, font=(FONT, 8))
         self.cmd_state.pack(anchor="w", pady=(6, 0))
-        self._append_cmd("输入 Redis 命令后回车执行，输出显示在此区。", "info")
+        self._append_cmd(t("输入 Redis 命令后回车执行，输出显示在此区。"), "info")
         return page
 
     # ------------------------------------------------------------------ #
@@ -241,11 +255,11 @@ class RedisPanel(ttk.Frame):
 
         bar = ttk.Frame(page)
         bar.pack(fill="x", pady=(0, 6))
-        ttk.Label(bar, text="各逻辑库 key 数量统计（忽略空库）",
+        ttk.Label(bar, text=t("各逻辑库 key 数量统计（忽略空库）"),
                   foreground=PRIMARY_DARK, font=(FONT, 9, "bold")).pack(side="left")
         self.ks_state = ttk.Label(bar, text="", foreground=TEXT_DIM, font=(FONT, 8))
         self.ks_state.pack(side="right", padx=(8, 0))
-        self.btn_ks_refresh = ttk.Button(bar, text="刷新", command=self.refresh_keyspace)
+        self.btn_ks_refresh = ttk.Button(bar, text=t("刷新"), command=self.refresh_keyspace)
         self.btn_ks_refresh.pack(side="right")
 
         self.ks_canvas = tk.Canvas(page, background=CARD_BG, highlightthickness=1,
@@ -286,7 +300,8 @@ class RedisPanel(ttk.Frame):
         inst = self._instance()
         if inst is None:
             return
-        self._append_log(f"已选择实例 [{inst.name}]（端口 {inst.port}）", "info")
+        self._append_log(t("已选择实例 [{name}]（端口 {port}）",
+                           name=inst.name, port=inst.port), "info")
         self.refresh_status()
         self.refresh_keyspace()
 
@@ -304,7 +319,7 @@ class RedisPanel(ttk.Frame):
                 try:
                     self._dispatch(*item)
                 except Exception as e:  # noqa: BLE001
-                    self._append_log(f"内部错误：{e}", "err")
+                    self._append_log(t("内部错误：{err}", err=e), "err")
         except queue.Empty:
             pass
         self.after(150, self._drain)
@@ -323,7 +338,7 @@ class RedisPanel(ttk.Frame):
             data = payload
             inst = self._instance()
             if inst is not None and inst.name in data:
-                self._render_status(inst.name, data, self.info_vars["版本"].get())
+                self._render_status(inst.name, data, self.info_vars["ver"].get())
                 self._draw_keyspace()
         elif kind == "op":
             action, msg = payload
@@ -332,8 +347,9 @@ class RedisPanel(ttk.Frame):
                 tag = "ok" if "PONG" in msg else "warn"
                 self._append_log(f"[PING] {msg}", tag)
             else:
-                ok = "成功" in msg and "失败" not in msg
-                tag = "ok" if ok else ("warn" if "未在运行" in msg or "已在运行" in msg else "err")
+                ok = t("成功") in msg and t("失败") not in msg
+                tag = "ok" if ok else ("warn" if t("未在运行") in msg
+                                       or t("已在运行") in msg else "err")
                 self._append_log(f"[{action}] {msg}", tag)
             self.notify(msg)
             self.refresh_status()
@@ -341,7 +357,7 @@ class RedisPanel(ttk.Frame):
                 self.refresh_keyspace()
         elif kind == "error":
             self._set_busy(False)
-            messagebox.showerror("错误", payload, parent=self)
+            messagebox.showerror(t("错误"), payload, parent=self)
             self._append_log(payload, "err")
         elif kind == "cmd_result":
             cmd_line, res = payload
@@ -380,7 +396,7 @@ class RedisPanel(ttk.Frame):
                 ver = self.redis_mgr.get_version(inst)
                 self._queue.put(("status", (inst.name, data, ver)))
             except Exception as e:  # noqa: BLE001
-                self._queue.put(("error", f"状态获取失败：{e}"))
+                self._queue.put(("error", t("状态获取失败：{err}", err=e)))
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -392,16 +408,16 @@ class RedisPanel(ttk.Frame):
         self._inst_running = running
         if running:
             self.dot_label.configure(text="●", foreground=OK)
-            self.state_label.configure(text="运行中", foreground=OK)
-            self.info_vars["PID"].set(", ".join(map(str, pids)) if pids else "—")
+            self.state_label.configure(text=t("运行中"), foreground=OK)
+            self.info_vars["pid"].set(", ".join(map(str, pids)) if pids else "—")
         else:
             self.dot_label.configure(text="○", foreground=GRAY)
-            self.state_label.configure(text="已停止", foreground=GRAY)
-            self.info_vars["PID"].set("—")
-        self.info_vars["版本"].set(ver)
-        self.info_vars["端口"].set(str(inst.port))
-        self.info_vars["配置"].set(inst.conf or "—")
-        self.info_vars["数据目录"].set(inst.dir)
+            self.state_label.configure(text=t("已停止"), foreground=GRAY)
+            self.info_vars["pid"].set("—")
+        self.info_vars["ver"].set(ver)
+        self.info_vars["port"].set(str(inst.port))
+        self.info_vars["conf"].set(inst.conf or "—")
+        self.info_vars["dir"].set(inst.dir)
 
     def auto_refresh(self) -> None:
         if self._busy or self._pending_refresh or not self.redis_mgr.instances:
@@ -428,7 +444,7 @@ class RedisPanel(ttk.Frame):
             return
         inst = self._instance()
         if inst is None:
-            messagebox.showwarning("提示", "未发现 Redis 实例。", parent=self)
+            messagebox.showwarning(t("提示"), t("未发现 Redis 实例。"), parent=self)
             return
         self._set_busy(True)
 
@@ -436,10 +452,10 @@ class RedisPanel(ttk.Frame):
             try:
                 msg = getattr(self.redis_mgr, action)(inst)
                 if action == "ping" and not msg:
-                    msg = "未找到 redis-cli 可执行文件，无法测试连接"
+                    msg = t("未找到 redis-cli 可执行文件，无法测试连接")
                 self._queue.put(("op", (action, msg)))
             except Exception as e:  # noqa: BLE001
-                self._queue.put(("error", f"{action} 失败：{e}"))
+                self._queue.put(("error", t("{action} 失败：{err}", action=action, err=e)))
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -451,7 +467,7 @@ class RedisPanel(ttk.Frame):
             return
         inst = self._instance()
         if inst is None:
-            messagebox.showwarning("提示", "未发现 Redis 实例。", parent=self)
+            messagebox.showwarning(t("提示"), t("未发现 Redis 实例。"), parent=self)
             return
         line = self.cmd_entry.get().strip()
         if not line:
@@ -459,8 +475,9 @@ class RedisPanel(ttk.Frame):
         first = line.split()[0].strip('"').lower()
         if first in _DANGEROUS_CMDS:
             sure = messagebox.askyesno(
-                "危险命令确认",
-                f"命令 {line!r} 会删除数据或影响运行，确定要执行吗？",
+                t("危险命令确认"),
+                t("命令 {cmd} 会删除数据或影响运行，确定要执行吗？",
+                  cmd=repr(line)),
                 parent=self,
             )
             if not sure:
@@ -470,13 +487,14 @@ class RedisPanel(ttk.Frame):
         except ValueError:
             db = 0
         self._set_cmd_busy(True)
-        self.cmd_state.configure(text=f"执行中（实例 {inst.name} · DB{db}）…")
+        self.cmd_state.configure(text=t("执行中（实例 {name} · DB{db}）…",
+                                        name=inst.name, db=db))
 
         def worker():
             try:
                 res = self.redis_mgr.run_command(inst, db, line)
             except Exception as e:  # noqa: BLE001
-                res = f"(error) 执行异常：{e}"
+                res = t("(error) 执行异常：{err}", err=e)
             self._queue.put(("cmd_result", (line, res)))
 
         threading.Thread(target=worker, daemon=True).start()
@@ -484,7 +502,7 @@ class RedisPanel(ttk.Frame):
     def _render_cmd_result(self, cmd_line: str, res: str) -> None:
         self._append_cmd(f"> DB{self.db_var.get()} {cmd_line}", "cmd")
         if not res:
-            self._append_cmd("(空输出)")
+            self._append_cmd(t("(空输出)"))
         elif res.startswith("(error)") or "could not connect" in res.lower() \
                 or "connection refused" in res.lower():
             self._append_cmd(res, "err")
@@ -514,11 +532,19 @@ class RedisPanel(ttk.Frame):
 
     @staticmethod
     def _fmt_keys(n: int) -> str:
-        """key 数格式化：过万显示中文万，避免柱顶数字重叠。"""
+        """key 数格式化：英文用 k/M，中文/日文用 万，繁体用 萬，韩文用 만。"""
+        lang = current_language()
+        if lang == "en":
+            if n >= 1000000:
+                return f"{n / 1000000:.1f}M"
+            if n >= 1000:
+                return f"{n / 1000:.1f}k"
+            return str(n)
+        unit = {"zh_TW": "萬", "ko": "만"}.get(lang, "万")
         if n >= 1000000:
-            return f"{n / 10000:.0f}万"
+            return f"{n / 10000:.0f}{unit}"
         if n >= 10000:
-            return f"{n / 10000:.1f}万"
+            return f"{n / 10000:.1f}{unit}"
         return str(n)
 
     def _draw_keyspace(self) -> None:
@@ -531,18 +557,18 @@ class RedisPanel(ttk.Frame):
         inst = self._instance()
         title_top = 10
         c.create_text(
-            w // 2, title_top, text="键空间分布（DB → key 数）",
+            w // 2, title_top, text=t("键空间分布（DB → key 数）"),
             fill=TEXT_DIM, font=(FONT, 9),
         )
         state_text = ""
         if inst is None:
-            state_text = "未发现 Redis 实例"
+            state_text = t("未发现 Redis 实例")
         elif not self._inst_running:
-            state_text = "实例未运行，无法统计键空间"
+            state_text = t("实例未运行，无法统计键空间")
         elif stats is None:
-            state_text = "键空间获取失败，请确认实例可连接后重试"
+            state_text = t("键空间获取失败，请确认实例可连接后重试")
         elif not stats:
-            state_text = "无数据：所有逻辑库均为空"
+            state_text = t("无数据：所有逻辑库均为空")
         if state_text or not stats:
             if state_text:
                 c.create_text(w // 2, h // 2, text=state_text, fill=GRAY, font=(FONT, 10))
@@ -551,7 +577,8 @@ class RedisPanel(ttk.Frame):
         total = sum(k for _, k in stats)
         c.create_text(
             w // 2, h - 8,
-            text=f"共 {total} 个 key · 最后统计 {self._ks_ts} · 点击图表可刷新",
+            text=t("共 {total} 个 key · 最后统计 {ts} · 点击图表可刷新",
+                   total=total, ts=self._ks_ts),
             fill=TEXT_DIM, font=(FONT, 8),
         )
 
@@ -586,7 +613,7 @@ class RedisPanel(ttk.Frame):
     def _open_conf(self) -> None:
         inst = self._instance()
         if inst is None or not inst.conf:
-            messagebox.showwarning("提示", "未找到配置文件。", parent=self)
+            messagebox.showwarning(t("提示"), t("未找到配置文件。"), parent=self)
             return
         pu.open_path(inst.conf)
 
@@ -618,6 +645,3 @@ class RedisPanel(ttk.Frame):
         """命令执行忙状态（独立于启停忙，避免两者互相阻塞）。"""
         self._cmd_busy = busy
         self.btn_exec.configure(state="disabled" if busy else "normal")
-
-
-INFO_ROWS = [("PID", ""), ("版本", ""), ("端口", ""), ("配置", ""), ("数据目录", "")]

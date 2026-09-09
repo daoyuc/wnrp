@@ -11,6 +11,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 from core import php_extension as ext_mod
+from core.i18n import t
 from core.php_manager import PhpManager, PhpVersion
 from .theme import CARD_BG, ERR, FONT, GRAY, OK, PRIMARY_DARK, TEXT, WARN
 
@@ -28,25 +29,26 @@ class ExtensionDialog(tk.Toplevel):
         self._runtime: ext_mod.RuntimeInfo | None = None
         self._busy = False
 
-        ver_txt = f"PHP {version.display}" if version.display else "PHP 版本未知"
-        self.title(f"安装扩展 · {version.name} ({ver_txt})")
+        ver_txt = f"PHP {version.display}" if version.display else t("PHP 版本未知")
+        title = t("安装扩展 · {name} ({ver})", name=version.name, ver=ver_txt)
+        self.title(title)
         self.minsize(680, 560)
         self.configure(bg=CARD_BG)
         self.transient(master)
 
         header = ttk.Frame(self, padding=(16, 14, 16, 4))
         header.pack(fill="x")
-        ttk.Label(header, text=f"安装扩展 · {version.name} ({ver_txt})",
+        ttk.Label(header, text=title,
                   style="Title.TLabel").pack(anchor="w")
-        self.sub_label = ttk.Label(header, text="正在加载…", style="SubTitle.TLabel")
+        self.sub_label = ttk.Label(header, text=t("正在加载…"), style="SubTitle.TLabel")
         self.sub_label.pack(anchor="w", pady=(4, 0))
 
         nb = ttk.Notebook(self)
         nb.pack(fill="both", expand=True, padx=16, pady=(8, 4))
         self.local_tab = ttk.Frame(nb, padding=8)
         self.online_tab = ttk.Frame(nb, padding=8)
-        nb.add(self.local_tab, text="  本地扩展  ")
-        nb.add(self.online_tab, text="  在线安装  ")
+        nb.add(self.local_tab, text=f"  {t('本地扩展')}  ")
+        nb.add(self.online_tab, text=f"  {t('在线安装')}  ")
 
         self._build_local_tab()
         self._build_online_tab()
@@ -55,8 +57,8 @@ class ExtensionDialog(tk.Toplevel):
         btns.pack(fill="x")
         self.progress_label = ttk.Label(btns, text="", style="SubTitle.TLabel")
         self.progress_label.pack(side="left")
-        ttk.Button(btns, text="关闭", command=self.destroy).pack(side="right")
-        self.btn_save = ttk.Button(btns, text="保存扩展启用状态",
+        ttk.Button(btns, text=t("关闭"), command=self.destroy).pack(side="right")
+        self.btn_save = ttk.Button(btns, text=t("保存扩展启用状态"),
                                    style="Accent.TButton", command=self._save)
         self.btn_save.pack(side="right", padx=(0, 8))
 
@@ -85,8 +87,8 @@ class ExtensionDialog(tk.Toplevel):
     def _build_online_tab(self) -> None:
         hint = ttk.Label(
             self.online_tab,
-            text="在线扩展会按本机 PHP 版本 / NTS-TS / 架构自动匹配官方构建，"
-                 "安装后自动启用（重启 FastCGI 生效）。",
+            text=t("在线扩展会按本机 PHP 版本 / NTS-TS / 架构自动匹配官方构建，"
+                   "安装后自动启用（重启 FastCGI 生效）。"),
             style="SubTitle.TLabel", wraplength=760,
         )
         hint.pack(anchor="w", pady=(0, 6))
@@ -94,8 +96,8 @@ class ExtensionDialog(tk.Toplevel):
             self.online_tab, columns=("ext", "name", "desc", "status"),
             show="headings", selectmode="browse", height=9,
         )
-        for cid, text, w in (("ext", "扩展", 90), ("name", "名称", 120),
-                             ("desc", "说明", 380), ("status", "状态", 150)):
+        for cid, text, w in (("ext", t("扩展"), 90), ("name", t("名称"), 120),
+                             ("desc", t("说明"), 380), ("status", t("状态"), 150)):
             self.online_tree.heading(cid, text=text)
             self.online_tree.column(cid, width=w, anchor="w", stretch=(cid == "desc"))
         ovsb = ttk.Scrollbar(self.online_tab, orient="vertical", command=self.online_tree.yview)
@@ -111,7 +113,7 @@ class ExtensionDialog(tk.Toplevel):
         bar.pack(fill="x", pady=(4, 0))
         self.online_status = ttk.Label(bar, text="", style="SubTitle.TLabel")
         self.online_status.pack(side="left")
-        self.btn_install = ttk.Button(bar, text="下载并安装", style="Accent.TButton",
+        self.btn_install = ttk.Button(bar, text=t("下载并安装"), style="Accent.TButton",
                                       state="disabled", command=self._install_online)
         self.btn_install.pack(side="right")
 
@@ -140,7 +142,7 @@ class ExtensionDialog(tk.Toplevel):
             self.after(80, self._poll)
             return
         if kind == "error":
-            self.sub_label.configure(text=f"加载失败：{payload}")
+            self.sub_label.configure(text=t("加载失败：{err}", err=payload))
             return
         infos, rt = payload
         self._infos = infos
@@ -149,16 +151,20 @@ class ExtensionDialog(tk.Toplevel):
         self._render_online(infos, rt)
 
         ext_dir = f"{self.version.dir}\\ext"
-        ini = f"{self.version.ini}（{ext_mod.read_enabled_exts(self.version.ini).__len__()} 个已启用）"
-        rt_txt = f"{rt.series} · {rt.ts.upper()} · {rt.arch}" if rt.series else "版本信息未知"
-        self.sub_label.configure(text=f"ext：{ext_dir}    |    当前 {rt_txt}    |    {len(infos)} 个扩展")
+        n_enabled = ext_mod.read_enabled_exts(self.version.ini).__len__()
+        rt_txt = f"{rt.series} · {rt.ts.upper()} · {rt.arch}" if rt.series else t("版本信息未知")
+        self.sub_label.configure(
+            text=t("ext：{dir}  |  当前 {rt}  |  {n} 个扩展",
+                   dir=ext_dir, rt=rt_txt, n=len(infos))
+            + "  ·  " + t("{n} 个已启用", n=n_enabled)
+        )
 
     def _render_local(self, infos: list[ext_mod.ExtInfo]) -> None:
         for w in self.local_inner.winfo_children():
             w.destroy()
         self._vars.clear()
         if not infos:
-            ttk.Label(self.local_inner, text="ext 目录下没有扩展 dll。", background=CARD_BG,
+            ttk.Label(self.local_inner, text=t("ext 目录下没有扩展 dll。"), background=CARD_BG,
                       foreground=GRAY).pack(anchor="w", padx=6, pady=8)
             return
         for info in infos:
@@ -171,7 +177,7 @@ class ExtensionDialog(tk.Toplevel):
                       background=CARD_BG, width=24, anchor="w").pack(side="left", padx=(2, 8))
             ttk.Label(row, text=info.desc, style="SubTitle.TLabel", background=CARD_BG,
                       width=26, anchor="w").pack(side="left")
-            status = "已启用" if info.enabled else "未启用"
+            status = t("已启用") if info.enabled else t("未启用")
             ttk.Label(row, text=status, foreground=OK if info.enabled else GRAY,
                       background=CARD_BG, font=(FONT, 9, "bold")).pack(side="right", padx=8)
 
@@ -180,25 +186,29 @@ class ExtensionDialog(tk.Toplevel):
         installed_keys = {i.key for i in infos}
         enabled_keys = ext_mod.read_enabled_exts(self.version.ini)
         if not rt.series:
-            self.online_status.configure(text="无法探测 PHP 版本信息，在线安装不可用。", foreground=ERR)
+            self.online_status.configure(text=t("无法探测 PHP 版本信息，在线安装不可用。"), foreground=ERR)
         else:
             self.online_status.configure(
-                text=f"匹配目标：PHP {rt.series} · {rt.ts.upper()} · {rt.arch} · {rt.compiler or ''}"
+                text=t("匹配目标：PHP {series} · {ts} · {arch} · {compiler}",
+                       series=rt.series, ts=rt.ts.upper(), arch=rt.arch,
+                       compiler=rt.compiler or "—")
             )
         for item in ext_mod.EXT_CATALOG:
             key = item["key"]
             if key in enabled_keys:
-                status, tag = "已启用", "ok"
+                status, tag = t("已启用"), "ok"
             elif key in installed_keys:
-                status, tag = "已下载（未启用）", "warn"
+                status, tag = t("已下载（未启用）"), "warn"
             else:
-                status, tag = "可安装", ""
+                status, tag = t("可安装"), ""
             self.online_tree.insert("", "end", values=(key, item["name"], item["desc"], status),
                                     tags=(tag,) if tag else ())
 
     def _update_dirty(self) -> None:
         changes = self._diff()
-        self.btn_save.configure(text="保存扩展启用状态" if not changes else f"保存（{len(changes)} 项变更）")
+        self.btn_save.configure(
+            text=t("保存扩展启用状态") if not changes else t("保存（{n} 项变更）", n=len(changes))
+        )
 
     def _diff(self) -> set[str]:
         enabled = {i.key for i in self._infos if i.enabled}
@@ -216,7 +226,7 @@ class ExtensionDialog(tk.Toplevel):
         enable = wanted - enabled
         disable = enabled - wanted
         if not enable and not disable:
-            messagebox.showinfo("提示", "没有需要保存的变更。", parent=self)
+            messagebox.showinfo(t("提示"), t("没有需要保存的变更。"), parent=self)
             return
         self._busy = True
         self.btn_save.configure(state="disabled")
@@ -240,16 +250,17 @@ class ExtensionDialog(tk.Toplevel):
         self._busy = False
         self.btn_save.configure(state="normal")
         if kind == "save_err":
-            messagebox.showerror("保存失败", str(payload), parent=self)
+            messagebox.showerror(t("保存失败"), str(payload), parent=self)
             return
         count, backup = payload
         self._reload_local_state()
         self._render_online(self._infos, self._runtime)
         self._update_dirty()
         messagebox.showinfo(
-            "已保存",
-            f"共更新 {count} 个扩展的启用状态。\n备份：{backup}\n\n"
-            f"重启 [{self.version.name}]（停止后启动）即可生效。",
+            t("已保存"),
+            t("共更新 {count} 个扩展的启用状态。\n备份：{backup}\n\n"
+              "重启 [{name}]（停止后启动）即可生效。",
+              count=count, backup=backup, name=self.version.name),
             parent=self,
         )
 
@@ -285,7 +296,7 @@ class ExtensionDialog(tk.Toplevel):
             return
         self._busy = True
         self.btn_install.configure(state="disabled")
-        self.progress_label.configure(text=f"正在安装 {item['name']} …")
+        self.progress_label.configure(text=t("正在安装 {name} …", name=item["name"]))
 
         def worker():
             try:
@@ -315,7 +326,7 @@ class ExtensionDialog(tk.Toplevel):
         self.progress_label.configure(text="")
         self._update_online_btn()
         if not ok:
-            messagebox.showerror("安装失败", msg, parent=self)
+            messagebox.showerror(t("安装失败"), msg, parent=self)
             return
         # 自动启用新装的扩展
         try:
@@ -327,8 +338,9 @@ class ExtensionDialog(tk.Toplevel):
         self._render_online(self._infos, self._runtime)
         self._update_dirty()
         messagebox.showinfo(
-            "安装成功",
-            f"{msg}\n\n已自动写入 php.ini 启用。\n重启 [{self.version.name}]（停止后启动）即可生效。",
+            t("安装成功"),
+            t("{msg}\n\n已自动写入 php.ini 启用。\n重启 [{name}]（停止后启动）即可生效。",
+              msg=msg, name=self.version.name),
             parent=self,
         )
 

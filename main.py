@@ -72,9 +72,13 @@ def main() -> None:
 
         handle = ctypes.windll.kernel32.CreateMutexW(None, False, MUTEX_NAME)
         if ctypes.windll.kernel32.GetLastError() == ERROR_ALREADY_EXISTS:
+            from core.config import Config
+            from core.i18n import set_language, t
+
+            set_language(Config().get_lang())
             ctypes.windll.user32.MessageBoxW(
                 None,
-                "phpvm 已经在运行中，请查看任务栏或系统托盘。",
+                t("phpvm 已经在运行中，请查看任务栏或系统托盘。"),
                 "phpvm",
                 0x40,  # MB_ICONINFORMATION
             )
@@ -84,12 +88,19 @@ def main() -> None:
             return
 
     from core.config import Config
+
+    config = Config()
+
+    # 国际化：按配置/系统 locale 设定界面语言（须先于任何界面文本创建/模块级翻译常量）
+    from core.i18n import set_language
+
+    set_language(config.get_lang())
+
     from core.nginx_manager import NginxManager
     from core.php_manager import PhpManager
     from core.redis_manager import RedisManager
     from ui.main_window import MainWindow
 
-    config = Config()
     app = MainWindow(PhpManager(config), NginxManager(), RedisManager(), config)
     try:
         app.mainloop()

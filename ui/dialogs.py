@@ -9,12 +9,13 @@ from tkinter import messagebox, ttk
 
 from core import path_manager, process_utils as pu, recover_history
 from core.config import Config, IS_WIN
+from core.i18n import t
 from core.php_manager import PhpManager, PhpVersion
 from core.vhost_manager import VhostManager
 from .theme import CARD_BG, ERR, FONT, GRAY, OK, PRIMARY, PRIMARY_DARK, TEXT
 
 # 终端别名文案（Windows 的 cmd / macOS 的终端）
-_CLI_DISP = "cmd" if IS_WIN else "终端"
+_CLI_DISP = "cmd" if IS_WIN else t("终端")
 
 
 class PortDialog(tk.Toplevel):
@@ -26,7 +27,7 @@ class PortDialog(tk.Toplevel):
         self.config = config
         self.on_saved = on_saved
 
-        self.title(f"编辑端口 · {version.name}")
+        self.title(t("编辑端口 · {name}", name=version.name))
         self.resizable(False, False)
         self.configure(bg=CARD_BG)
         self.transient(master)
@@ -37,13 +38,13 @@ class PortDialog(tk.Toplevel):
 
         ttk.Label(
             body,
-            text=f"[{version.name}]  PHP {version.display}",
+            text=t("[{name}]  PHP {display}", name=version.name, display=version.display),
             style="Title.TLabel",
         ).pack(anchor="w")
 
         row = ttk.Frame(body)
         row.pack(fill="x", pady=(14, 4))
-        ttk.Label(row, text="FastCGI 端口：", font=(FONT, 9, "bold"), background=CARD_BG).pack(side="left")
+        ttk.Label(row, text=t("FastCGI 端口："), font=(FONT, 9, "bold"), background=CARD_BG).pack(side="left")
         self.var = tk.StringVar(value=str(version.port))
         entry = ttk.Entry(row, textvariable=self.var, width=10, font=(FONT, 11))
         entry.pack(side="left", padx=(8, 0))
@@ -53,14 +54,14 @@ class PortDialog(tk.Toplevel):
 
         ttk.Label(
             body,
-            text="修改后需同步修改 nginx vhost 中的 fastcgi_pass 才会生效",
+            text=t("修改后需同步修改 nginx vhost 中的 fastcgi_pass 才会生效"),
             style="SubTitle.TLabel",
         ).pack(anchor="w", pady=(4, 0))
 
         btns = ttk.Frame(body)
         btns.pack(fill="x", pady=(16, 0))
-        ttk.Button(btns, text="确定", style="Accent.TButton", command=self._save).pack(side="right")
-        ttk.Button(btns, text="取消", command=self.destroy).pack(side="right", padx=(0, 8))
+        ttk.Button(btns, text=t("确定"), style="Accent.TButton", command=self._save).pack(side="right")
+        ttk.Button(btns, text=t("取消"), command=self.destroy).pack(side="right", padx=(0, 8))
 
         self._center(master)
 
@@ -75,15 +76,15 @@ class PortDialog(tk.Toplevel):
         try:
             port = int(raw)
         except ValueError:
-            messagebox.showerror("端口不合法", "端口必须是整数。", parent=self)
+            messagebox.showerror(t("端口不合法"), t("端口必须是整数。"), parent=self)
             return
         err = self.config.validate_port(port)
         if err:
-            messagebox.showerror("端口不合法", err, parent=self)
+            messagebox.showerror(t("端口不合法"), err, parent=self)
             return
         err = self.config.validate_unique(self.version.name, port)
         if err:
-            messagebox.showerror("端口冲突", err, parent=self)
+            messagebox.showerror(t("端口冲突"), err, parent=self)
             return
 
         old_port = self.version.port
@@ -100,9 +101,10 @@ class PortDialog(tk.Toplevel):
             VhostSyncDialog(self.master, vm, old_port, port)
         else:
             messagebox.showinfo(
-                "端口已修改",
-                f"[{self.version.name}] 端口已改为 {port} 并保存。\n\n"
-                f"若 nginx 配置引用了旧端口 {old_port}，请手动同步 fastcgi_pass。",
+                t("端口已修改"),
+                t("[{name}] 端口已改为 {port} 并保存。\n\n"
+                  "若 nginx 配置引用了旧端口 {old}，请手动同步 fastcgi_pass。",
+                  name=self.version.name, port=port, old=old_port),
                 parent=self.master,
             )
         if self.on_saved:
@@ -125,7 +127,7 @@ class VhostSyncDialog(tk.Toplevel):
         self._synced_ok = False
         self._file_domains: dict[str, str] = {}
 
-        self.title(f"同步 vhost 端口 · {old_port} → {new_port}")
+        self.title(t("同步 vhost 端口 · {old} → {new}", old=old_port, new=new_port))
         self.geometry("780x540")
         self.minsize(660, 440)
         self.configure(bg=CARD_BG)
@@ -134,12 +136,12 @@ class VhostSyncDialog(tk.Toplevel):
 
         header = ttk.Frame(self, padding=(16, 14, 16, 4))
         header.pack(fill="x")
-        ttk.Label(header, text=f"一键同步 FastCGI 端口 {old_port} → {new_port}",
+        ttk.Label(header, text=t("一键同步 FastCGI 端口 {old} → {new}", old=old_port, new=new_port),
                   style="Title.TLabel").pack(anchor="w")
         ttk.Label(
             header,
-            text="以下配置文件中的 fastcgi_pass 仍指向旧端口。一键同步会备份原文件（.bak）、"
-                 "替换端口并执行 nginx -t 校验，校验失败自动还原所有备份。",
+            text=t("以下配置文件中的 fastcgi_pass 仍指向旧端口。一键同步会备份原文件（.bak）、"
+                   "替换端口并执行 nginx -t 校验，校验失败自动还原所有备份。"),
             style="SubTitle.TLabel", wraplength=720,
         ).pack(anchor="w", pady=(4, 0))
 
@@ -149,8 +151,8 @@ class VhostSyncDialog(tk.Toplevel):
             wrap, columns=("file", "domains", "status", "detail"),
             show="headings", selectmode="browse",
         )
-        for col, text, w in (("file", "配置文件", 280), ("domains", "域名", 160),
-                             ("status", "状态", 70), ("detail", "详情", 260)):
+        for col, text, w in (("file", t("配置文件"), 280), ("domains", t("域名"), 160),
+                             ("status", t("状态"), 70), ("detail", t("详情"), 260)):
             self.tree.heading(col, text=text)
             self.tree.column(col, width=w, anchor="w", stretch=(col == "file"))
         vsb = ttk.Scrollbar(wrap, orient="vertical", command=self.tree.yview)
@@ -161,7 +163,7 @@ class VhostSyncDialog(tk.Toplevel):
         self.tree.tag_configure("err", foreground=ERR)
         self.tree.tag_configure("wait", foreground=GRAY)
 
-        ttk.Label(self, text="nginx -t 校验输出：", style="SubTitle.TLabel").pack(anchor="w", padx=16)
+        ttk.Label(self, text=t("nginx -t 校验输出："), style="SubTitle.TLabel").pack(anchor="w", padx=16)
         self.result_text = tk.Text(
             self, height=7, wrap="char", font=("Consolas", 9),
             background="#FFFFFF", foreground=TEXT, relief="flat", padx=8, pady=6, state="disabled",
@@ -170,11 +172,11 @@ class VhostSyncDialog(tk.Toplevel):
 
         btns = ttk.Frame(self, padding=(16, 0, 16, 14))
         btns.pack(fill="x")
-        ttk.Button(btns, text="打开 vhost 目录", command=self._open_dir).pack(side="left")
-        self.btn_reload = ttk.Button(btns, text="重载 Nginx", state="disabled", command=self._reload)
+        ttk.Button(btns, text=t("打开 vhost 目录"), command=self._open_dir).pack(side="left")
+        self.btn_reload = ttk.Button(btns, text=t("重载 Nginx"), state="disabled", command=self._reload)
         self.btn_reload.pack(side="left", padx=(0, 6))
-        ttk.Button(btns, text="关闭", command=self.destroy).pack(side="right")
-        self.btn_sync = ttk.Button(btns, text="一键同步", style="Accent.TButton", command=self._sync)
+        ttk.Button(btns, text=t("关闭"), command=self.destroy).pack(side="right")
+        self.btn_sync = ttk.Button(btns, text=t("一键同步"), style="Accent.TButton", command=self._sync)
         self.btn_sync.pack(side="right", padx=(0, 8))
 
         self._center(master)
@@ -184,7 +186,7 @@ class VhostSyncDialog(tk.Toplevel):
     def _load(self) -> None:
         """后台扫描引用旧端口的配置文件。"""
         self._set_busy(True)
-        self._append_result("正在扫描引用旧端口 {} 的配置文件…".format(self.old_port))
+        self._append_result(t("正在扫描引用旧端口 {port} 的配置文件…", port=self.old_port))
 
         def worker():
             try:
@@ -210,7 +212,7 @@ class VhostSyncDialog(tk.Toplevel):
             files, domains = payload
             self._file_domains = domains
             if not files:
-                self._append_result("没有配置文件引用旧端口，无需同步。")
+                self._append_result(t("没有配置文件引用旧端口，无需同步。"))
                 self.btn_sync.configure(state="disabled")
                 return
             for path in files:
@@ -218,31 +220,31 @@ class VhostSyncDialog(tk.Toplevel):
                 if rel.startswith(".."):
                     rel = path
                 dm = ", ".join(domains.get(path, [])) or "—"
-                self.tree.insert("", "end", values=(rel, dm, "待同步", ""),
+                self.tree.insert("", "end", values=(rel, dm, t("待同步"), ""),
                                  tags=("wait",))
-            self._append_result("共 {} 个文件引用旧端口 {}{}。".format(
-                len(files), self.old_port,
-                "，点击「一键同步」执行" if not self._synced_ok else ""))
+            tail = t("，点击「一键同步」执行") if not self._synced_ok else ""
+            self._append_result(t("共 {count} 个文件引用旧端口 {port}{tail}。",
+                                  count=len(files), port=self.old_port, tail=tail))
         elif kind == "done":
             self._on_done(payload)
         elif kind == "reloaded":
             ok, msg = payload
             self._set_busy(False)
             if ok:
-                self._append_result("[重载] " + msg)
+                self._append_result(t("[重载] {msg}", msg=msg))
             else:
-                self._append_result("[重载失败] " + msg)
-            messagebox.showinfo("重载 Nginx", msg, parent=self)
+                self._append_result(t("[重载失败] {msg}", msg=msg))
+            messagebox.showinfo(t("重载 Nginx"), msg, parent=self)
         else:
             self._set_busy(False)
-            self._append_result("错误：" + str(payload))
-            messagebox.showerror("同步失败", str(payload), parent=self)
+            self._append_result(t("错误：{text}", text=str(payload)))
+            messagebox.showerror(t("同步失败"), str(payload), parent=self)
 
     def _sync(self) -> None:
         if self._busy:
             return
         self._set_busy(True)
-        self._append_result("正在替换端口并校验 nginx 配置…")
+        self._append_result(t("正在替换端口并校验 nginx 配置…"))
         self.btn_sync.configure(state="disabled")
 
         def worker():
@@ -260,7 +262,7 @@ class VhostSyncDialog(tk.Toplevel):
         results, output = payload
         self._set_busy(False)
         self.btn_sync.configure(state="normal")
-        self._append_result("nginx -t 输出：\n" + (output or "(无输出)"))
+        self._append_result(t("nginx -t 输出：\n{text}", text=output or t("(无输出)")))
         all_ok = True
         for r in results:
             path = r["file"]
@@ -268,24 +270,24 @@ class VhostSyncDialog(tk.Toplevel):
             if rel.startswith(".."):
                 rel = path
             if r["ok"]:
-                status, tag, detail = f"已替换 {r['replaced']} 处", "ok", r["message"]
+                status, tag, detail = t("已替换 {count} 处", count=r["replaced"]), "ok", r["message"]
             else:
-                status, tag, detail = "失败", "err", r["message"]
+                status, tag, detail = t("失败"), "err", r["message"]
                 all_ok = False
             self.tree.insert("", "end", values=(rel, self._file_domains.get(path, "—"),
                                                 status, detail), tags=(tag,))
         self._synced_ok = all_ok
         if all_ok:
             self.btn_reload.configure(state="normal")
-            self._append_result("全部同步完成：备份保留于各文件 .bak，可点击「重载 Nginx」生效。")
+            self._append_result(t("全部同步完成：备份保留于各文件 .bak，可点击「重载 Nginx」生效。"))
             messagebox.showinfo(
-                "同步完成",
-                "vhost 配置已全部同步到新端口，并已通过 nginx -t 校验。\n\n"
-                "请点击「重载 Nginx」使新配置立即生效。",
+                t("同步完成"),
+                t("vhost 配置已全部同步到新端口，并已通过 nginx -t 校验。\n\n"
+                  "请点击「重载 Nginx」使新配置立即生效。"),
                 parent=self,
             )
         else:
-            self._append_result("存在失败的同步（已自动还原备份），请检查上方详情。")
+            self._append_result(t("存在失败的同步（已自动还原备份），请检查上方详情。"))
 
     def _reload(self) -> None:
         if self._busy:
@@ -334,7 +336,8 @@ class IniDialog(tk.Toplevel):
         self.version = version
         self.php_mgr = php_mgr
 
-        self.title(f"PHP 配置 · {version.name} (PHP {version.display})")
+        self.title(t("PHP 配置 · {name} (PHP {display})",
+                     name=version.name, display=version.display))
         self.geometry("780x560")
         self.minsize(640, 460)
         self.configure(bg=CARD_BG)
@@ -342,16 +345,15 @@ class IniDialog(tk.Toplevel):
 
         header = ttk.Frame(self, padding=(14, 12, 14, 4))
         header.pack(fill="x")
-        ttk.Label(header, text=f"配置文件：{version.ini}", style="SubTitle.TLabel").pack(
-            side="left"
-        )
-        ttk.Button(header, text="用编辑器打开", command=self._open_ini).pack(side="right")
+        ttk.Label(header, text=t("配置文件：{path}", path=version.ini),
+                  style="SubTitle.TLabel").pack(side="left")
+        ttk.Button(header, text=t("用编辑器打开"), command=self._open_ini).pack(side="right")
 
         nb = ttk.Notebook(self)
         nb.pack(fill="both", expand=True, padx=12, pady=(8, 12))
-        nb.add(self._build_key_frame(nb), text="  关键配置  ")
-        nb.add(self._build_ext_frame(nb), text="  已启用扩展  ")
-        nb.add(self._build_full_frame(nb), text="  完整内容  ")
+        nb.add(self._build_key_frame(nb), text=f"  {t('关键配置')}  ")
+        nb.add(self._build_ext_frame(nb), text=f"  {t('已启用扩展')}  ")
+        nb.add(self._build_full_frame(nb), text=f"  {t('完整内容')}  ")
 
         self._center(master)
 
@@ -359,8 +361,8 @@ class IniDialog(tk.Toplevel):
     def _build_key_frame(self, master) -> ttk.Frame:
         frame = ttk.Frame(master, padding=10)
         tree = ttk.Treeview(frame, columns=("key", "value"), show="headings", selectmode="browse")
-        tree.heading("key", text="配置项")
-        tree.heading("value", text="值")
+        tree.heading("key", text=t("配置项"))
+        tree.heading("value", text=t("值"))
         tree.column("key", width=240, anchor="w", stretch=False)
         tree.column("value", width=400, anchor="w")
         vsb = ttk.Scrollbar(frame, orient="vertical", command=tree.yview)
@@ -370,7 +372,7 @@ class IniDialog(tk.Toplevel):
 
         data = self.php_mgr.read_key_ini(self.version)
         if "__error__" in data:
-            tree.insert("", "end", values=("读取失败", data["__error__"]))
+            tree.insert("", "end", values=(t("读取失败"), data["__error__"]))
             return frame
         for key in data:
             if key == "__extensions__":
@@ -392,7 +394,7 @@ class IniDialog(tk.Toplevel):
         data = self.php_mgr.read_key_ini(self.version)
         exts = data.get("__extensions__", [])
         if not exts:
-            text.insert("1.0", "（未在 php.ini 中启用任何 extension 指令）")
+            text.insert("1.0", t("（未在 php.ini 中启用任何 extension 指令）"))
         else:
             text.insert("1.0", "\n".join(f"{i + 1}. {e}" for i, e in enumerate(exts)))
         text.configure(state="disabled")
@@ -429,11 +431,11 @@ class CliSwitchDialog(tk.Toplevel):
     """切换系统 cmd / 终端 中的 php 命令版本（修改用户 PATH，新窗口生效）。"""
 
     COLS = [
-        ("name", "版本目录", 110, "w"),
-        ("ver", "PHP 版本", 90, "center"),
-        ("port", "端口", 70, "center"),
+        ("name", t("版本目录"), 110, "w"),
+        ("ver", t("PHP 版本"), 90, "center"),
+        ("port", t("端口"), 70, "center"),
         ("status", "FastCGI", 80, "center"),
-        ("mark", f"{_CLI_DISP} 生效", 100, "center"),
+        ("mark", t("cmd 生效") if IS_WIN else t("终端 生效"), 100, "center"),
     ]
 
     def __init__(self, master, php_mgr: PhpManager, on_switched=None):
@@ -445,7 +447,7 @@ class CliSwitchDialog(tk.Toplevel):
         self._name_to_iid: dict[str, str] = {}
         self._effective = path_manager.get_effective_php_dir()
 
-        self.title(f"切换{_CLI_DISP} php 命令版本")
+        self.title(t("切换 cmd php 命令版本") if IS_WIN else t("切换终端 php 命令版本"))
         self.geometry("660x440")
         self.minsize(580, 380)
         self.configure(bg=CARD_BG)
@@ -453,17 +455,17 @@ class CliSwitchDialog(tk.Toplevel):
 
         header = ttk.Frame(self, padding=(16, 14, 16, 4))
         header.pack(fill="x")
-        ttk.Label(header, text=f"切换{_CLI_DISP}中的 php 命令版本", style="Title.TLabel").pack(anchor="w")
+        ttk.Label(header,
+                  text=(t("切换cmd中的 php 命令版本") if IS_WIN
+                        else t("切换终端中的 php 命令版本")),
+                  style="Title.TLabel").pack(anchor="w")
         ttk.Label(
             header,
-            text=(
-                "原理：修改用户环境变量 PATH（User 优先级高于系统），将所选版本置顶。"
-                "新打开的 cmd 生效，无需管理员权限。"
-                if IS_WIN
-                else
-                "原理：把所选版本目录写入 shell 配置的 phpvm PATH 块（~/.zshrc 等），"
-                "新开的终端生效，无需管理员权限。"
-            ),
+            text=(t("原理：修改用户环境变量 PATH（User 优先级高于系统），将所选版本置顶。"
+                    "新打开的 cmd 生效，无需管理员权限。")
+                  if IS_WIN else
+                  t("原理：把所选版本目录写入 shell 配置的 phpvm PATH 块（~/.zshrc 等），"
+                    "新开的终端生效，无需管理员权限。")),
             style="SubTitle.TLabel",
         ).pack(anchor="w", pady=(4, 0))
 
@@ -486,15 +488,15 @@ class CliSwitchDialog(tk.Toplevel):
 
         btns = ttk.Frame(self, padding=(16, 0, 16, 14))
         btns.pack(fill="x")
-        ttk.Button(btns, text="在新窗口测试 php -v", command=self._test_cmd).pack(side="left")
+        ttk.Button(btns, text=t("在新窗口测试 php -v"), command=self._test_cmd).pack(side="left")
         ttk.Label(
             btns,
-            text=("已打开的 cmd 不会自动切换，需重开窗口"
-                  if IS_WIN else "已打开的终端不会自动切换，需重开终端窗口"),
+            text=(t("已打开的 cmd 不会自动切换，需重开窗口")
+                  if IS_WIN else t("已打开的终端不会自动切换，需重开终端窗口")),
             style="SubTitle.TLabel",
         ).pack(side="left", padx=(10, 0))
-        ttk.Button(btns, text="取消", command=self.destroy).pack(side="right")
-        ttk.Button(btns, text="设为当前", style="Accent.TButton", command=self._apply).pack(
+        ttk.Button(btns, text=t("取消"), command=self.destroy).pack(side="right")
+        ttk.Button(btns, text=t("设为当前"), style="Accent.TButton", command=self._apply).pack(
             side="right", padx=(0, 8)
         )
 
@@ -523,7 +525,7 @@ class CliSwitchDialog(tk.Toplevel):
         if kind == "versions":
             self._render(payload)
         else:
-            messagebox.showerror("加载失败", payload, parent=self)
+            messagebox.showerror(t("加载失败"), payload, parent=self)
 
     def _render(self, versions: list[PhpVersion]) -> None:
         self._versions = versions
@@ -534,12 +536,12 @@ class CliSwitchDialog(tk.Toplevel):
             dot = "●" if running else "○"
             dot_tag = "dot_run" if running else "dot_stop"
             eff = v.dir == self._effective
-            mark = "当前生效" if eff else ""
+            mark = t("当前生效") if eff else ""
             iid = self.tree.insert(
                 "",
                 "end",
-                values=(v.name, v.display, v.port, f"{dot} {'运行中' if running else '已停止'}",
-                        mark),
+                values=(v.name, v.display, v.port,
+                        f"{dot} {t('运行中') if running else t('已停止')}", mark),
                 tags=[dot_tag] + (["mark_now"] if eff else []),
             )
             self._name_to_iid[v.name] = iid
@@ -558,22 +560,22 @@ class CliSwitchDialog(tk.Toplevel):
     def _apply(self) -> None:
         v = self._selected()
         if v is None:
-            messagebox.showinfo("提示", "请先选择一个 PHP 版本。", parent=self)
+            messagebox.showinfo(t("提示"), t("请先选择一个 PHP 版本。"), parent=self)
             return
         try:
             path_manager.set_cli_php(v.dir)
         except Exception as e:  # noqa: BLE001
-            messagebox.showerror("切换失败", str(e), parent=self)
+            messagebox.showerror(t("切换失败"), str(e), parent=self)
             return
         self._effective = v.dir
         self._render(self._versions)
-        messagebox.showinfo(
-            "切换成功",
-            f"已切换{_CLI_DISP} php 命令 → [{v.name}]（PHP {v.display}）\n\n"
-            f"注意：已打开的 {'cmd / 终端' if IS_WIN else '终端'}不会自动感知，"
-            "请新开窗口执行 php -v 验证。",
-            parent=self,
-        )
+        ok_text = (t("已切换 cmd php 命令 → [{name}]（PHP {display}）\n\n"
+                     "注意：已打开的 cmd / 终端不会自动感知，请新开窗口执行 php -v 验证。")
+                   if IS_WIN else
+                   t("已切换终端 php 命令 → [{name}]（PHP {display}）\n\n"
+                     "注意：已打开的终端不会自动感知，请新开窗口执行 php -v 验证。"))
+        messagebox.showinfo(t("切换成功"), ok_text.format(name=v.name, display=v.display),
+                            parent=self)
         if self.on_switched:
             self.on_switched()
 
@@ -593,7 +595,7 @@ class CliSwitchDialog(tk.Toplevel):
                     start_new_session=True,
                 )
         except OSError as e:
-            messagebox.showerror("无法打开终端", str(e), parent=self)
+            messagebox.showerror(t("无法打开终端"), str(e), parent=self)
 
     def _center(self, master) -> None:
         self.update_idletasks()
@@ -612,23 +614,24 @@ class CrashDialog(tk.Toplevel):
         super().__init__(master)
         self.events = events
         self.on_clear = on_clear
-        self.title("php-cgi 崩溃事件")
+        self.title(t("php-cgi 崩溃事件"))
         self.geometry("860x660")
         self.minsize(720, 540)
         self.configure(bg=CARD_BG)
         self.transient(master)
 
         if IS_WIN:
-            src = "事件日志 Application/1000"
-            hint = ("以下记录来自 Windows 事件日志。异常码 0xc0000005（访问冲突）通常是扩展/JIT/"
-                    "代码段错误导致，崩溃后站点会 502。")
+            src = t("事件日志 Application/1000")
+            hint = t("以下记录来自 Windows 事件日志。异常码 0xc0000005（访问冲突）通常是扩展/JIT/"
+                     "代码段错误导致，崩溃后站点会 502。")
         else:
-            src = "macOS 崩溃报告 DiagnosticReports"
-            hint = ("以下记录来自 macOS 崩溃报告（~/Library/Logs/DiagnosticReports 的 "
-                    "php-cgi-*.ips）。SIGSEGV/SIGABRT 通常是扩展或 opcache JIT 导致，崩溃后站点会 502。")
+            src = "macOS " + t("崩溃报告 DiagnosticReports")
+            hint = t("以下记录来自 macOS 崩溃报告（~/Library/Logs/DiagnosticReports 的 "
+                     "php-cgi-*.ips）。SIGSEGV/SIGABRT 通常是扩展或 opcache JIT 导致，"
+                     "崩溃后站点会 502。")
         header = ttk.Frame(self, padding=(16, 14, 16, 4))
         header.pack(fill="x")
-        ttk.Label(header, text=f"php-cgi 崩溃事件（{src}）",
+        ttk.Label(header, text=t("php-cgi 崩溃事件（{src}）", src=src),
                   style="Title.TLabel").pack(anchor="w")
         ttk.Label(
             header,
@@ -641,24 +644,25 @@ class CrashDialog(tk.Toplevel):
 
         crash_tab = ttk.Frame(nb, padding=4)
         recover_tab = ttk.Frame(nb, padding=4)
-        nb.add(crash_tab, text=" 崩溃事件 ")
-        nb.add(recover_tab, text=" 自愈历史 ")
+        nb.add(crash_tab, text=f"  {t('崩溃事件')}  ")
+        nb.add(recover_tab, text=f"  {t('自愈历史')}  ")
 
         self._build_crash_tab(crash_tab)
         self._build_recover_tab(recover_tab)
 
         btns = ttk.Frame(self, padding=(16, 0, 16, 14))
         btns.pack(fill="x")
-        ttk.Button(btns, text="关闭", command=self.destroy).pack(side="right")
-        self.clear_btn = ttk.Button(btns, text="清空记录", command=self._clear)
+        ttk.Button(btns, text=t("关闭"), command=self.destroy).pack(side="right")
+        self.clear_btn = ttk.Button(btns, text=t("清空记录"), command=self._clear)
         self.clear_btn.pack(side="right", padx=(0, 8))
         if not events:
             self.clear_btn.configure(state="disabled")
         self._center(master)
 
     def _build_crash_tab(self, parent) -> None:
-        cols = [("time", "崩溃时间", 150), ("version", "版本", 60), ("app", "进程", 110),
-                ("module", "故障模块", 140), ("exception", "异常码", 95), ("offset", "偏移", 160)]
+        cols = [("time", t("崩溃时间"), 150), ("version", t("版本"), 60), ("app", t("进程"), 110),
+                ("module", t("故障模块"), 140), ("exception", t("异常码"), 95),
+                ("offset", t("偏移"), 160)]
         self.tree = ttk.Treeview(parent, columns=[c[0] for c in cols], show="headings", height=7)
         for cid, text, w in cols:
             self.tree.heading(cid, text=text)
@@ -681,7 +685,7 @@ class CrashDialog(tk.Toplevel):
 
         if not self.events:
             self.tree.insert("", "end", values=("—", "—", "—", "—", "—", "—"))
-            self._set_detail("（没有崩溃记录）")
+            self._set_detail(t("（没有崩溃记录）"))
         else:
             for e in self.events:
                 self.tree.insert("", "end", values=(
@@ -693,10 +697,12 @@ class CrashDialog(tk.Toplevel):
 
     def _build_recover_tab(self, parent) -> None:
         """自愈历史：recover_history.json 最新在前，失败行红色标记。"""
-        info = ttk.Label(parent, text="自愈操作历史（防抖/限次/重启/失败，存于 recover_history.json）",
+        info = ttk.Label(parent,
+                         text=t("自愈操作历史（防抖/限次/重启/失败，存于 recover_history.json）"),
                          style="SubTitle.TLabel")
         info.pack(anchor="w", pady=(0, 4))
-        cols = [("time", "时间", 150), ("version", "版本", 60), ("action", "动作", 90), ("detail", "详情", 480)]
+        cols = [("time", t("时间"), 150), ("version", t("版本"), 60), ("action", t("动作"), 90),
+                ("detail", t("详情"), 480)]
         self.rec_tree = ttk.Treeview(parent, columns=[c[0] for c in cols], show="headings")
         for cid, text, w in cols:
             self.rec_tree.heading(cid, text=text)
@@ -710,13 +716,13 @@ class CrashDialog(tk.Toplevel):
 
         rows = recover_history.load()
         if not rows:
-            self.rec_tree.insert("", "end", values=("—", "—", "—", "（暂无自愈记录）"))
+            self.rec_tree.insert("", "end", values=("—", "—", "—", t("（暂无自愈记录）")))
         for r in rows:
             action = r.get("action", "")
             tag = "fail" if action == "fail" else ("ok" if action == "start" else "")
+            label = t(recover_history.ACTION_LABELS.get(action, action))
             self.rec_tree.insert("", "end", values=(
-                r.get("time", "—"), r.get("version", "—"),
-                recover_history.ACTION_LABELS.get(action, action), r.get("detail", ""),
+                r.get("time", "—"), r.get("version", "—"), label, r.get("detail", ""),
             ), tags=(tag,) if tag else ())
 
     def _clear(self) -> None:
@@ -756,7 +762,8 @@ class SelfCheckDialog(tk.Toplevel):
         self.health = health
         self._queue: queue.Queue = queue.Queue()
 
-        self.title(f"版本自检 · {version.name} (PHP {version.display})")
+        self.title(t("版本自检 · {name} (PHP {display})",
+                     name=version.name, display=version.display))
         self.geometry("680x420")
         self.minsize(560, 360)
         self.configure(bg=CARD_BG)
@@ -764,16 +771,18 @@ class SelfCheckDialog(tk.Toplevel):
 
         header = ttk.Frame(self, padding=(16, 14, 16, 4))
         header.pack(fill="x")
-        ttk.Label(header, text=f"自检 [{version.name}] · PHP {version.display}",
+        ttk.Label(header, text=t("自检 [{name}] · PHP {display}",
+                                 name=version.name, display=version.display),
                   style="Title.TLabel").pack(anchor="w")
-        self.state_label = ttk.Label(header, text="正在检测…", style="SubTitle.TLabel")
+        self.state_label = ttk.Label(header, text=t("正在检测…"), style="SubTitle.TLabel")
         self.state_label.pack(anchor="w", pady=(4, 0))
 
         wrap = ttk.Frame(self)
         wrap.pack(fill="both", expand=True, padx=16, pady=10)
         self.tree = ttk.Treeview(wrap, columns=("name", "status", "detail"),
                                  show="headings", selectmode="browse")
-        for cid, text, w in (("name", "检查项", 200), ("status", "结果", 70), ("detail", "详情", 340)):
+        for cid, text, w in (("name", t("检查项"), 200), ("status", t("结果"), 70),
+                             ("detail", t("详情"), 340)):
             self.tree.heading(cid, text=text)
             self.tree.column(cid, width=w, anchor="w", stretch=(cid == "detail"))
         vsb = ttk.Scrollbar(wrap, orient="vertical", command=self.tree.yview)
@@ -785,14 +794,14 @@ class SelfCheckDialog(tk.Toplevel):
 
         btns = ttk.Frame(self, padding=(16, 0, 16, 14))
         btns.pack(fill="x")
-        ttk.Button(btns, text="关闭", command=self.destroy).pack(side="right")
-        ttk.Button(btns, text="重新检测", command=self._run).pack(side="right", padx=(0, 8))
+        ttk.Button(btns, text=t("关闭"), command=self.destroy).pack(side="right")
+        ttk.Button(btns, text=t("重新检测"), command=self._run).pack(side="right", padx=(0, 8))
         self._center(master)
         self._run()
 
     def _run(self) -> None:
         self.tree.delete(*self.tree.get_children())
-        self.state_label.configure(text="正在检测…")
+        self.state_label.configure(text=t("正在检测…"))
 
         def worker():
             try:
@@ -811,16 +820,17 @@ class SelfCheckDialog(tk.Toplevel):
             self.after(80, self._poll)
             return
         if kind == "error":
-            self.state_label.configure(text=f"自检失败：{payload}")
+            self.state_label.configure(text=t("自检失败：{text}", text=payload))
             return
         result = payload
         for c in result["checks"]:
-            status = "正常" if c["ok"] else "异常"
+            status = t("正常") if c["ok"] else t("异常")
             tag = "ok" if c["ok"] else "err"
             self.tree.insert("", "end", values=(c["name"], status, c["detail"]), tags=(tag,))
-        total = "全部通过" if result["ok"] else "存在异常"
+        total = t("全部通过") if result["ok"] else t("存在异常")
         self.state_label.configure(
-            text=f"{total} · 关键扩展核对 {len(result['checks'])} 项"
+            text=t("{total} · 关键扩展核对 {count} 项",
+                   total=total, count=len(result["checks"]))
         )
         if not result["ok"]:
             self.state_label.configure(foreground=ERR)
@@ -842,7 +852,7 @@ class IniEditDialog(tk.Toplevel):
         self._queue: queue.Queue = queue.Queue()
         self._vars: dict[str, tk.Variable] = {}
 
-        self.title(f"编辑配置 · {version.name}")
+        self.title(t("编辑配置 · {name}", name=version.name))
         self.geometry("680x520")
         self.minsize(560, 420)
         self.configure(bg=CARD_BG)
@@ -850,11 +860,11 @@ class IniEditDialog(tk.Toplevel):
 
         header = ttk.Frame(self, padding=(16, 14, 16, 4))
         header.pack(fill="x")
-        ttk.Label(header, text=f"编辑常用配置项 · {os.path.basename(version.ini)}",
+        ttk.Label(header, text=t("编辑常用配置项 · {file}", file=os.path.basename(version.ini)),
                   style="Title.TLabel").pack(anchor="w")
         ttk.Label(
             header,
-            text="保存前自动备份原文件（.bak）；修改后需重启对应版本（FastCGI）才生效。",
+            text=t("保存前自动备份原文件（.bak）；修改后需重启对应版本（FastCGI）才生效。"),
             style="SubTitle.TLabel",
         ).pack(anchor="w", pady=(4, 0))
 
@@ -873,8 +883,8 @@ class IniEditDialog(tk.Toplevel):
 
         btns = ttk.Frame(self, padding=(16, 0, 16, 14))
         btns.pack(fill="x")
-        ttk.Button(btns, text="取消", command=self.destroy).pack(side="right")
-        ttk.Button(btns, text="保存", style="Accent.TButton", command=self._save).pack(
+        ttk.Button(btns, text=t("取消"), command=self.destroy).pack(side="right")
+        ttk.Button(btns, text=t("保存"), style="Accent.TButton", command=self._save).pack(
             side="right", padx=(0, 8))
         self._build_form()
         self._center(master)
@@ -908,7 +918,8 @@ class IniEditDialog(tk.Toplevel):
             key, value = meta["key"], self._vars[key].get().strip()
             err = ini_editor.validate_value(meta, value)
             if err:
-                messagebox.showerror("校验失败", f"{key}：{err}", parent=self)
+                messagebox.showerror(t("校验失败"), t("{key}：{err}", key=key, err=err),
+                                     parent=self)
                 return
             changes[key] = value
 
@@ -929,13 +940,14 @@ class IniEditDialog(tk.Toplevel):
             self.after(80, self._poll_save)
             return
         if kind == "error":
-            messagebox.showerror("保存失败", str(payload), parent=self)
+            messagebox.showerror(t("保存失败"), str(payload), parent=self)
             return
         count, backup = payload
         messagebox.showinfo(
-            "保存成功",
-            f"已更新 {count} 项配置，备份保留于：\n{backup}\n\n"
-            f"重启 [{self.version.name}]（停止后启动）即可生效。",
+            t("保存成功"),
+            t("已更新 {count} 项配置，备份保留于：\n{backup}\n\n"
+              "重启 [{name}]（停止后启动）即可生效。",
+              count=count, backup=backup, name=self.version.name),
             parent=self,
         )
         self.destroy()
