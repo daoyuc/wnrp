@@ -919,7 +919,9 @@ class IniEditDialog(tk.Toplevel):
         from core import ini_editor
         changes: dict[str, str] = {}
         for meta in ini_editor.INI_ITEMS_META:
-            key, value = meta["key"], self._vars[key].get().strip()
+            # 必须分两步：元组解包会先整体求值右值，此时 key 尚未绑定 → UnboundLocalError
+            key = meta["key"]
+            value = self._vars[key].get().strip()
             err = ini_editor.validate_value(meta, value)
             if err:
                 messagebox.showerror(t("校验失败"), t("{key}：{err}", key=key, err=err),

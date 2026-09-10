@@ -66,6 +66,7 @@ class SiteWizardDialog(tk.Toplevel):
         self._tpl_key = TEMPLATES[0]["key"]
         self._changed = {"vhost": False, "include": False}
         self._backups: list[tuple[str, str]] = []   # (path, backup)
+        self._hosts_added: list[str] = []           # 本次写入 hosts 的域名（回滚用）
         self.conf_path: str = ""
         self._fname: str = ""
 
@@ -701,7 +702,11 @@ class SiteWizardDialog(tk.Toplevel):
         doms = [d for d in domains if not d.startswith("*.")]
         if not doms:
             return {"ok": True, "message": t("没有可写入 hosts 的域名（通配项已跳过）")}
-        return hosts_manager.ensure_entries(doms)
+        res = hosts_manager.ensure_entries(doms)
+        # 记录本次实际写入的域名，失败回滚时一并从 hosts 移除
+        if res.get("ok") and res.get("added"):
+            self._hosts_added = list(res["added"])
+        return res
 
     def _step_reload(self) -> dict:
         nginx = NginxManager()
@@ -776,7 +781,7 @@ class SiteWizardDialog(tk.Toplevel):
         self._append_log(res.get("message", ""), color)
 
     def _rollback(self) -> None:
-        """还原本次改动：vhost 文件 + nginx.conf。"""
+        """还原本次改动：vhost 文件 + nginx.conf + hosts 映射。"""
         for path, backup in reversed(self._backups):
             if backup and os.path.exists(backup):
                 try:
@@ -791,7 +796,24 @@ class SiteWizardDialog(tk.Toplevel):
                     pass
         self._backups.clear()
         self._changed = {"vhost": False, "include": False}
-        self._append_log(t("已还原本次改动（vhost 文件与 nginx.conf 均恢复）。"), "err")
+        # hosts：移除本次写入的域名（只动 phpvm 托管块；失败仅提示，不阻断其它还原）
+        added = list(getattr(self, "_hosts_added", []))
+        if added:
+            try:
+                res = hosts_manager.remove_entries(added)
+                if res.get("ok") and res.get("removed"):
+                    self._append_log(
+                        t("已同步移除 hosts 映射：{doms}", doms="、".join(res["removed"])), "ok")
+                elif res.get("ok"):
+                    self._append_log(t("hosts 中无本次写入的条目，无需移除。"), "info")
+                else:
+                    self._append_log(
+                        t("hosts 映射移除失败，请手动清理：{msg}",
+                          msg=res.get("message", "")), "err")
+            except Exception as e:  # noqa: BLE001
+                self._append_log(t("hosts 映射移除异常：{err}", err=e), "err")
+            self._hosts_added = []
+        self._append_log(t("已还原本次改动（vhost 文件、nginx.conf 与 hosts 均恢复）。"), "err")
 
     # ------------------------------------------------------------------ #
     def _append_log(self, text: str, tag: str = "") -> None:

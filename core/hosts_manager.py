@@ -17,7 +17,9 @@
 import base64
 import os
 import re
+import shutil
 import sys
+import tempfile
 
 from . import process_utils as pu
 from .config import IS_WIN
@@ -25,9 +27,13 @@ from .i18n import t
 
 MANAGED_TAG = "phpvm-managed"
 DEFAULT_IP = "127.0.0.1"
+BACKUP_SUFFIX = ".phpvm.bak"  # hosts 备份（写入/删除前自动创建，可一键还原）
 
 # IPv4 / IPv6 地址（用于把每行首个 token 识别成 IP）
 _RE_IP = re.compile(r"^[0-9.]+$|^[0-9a-fA-F:]+$")
+# phpvm 托管块的起止标记
+_RE_BLOCK_START = re.compile(r"^\s*#\s*>>>\s*" + re.escape(MANAGED_TAG))
+_RE_BLOCK_END = re.compile(r"^\s*#\s*<<<\s*" + re.escape(MANAGED_TAG))
 
 
 def hosts_path() -> str:
@@ -143,6 +149,7 @@ def ensure_entries(domains: list[str], ip: str = DEFAULT_IP) -> dict:
 
     block = _block_text(todo, ip)
     path = hosts_path()
+    create_backup()  # 写入前备份，便于向导失败或用户手动一键还原
     try:
         with open(path, "r", encoding="utf-8", errors="replace") as f:
             existed = f.read()
@@ -158,6 +165,75 @@ def ensure_entries(domains: list[str], ip: str = DEFAULT_IP) -> dict:
     except OSError as e:
         return {"ok": False, "elevated": False, "added": [], "already": already,
                 "conflict": conflict, "message": t("写入 hosts 失败：{err}", err=e)}
+
+
+def _run_ps_elevated(script: str, timeout: int = 120) -> tuple[int, str]:
+    """以管理员权限执行一段内嵌参数的 PowerShell 脚本（弹 UAC）。
+
+    脚本正文里直接写死路径与内容（不走 -Args 传参，避免嵌套引号转义问题）。
+    返回 (returncode, 输出/错误文本)。
+    """
+    child = base64.b64encode(script.encode("utf-16-le")).decode("ascii")
+    cmd = [
+        "powershell", "-NoProfile", "-NonInteractive", "-Command",
+        "Start-Process -FilePath powershell -Verb RunAs -Wait "
+        "-ArgumentList '-NoProfile','-EncodedCommand','%s'" % child,
+    ]
+    code, out, err = pu.run_cmd(cmd, timeout=timeout)
+    return code, (err or out or "").strip()
+
+
+def _write_replace_elevated(text: str) -> tuple[bool, bool, str]:
+    """无写权限时按平台提权「整体覆盖」hosts。返回 (ok, elevated, message)。"""
+    path = hosts_path()
+    b64 = base64.b64encode(text.encode("utf-8")).decode("ascii")
+    if IS_WIN:
+        ps = (
+            "$h = Join-Path $env:SystemRoot 'System32\\drivers\\etc\\hosts'\n"
+            f"$t = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{b64}'))\n"
+            "Set-Content -LiteralPath $h -Value $t -Encoding ASCII\n"
+        )
+        code, out = _run_ps_elevated(ps)
+        if code == 0:
+            return True, True, t("已通过管理员授权更新 hosts")
+        return False, True, t("更新 hosts 需要管理员权限（授权被取消或失败：{err}）",
+                              err=out or t("无输出"))
+    if sys.platform == "darwin":
+        try:
+            tmp = os.path.join(tempfile.gettempdir(), "phpvm_hosts.new")
+            with open(tmp, "w", encoding="utf-8", newline="") as f:
+                f.write(text)
+        except OSError as e:
+            return False, False, t("写入临时文件失败：{err}", err=e)
+        cmd = ["osascript", "-e",
+               f'do shell script "cp {tmp} {path}" with administrator privileges']
+        code, out, err = pu.run_cmd(cmd, timeout=180)
+        if code == 0:
+            return True, True, t("已通过系统授权更新 hosts")
+        return False, True, t("更新 /etc/hosts 需要管理员授权（已取消或失败：{err}）",
+                              err=err.strip() or t("无输出"))
+    return False, False, t("写入 /etc/hosts 需要 root 权限，请手动执行：sudo cp <新内容文件> /etc/hosts")
+
+
+def _copy_elevated(src: str, dst: str) -> tuple[bool, str]:
+    """提权复制文件（用于 hosts 还原）。返回 (ok, message)。"""
+    if IS_WIN:
+        ps = f"Copy-Item -LiteralPath '{src}' -Destination '{dst}' -Force\n"
+        code, out = _run_ps_elevated(ps)
+        if code == 0:
+            return True, t("已通过管理员授权还原 hosts")
+        return False, t("还原 hosts 需要管理员权限（授权被取消或失败：{err}）",
+                        err=out or t("无输出"))
+    if sys.platform == "darwin":
+        cmd = ["osascript", "-e",
+               f'do shell script "cp {src} {dst}" with administrator privileges']
+        code, out, err = pu.run_cmd(cmd, timeout=180)
+        if code == 0:
+            return True, t("已通过系统授权还原 hosts")
+        return False, t("还原 /etc/hosts 需要管理员授权（已取消或失败：{err}）",
+                        err=err.strip() or t("无输出"))
+    return False, t("还原 /etc/hosts 需要 root 权限，请手动执行：sudo cp {src} {dst}",
+                    src=src, dst=dst)
 
 
 def _write_elevated(block: str, todo: list[str], already: list[str],
@@ -210,3 +286,134 @@ def _write_elevated(block: str, todo: list[str], already: list[str],
             "message": t("写入 /etc/hosts 需要 root 权限。请在终端手动执行：\n"
                          "sudo sh -c 'echo \"127.0.0.1 {doms}\" >> /etc/hosts'",
                          doms=" ".join(todo))}
+
+
+# --------------------------------------------------------------------------- #
+# 备份 / 还原 / 移除（仅操作 phpvm 托管块）
+# --------------------------------------------------------------------------- #
+def backup_path() -> str:
+    """hosts 备份文件路径（写前自动创建，保留最近一次修改前的状态）。"""
+    return hosts_path() + BACKUP_SUFFIX
+
+
+def has_backup() -> bool:
+    return os.path.exists(backup_path())
+
+
+def create_backup() -> tuple[bool, str]:
+    """写入 / 删除前备份 hosts。返回 (ok, 备份路径 或 错误信息)。"""
+    src, dst = hosts_path(), backup_path()
+    try:
+        shutil.copy2(src, dst)
+        return True, dst
+    except OSError as e:
+        return False, t("备份 hosts 失败：{err}", err=e)
+
+
+def restore_backup() -> tuple[bool, str]:
+    """用备份一键还原 hosts（无权限时自动申请提权）。返回 (ok, message)。"""
+    src, dst = backup_path(), hosts_path()
+    if not os.path.exists(src):
+        return False, t("未找到 hosts 备份：{path}", path=src)
+    try:
+        shutil.copy2(src, dst)
+        return True, t("已从备份还原 hosts：{path}", path=src)
+    except PermissionError:
+        return _copy_elevated(src, dst)
+    except OSError as e:
+        return False, t("还原 hosts 失败：{err}", err=e)
+
+
+def remove_entries(domains: list[str]) -> dict:
+    """移除 phpvm 托管块内的指定域名映射（**只动托管块**，其它行原样保留）。
+
+    返回 {ok, elevated, removed[], missing[], message}：
+    - 域名不在托管块内（用户手写或其它 IP 行）时列入 missing 且不做改动；
+    - 块内某行域名被清空则整行移除；块内无剩余行则连同起止标记一起移除。
+    """
+    wanted = {d.strip().lower() for d in domains if d and d.strip()}
+    result = {"ok": True, "elevated": False, "removed": [], "missing": [], "message": ""}
+    if not wanted:
+        result["message"] = t("未指定要移除的域名")
+        return result
+    try:
+        text = read_text()
+    except OSError as e:
+        result.update(ok=False, message=t("读取 hosts 失败：{err}", err=e))
+        return result
+
+    crlf = "\r\n" in text
+    new_lines: list[str] = []
+    removed: set[str] = set()
+    in_block = False
+    block_mark_idx = -1
+    block_has_line = False
+    for raw in text.splitlines():
+        if _RE_BLOCK_START.match(raw):
+            in_block = True
+            block_mark_idx = len(new_lines)
+            block_has_line = False
+            new_lines.append(raw)
+            continue
+        if in_block and _RE_BLOCK_END.match(raw):
+            in_block = False
+            if block_has_line:
+                new_lines.append(raw)
+            else:
+                new_lines = new_lines[:block_mark_idx]  # 块已空 → 连标记一起移除
+            continue
+        if in_block:
+            parts = raw.split("#", 1)[0].strip().split()
+            if len(parts) >= 2:
+                ip, names = parts[0], parts[1:]
+                hit = [n for n in names if n.lower() in wanted]
+                keep = [n for n in names if n.lower() not in wanted]
+                if hit:
+                    removed.update(n.lower() for n in hit)
+                    if not keep:
+                        continue  # 整行都是待删域名 → 删除该行
+                    indent = raw[: len(raw) - len(raw.lstrip())]
+                    new_lines.append(
+                        f"{indent}{ip} {' '.join(keep)}    # {MANAGED_TAG}: auto site mapping"
+                    )
+                    block_has_line = True
+                    continue
+        new_lines.append(raw)
+
+    eol = "\r\n" if crlf else "\n"
+    new_text = eol.join(new_lines)
+    if text.endswith(("\n", "\r")):
+        new_text += eol
+
+    missing = sorted(wanted - removed)
+    result["removed"] = sorted(removed)
+    result["missing"] = missing
+    if not removed:
+        result["message"] = t("hosts 中没有 phpvm 托管的这些域名，未做改动：{doms}",
+                              doms="、".join(sorted(wanted)))
+        return result
+
+    ok, elevated, msg = _write_text(new_text)
+    result["ok"] = ok
+    result["elevated"] = elevated
+    result["message"] = (t("已从 hosts 移除：{doms}", doms="、".join(result["removed"]))
+                         if ok else msg)
+    if missing:
+        result["message"] += "\n" + t(
+            "以下域名不在 phpvm 托管块内（未改动，可能为用户手写或其它映射）：{doms}",
+            doms="、".join(missing))
+    return result
+
+
+def _write_text(text: str) -> tuple[bool, bool, str]:
+    """整体写回 hosts（写前自动备份）。返回 (ok, elevated, 错误信息)。"""
+    path = hosts_path()
+    create_backup()
+    try:
+        with open(path, "w", encoding="ascii", errors="replace", newline="") as f:
+            f.write(text)
+        return True, False, ""
+    except PermissionError:
+        return _write_replace_elevated(text)
+    except OSError as e:
+        return False, False, t("写入 hosts 失败：{err}", err=e)

@@ -9,6 +9,7 @@ import os
 import queue
 import threading
 import tkinter as tk
+import webbrowser
 from tkinter import messagebox, ttk
 
 from core import hosts_manager, process_utils as pu
@@ -91,9 +92,15 @@ class VhostPanel(ttk.Frame):
 
         self.tree.tag_configure("ok", foreground=TEXT)
         self.tree.tag_configure("warn", foreground=ERR)
+        self.tree.tag_configure("disabled", foreground=GRAY)
         self.tree.tag_configure("odd", background="#FAFBFC")
         self.tree.tag_configure("even", background=CARD_BG)
         self.tree.bind("<Double-1>", lambda e: self._open_config())
+        # 右键菜单（Windows/Linux 为 Button-3，macOS 触控板为 Button-2）
+        self.tree.bind("<Button-3>", self._show_menu)
+        self.tree.bind("<Button-2>", self._show_menu)
+        self._menu = tk.Menu(self, tearoff=0)
+        self._php_menu = tk.Menu(self._menu, tearoff=0)
 
     # ------------------------------------------------------------------ #
     def refresh(self) -> None:
@@ -104,7 +111,8 @@ class VhostPanel(ttk.Frame):
 
         def worker():
             try:
-                entries = self.vhost_mgr.scan()
+                # 含已禁用站点（.conf.disabled），便于重新启用
+                entries = self.vhost_mgr.scan(include_disabled=True)
                 inc = self.vhost_mgr.include_status()
                 self._queue.put(("data", (entries, inc)))
             except Exception as e:  # noqa: BLE001
@@ -120,6 +128,14 @@ class VhostPanel(ttk.Frame):
             self.after(80, self._poll)
             return
         self._set_busy(False)
+        if kind == "op":
+            res = payload or {}
+            if res.get("ok"):
+                self.notify(res.get("message") or t("操作完成"))
+            else:
+                messagebox.showerror(t("操作失败"), res.get("message") or "", parent=self)
+            self.refresh()
+            return
         if kind == "data":
             entries, inc = payload
             self._render(entries)
@@ -139,13 +155,14 @@ class VhostPanel(ttk.Frame):
         mapping = hosts_manager.mapping_for_domains(all_doms)
         for i, e in enumerate(entries):
             is_warn = bool(e.note) or (e.port is not None and not e.php_version)
-            tags = ["warn" if is_warn else "ok", "odd" if i % 2 else "even"]
+            state_tag = "disabled" if e.disabled else ("warn" if is_warn else "ok")
+            tags = [state_tag, "odd" if i % 2 else "even"]
             self.tree.insert(
                 "", "end",
                 values=(
                     e.server_name,
                     self._hosts_cell(e.server_name, mapping),
-                    e.file_rel,
+                    e.file_rel + (t(" （已禁用）") if e.disabled else ""),
                     e.port if e.port is not None else "—",
                     e.php_version or "—",
                     e.root or "—",
@@ -199,6 +216,135 @@ class VhostPanel(ttk.Frame):
         if not os.path.isdir(target):
             target = self.vhost_mgr.nginx.prefix
         pu.open_path(target)
+
+    # ------------------------------------------------------------------ #
+    # 右键菜单：站点级操作（打开 / 启用禁用 / 切换 PHP / hosts 清理）
+    # ------------------------------------------------------------------ #
+    def _selected(self) -> VhostEntry | None:
+        """返回当前选中行对应的条目。"""
+        sel = self.tree.selection()
+        if not sel:
+            return None
+        idx = self.tree.index(sel[0])
+        return self._entries[idx] if idx < len(self._entries) else None
+
+    def _show_menu(self, event) -> None:
+        """右键：先选中所在行，再按该站点状态重建菜单。"""
+        iid = self.tree.identify_row(event.y)
+        if iid:
+            self.tree.selection_set(iid)
+        entry = self._selected()
+        if entry is None:
+            return
+        self._menu.delete(0, "end")
+        self._menu.add_command(label=t("打开站点（浏览器）"), command=self._open_site)
+        self._menu.add_command(label=t("打开项目根目录"), command=self._open_root)
+        self._menu.add_command(label=t("打开配置文件"), command=self._open_config)
+        self._menu.add_separator()
+
+        self._php_menu.delete(0, "end")
+        ports = dict(self.vhost_mgr.config.ports)
+        if entry.port is None:
+            self._php_menu.add_command(label=t("（该站点无 fastcgi_pass）"),
+                                       state="disabled")
+        else:
+            for name in sorted(ports):
+                port = ports[name]
+                mark = "✔ " if port == entry.port else ""
+                self._php_menu.add_command(
+                    label=f"{mark}{name} · {port}",
+                    command=lambda p=port: self._set_php(p))
+        self._menu.add_cascade(label=t("切换 PHP 版本"), menu=self._php_menu)
+        self._menu.add_command(
+            label=t("启用站点") if entry.disabled else t("禁用站点"),
+            command=self._toggle_enabled)
+        self._menu.add_separator()
+        self._menu.add_command(label=t("从 hosts 移除映射"), command=self._remove_hosts)
+        self._menu.add_separator()
+        self._menu.add_command(label=t("刷新"), command=self.refresh)
+        try:
+            self._menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self._menu.grab_release()
+
+    def _open_site(self) -> None:
+        entry = self._selected()
+        if not entry:
+            return
+        url = VhostManager.site_url(entry)
+        if not url:
+            messagebox.showinfo(t("无法打开"), t("该站点没有可直接访问的域名（仅泛解析）"),
+                                parent=self)
+            return
+        webbrowser.open(url)
+        self.notify(t("已在浏览器打开 {url}", url=url))
+
+    def _open_root(self) -> None:
+        entry = self._selected()
+        if not entry:
+            return
+        root = entry.root
+        if root and os.path.isdir(root):
+            pu.open_path(root)
+            self.notify(t("已打开目录 {path}", path=root))
+        else:
+            messagebox.showinfo(t("目录不存在"),
+                                t("项目根目录不存在或未配置：{path}", path=root or "—"),
+                                parent=self)
+
+    def _toggle_enabled(self) -> None:
+        entry = self._selected()
+        if not entry:
+            return
+        enable = entry.disabled
+        if not enable and not messagebox.askyesno(
+                t("禁用站点"),
+                t("禁用后该站点配置不再被 nginx 加载，访问将失败。\n确定禁用 {name}？",
+                  name=entry.server_name),
+                parent=self):
+            return
+        self._run_op(lambda: self.vhost_mgr.set_site_enabled(entry.file, enable),
+                     t("正在启用站点…") if enable else t("正在禁用站点…"))
+
+    def _set_php(self, port: int) -> None:
+        entry = self._selected()
+        if not entry:
+            return
+        self._run_op(
+            lambda: self.vhost_mgr.set_site_php(entry.file, entry.server_name, port),
+            t("正在切换 {name} 的 PHP 版本…", name=entry.server_name))
+
+    def _remove_hosts(self) -> None:
+        entry = self._selected()
+        if not entry:
+            return
+        doms = [d for d in entry.server_name.split() if d and not d.startswith("*.")]
+        if not doms:
+            messagebox.showinfo(t("无需处理"), t("该站点没有可直接映射的域名（仅泛解析）"),
+                                parent=self)
+            return
+        if not messagebox.askyesno(
+                t("移除 hosts 映射"),
+                t("将从 hosts 的 phpvm 托管块中移除：{doms}\n"
+                  "（不会改动用户手写的其它映射）确定继续？", doms="、".join(doms)),
+                parent=self):
+            return
+        self._run_op(lambda: hosts_manager.remove_entries(doms), t("正在移除 hosts 映射…"))
+
+    def _run_op(self, fn, tip: str) -> None:
+        """后台执行站点操作（可能触发 nginx -t 或 hosts 提权），结果回主线程提示。"""
+        self._set_busy(True)
+        self.notify(tip)
+
+        def worker():
+            try:
+                res = fn()
+            except Exception as e:  # noqa: BLE001
+                res = {"ok": False, "message": f"{type(e).__name__}：{e}"}
+            self._queue.put(("op", res))
+
+        threading.Thread(target=worker, daemon=True).start()
+        self._poll()
 
     # ------------------------------------------------------------------ #
     # include 状态检测 / 一键修复
