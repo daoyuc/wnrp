@@ -17,7 +17,7 @@ import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
-from core import hosts_manager, process_utils as pu
+from core import cert_manager, hosts_manager, process_utils as pu
 from core.config import Config, IS_WIN, WNRP_ROOT
 from core.i18n import t
 from core.nginx_manager import NginxManager
@@ -67,6 +67,8 @@ class SiteWizardDialog(tk.Toplevel):
         self._changed = {"vhost": False, "include": False}
         self._backups: list[tuple[str, str]] = []   # (path, backup)
         self._hosts_added: list[str] = []           # 本次写入 hosts 的域名（回滚用）
+        self._cert_created: list[str] = []          # 本次生成的证书域名（回滚用）
+        self._https_ok = False                      # 是否具备证书生成能力
         self.conf_path: str = ""
         self._fname: str = ""
 
@@ -81,6 +83,7 @@ class SiteWizardDialog(tk.Toplevel):
         self.v_template = tk.StringVar(value=t(TEMPLATES[0]["name"]))
         self.v_filename = tk.StringVar()
         self.v_hosts = tk.BooleanVar(value=True)
+        self.v_https = tk.BooleanVar(value=False)  # HTTPS 变体（需 openssl/mkcert）
 
         self._build()
         self._render_steps()
@@ -222,6 +225,19 @@ class SiteWizardDialog(tk.Toplevel):
         ttk.Label(left, text=t("将生成到 {dir} 目录下", dir=self.vhost_mgr.vhost_dir),
                   style="SubTitle.TLabel", wraplength=280, justify="left").pack(
             anchor="w", pady=(2, 0))
+
+        # HTTPS（可选）：需要系统存在 openssl 或 mkcert
+        cert_box = ttk.LabelFrame(left, text=t("HTTPS（可选）"), padding=8)
+        cert_box.pack(anchor="w", fill="x", pady=(12, 0))
+        st = cert_manager.status()
+        self._https_ok = bool(st["ok"])
+        ttk.Checkbutton(
+            cert_box, text=t("启用 HTTPS（443，自动生成本地证书）"),
+            variable=self.v_https, command=self._render_preview,
+            state="normal" if st["ok"] else "disabled",
+        ).pack(anchor="w")
+        ttk.Label(cert_box, text=st["message"], style="SubTitle.TLabel",
+                  wraplength=300, justify="left").pack(anchor="w", pady=(2, 0))
 
         right = ttk.Frame(top)
         right.pack(side="left", fill="both", expand=True, padx=(12, 0))
@@ -535,8 +551,14 @@ class SiteWizardDialog(tk.Toplevel):
         doc = self._docroot() if root else t("（未选择项目目录）")
         self.docroot_label.configure(text=t("文档根(root)：{doc}", doc=doc))
 
-        text = render_config(tpl["key"], server_name=" ".join(self._domains()),
-                             docroot=doc if root else "", port=self._selected_port())
+        doms = self._domains()
+        real_doms = [d for d in doms if d and not d.startswith("*.")]
+        ssl_cert = ssl_key = ""
+        if self.v_https.get() and self._https_ok and real_doms:
+            ssl_cert, ssl_key = cert_manager.cert_paths(real_doms[0])
+        text = render_config(tpl["key"], server_name=" ".join(doms),
+                             docroot=doc if root else "", port=self._selected_port(),
+                             ssl_cert=ssl_cert, ssl_key=ssl_key)
         self.preview.configure(state="normal")
         self.preview.delete("1.0", "end")
         self.preview.insert("1.0", text)
@@ -595,6 +617,8 @@ class SiteWizardDialog(tk.Toplevel):
             t("PHP 版本：{v}", v=php_txt),
             t("写入 hosts：{v}",
               v=t("是（指向 127.0.0.1）") if self.v_hosts.get() else t("否")),
+            t("HTTPS：{v}", v=(t("启用（443，证书自动生成）")
+                              if (self.v_https.get() and self._https_ok) else t("否（仅 80 端口）"))),
         ]
         if os.path.exists(file_path):
             lines.append(t("\n注意：同名配置文件已存在，创建时将覆盖（原文件自动备份为 .bak）"))
@@ -634,19 +658,31 @@ class SiteWizardDialog(tk.Toplevel):
             "docroot": self._docroot(),
             "port": self._selected_port(),
             "hosts_wanted": bool(self.v_hosts.get()),
+            "https": bool(self.v_https.get()) and self._https_ok,
         }
-        content = render_config(
-            snapshot["tpl_key"],
-            server_name=" ".join(snapshot["domains"]),
-            docroot=snapshot["docroot"],
-            port=snapshot["port"],
-        )
 
         self._set_busy(True)
         self._append_log(t("== 开始创建站点 =="), "info")
 
         def worker():
             steps = []
+            cert = {"cert": "", "key": ""}
+            if snapshot["https"]:
+                cert_res = self._step_cert(snapshot["domains"])
+                steps.append(("cert", cert_res))
+                if not cert_res.get("ok"):
+                    self._queue.put(("done", steps))
+                    return
+                cert = {"cert": cert_res.get("cert", ""), "key": cert_res.get("key", "")}
+            # 证书就绪后再渲染配置（HTTPS 变体需要证书路径）
+            content = render_config(
+                snapshot["tpl_key"],
+                server_name=" ".join(snapshot["domains"]),
+                docroot=snapshot["docroot"],
+                port=snapshot["port"],
+                ssl_cert=cert["cert"],
+                ssl_key=cert["key"],
+            )
             steps.append(("file", self._step_create_file(content)))
             steps.append(("inc", self._step_ensure_include()))
             steps.append(("test", self._step_test_config()))
@@ -664,6 +700,17 @@ class SiteWizardDialog(tk.Toplevel):
         self._poll()
 
     # ---- 各执行步骤（后台线程）---- #
+    def _step_cert(self, domains: list[str]) -> dict:
+        """生成本地 HTTPS 证书（需要 openssl / mkcert）。"""
+        real = [d for d in domains if d and not d.startswith("*.")]
+        if not real:
+            return {"ok": False,
+                    "message": t("没有可用于签发证书的域名（仅填写了泛解析）")}
+        res = cert_manager.ensure_site_cert(real[0])
+        if res.get("ok") and res.get("created"):
+            self._cert_created.append(real[0])  # 回滚时删除本次新建的证书
+        return res
+
     def _step_create_file(self, content: str) -> dict:
         res = self.vhost_mgr.write_vhost(self._fname, content)
         if res["ok"]:
@@ -726,7 +773,7 @@ class SiteWizardDialog(tk.Toplevel):
         skipped = []    # 关键步骤中被跳过的（如未找到 nginx）
         for tag, res in steps:
             self._append_result_log(tag, res)
-            if tag in ("file", "inc", "test"):
+            if tag in ("cert", "file", "inc", "test"):
                 hard.append(res)
                 if res.get("skip"):
                     skipped.append(res)
@@ -796,6 +843,14 @@ class SiteWizardDialog(tk.Toplevel):
                     pass
         self._backups.clear()
         self._changed = {"vhost": False, "include": False}
+        # 证书：删除本次生成的（失败仅提示，不阻断其它还原）
+        for dom in list(getattr(self, "_cert_created", [])):
+            try:
+                cert_manager.remove_cert(dom)
+                self._append_log(t("已删除本次生成的证书：{dom}", dom=dom), "ok")
+            except Exception as e:  # noqa: BLE001
+                self._append_log(t("证书删除失败：{err}", err=e), "err")
+        self._cert_created = []
         # hosts：移除本次写入的域名（只动 phpvm 托管块；失败仅提示，不阻断其它还原）
         added = list(getattr(self, "_hosts_added", []))
         if added:

@@ -12,12 +12,15 @@ from core import autostart, crash_watchdog, path_manager
 from core.config import Config, IS_WIN, WNRP_ROOT
 from core.i18n import LANGS, t
 from core.health_monitor import HealthMonitor
+from core.mysql_manager import MysqlManager
 from core.nginx_manager import NginxManager
 from core.php_manager import PhpManager
 from core.redis_manager import RedisManager
+from core.service_group import ServiceGroup
 from core.sqlite_manager import SqliteManager
 from core.vhost_manager import VhostManager
 from .dialogs import CliSwitchDialog, CrashDialog
+from .mysql_panel import MysqlPanel
 from .nginx_log_panel import NginxLogPanel
 from .nginx_panel import NginxPanel
 from .php_panel import PhpPanel
@@ -36,12 +39,14 @@ CRASH_POLL_TICKS = 8  # 崩溃检测频率 ≈ 8 × 8s = 64s 一次（仅告警�
 
 class MainWindow(tk.Tk):
     def __init__(self, php_mgr: PhpManager, nginx_mgr: NginxManager,
-                 redis_mgr: RedisManager, config: Config):
+                 redis_mgr: RedisManager, mysql_mgr: MysqlManager, config: Config):
         super().__init__()
         self.php_mgr = php_mgr
         self.nginx_mgr = nginx_mgr
         self.redis_mgr = redis_mgr
+        self.mysql_mgr = mysql_mgr
         self.config = config
+        self.services = ServiceGroup(php_mgr, nginx_mgr, redis_mgr, mysql_mgr)
 
         self.title(APP_TITLE)
         self.configure(bg=BG)
@@ -144,6 +149,7 @@ class MainWindow(tk.Tk):
         self.nginx_panel = NginxPanel(nb, self.nginx_mgr, self.set_log,
                                       on_new_site=self._open_site_wizard)
         self.redis_panel = RedisPanel(nb, self.redis_mgr, self.set_log)
+        self.mysql_panel = MysqlPanel(nb, self.mysql_mgr, self.set_log)
         self.vhost_mgr = VhostManager(self.config)
         self.vhost_panel = VhostPanel(nb, self.vhost_mgr, self.set_log)
         # SQLite 查询页：复用 vhost 管理器，从站点 root 里发现站点自带的数据库
@@ -154,6 +160,7 @@ class MainWindow(tk.Tk):
         nb.add(self.php_panel, text=f"  {t('PHP 版本管理')}  ")
         nb.add(self.nginx_panel, text=f"  {t('Nginx 管理')}  ")
         nb.add(self.redis_panel, text=f"  {t('Redis 管理')}  ")
+        nb.add(self.mysql_panel, text=f"  {t('MySQL 管理')}  ")
         nb.add(self.vhost_panel, text=f"  {t('站点映射')}  ")
         nb.add(self.sqlite_panel, text=f"  {t('SQLite 数据库')}  ")
         nb.add(self.log_panel, text=f"  {t('Nginx 日志')}  ")
@@ -220,6 +227,21 @@ class MainWindow(tk.Tk):
             side="left", padx=(8, 0)
         )
 
+        # 服务编排：一键启停整套环境
+        group_row = ttk.Frame(settings)
+        group_row.pack(anchor="w", pady=(10, 0), fill="x")
+        ttk.Label(group_row, text=t("服务编排："), font=(FONT, 9, "bold"),
+                  background=CARD_BG).pack(side="left")
+        ttk.Button(group_row, text=t("全部启动"), style="Accent.TButton",
+                   command=lambda: self._all_services("start")).pack(side="left", padx=(4, 6))
+        ttk.Button(group_row, text=t("全部停止"), style="Danger.TButton",
+                   command=lambda: self._all_services("stop")).pack(side="left")
+        ttk.Label(
+            settings,
+            text=t("启动顺序 PHP → Redis → MySQL → Nginx，停止反之；已运行的服务自动跳过。"),
+            style="SubTitle.TLabel",
+        ).pack(anchor="w", pady=(4, 0))
+
         ttk.Label(
             frame,
             text=t("\n提示：修改端口后需同步修改对应 nginx vhost 的 fastcgi_pass 才会生效。\n"
@@ -248,6 +270,28 @@ class MainWindow(tk.Tk):
     # ------------------------------------------------------------------ #
     def set_log(self, msg: str) -> None:
         self._log_var.set(msg)
+
+    def _all_services(self, action: str) -> None:
+        """一键启停整套服务（Nginx + 各 PHP + Redis + MySQL），后台执行。"""
+        title = t("全部启动") if action == "start" else t("全部停止")
+        if action == "stop" and not messagebox.askyesno(
+                title,
+                t("将停止 Nginx、全部 PHP 版本、Redis 与 MySQL，"
+                  "本机站点会全部不可访问。\n确定继续？"),
+                parent=self):
+            return
+        self.set_log(t("正在{title}…", title=title))
+
+        def worker():
+            try:
+                msg = (self.services.start_all() if action == "start"
+                       else self.services.stop_all())
+            except Exception as e:  # noqa: BLE001
+                msg = f"{type(e).__name__}：{e}"
+            self._tray_queue.put(msg)
+
+        threading.Thread(target=worker, daemon=True).start()
+        self._poll_tray_queue()
 
     def _open_site_wizard(self) -> None:
         """打开「新建站点」向导（Nginx 管理页入口），完成后刷新站点映射列表。"""
@@ -328,6 +372,11 @@ class MainWindow(tk.Tk):
         self._tick_count = getattr(self, "_tick_count", 0) + 1
         if self._tick_count % 4 == 0:
             self._refresh_cli()
+            # MySQL 状态查询涉及服务枚举，同样降频
+            try:
+                self.mysql_panel.auto_refresh()
+            except Exception:  # noqa: BLE001
+                pass
         # 崩溃检测（低频轮询事件日志，仅用于告警展示）+ 自愈守护保活
         self._crash_tick += 1
         if self._crash_tick >= CRASH_POLL_TICKS:
@@ -471,14 +520,21 @@ class MainWindow(tk.Tk):
             self.php_panel.auto_refresh()
             self.nginx_panel.auto_refresh()
             self.redis_panel.auto_refresh()
+            self.mysql_panel.auto_refresh()
             self.log_panel.auto_refresh()
         except Exception:  # noqa: BLE001
             pass
 
     # ------------------------------------------------------------------ #
-    # 托盘动态菜单：PHP 版本 + Nginx + Redis 快捷启停
+    # 托盘动态菜单：PHP 版本 + Nginx + Redis + MySQL 快捷启停
     def _build_tray_menu(self) -> list[dict]:
         items: list[dict] = []
+        # 一键启停整套服务
+        items.append({"type": "item", "label": t("全部启动服务"),
+                      "cmd": lambda: self._all_services("start")})
+        items.append({"type": "item", "label": t("全部停止服务"),
+                      "cmd": lambda: self._all_services("stop")})
+        items.append({"type": "sep"})
         # 隐藏到托盘（窗口可见时可用）
         items.append({
             "type": "item",
@@ -553,6 +609,33 @@ class MainWindow(tk.Tk):
         else:
             items.append({"type": "item", "label": t("Redis：未发现实例"), "enabled": False})
 
+        # MySQL 快捷启停（实例为 Windows 服务时需管理员权限）
+        mysql_insts = self.mysql_mgr.instances
+        if mysql_insts:
+            for mi in mysql_insts:
+                if mi.running and mi.pids:
+                    m_state = t("状态：运行中 · PID {pids} · 端口 {port}",
+                                pids=", ".join(map(str, mi.pids)), port=mi.port)
+                elif mi.running:
+                    m_state = t("状态：运行中 · 端口 {port}", port=mi.port)
+                else:
+                    m_state = t("状态：已停止 · 端口 {port}", port=mi.port)
+                items.append({
+                    "type": "submenu", "label": f"MySQL [{mi.name}]",
+                    "items": [
+                        {"type": "item", "label": m_state, "enabled": False},
+                        {"type": "sep"},
+                        {"type": "item", "label": t("启动"), "enabled": not mi.running,
+                         "cmd": lambda i=mi: self._tray_action("mysql", "start", i)},
+                        {"type": "item", "label": t("停止"), "enabled": mi.running,
+                         "cmd": lambda i=mi: self._tray_action("mysql", "stop", i)},
+                        {"type": "item", "label": t("重启"),
+                         "cmd": lambda i=mi: self._tray_action("mysql", "restart", i)},
+                    ],
+                })
+        else:
+            items.append({"type": "item", "label": t("MySQL：未发现实例"), "enabled": False})
+
         # 各 PHP 版本快捷启停
         versions = self.php_mgr.versions or self.php_mgr.scan_versions()
         for v in versions:
@@ -586,6 +669,8 @@ class MainWindow(tk.Tk):
             mgr, call_arg = self.nginx_mgr, None
         elif target == "redis":
             mgr, call_arg = self.redis_mgr, arg
+        elif target == "mysql":
+            mgr, call_arg = self.mysql_mgr, arg
         else:
             mgr, call_arg = self.php_mgr, target
 
@@ -629,6 +714,7 @@ class MainWindow(tk.Tk):
             self.php_panel.auto_refresh()
             self.nginx_panel.auto_refresh()
             self.redis_panel.auto_refresh()
+            self.mysql_panel.auto_refresh()
         except Exception:  # noqa: BLE001
             pass
 

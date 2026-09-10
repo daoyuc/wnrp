@@ -96,6 +96,12 @@
    "core\\crash_watchdog.py"
   ]
  },
+ "> 读取错误日志…": {
+  "count": 1,
+  "files": [
+   "ui\\mysql_panel.py"
+  ]
+ },
  "DB 键空间": {
   "count": 1,
   "files": [
@@ -112,6 +118,90 @@
   "count": 1,
   "files": [
    "ui\\dialogs.py"
+  ]
+ },
+ "HTTPS（可选）": {
+  "count": 1,
+  "files": [
+   "ui\\site_wizard.py"
+  ]
+ },
+ "HTTPS：{v}": {
+  "count": 1,
+  "files": [
+   "ui\\site_wizard.py"
+  ]
+ },
+ "MySQL": {
+  "count": 1,
+  "files": [
+   "ui\\mysql_panel.py"
+  ]
+ },
+ "MySQL 仍未停止，请手动结束进程": {
+  "count": 1,
+  "files": [
+   "core\\mysql_manager.py"
+  ]
+ },
+ "MySQL 启动超时，请查看错误日志：{path}": {
+  "count": 1,
+  "files": [
+   "core\\mysql_manager.py"
+  ]
+ },
+ "MySQL 实例：": {
+  "count": 1,
+  "files": [
+   "ui\\mysql_panel.py"
+  ]
+ },
+ "MySQL 已停止": {
+  "count": 2,
+  "files": [
+   "core\\mysql_manager.py"
+  ]
+ },
+ "MySQL 已启动（端口 {port}）": {
+  "count": 1,
+  "files": [
+   "core\\mysql_manager.py"
+  ]
+ },
+ "MySQL 已在运行（端口 {port}）": {
+  "count": 1,
+  "files": [
+   "core\\mysql_manager.py"
+  ]
+ },
+ "MySQL 已正常关闭": {
+  "count": 2,
+  "files": [
+   "core\\mysql_manager.py"
+  ]
+ },
+ "MySQL 未在运行": {
+  "count": 1,
+  "files": [
+   "core\\mysql_manager.py"
+  ]
+ },
+ "MySQL 未在运行（端口 {port}）": {
+  "count": 1,
+  "files": [
+   "core\\mysql_manager.py"
+  ]
+ },
+ "MySQL 管理": {
+  "count": 1,
+  "files": [
+   "ui\\main_window.py"
+  ]
+ },
+ "MySQL：未发现实例": {
+  "count": 1,
+  "files": [
+   "ui\\main_window.py"
   ]
  },
  "NTS（FastCGI 推荐）": {
@@ -338,6 +428,12 @@
   "count": 1,
   "files": [
    "ui\\download_dialog.py"
+  ]
+ },
+ "Windows 服务": {
+  "count": 1,
+  "files": [
+   "ui\\mysql_panel.py"
   ]
  },
  "[{name}]  PHP {display}": {
@@ -1208,11 +1304,17 @@
   ]
  },
  "停止": {
-  "count": 6,
+  "count": 7,
   "files": [
    "ui\\main_window.py",
    "ui\\nginx_panel.py",
    "ui\\php_panel.py"
+  ]
+ },
+ "停止 MySQL 会影响本机全部站点，确定继续？": {
+  "count": 1,
+  "files": [
+   "ui\\mysql_panel.py"
   ]
  },
  "停止 Nginx": {
@@ -1227,10 +1329,40 @@
    "ui\\redis_panel.py"
   ]
  },
+ "停止服务 {svc} 未见效：{msg}": {
+  "count": 1,
+  "files": [
+   "core\\mysql_manager.py"
+  ]
+ },
+ "全部停止": {
+  "count": 2,
+  "files": [
+   "ui\\main_window.py"
+  ]
+ },
+ "全部停止服务": {
+  "count": 1,
+  "files": [
+   "ui\\main_window.py"
+  ]
+ },
  "全部同步完成：备份保留于各文件 .bak，可点击「重载 Nginx」生效。": {
   "count": 1,
   "files": [
    "ui\\dialogs.py"
+  ]
+ },
+ "全部启动": {
+  "count": 2,
+  "files": [
+   "ui\\main_window.py"
+  ]
+ },
+ "全部启动服务": {
+  "count": 1,
+  "files": [
+   "ui\\main_window.py"
   ]
  },
  "全部文件": {
@@ -1470,8 +1602,9 @@
   ]
  },
  "刷新状态": {
-  "count": 4,
+  "count": 5,
   "files": [
+   "ui\\mysql_panel.py",
    "ui\\nginx_panel.py",
    "ui\\redis_panel.py",
    "ui\\site_wizard.py"
@@ -1637,8 +1770,26 @@
    "ui\\site_wizard.py"
   ]
  },
+ "否（仅 80 端口）": {
+  "count": 1,
+  "files": [
+   "ui\\site_wizard.py"
+  ]
+ },
+ "启停 Windows 服务需要管理员权限。\n请以「管理员身份运行」phpvm 后再停止 {svc} 服务。": {
+  "count": 1,
+  "files": [
+   "core\\mysql_manager.py"
+  ]
+ },
+ "启停 Windows 服务需要管理员权限。\n请以「管理员身份运行」phpvm 后再启动 {svc} 服务，或在系统服务中手动启动。": {
+  "count": 1,
+  "files": [
+   "core\\mysql_manager.py"
+  ]
+ },
  "启动": {
-  "count": 6,
+  "count": 7,
   "files": [
    "ui\\main_window.py",
    "ui\\nginx_panel.py",
@@ -1657,6 +1808,12 @@
    "ui\\redis_panel.py"
   ]
  },
+ "启动 mysqld 失败：{err}": {
+  "count": 1,
+  "files": [
+   "core\\mysql_manager.py"
+  ]
+ },
  "启动守护进程失败：{err}": {
   "count": 1,
   "files": [
@@ -1669,10 +1826,34 @@
    "core\\crash_watchdog.py"
   ]
  },
+ "启动服务 {svc} 失败：{msg}": {
+  "count": 1,
+  "files": [
+   "core\\mysql_manager.py"
+  ]
+ },
+ "启动顺序 PHP → Redis → MySQL → Nginx，停止反之；已运行的服务自动跳过。": {
+  "count": 1,
+  "files": [
+   "ui\\main_window.py"
+  ]
+ },
+ "启用 HTTPS（443，自动生成本地证书）": {
+  "count": 1,
+  "files": [
+   "ui\\site_wizard.py"
+  ]
+ },
  "启用站点": {
   "count": 1,
   "files": [
    "ui\\vhost_panel.py"
+  ]
+ },
+ "启用（443，证书自动生成）": {
+  "count": 1,
+  "files": [
+   "ui\\site_wizard.py"
   ]
  },
  "命令 {cmd} 会删除数据或影响运行，确定要执行吗？": {
@@ -1762,9 +1943,10 @@
   ]
  },
  "失败": {
-  "count": 3,
+  "count": 5,
   "files": [
    "ui\\dialogs.py",
+   "ui\\mysql_panel.py",
    "ui\\nginx_panel.py",
    "ui\\redis_panel.py"
   ]
@@ -1837,6 +2019,12 @@
    "ui\\download_dialog.py"
   ]
  },
+ "完成": {
+  "count": 1,
+  "files": [
+   "core\\mysql_manager.py"
+  ]
+ },
  "完成，可关闭本向导": {
   "count": 1,
   "files": [
@@ -1859,6 +2047,12 @@
   "count": 1,
   "files": [
    "ui\\vhost_panel.py"
+  ]
+ },
+ "将停止 Nginx、全部 PHP 版本、Redis 与 MySQL，本机站点会全部不可访问。\n确定继续？": {
+  "count": 1,
+  "files": [
+   "ui\\main_window.py"
   ]
  },
  "将安装 PHP {ver} {ts} → 目录 {name}，默认端口 {port}，包大小 {size}{status}": {
@@ -1988,12 +2182,25 @@
   ]
  },
  "已停止": {
-  "count": 4,
+  "count": 5,
   "files": [
    "ui\\dialogs.py",
    "ui\\main_window.py",
+   "ui\\mysql_panel.py",
    "ui\\nginx_panel.py",
    "ui\\redis_panel.py"
+  ]
+ },
+ "已停止服务": {
+  "count": 1,
+  "files": [
+   "core\\mysql_manager.py"
+  ]
+ },
+ "已停止服务 {svc}": {
+  "count": 1,
+  "files": [
+   "core\\mysql_manager.py"
   ]
  },
  "已关闭数据库": {
@@ -2026,6 +2233,12 @@
    "ui\\dialogs.py"
   ]
  },
+ "已删除本次生成的证书：{dom}": {
+  "count": 1,
+  "files": [
+   "ui\\site_wizard.py"
+  ]
+ },
  "已发现 {count} 个 PHP 版本": {
   "count": 1,
   "files": [
@@ -2048,6 +2261,12 @@
   "count": 1,
   "files": [
    "core\\vhost_manager.py"
+  ]
+ },
+ "已启动服务 {svc}：{msg}": {
+  "count": 1,
+  "files": [
+   "core\\mysql_manager.py"
   ]
  },
  "已启用": {
@@ -2080,6 +2299,12 @@
   "count": 1,
   "files": [
    "ui\\site_wizard.py"
+  ]
+ },
+ "已存在证书，直接复用：{path}": {
+  "count": 1,
+  "files": [
+   "core\\cert_manager.py"
   ]
  },
  "已安装": {
@@ -2118,6 +2343,12 @@
    "ui\\vhost_panel.py"
   ]
  },
+ "已打开终端：{name}（PATH 已前置该版本目录）": {
+  "count": 1,
+  "files": [
+   "ui\\php_panel.py"
+  ]
+ },
  "已打开：{path}": {
   "count": 3,
   "files": [
@@ -2148,10 +2379,34 @@
    "core\\crash_watchdog.py"
   ]
  },
+ "已检测到 mkcert：{path}（生成的证书会被本机自动信任）": {
+  "count": 1,
+  "files": [
+   "core\\cert_manager.py"
+  ]
+ },
+ "已检测到 openssl：{path}（自签证书需浏览器手动信任）": {
+  "count": 1,
+  "files": [
+   "core\\cert_manager.py"
+  ]
+ },
  "已清空崩溃告警记录": {
   "count": 1,
   "files": [
    "ui\\main_window.py"
+  ]
+ },
+ "已用 mkcert 生成证书：{path}": {
+  "count": 1,
+  "files": [
+   "core\\cert_manager.py"
+  ]
+ },
+ "已用 openssl 生成自签证书（浏览器需手动信任）：{path}": {
+  "count": 1,
+  "files": [
+   "core\\cert_manager.py"
   ]
  },
  "已禁用": {
@@ -2335,6 +2590,12 @@
    "ui\\redis_panel.py"
   ]
  },
+ "所有服务均已在运行，无需启动": {
+  "count": 1,
+  "files": [
+   "core\\service_group.py"
+  ]
+ },
  "打开": {
   "count": 1,
   "files": [
@@ -2360,6 +2621,12 @@
    "core\\sqlite_manager.py"
   ]
  },
+ "打开数据目录": {
+  "count": 1,
+  "files": [
+   "ui\\mysql_panel.py"
+  ]
+ },
  "打开目录": {
   "count": 1,
   "files": [
@@ -2372,9 +2639,16 @@
    "ui\\vhost_panel.py"
   ]
  },
- "打开配置文件": {
-  "count": 2,
+ "打开终端": {
+  "count": 1,
   "files": [
+   "ui\\php_panel.py"
+  ]
+ },
+ "打开配置文件": {
+  "count": 3,
+  "files": [
+   "ui\\mysql_panel.py",
    "ui\\redis_panel.py",
    "ui\\vhost_panel.py"
   ]
@@ -2469,6 +2743,12 @@
    "ui\\sqlite_panel.py"
   ]
  },
+ "操作与日志": {
+  "count": 1,
+  "files": [
+   "ui\\mysql_panel.py"
+  ]
+ },
  "操作失败": {
   "count": 2,
   "files": [
@@ -2499,6 +2779,12 @@
   "count": 1,
   "files": [
    "ui\\download_dialog.py"
+  ]
+ },
+ "数据目录": {
+  "count": 1,
+  "files": [
+   "ui\\mysql_panel.py"
   ]
  },
  "文件不存在": {
@@ -2575,9 +2861,10 @@
   ]
  },
  "无法打开终端": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui\\dialogs.py"
+   "ui\\dialogs.py",
+   "ui\\php_panel.py"
   ]
  },
  "无法探测 PHP 版本信息，在线安装不可用。": {
@@ -2605,8 +2892,9 @@
   ]
  },
  "无输出": {
-  "count": 5,
+  "count": 6,
   "files": [
+   "core\\cert_manager.py",
    "core\\hosts_manager.py"
   ]
  },
@@ -2670,10 +2958,22 @@
    "ui\\main_window.py"
   ]
  },
+ "服务编排：": {
+  "count": 1,
+  "files": [
+   "ui\\main_window.py"
+  ]
+ },
  "未使用独立配置文件（将读取 PHP 编译默认配置）": {
   "count": 1,
   "files": [
    "core\\php_manager.py"
+  ]
+ },
+ "未发现 MySQL 实例": {
+  "count": 1,
+  "files": [
+   "ui\\mysql_panel.py"
   ]
  },
  "未发现 PHP 版本": {
@@ -2751,6 +3051,12 @@
    "ui\\site_wizard.py"
   ]
  },
+ "未找到 openssl 与 mkcert，无法生成本地 HTTPS 证书。\n可选安装方式：\n  · Windows（推荐）：choco install mkcert  或  scoop install mkcert\n  · macOS：brew install mkcert nss\n  · 或安装 Git for Windows / OpenSSL-Win64 后重启 phpvm 自动探测": {
+  "count": 1,
+  "files": [
+   "core\\cert_manager.py"
+  ]
+ },
  "未找到 redis-cli 可执行文件，无法测试连接": {
   "count": 1,
   "files": [
@@ -2775,6 +3081,18 @@
    "core\\nginx_manager.py"
   ]
  },
+ "未找到可用的终端程序。可手动执行：\n  set PATH={dir};%PATH%": {
+  "count": 1,
+  "files": [
+   "ui\\php_panel.py"
+  ]
+ },
+ "未找到含 bin/mysqld 的 mysql 目录（环境根：{root}）。": {
+  "count": 1,
+  "files": [
+   "ui\\mysql_panel.py"
+  ]
+ },
  "未找到生效主配置 {path}，无法自动补 include，请手动配置": {
   "count": 1,
   "files": [
@@ -2797,6 +3115,24 @@
   "count": 1,
   "files": [
    "ui\\redis_panel.py"
+  ]
+ },
+ "未找到配置文件：{path}": {
+  "count": 1,
+  "files": [
+   "ui\\mysql_panel.py"
+  ]
+ },
+ "未找到错误日志（数据目录：{dir}）": {
+  "count": 1,
+  "files": [
+   "core\\mysql_manager.py"
+  ]
+ },
+ "未指定域名": {
+  "count": 1,
+  "files": [
+   "core\\cert_manager.py"
   ]
  },
  "未指定要移除的域名": {
@@ -2852,6 +3188,12 @@
    "ui\\php_panel.py"
   ]
  },
+ "查看错误日志": {
+  "count": 1,
+  "files": [
+   "ui\\mysql_panel.py"
+  ]
+ },
  "查询超时（超过 {sec} 秒），已中断。请添加 LIMIT 或优化查询条件。": {
   "count": 1,
   "files": [
@@ -2871,8 +3213,9 @@
   ]
  },
  "检测中…": {
-  "count": 2,
+  "count": 3,
   "files": [
+   "ui\\mysql_panel.py",
    "ui\\nginx_panel.py",
    "ui\\redis_panel.py"
   ]
@@ -2881,6 +3224,12 @@
   "count": 1,
   "files": [
    "ui\\main_window.py"
+  ]
+ },
+ "检测失败": {
+  "count": 1,
+  "files": [
+   "ui\\mysql_panel.py"
   ]
  },
  "模板 [{tpl}] 需要 PHP 解析，但未选择任何 PHP 版本。\n请返回第 1 步选择一个已安装的 PHP 版本。": {
@@ -2893,6 +3242,18 @@
   "count": 1,
   "files": [
    "ui\\php_panel.py"
+  ]
+ },
+ "正在{label}…": {
+  "count": 1,
+  "files": [
+   "ui\\mysql_panel.py"
+  ]
+ },
+ "正在{title}…": {
+  "count": 1,
+  "files": [
+   "ui\\main_window.py"
   ]
  },
  "正在下载": {
@@ -3051,6 +3412,18 @@
    "ui\\site_wizard.py"
   ]
  },
+ "没有可用于签发证书的域名（仅填写了泛解析）": {
+  "count": 1,
+  "files": [
+   "ui\\site_wizard.py"
+  ]
+ },
+ "没有正在运行的服务": {
+  "count": 1,
+  "files": [
+   "core\\service_group.py"
+  ]
+ },
  "没有配置文件引用旧端口，无需同步。": {
   "count": 1,
   "files": [
@@ -3154,7 +3527,7 @@
   ]
  },
  "状态：已停止 · 端口 {port}": {
-  "count": 2,
+  "count": 3,
   "files": [
    "ui\\main_window.py"
   ]
@@ -3166,7 +3539,7 @@
   ]
  },
  "状态：运行中 · PID {pids} · 端口 {port}": {
-  "count": 1,
+  "count": 2,
   "files": [
    "ui\\main_window.py"
   ]
@@ -3184,9 +3557,15 @@
   ]
  },
  "状态：运行中 · 端口 {port}": {
-  "count": 2,
+  "count": 3,
   "files": [
    "ui\\main_window.py"
+  ]
+ },
+ "独立进程": {
+  "count": 1,
+  "files": [
+   "ui\\mysql_panel.py"
   ]
  },
  "环境信息": {
@@ -3242,6 +3621,12 @@
   "files": [
    "ui\\site_wizard.py",
    "ui\\vhost_panel.py"
+  ]
+ },
+ "目录不存在：{path}": {
+  "count": 1,
+  "files": [
+   "ui\\mysql_panel.py"
   ]
  },
  "目标 DB：": {
@@ -3674,6 +4059,24 @@
    "ui\\main_window.py"
   ]
  },
+ "证书删除失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui\\site_wizard.py"
+  ]
+ },
+ "证书生成失败：{err}": {
+  "count": 1,
+  "files": [
+   "core\\cert_manager.py"
+  ]
+ },
+ "该实例为 Windows 服务，启停需要管理员权限。\n请以「管理员身份运行」phpvm 后再操作（当前仅可查看状态）。": {
+  "count": 1,
+  "files": [
+   "ui\\mysql_panel.py"
+  ]
+ },
  "该版本在当前架构下没有可用安装包。": {
   "count": 1,
   "files": [
@@ -3790,6 +4193,12 @@
    "core\\vhost_manager.py"
   ]
  },
+ "读取错误日志失败：{err}": {
+  "count": 1,
+  "files": [
+   "core\\mysql_manager.py"
+  ]
+ },
  "调用栈：": {
   "count": 1,
   "files": [
@@ -3809,16 +4218,18 @@
   ]
  },
  "运行中": {
-  "count": 3,
+  "count": 4,
   "files": [
    "ui\\dialogs.py",
+   "ui\\mysql_panel.py",
    "ui\\nginx_panel.py",
    "ui\\redis_panel.py"
   ]
  },
  "运行状态": {
-  "count": 2,
+  "count": 3,
   "files": [
+   "ui\\mysql_panel.py",
    "ui\\nginx_panel.py",
    "ui\\redis_panel.py"
   ]
@@ -3915,9 +4326,10 @@
   ]
  },
  "配置文件": {
-  "count": 3,
+  "count": 4,
   "files": [
    "ui\\dialogs.py",
+   "ui\\mysql_panel.py",
    "ui\\php_panel.py",
    "ui\\vhost_panel.py"
   ]
@@ -4010,11 +4422,17 @@
   ]
  },
  "重启": {
-  "count": 7,
+  "count": 8,
   "files": [
    "ui\\main_window.py",
    "ui\\php_panel.py",
    "ui\\redis_panel.py"
+  ]
+ },
+ "重启中止（停止未成功）：{msg}": {
+  "count": 1,
+  "files": [
+   "core\\mysql_manager.py"
   ]
  },
  "重命名失败：{err}": {
@@ -4104,6 +4522,12 @@
    "ui\\vhost_panel.py"
   ]
  },
+ "需要管理员权限": {
+  "count": 1,
+  "files": [
+   "ui\\mysql_panel.py"
+  ]
+ },
  "非法版本系列：{series}": {
   "count": 1,
   "files": [
@@ -4175,6 +4599,12 @@
   "files": [
    "ui\\vhost_panel.py",
    "core\\vhost_manager.py"
+  ]
+ },
+ "（日志为空）": {
+  "count": 1,
+  "files": [
+   "core\\mysql_manager.py"
   ]
  },
  "（暂无自愈记录）": {
