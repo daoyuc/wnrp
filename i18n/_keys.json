@@ -1359,6 +1359,12 @@
    "core\\mysql_manager.py"
   ]
  },
+ "停用": {
+  "count": 1,
+  "files": [
+   "ui\\main_window.py"
+  ]
+ },
  "全部停止": {
   "count": 2,
   "files": [
@@ -1597,6 +1603,12 @@
    "ui\\sqlite_panel.py"
   ]
  },
+ "刚需，不可取消": {
+  "count": 1,
+  "files": [
+   "core\\modules.py"
+  ]
+ },
  "创建前确认": {
   "count": 1,
   "files": [
@@ -1632,6 +1644,12 @@
   "count": 1,
   "files": [
    "ui\\nginx_panel.py"
+  ]
+ },
+ "功能模块": {
+  "count": 1,
+  "files": [
+   "ui\\main_window.py"
   ]
  },
  "加载失败": {
@@ -1851,6 +1869,12 @@
   ]
  },
  "启动顺序 PHP → Redis → MySQL → Nginx，停止反之；已运行的服务自动跳过。": {
+  "count": 1,
+  "files": [
+   "ui\\main_window.py"
+  ]
+ },
+ "启用": {
   "count": 1,
   "files": [
    "ui\\main_window.py"
@@ -3341,6 +3365,12 @@
    "ui\\mysql_panel.py"
   ]
  },
+ "模块 {name} 已设为{state}，重启 phpvm 后生效": {
+  "count": 1,
+  "files": [
+   "ui\\main_window.py"
+  ]
+ },
  "模板 [{tpl}] 需要 PHP 解析，但未选择任何 PHP 版本。\n请返回第 1 步选择一个已安装的 PHP 版本。": {
   "count": 1,
   "files": [
@@ -4701,6 +4731,12 @@
   "count": 1,
   "files": [
    "ui\\sqlite_panel.py"
+  ]
+ },
+ "默认全部启用；取消勾选后需重启 phpvm 生效（该模块代码将不再加载）。": {
+  "count": 1,
+  "files": [
+   "ui\\main_window.py"
   ]
  },
  "（全新安装）": {

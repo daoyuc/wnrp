@@ -92,16 +92,19 @@ class MysqlPanel(ttk.Frame):
         self.state_label = ttk.Label(head, text=t("检测中…"), font=(FONT, 10, "bold"))
         self.state_label.pack(side="left", padx=(8, 0))
 
+        # 信息行用独立容器承载：避免与上方 head 的 pack 混用同一父容器
+        grid_box = ttk.Frame(card)
+        grid_box.pack(fill="x", pady=(8, 0))
         self.info_vars = {}
         for i, (key, label) in enumerate(_INFO_ROWS):
-            ttk.Label(card, text=f"{t(label)}：", font=(FONT, 9, "bold"),
+            ttk.Label(grid_box, text=f"{t(label)}：", font=(FONT, 9, "bold"),
                       background=CARD_BG, width=10, anchor="w").grid(
-                row=i + 1, column=0, sticky="w", pady=2)
+                row=i, column=0, sticky="w", pady=2)
             var = tk.StringVar(value="—")
             self.info_vars[key] = var
-            ttk.Label(card, textvariable=var, font=(FONT, 9),
+            ttk.Label(grid_box, textvariable=var, font=(FONT, 9),
                       background=CARD_BG, foreground=TEXT_DIM, wraplength=320,
-                      justify="left").grid(row=i + 1, column=1, sticky="w", pady=2)
+                      justify="left").grid(row=i, column=1, sticky="w", pady=2)
 
         self.hint_label = ttk.Label(left, text="", style="SubTitle.TLabel",
                                     wraplength=360, justify="left", foreground=WARN)
