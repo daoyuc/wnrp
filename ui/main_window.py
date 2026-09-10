@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""主窗口：多页签（PHP 版本管理 / Nginx 管理 / 站点映射 / Nginx 日志 / 关于）+ 顶部 cmd php 状态 + 底部状态栏。"""
+"""主窗口：多页签（PHP 版本管理 / Nginx 管理 / Redis 管理 / 站点映射 / SQLite 数据库 / Nginx 日志 / 关于）+ 顶部 cmd php 状态 + 底部状态栏。"""
 import os
 import queue
 import subprocess
@@ -15,6 +15,7 @@ from core.health_monitor import HealthMonitor
 from core.nginx_manager import NginxManager
 from core.php_manager import PhpManager
 from core.redis_manager import RedisManager
+from core.sqlite_manager import SqliteManager
 from core.vhost_manager import VhostManager
 from .dialogs import CliSwitchDialog, CrashDialog
 from .nginx_log_panel import NginxLogPanel
@@ -22,6 +23,7 @@ from .nginx_panel import NginxPanel
 from .php_panel import PhpPanel
 from .redis_panel import RedisPanel
 from .site_wizard import SiteWizardDialog
+from .sqlite_panel import SqlitePanel
 from .theme import BG, CARD_BG, ERR, FONT, GRAY, OK, PRIMARY, PRIMARY_LIGHT, TEXT, setup_style
 from .vhost_panel import VhostPanel
 from .window_utils import fit_window
@@ -142,13 +144,18 @@ class MainWindow(tk.Tk):
         self.nginx_panel = NginxPanel(nb, self.nginx_mgr, self.set_log,
                                       on_new_site=self._open_site_wizard)
         self.redis_panel = RedisPanel(nb, self.redis_mgr, self.set_log)
-        self.vhost_panel = VhostPanel(nb, VhostManager(self.config), self.set_log)
+        self.vhost_mgr = VhostManager(self.config)
+        self.vhost_panel = VhostPanel(nb, self.vhost_mgr, self.set_log)
+        # SQLite 查询页：复用 vhost 管理器，从站点 root 里发现站点自带的数据库
+        self.sqlite_panel = SqlitePanel(nb, SqliteManager(self.config), self.vhost_mgr,
+                                        self.set_log)
         self.log_panel = NginxLogPanel(nb, self.set_log, self.nginx_mgr)
         about = self._build_about(nb)
         nb.add(self.php_panel, text=f"  {t('PHP 版本管理')}  ")
         nb.add(self.nginx_panel, text=f"  {t('Nginx 管理')}  ")
         nb.add(self.redis_panel, text=f"  {t('Redis 管理')}  ")
         nb.add(self.vhost_panel, text=f"  {t('站点映射')}  ")
+        nb.add(self.sqlite_panel, text=f"  {t('SQLite 数据库')}  ")
         nb.add(self.log_panel, text=f"  {t('Nginx 日志')}  ")
         nb.add(about, text=f"  {t('关于')}  ")
 
