@@ -310,6 +310,24 @@
    "core/php_installer.py"
   ]
  },
+ "SQL 查询": {
+  "count": 1,
+  "files": [
+   "ui/sqlite_panel.py"
+  ]
+ },
+ "SQLite 数据库": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "SQLite 文件": {
+  "count": 1,
+  "files": [
+   "ui/sqlite_panel.py"
+  ]
+ },
  "TS（线程安全）": {
   "count": 1,
   "files": [
@@ -1020,6 +1038,12 @@
    "ui/site_wizard.py"
   ]
  },
+ "不是有效的 SQLite 数据库文件：{path}": {
+  "count": 1,
+  "files": [
+   "core/sqlite_manager.py"
+  ]
+ },
  "不能为空": {
   "count": 2,
   "files": [
@@ -1036,6 +1060,12 @@
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "仅支持查询语句（SELECT / WITH / PRAGMA / EXPLAIN / VALUES）。": {
+  "count": 1,
+  "files": [
+   "core/sqlite_manager.py"
   ]
  },
  "以下域名格式不正确：\n{names}\n\n请使用 字母/数字/中划线/点 组成的合法域名。": {
@@ -1155,6 +1185,12 @@
    "ui/dialogs.py"
   ]
  },
+ "全部文件": {
+  "count": 1,
+  "files": [
+   "ui/sqlite_panel.py"
+  ]
+ },
  "全部通过": {
   "count": 1,
   "files": [
@@ -1171,6 +1207,18 @@
   "count": 1,
   "files": [
    "ui/download_dialog.py"
+  ]
+ },
+ "共 {n} 行 · 耗时 {ms} ms": {
+  "count": 1,
+  "files": [
+   "ui/sqlite_panel.py"
+  ]
+ },
+ "共 {n} 行 · 耗时 {ms} ms（结果已截断，仅显示前 {limit} 行）": {
+  "count": 1,
+  "files": [
+   "ui/sqlite_panel.py"
   ]
  },
  "共 {total} 个 key · 最后统计 {ts} · 点击图表可刷新": {
@@ -1204,12 +1252,13 @@
   ]
  },
  "关闭": {
-  "count": 6,
+  "count": 7,
   "files": [
    "ui/dialogs.py",
    "ui/download_dialog.py",
    "ui/extension_dialog.py",
-   "ui/site_wizard.py"
+   "ui/site_wizard.py",
+   "ui/sqlite_panel.py"
   ]
  },
  "关闭 phpvm": {
@@ -1326,6 +1375,12 @@
    "ui/dialogs.py"
   ]
  },
+ "列名": {
+  "count": 1,
+  "files": [
+   "ui/sqlite_panel.py"
+  ]
+ },
  "创建前确认": {
   "count": 1,
   "files": [
@@ -1339,11 +1394,12 @@
   ]
  },
  "刷新": {
-  "count": 4,
+  "count": 5,
   "files": [
    "ui/nginx_log_panel.py",
    "ui/php_panel.py",
    "ui/redis_panel.py",
+   "ui/sqlite_panel.py",
    "ui/vhost_panel.py"
   ]
  },
@@ -1503,9 +1559,10 @@
   ]
  },
  "名称": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/extension_dialog.py"
+   "ui/extension_dialog.py",
+   "ui/sqlite_panel.py"
   ]
  },
  "否": {
@@ -1843,6 +1900,12 @@
    "ui/redis_panel.py"
   ]
  },
+ "已关闭数据库": {
+  "count": 1,
+  "files": [
+   "ui/sqlite_panel.py"
+  ]
+ },
  "已写入": {
   "count": 1,
   "files": [
@@ -1871,6 +1934,12 @@
   "count": 1,
   "files": [
    "ui/php_panel.py"
+  ]
+ },
+ "已发现 {n} 个数据库文件": {
+  "count": 1,
+  "files": [
+   "ui/sqlite_panel.py"
   ]
  },
  "已同步，备份保留于 .bak": {
@@ -1926,6 +1995,12 @@
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "已打开：{path}": {
+  "count": 3,
+  "files": [
+   "ui/sqlite_panel.py"
   ]
  },
  "已扫描 {count} 个 server 块": {
@@ -2109,6 +2184,12 @@
    "ui/redis_panel.py"
   ]
  },
+ "打开": {
+  "count": 1,
+  "files": [
+   "ui/sqlite_panel.py"
+  ]
+ },
  "打开 hosts 文件": {
   "count": 1,
   "files": [
@@ -2120,6 +2201,12 @@
   "files": [
    "ui/dialogs.py",
    "ui/vhost_panel.py"
+  ]
+ },
+ "打开失败：{err}": {
+  "count": 1,
+  "files": [
+   "core/sqlite_manager.py"
   ]
  },
  "打开目录": {
@@ -2135,9 +2222,10 @@
   ]
  },
  "执 行": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/redis_panel.py"
+   "ui/redis_panel.py",
+   "ui/sqlite_panel.py"
   ]
  },
  "执行中（实例 {name} · DB{db}）…": {
@@ -2211,6 +2299,12 @@
    "ui/nginx_panel.py"
   ]
  },
+ "提示：只读查询模式，仅支持 SELECT / PRAGMA / EXPLAIN / WITH 等语句；双击左侧表名可生成查询语句。": {
+  "count": 1,
+  "files": [
+   "ui/sqlite_panel.py"
+  ]
+ },
  "操作失败": {
   "count": 1,
   "files": [
@@ -2229,6 +2323,12 @@
    "ui/dialogs.py"
   ]
  },
+ "数据库文件：": {
+  "count": 1,
+  "files": [
+   "ui/sqlite_panel.py"
+  ]
+ },
  "数据源 windows.php.net，自动适配当前系统架构": {
   "count": 1,
   "files": [
@@ -2240,6 +2340,12 @@
   "files": [
    "ui/nginx_log_panel.py",
    "ui/vhost_panel.py"
+  ]
+ },
+ "文件不存在：{path}": {
+  "count": 1,
+  "files": [
+   "core/sqlite_manager.py"
   ]
  },
  "文档根(root)：{doc}": {
@@ -2320,6 +2426,12 @@
    "ui/php_panel.py"
   ]
  },
+ "无结果": {
+  "count": 1,
+  "files": [
+   "ui/sqlite_panel.py"
+  ]
+ },
  "无输出": {
   "count": 1,
   "files": [
@@ -2390,6 +2502,12 @@
   "count": 2,
   "files": [
    "ui/redis_panel.py"
+  ]
+ },
+ "未发现数据库文件（点击「浏览…」选择其它文件）": {
+  "count": 1,
+  "files": [
+   "ui/sqlite_panel.py"
   ]
  },
  "未启用": {
@@ -2495,6 +2613,13 @@
    "core/nginx_manager.py"
   ]
  },
+ "未选择数据库文件。": {
+  "count": 4,
+  "files": [
+   "ui/sqlite_panel.py",
+   "core/sqlite_manager.py"
+  ]
+ },
  "本地扩展": {
   "count": 1,
   "files": [
@@ -2517,6 +2642,12 @@
   "count": 1,
   "files": [
    "ui/php_panel.py"
+  ]
+ },
+ "查询超时（超过 {sec} 秒），已中断。请添加 LIMIT 或优化查询条件。": {
+  "count": 1,
+  "files": [
+   "core/sqlite_manager.py"
   ]
  },
  "校验失败": {
@@ -2574,6 +2705,18 @@
    "ui/extension_dialog.py"
   ]
  },
+ "正在打开…": {
+  "count": 1,
+  "files": [
+   "ui/sqlite_panel.py"
+  ]
+ },
+ "正在执行…": {
+  "count": 1,
+  "files": [
+   "ui/sqlite_panel.py"
+  ]
+ },
  "正在扫描 PHP 版本…": {
   "count": 1,
   "files": [
@@ -2590,6 +2733,12 @@
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "正在扫描数据库文件…": {
+  "count": 1,
+  "files": [
+   "ui/sqlite_panel.py"
   ]
  },
  "正在替换端口并校验 nginx 配置…": {
@@ -2695,15 +2844,22 @@
   ]
  },
  "浏览…": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/site_wizard.py"
+   "ui/site_wizard.py",
+   "ui/sqlite_panel.py"
   ]
  },
  "清屏": {
   "count": 1,
   "files": [
    "ui/nginx_log_panel.py"
+  ]
+ },
+ "清空": {
+  "count": 1,
+  "files": [
+   "ui/sqlite_panel.py"
   ]
  },
  "清空记录": {
@@ -2984,6 +3140,18 @@
    "ui/main_window.py"
   ]
  },
+ "类型": {
+  "count": 2,
+  "files": [
+   "ui/sqlite_panel.py"
+  ]
+ },
+ "约束": {
+  "count": 1,
+  "files": [
+   "ui/sqlite_panel.py"
+  ]
+ },
  "线程": {
   "count": 1,
   "files": [
@@ -3020,10 +3188,17 @@
    "ui/dialogs.py"
   ]
  },
- "结果": {
+ "结构": {
   "count": 1,
   "files": [
-   "ui/dialogs.py"
+   "ui/sqlite_panel.py"
+  ]
+ },
+ "结果": {
+  "count": 2,
+  "files": [
+   "ui/dialogs.py",
+   "ui/sqlite_panel.py"
   ]
  },
  "编译器": {
@@ -3170,10 +3345,34 @@
    "ui/download_dialog.py"
   ]
  },
+ "行数：{n}": {
+  "count": 1,
+  "files": [
+   "ui/sqlite_panel.py"
+  ]
+ },
+ "表": {
+  "count": 1,
+  "files": [
+   "ui/sqlite_panel.py"
+  ]
+ },
+ "表 / 视图（{n}）": {
+  "count": 2,
+  "files": [
+   "ui/sqlite_panel.py"
+  ]
+ },
  "要如何关闭 phpvm？": {
   "count": 1,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "视图": {
+  "count": 1,
+  "files": [
+   "ui/sqlite_panel.py"
   ]
  },
  "解压 {file} …": {
@@ -3259,6 +3458,12 @@
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "请输入 SQL 语句后执行": {
+  "count": 1,
+  "files": [
+   "ui/sqlite_panel.py"
   ]
  },
  "请选择一个版本": {
@@ -3366,6 +3571,12 @@
   "count": 1,
   "files": [
    "ui/php_panel.py"
+  ]
+ },
+ "选择 SQLite 数据库文件": {
+  "count": 1,
+  "files": [
+   "ui/sqlite_panel.py"
   ]
  },
  "选择站点项目目录": {
@@ -3610,6 +3821,12 @@
   "count": 1,
   "files": [
    "core/crash_watchdog.py"
+  ]
+ },
+ "默认值": {
+  "count": 1,
+  "files": [
+   "ui/sqlite_panel.py"
   ]
  },
  "（全新安装）": {

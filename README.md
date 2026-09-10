@@ -35,6 +35,13 @@ Windows 桌面 GUI 工具，用于统一管理 `C:\wnrp` 开发环境中的 **�
 - **第 3 步 hosts 映射**：一键把域名写入 hosts 指向 `127.0.0.1` —— 已指向本机自动跳过、指向其它 IP 不覆盖仅提示；无写权限时 Windows 弹 UAC、macOS 弹系统授权框完成提权写入
 - **第 4 步 确认创建**：自动完成「写 `conf/vhost/<域名>.conf`（同名自动备份 `.bak`）→ 主配置未 include vhost 时自动补行 → `nginx -t` 校验 → 写入 hosts → 平滑重载」；校验失败询问保留或一键回滚，全程日志可视化
 
+### SQLite 数据库页
+- **自动发现**：扫描环境根与各站点 `root` 目录下的 `*.db` / `*.sqlite` / `*.sqlite3` / `*.db3`（跳过 `node_modules`、`.git` 等依赖/缓存目录），下拉选择或「浏览…」手动指定
+- **只读浏览**：左侧列出表 / 视图清单，选中即显示列名 / 类型 / 约束 / 默认值与行数；双击表名自动生成 `SELECT * FROM ... LIMIT 200` 并执行
+- **执行查询**：SQL 编辑框支持 `SELECT` / `WITH` / `PRAGMA` / `EXPLAIN` / `VALUES`（Ctrl/Cmd+Enter 快捷执行），结果表格最多显示 500 行，超出截断提示
+- **安全兜底**：连接以只读 URI（`mode=ro` + `PRAGMA query_only`）打开，叠加语句首关键字白名单双重限制，杜绝误写；查询超时（默认 10s）自动中断，避免大表卡死界面
+- 记忆上次打开的数据库，下次启动自动带回
+
 ### 崩溃检测告警
 - 周期读取 Windows 事件日志（Application/1000），识别 `php-cgi.exe` 崩溃（如 JIT 导致的 0xc0000005）
 - 发现新崩溃：状态栏红色告警 + 托盘气泡 + 弹窗详情（崩溃时间、版本、故障模块、异常码、偏移、完整消息）
@@ -111,6 +118,7 @@ C:\wnrp\phpvm\
 │   ├── hosts_manager.py   # hosts 自动映射（跨平台；UAC / macOS 授权框提权写入）
 │   ├── health_monitor.py  # php-cgi 崩溃检测（事件日志）+ 版本一键自检
 │   ├── ini_editor.py      # ini 关键配置项表单编辑（校验/备份/精确行替换）
+│   ├── sqlite_manager.py  # SQLite 只读查询（发现文件 / 打开 / 表结构 / 查询，URI 只读兜底）
 │   └── autostart.py       # 开机自启（HKCU Run 注册表项，pythonw 隐藏运行）
 └── ui/                    # 界面层
     ├── main_window.py     # 主窗口（五页签 + 状态栏 + 崩溃告警/自愈 + 设置区）
@@ -119,6 +127,7 @@ C:\wnrp\phpvm\
     ├── vhost_panel.py     # 站点映射页（hosts 状态列 + 新建站点向导入口）
     ├── site_wizard.py     # 新建站点可视化向导（4 步 + 配置实时预览 + 自动校验/回滚）
     ├── nginx_log_panel.py # Nginx 日志页（tail 增量 / 自动跟随）
+    ├── sqlite_panel.py    # SQLite 数据库页（表 / 结构浏览 + 只读查询）
     ├── dialogs.py         # 端口同步/配置查看编辑/自检/崩溃详情对话框
     ├── tray.py            # 系统托盘（动态右键菜单/气泡告警/最小化到托盘）
     └── theme.py           # 统一主题样式
