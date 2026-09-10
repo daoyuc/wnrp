@@ -71,6 +71,54 @@ class NginxManager:
         return os.path.join(self.site_base, "vhost")
 
     # ------------------------------------------------------------------ #
+    # nginx 日志目录（UI 日志面板共用，唯一事实来源）
+    # ------------------------------------------------------------------ #
+    _LOG_FILE_RE = re.compile(r"^\s*(?:error_log|access_log)\s+([^\s;]+)", re.MULTILINE)
+
+    @property
+    def logs_dir(self) -> str:
+        """实际生效的 nginx 日志目录（access/error 所在目录）。
+
+        候选顺序：主配置 error_log/access_log 显式写出的**绝对路径**所在目录 →
+        布局默认落点（root/Windows 带 -p：<prefix>/logs；brew 编译期默认：
+        <brew_root>/var/log/nginx）。返回第一个已存在的目录，全不存在时
+        返回首个候选，便于 UI 展示「目录缺失」而非崩溃。
+        """
+        cands = self._log_dir_candidates()
+        for d in cands:
+            if os.path.isdir(d):
+                return d
+        return cands[0]
+
+    def _log_dir_candidates(self) -> list[str]:
+        cands: list[str] = []
+        # 主配置显式指定的绝对日志路径最可信（可覆盖编译期默认），排最前
+        try:
+            with open(self.main_conf, "r", encoding="utf-8", errors="replace") as f:
+                text = f.read()
+        except OSError:
+            text = ""
+        seen: set[str] = set()
+        for m in self._LOG_FILE_RE.finditer(text):
+            p = m.group(1)
+            if p.startswith(("/", "~")) or re.match(r"^[A-Za-z]:[\\/]", p):
+                d = os.path.dirname(os.path.expanduser(p))
+                if d and d not in seen:
+                    seen.add(d)
+                    cands.append(d)
+        # 布局默认落点（对应二进制编译期 --error-log-path/--http-log-path 常规值）
+        if IS_WIN or self.mode == "root":
+            cands.append(os.path.join(self.prefix, "logs"))
+        if self.mode == "brew":
+            # prefix 形如 /opt/homebrew/etc/nginx，brew 根需再上溯两级（/opt/homebrew）
+            if self.prefix.endswith("/etc/nginx"):
+                brew_root = self.prefix[: -len("/etc/nginx")]
+            else:
+                brew_root = os.path.dirname(os.path.dirname(self.prefix))
+            cands.append(os.path.join(brew_root, "var", "log", "nginx"))
+        return cands
+
+    # ------------------------------------------------------------------ #
     def _cmd(self, extra: list[str]) -> list[str]:
         """拼完整命令。brew 版不传 -p（使用编译期默认配置）。"""
         if IS_WIN or self.mode == "root":
