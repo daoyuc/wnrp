@@ -1,0 +1,100 @@
+name: release
+
+# 用法：打 tag 并推送即可自动构建双平台安装包并发布 Release
+#   git tag v1.0.1 && git push origin v1.0.1
+# 也可在 Actions 页面手动触发（workflow_dispatch）并填写版本号。
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "版本号（如 1.0.1，不带 v 前缀）"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  VERSION: ${{ github.event.inputs.version || github.ref_name }}
+
+jobs:
+  macos:
+    name: macOS 安装包（.app + .dmg）
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build macOS package
+        run: python packaging/build.py macos --version "${VERSION#v}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: dist/*.dmg
+          if-no-files-found: error
+
+  windows:
+    name: Windows 安装包（.exe + .zip）
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Inno Setup
+        run: |
+          choco install innosetup --no-progress -y
+          echo "C:\Program Files (x86)\Inno Setup 6" >> $env:GITHUB_PATH
+        shell: pwsh
+
+      - name: Build Windows package
+        shell: pwsh
+        run: |
+          $v = "$env:VERSION" -replace '^v', ''
+          python packaging/build.py windows --version $v
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: |
+            dist/*.exe
+            dist/*.zip
+          if-no-files-found: error
+
+  release:
+    name: 发布 Release
+    needs: [macos, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Rebuild checksums
+        run: python3 packaging/build.py sums --dist dist
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${VERSION}"
+          case "$TAG" in v*) ;; *) TAG="v$TAG" ;; esac
+          shopt -s nullglob
+          FILES=(dist/*.dmg dist/*.exe dist/*.zip dist/SHA256SUMS.txt)
+          echo "发布 $TAG：${FILES[*]}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${FILES[@]}" --clobber
+          else
+            gh release create "$TAG" "${FILES[@]}" \
+              --title "phpvm $TAG" --generate-notes
+          fi
