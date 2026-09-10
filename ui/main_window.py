@@ -24,6 +24,7 @@ from .redis_panel import RedisPanel
 from .site_wizard import SiteWizardDialog
 from .theme import BG, CARD_BG, ERR, FONT, GRAY, OK, PRIMARY, PRIMARY_LIGHT, TEXT, setup_style
 from .vhost_panel import VhostPanel
+from .window_utils import fit_window
 
 APP_TITLE = t("phpvm · PHP 版本管理器")
 WNRP_ROOT_SHOW = WNRP_ROOT
@@ -41,8 +42,6 @@ class MainWindow(tk.Tk):
         self.config = config
 
         self.title(APP_TITLE)
-        self.geometry("1080x680")
-        self.minsize(960, 600)
         self.configure(bg=BG)
         setup_style(self)
         self._build_menubar()
@@ -55,6 +54,8 @@ class MainWindow(tk.Tk):
         self._crash_alert_active = False
         self._crash_tick = 0
         self._build()
+        # 按屏幕可用工作区收敛窗口尺寸：保证底部状态栏与各页签操作按钮不被 Dock/任务栏遮挡
+        fit_window(self, None, width=1080, height=680, min_width=960, min_height=600)
         self._refresh_cli()
         self.after(8000, self._tick)
         # 启动后稍作延迟，回溯最近 24h 的 php-cgi 崩溃（不弹窗，仅状态栏/托盘提示）
@@ -95,6 +96,19 @@ class MainWindow(tk.Tk):
         )
 
     def _build(self) -> None:
+        # 状态栏：先 pack 到底部，窗口被压小时优先保留（不被页签内容挤出）
+        bar = ttk.Frame(self, style="Status.TFrame")
+        bar.pack(fill="x", side="bottom")
+        ttk.Label(bar, textvariable=self._log_var, style="Status.TLabel").pack(
+            side="left", fill="x", expand=True, padx=10, pady=4
+        )
+        self._alert_label = tk.Label(
+            bar, text="", font=(FONT, 9, "bold"), foreground=ERR,
+            background=PRIMARY_LIGHT, cursor="hand2",
+        )
+        self._alert_label.pack(side="right", padx=10, pady=4)
+        self._alert_label.bind("<Button-1>", lambda e: self._show_crash_detail())
+
         # 标题区
         header = ttk.Frame(self, style="Card.TFrame")
         header.pack(fill="x", padx=12, pady=(12, 8))
@@ -137,19 +151,6 @@ class MainWindow(tk.Tk):
         nb.add(self.vhost_panel, text=f"  {t('站点映射')}  ")
         nb.add(self.log_panel, text=f"  {t('Nginx 日志')}  ")
         nb.add(about, text=f"  {t('关于')}  ")
-
-        # 状态栏
-        bar = ttk.Frame(self, style="Status.TFrame")
-        bar.pack(fill="x", side="bottom")
-        ttk.Label(bar, textvariable=self._log_var, style="Status.TLabel").pack(
-            side="left", fill="x", expand=True, padx=10, pady=4
-        )
-        self._alert_label = tk.Label(
-            bar, text="", font=(FONT, 9, "bold"), foreground=ERR,
-            background=PRIMARY_LIGHT, cursor="hand2",
-        )
-        self._alert_label.pack(side="right", padx=10, pady=4)
-        self._alert_label.bind("<Button-1>", lambda e: self._show_crash_detail())
 
     def _build_about(self, master) -> ttk.Frame:
         frame = ttk.Frame(master, padding=18)
@@ -635,21 +636,11 @@ class MainWindow(tk.Tk):
     def _close_dialog(self, show_tray: bool) -> None:
         dlg = tk.Toplevel(self)
         dlg.title(t("关闭 phpvm"))
-        dlg.geometry("430x160" if show_tray else "330x150")
         dlg.resizable(False, False)
         dlg.transient(self)
         dlg.grab_set()
         dlg.configure(bg=BG)
         setup_style(dlg)
-
-        ttk.Label(dlg, text=t("要如何关闭 phpvm？"), style="Title.TLabel").pack(
-            pady=(16, 6)
-        )
-        if show_tray:
-            ttk.Label(
-                dlg, text=t("可最小化到系统托盘后台运行，或完全退出。"),
-                style="SubTitle.TLabel",
-            ).pack(pady=(0, 12))
 
         def choose(action: str) -> None:
             dlg.destroy()
@@ -660,8 +651,19 @@ class MainWindow(tk.Tk):
             elif action == "exit":
                 self._real_quit()
 
+        # 按钮栏先 pack 到底部：屏幕可用高度不足时按钮仍优先可见
         frm = ttk.Frame(dlg)
-        frm.pack(pady=(0, 12))
+        frm.pack(side="bottom", pady=(0, 12))
+
+        ttk.Label(dlg, text=t("要如何关闭 phpvm？"), style="Title.TLabel").pack(
+            pady=(16, 6)
+        )
+        if show_tray:
+            ttk.Label(
+                dlg, text=t("可最小化到系统托盘后台运行，或完全退出。"),
+                style="SubTitle.TLabel",
+            ).pack(pady=(0, 12))
+
         if show_tray:
             ttk.Button(frm, text=t("最小化到托盘"), command=lambda: choose("tray")).pack(
                 side="left", padx=6
@@ -673,6 +675,10 @@ class MainWindow(tk.Tk):
             side="left", padx=6
         )
         ttk.Button(frm, text=t("取消"), command=dlg.destroy).pack(side="left", padx=6)
+
+        # 按可用工作区收敛尺寸并定位：按钮栏已固定底部，保证右下角按钮不被遮挡
+        fit_window(dlg, self, width=430 if show_tray else 330,
+                   height=160 if show_tray else 150)
 
         dlg.wait_window()
 

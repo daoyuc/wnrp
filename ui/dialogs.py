@@ -13,6 +13,7 @@ from core.i18n import t
 from core.php_manager import PhpManager, PhpVersion
 from core.vhost_manager import VhostManager
 from .theme import CARD_BG, ERR, FONT, GRAY, OK, PRIMARY, PRIMARY_DARK, TEXT
+from .window_utils import fit_window
 
 # 终端别名文案（Windows 的 cmd / macOS 的终端）
 _CLI_DISP = "cmd" if IS_WIN else t("终端")
@@ -66,10 +67,8 @@ class PortDialog(tk.Toplevel):
         self._center(master)
 
     def _center(self, master) -> None:
-        self.update_idletasks()
-        x = master.winfo_rootx() + (master.winfo_width() - self.winfo_width()) // 2
-        y = master.winfo_rooty() + (master.winfo_height() - self.winfo_height()) // 3
-        self.geometry(f"+{x}+{y}")
+        """内容自适应尺寸；仅需保证整体落在屏幕可用工作区内。"""
+        fit_window(self, master)
 
     def _save(self) -> None:
         raw = self.var.get().strip()
@@ -116,6 +115,8 @@ class VhostSyncDialog(tk.Toplevel):
 
     所有耗时操作（扫描、同步、校验、重载）均后台执行，结果经 queue 回传。
     """
+    # (期望宽, 期望高, 最小宽, 最小高)：由 _center 按屏幕可用工作区收敛
+    FIT_SIZE = (780, 540, 660, 440)
 
     def __init__(self, master, vhost_mgr: VhostManager, old_port: int, new_port: int):
         super().__init__(master)
@@ -128,8 +129,6 @@ class VhostSyncDialog(tk.Toplevel):
         self._file_domains: dict[str, str] = {}
 
         self.title(t("同步 vhost 端口 · {old} → {new}", old=old_port, new=new_port))
-        self.geometry("780x540")
-        self.minsize(660, 440)
         self.configure(bg=CARD_BG)
         self.transient(master)
         self.grab_set()
@@ -171,7 +170,8 @@ class VhostSyncDialog(tk.Toplevel):
         self.result_text.pack(fill="x", padx=16, pady=(2, 8))
 
         btns = ttk.Frame(self, padding=(16, 0, 16, 14))
-        btns.pack(fill="x")
+        # 先于内容区分配空间（side=bottom）：窗口被压小时按钮仍优先可见
+        btns.pack(side="bottom", fill="x", before=wrap)
         ttk.Button(btns, text=t("打开 vhost 目录"), command=self._open_dir).pack(side="left")
         self.btn_reload = ttk.Button(btns, text=t("重载 Nginx"), state="disabled", command=self._reload)
         self.btn_reload.pack(side="left", padx=(0, 6))
@@ -322,14 +322,16 @@ class VhostSyncDialog(tk.Toplevel):
         self._busy = busy
 
     def _center(self, master) -> None:
-        self.update_idletasks()
-        x = master.winfo_rootx() + (master.winfo_width() - self.winfo_width()) // 2
-        y = master.winfo_rooty() + (master.winfo_height() - self.winfo_height()) // 3
-        self.geometry(f"+{max(x, 0)}+{max(y, 0)}")
+        """按屏幕可用工作区收敛尺寸并定位，保证底部（右下角）按钮始终可见。"""
+        w, h, min_w, min_h = getattr(self, "FIT_SIZE", (None, None, None, None))
+        fit_window(self, master, width=w, height=h,
+                   min_width=min_w, min_height=min_h)
 
 
 class IniDialog(tk.Toplevel):
     """查看 PHP 版本的核心配置与完整 ini 内容。"""
+    # (期望宽, 期望高, 最小宽, 最小高)：由 _center 按屏幕可用工作区收敛
+    FIT_SIZE = (780, 560, 640, 460)
 
     def __init__(self, master, version: PhpVersion, php_mgr: PhpManager):
         super().__init__(master)
@@ -338,8 +340,6 @@ class IniDialog(tk.Toplevel):
 
         self.title(t("PHP 配置 · {name} (PHP {display})",
                      name=version.name, display=version.display))
-        self.geometry("780x560")
-        self.minsize(640, 460)
         self.configure(bg=CARD_BG)
         self.transient(master)
 
@@ -421,14 +421,16 @@ class IniDialog(tk.Toplevel):
         pu.open_path(self.version.ini)
 
     def _center(self, master) -> None:
-        self.update_idletasks()
-        x = master.winfo_rootx() + (master.winfo_width() - self.winfo_width()) // 2
-        y = master.winfo_rooty() + (master.winfo_height() - self.winfo_height()) // 3
-        self.geometry(f"+{max(x, 0)}+{max(y, 0)}")
+        """按屏幕可用工作区收敛尺寸并定位，保证底部（右下角）按钮始终可见。"""
+        w, h, min_w, min_h = getattr(self, "FIT_SIZE", (None, None, None, None))
+        fit_window(self, master, width=w, height=h,
+                   min_width=min_w, min_height=min_h)
 
 
 class CliSwitchDialog(tk.Toplevel):
     """切换系统 cmd / 终端 中的 php 命令版本（修改用户 PATH，新窗口生效）。"""
+    # (期望宽, 期望高, 最小宽, 最小高)：由 _center 按屏幕可用工作区收敛
+    FIT_SIZE = (660, 440, 580, 380)
 
     COLS = [
         ("name", t("版本目录"), 110, "w"),
@@ -448,8 +450,6 @@ class CliSwitchDialog(tk.Toplevel):
         self._effective = path_manager.get_effective_php_dir()
 
         self.title(t("切换 cmd php 命令版本") if IS_WIN else t("切换终端 php 命令版本"))
-        self.geometry("660x440")
-        self.minsize(580, 380)
         self.configure(bg=CARD_BG)
         self.transient(master)
 
@@ -487,7 +487,8 @@ class CliSwitchDialog(tk.Toplevel):
         self.tree.bind("<Double-1>", lambda e: self._apply())
 
         btns = ttk.Frame(self, padding=(16, 0, 16, 14))
-        btns.pack(fill="x")
+        # 先于内容区分配空间（side=bottom）：窗口被压小时按钮仍优先可见
+        btns.pack(side="bottom", fill="x", before=wrap)
         ttk.Button(btns, text=t("在新窗口测试 php -v"), command=self._test_cmd).pack(side="left")
         ttk.Label(
             btns,
@@ -598,10 +599,10 @@ class CliSwitchDialog(tk.Toplevel):
             messagebox.showerror(t("无法打开终端"), str(e), parent=self)
 
     def _center(self, master) -> None:
-        self.update_idletasks()
-        x = master.winfo_rootx() + (master.winfo_width() - self.winfo_width()) // 2
-        y = master.winfo_rooty() + (master.winfo_height() - self.winfo_height()) // 3
-        self.geometry(f"+{max(x, 0)}+{max(y, 0)}")
+        """按屏幕可用工作区收敛尺寸并定位，保证底部（右下角）按钮始终可见。"""
+        w, h, min_w, min_h = getattr(self, "FIT_SIZE", (None, None, None, None))
+        fit_window(self, master, width=w, height=h,
+                   min_width=min_w, min_height=min_h)
 
 
 class CrashDialog(tk.Toplevel):
@@ -609,14 +610,14 @@ class CrashDialog(tk.Toplevel):
 
     两个页签：崩溃事件 + 自愈历史（recover_history.json 可视化）。
     """
+    # (期望宽, 期望高, 最小宽, 最小高)：由 _center 按屏幕可用工作区收敛
+    FIT_SIZE = (860, 660, 720, 540)
 
     def __init__(self, master, events: list[dict], on_clear=None):
         super().__init__(master)
         self.events = events
         self.on_clear = on_clear
         self.title(t("php-cgi 崩溃事件"))
-        self.geometry("860x660")
-        self.minsize(720, 540)
         self.configure(bg=CARD_BG)
         self.transient(master)
 
@@ -651,7 +652,8 @@ class CrashDialog(tk.Toplevel):
         self._build_recover_tab(recover_tab)
 
         btns = ttk.Frame(self, padding=(16, 0, 16, 14))
-        btns.pack(fill="x")
+        # 先于页签内容分配空间（side=bottom）：窗口被压小时按钮仍优先可见
+        btns.pack(side="bottom", fill="x", before=nb)
         ttk.Button(btns, text=t("关闭"), command=self.destroy).pack(side="right")
         self.clear_btn = ttk.Button(btns, text=t("清空记录"), command=self._clear)
         self.clear_btn.pack(side="right", padx=(0, 8))
@@ -747,14 +749,16 @@ class CrashDialog(tk.Toplevel):
         self.detail.configure(state="disabled")
 
     def _center(self, master) -> None:
-        self.update_idletasks()
-        x = master.winfo_rootx() + (master.winfo_width() - self.winfo_width()) // 2
-        y = master.winfo_rooty() + (master.winfo_height() - self.winfo_height()) // 3
-        self.geometry(f"+{max(x, 0)}+{max(y, 0)}")
+        """按屏幕可用工作区收敛尺寸并定位，保证底部（右下角）按钮始终可见。"""
+        w, h, min_w, min_h = getattr(self, "FIT_SIZE", (None, None, None, None))
+        fit_window(self, master, width=w, height=h,
+                   min_width=min_w, min_height=min_h)
 
 
 class SelfCheckDialog(tk.Toplevel):
     """版本一键自检：php -v / 关键扩展 / 配置加载，结果分级展示。"""
+    # (期望宽, 期望高, 最小宽, 最小高)：由 _center 按屏幕可用工作区收敛
+    FIT_SIZE = (680, 420, 560, 360)
 
     def __init__(self, master, version: PhpVersion, health):
         super().__init__(master)
@@ -764,8 +768,6 @@ class SelfCheckDialog(tk.Toplevel):
 
         self.title(t("版本自检 · {name} (PHP {display})",
                      name=version.name, display=version.display))
-        self.geometry("680x420")
-        self.minsize(560, 360)
         self.configure(bg=CARD_BG)
         self.transient(master)
 
@@ -793,7 +795,8 @@ class SelfCheckDialog(tk.Toplevel):
         self.tree.tag_configure("err", foreground=ERR)
 
         btns = ttk.Frame(self, padding=(16, 0, 16, 14))
-        btns.pack(fill="x")
+        # 先于内容区分配空间（side=bottom）：窗口被压小时按钮仍优先可见
+        btns.pack(side="bottom", fill="x", before=wrap)
         ttk.Button(btns, text=t("关闭"), command=self.destroy).pack(side="right")
         ttk.Button(btns, text=t("重新检测"), command=self._run).pack(side="right", padx=(0, 8))
         self._center(master)
@@ -836,14 +839,16 @@ class SelfCheckDialog(tk.Toplevel):
             self.state_label.configure(foreground=ERR)
 
     def _center(self, master) -> None:
-        self.update_idletasks()
-        x = master.winfo_rootx() + (master.winfo_width() - self.winfo_width()) // 2
-        y = master.winfo_rooty() + (master.winfo_height() - self.winfo_height()) // 3
-        self.geometry(f"+{max(x, 0)}+{max(y, 0)}")
+        """按屏幕可用工作区收敛尺寸并定位，保证底部（右下角）按钮始终可见。"""
+        w, h, min_w, min_h = getattr(self, "FIT_SIZE", (None, None, None, None))
+        fit_window(self, master, width=w, height=h,
+                   min_width=min_w, min_height=min_h)
 
 
 class IniEditDialog(tk.Toplevel):
     """ini 关键配置项表单编辑：读写安全（备份 + 精确行替换），改后提示重启生效。"""
+    # (期望宽, 期望高, 最小宽, 最小高)：由 _center 按屏幕可用工作区收敛
+    FIT_SIZE = (680, 520, 560, 420)
 
     def __init__(self, master, version: PhpVersion, php_mgr: PhpManager):
         super().__init__(master)
@@ -853,8 +858,6 @@ class IniEditDialog(tk.Toplevel):
         self._vars: dict[str, tk.Variable] = {}
 
         self.title(t("编辑配置 · {name}", name=version.name))
-        self.geometry("680x520")
-        self.minsize(560, 420)
         self.configure(bg=CARD_BG)
         self.transient(master)
 
@@ -882,7 +885,8 @@ class IniEditDialog(tk.Toplevel):
         self._form = inner
 
         btns = ttk.Frame(self, padding=(16, 0, 16, 14))
-        btns.pack(fill="x")
+        # 先于内容区分配空间（side=bottom）：窗口被压小时按钮仍优先可见
+        btns.pack(side="bottom", fill="x", before=wrap)
         ttk.Button(btns, text=t("取消"), command=self.destroy).pack(side="right")
         ttk.Button(btns, text=t("保存"), style="Accent.TButton", command=self._save).pack(
             side="right", padx=(0, 8))
@@ -953,7 +957,7 @@ class IniEditDialog(tk.Toplevel):
         self.destroy()
 
     def _center(self, master) -> None:
-        self.update_idletasks()
-        x = master.winfo_rootx() + (master.winfo_width() - self.winfo_width()) // 2
-        y = master.winfo_rooty() + (master.winfo_height() - self.winfo_height()) // 3
-        self.geometry(f"+{max(x, 0)}+{max(y, 0)}")
+        """按屏幕可用工作区收敛尺寸并定位，保证底部（右下角）按钮始终可见。"""
+        w, h, min_w, min_h = getattr(self, "FIT_SIZE", (None, None, None, None))
+        fit_window(self, master, width=w, height=h,
+                   min_width=min_w, min_height=min_h)
