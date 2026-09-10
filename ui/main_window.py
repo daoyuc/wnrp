@@ -2,6 +2,8 @@
 """主窗口：多页签（PHP 版本管理 / Nginx 管理 / 站点映射 / Nginx 日志 / 关于）+ 顶部 cmd php 状态 + 底部状态栏。"""
 import os
 import queue
+import subprocess
+import sys
 import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
@@ -623,38 +625,48 @@ class MainWindow(tk.Tk):
             pass
 
     def _on_close(self) -> None:
-        """点击关闭按钮：无托盘（macOS/Linux）直接确认退出；否则弹「托盘/退出」选择框。"""
-        if self._tray is None:
-            if messagebox.askokcancel(t("退出 phpvm"), t("确定要退出 phpvm 吗？"), parent=self):
-                self._real_quit()
-            return
+        """点击关闭按钮：弹「重启 / 退出」选择框。
+
+        macOS/Linux 无托盘：重启 / 退出 / 取消；
+        Windows 有托盘时额外提供「最小化到托盘」。
+        """
+        self._close_dialog(show_tray=self._tray is not None)
+
+    def _close_dialog(self, show_tray: bool) -> None:
         dlg = tk.Toplevel(self)
         dlg.title(t("关闭 phpvm"))
-        dlg.geometry("320x150")
+        dlg.geometry("430x160" if show_tray else "330x150")
         dlg.resizable(False, False)
         dlg.transient(self)
         dlg.grab_set()
         dlg.configure(bg=BG)
         setup_style(dlg)
 
-        ttk.Label(
-            dlg, text=t("要如何关闭 phpvm？"), style="Title.TLabel"
-        ).pack(pady=(14, 6))
-        ttk.Label(
-            dlg, text=t("可最小化到系统托盘后台运行，或完全退出。"),
-            style="SubTitle.TLabel",
-        ).pack(pady=(0, 10))
+        ttk.Label(dlg, text=t("要如何关闭 phpvm？"), style="Title.TLabel").pack(
+            pady=(16, 6)
+        )
+        if show_tray:
+            ttk.Label(
+                dlg, text=t("可最小化到系统托盘后台运行，或完全退出。"),
+                style="SubTitle.TLabel",
+            ).pack(pady=(0, 12))
 
-        def choose(action):
+        def choose(action: str) -> None:
             dlg.destroy()
             if action == "tray":
                 self.withdraw()
+            elif action == "restart":
+                self._do_restart()
             elif action == "exit":
                 self._real_quit()
 
         frm = ttk.Frame(dlg)
-        frm.pack(pady=(0, 10))
-        ttk.Button(frm, text=t("最小化到托盘"), command=lambda: choose("tray")).pack(
+        frm.pack(pady=(0, 12))
+        if show_tray:
+            ttk.Button(frm, text=t("最小化到托盘"), command=lambda: choose("tray")).pack(
+                side="left", padx=6
+            )
+        ttk.Button(frm, text=t("重启"), command=lambda: choose("restart")).pack(
             side="left", padx=6
         )
         ttk.Button(frm, text=t("退出"), command=lambda: choose("exit")).pack(
@@ -663,6 +675,32 @@ class MainWindow(tk.Tk):
         ttk.Button(frm, text=t("取消"), command=dlg.destroy).pack(side="left", padx=6)
 
         dlg.wait_window()
+
+    def _do_restart(self) -> None:
+        """重启 phpvm（整体应用）：先拉起全新进程，再退出当前实例。
+
+        新进程通过环境变量 PHPVM_RESTART=1 告知 main.py 这是「重启」拉起，
+        在遇到单例锁（socket / 互斥体）被旧实例占用时短暂轮询等待，
+        避开退出竞态（见 main.py）。
+        """
+        exe = sys.executable
+        if IS_WIN:
+            # GUI 应用：优先用 pythonw，避免弹出黑色控制台窗口
+            pyw = os.path.join(os.path.dirname(exe), "pythonw.exe")
+            if os.path.exists(pyw):
+                exe = pyw
+        script = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "main.py"
+        )
+        env = dict(os.environ, PHPVM_RESTART="1")
+        try:
+            subprocess.Popen([exe, script], env=env)
+        except OSError as e:
+            messagebox.showerror(
+                t("重启"), t("无法启动新进程：{msg}", msg=e), parent=self
+            )
+            return
+        self._real_quit()
 
     def _real_quit(self) -> None:
         if self._tray:

@@ -9,6 +9,7 @@ import os
 import socket
 import sys
 import tempfile
+import time
 
 # 保证无论从哪个目录启动都能正确导入包
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -18,6 +19,36 @@ ERROR_ALREADY_EXISTS = 183
 SOCK_PATH = os.path.join(tempfile.gettempdir(), "phpvm_singleton.sock")
 
 _lock_sock: socket.socket | None = None
+
+# 重启场景：旧实例释放单例锁存在竞态，新实例以此节奏轮询补获（最长 ~5s）
+_RESTART_RETRIES = 50
+_RESTART_RETRY_DELAY = 0.1
+
+
+def _is_restart() -> bool:
+    """当前进程是否为「重启」拉起的新实例（由 UI 重启功能注入环境变量）。"""
+    return os.environ.get("PHPVM_RESTART") == "1"
+
+
+def _restart_retry(acquire) -> bool:
+    """重启实例：短暂轮询获取单例锁，避开旧实例退出竞态。"""
+    for _ in range(_RESTART_RETRIES):
+        if acquire():
+            return True
+        time.sleep(_RESTART_RETRY_DELAY)
+    return False
+
+
+def _create_mutex_handle():
+    """Windows：创建命名互斥体并判定是否为本进程新建；被占用返回 None。"""
+    import ctypes
+
+    h = ctypes.windll.kernel32.CreateMutexW(None, False, MUTEX_NAME)
+    if h and ctypes.windll.kernel32.GetLastError() != ERROR_ALREADY_EXISTS:
+        return h
+    if h:
+        ctypes.windll.kernel32.CloseHandle(h)
+    return None
 
 
 def _acquire_posix_lock() -> bool:
@@ -70,22 +101,36 @@ def main() -> None:
     if sys.platform.startswith("win"):
         import ctypes
 
-        handle = ctypes.windll.kernel32.CreateMutexW(None, False, MUTEX_NAME)
-        if ctypes.windll.kernel32.GetLastError() == ERROR_ALREADY_EXISTS:
-            from core.config import Config
-            from core.i18n import set_language, t
+        handle = _create_mutex_handle()
+        if handle is None:
+            if not _is_restart():
+                from core.config import Config
+                from core.i18n import set_language, t
 
-            set_language(Config().get_lang())
-            ctypes.windll.user32.MessageBoxW(
-                None,
-                t("phpvm 已经在运行中，请查看任务栏或系统托盘。"),
-                "phpvm",
-                0x40,  # MB_ICONINFORMATION
-            )
-            return
+                set_language(Config().get_lang())
+                ctypes.windll.user32.MessageBoxW(
+                    None,
+                    t("phpvm 已经在运行中，请查看任务栏或系统托盘。"),
+                    "phpvm",
+                    0x40,  # MB_ICONINFORMATION
+                )
+                return
+            # 重启拉起：旧实例即将退出释放互斥体，轮询等待后再试
+            for _ in range(_RESTART_RETRIES):
+                time.sleep(_RESTART_RETRY_DELAY)
+                handle = _create_mutex_handle()
+                if handle is not None:
+                    break
+            if handle is None:
+                return
     else:
         if not _acquire_posix_lock():
-            return
+            if _is_restart():
+                # 重启拉起：旧实例退出释放 socket 锁有竞态，短暂重试
+                if not _restart_retry(_acquire_posix_lock):
+                    return
+            else:
+                return
 
     from core.config import Config
 
