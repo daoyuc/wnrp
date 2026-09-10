@@ -9,7 +9,10 @@ import os
 import threading
 import time
 
-_HISTORY_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "recover_history.json")
+from . import app_paths
+
+# 落盘到可写数据目录（安装包场景包目录只读，见 core/app_paths.py）
+_HISTORY_FILE = app_paths.data_file("recover_history.json")
 _MAX_ENTRIES = 200
 _lock = threading.Lock()
 

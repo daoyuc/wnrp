@@ -29,6 +29,7 @@ _APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # phpvm 
 if _APP_DIR not in sys.path:
     sys.path.insert(0, _APP_DIR)
 
+from core import app_paths  # noqa: E402
 from core import process_utils as pu  # noqa: E402
 from core import recover_history  # noqa: E402
 from core.config import Config, IS_WIN  # noqa: E402
@@ -36,9 +37,10 @@ from core.health_monitor import HealthMonitor  # noqa: E402
 from core.i18n import t  # noqa: E402
 from core.php_manager import PhpManager  # noqa: E402
 
-LOCK_FILE = os.path.join(_APP_DIR, "crash_watchdog.lock")
-STATE_FILE = os.path.join(_APP_DIR, "crash_watchdog.json")
-LOG_FILE = os.path.join(_APP_DIR, "crash_watchdog.log")
+# 锁 / 状态 / 日志均落在可写数据目录（安装包场景包目录只读）
+LOCK_FILE = app_paths.data_file("crash_watchdog.lock")
+STATE_FILE = app_paths.data_file("crash_watchdog.json")
+LOG_FILE = app_paths.data_file("crash_watchdog.log")
 
 POLL_INTERVAL = 10.0       # 失联探测轮询间隔（秒）
 EVENT_EVERY = 3            # 每 N 轮查一次事件日志（≈30s）

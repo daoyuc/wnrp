@@ -31,6 +31,7 @@ def _start_all_services() -> None:
     供「开机自动启动服务」写入的启动脚本调用；结果追加到
     autostart_services.log，便于排查登录时未起来的服务。
     """
+    from core import app_paths
     from core.config import Config
     from core import modules
     from core.mysql_manager import MysqlManager
@@ -47,8 +48,7 @@ def _start_all_services() -> None:
         msg = group.start_all()
     except Exception as e:  # noqa: BLE001
         msg = f"{type(e).__name__}: {e}"
-    log = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                       "autostart_services.log")
+    log = app_paths.data_file("autostart_services.log")
     try:
         with open(log, "a", encoding="utf-8") as f:
             f.write(f"\n[{time.strftime('%Y-%m-%d %H:%M:%S')}] --start-all\n{msg}\n")
