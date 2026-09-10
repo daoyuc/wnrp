@@ -15,7 +15,7 @@ import os
 import queue
 import threading
 import tkinter as tk
-from tkinter import filedialog, ttk
+from tkinter import filedialog, messagebox, ttk
 
 from core.i18n import t
 from core.sqlite_manager import QUERY_LIMIT, SqliteManager, format_value, quote_ident
@@ -36,6 +36,9 @@ class SqlitePanel(ttk.Frame):
         self._tables: list = []
         self._pending_open = ""
         self._deferred = None  # 忙时挂起的操作（job, tag），当前任务结束后自动接续
+        self._last_sql = ""    # 最近一次查询 SQL（分页与导出用）
+        self._offset = 0       # 当前页起始行
+        self._has_more = False # 是否还有下一页
         self._build()
         self.refresh_files(open_last=True)
 
@@ -49,6 +52,15 @@ class SqlitePanel(ttk.Frame):
         self.btn_exec.pack(side="right")
         ttk.Button(bar, text=t("清空"), command=self.clear_all).pack(
             side="right", padx=(0, 6))
+        ttk.Button(bar, text=t("导出 CSV"), command=self.export_csv).pack(
+            side="right", padx=(0, 6))
+        # 结果分页（每页 QUERY_LIMIT 行）
+        self.btn_prev = ttk.Button(bar, text=t("◀ 上一页"), state="disabled",
+                                   command=lambda: self._goto_page(-1))
+        self.btn_prev.pack(side="right", padx=(0, 6))
+        self.btn_next = ttk.Button(bar, text=t("下一页 ▶"), state="disabled",
+                                   command=lambda: self._goto_page(1))
+        self.btn_next.pack(side="right", padx=(0, 6))
         self.state_label = ttk.Label(bar, text=t("未选择数据库文件。"),
                                      foreground=TEXT_DIM, font=(FONT, 8))
         self.state_label.pack(side="left")
@@ -232,19 +244,64 @@ class SqlitePanel(ttk.Frame):
     # ------------------------------------------------------------------ #
     # 查询
     def execute(self) -> None:
-        """执行 SQL 编辑框中的查询语句。"""
+        """执行 SQL 编辑框中的查询语句（从第一页开始）。"""
         if self._busy:
             return
         sql = self.sql_text.get("1.0", "end").strip()
         if not sql:
             self._set_state(t("请输入 SQL 语句后执行"), ERR)
             return
+        self._last_sql = sql
+        self._offset = 0
         self._set_state(t("正在执行…"))
 
         def job():
-            return self.mgr.query(sql, limit=QUERY_LIMIT)
+            return self.mgr.query(sql, limit=QUERY_LIMIT, offset=0)
 
         self._run_async(job, "query")
+
+    def _goto_page(self, delta: int) -> None:
+        """翻页：delta = +1 下一页 / -1 上一页（重跑同一条 SQL + 新 offset）。"""
+        if self._busy or not self._last_sql:
+            return
+        new_offset = max(0, self._offset + delta * QUERY_LIMIT)
+        if delta < 0 and self._offset == 0:
+            return
+        self._offset = new_offset
+        self._set_state(t("正在执行…"))
+        sql, offset = self._last_sql, self._offset
+
+        def job():
+            return self.mgr.query(sql, limit=QUERY_LIMIT, offset=offset)
+
+        self._run_async(job, "query")
+
+    def export_csv(self) -> None:
+        """把当前结果导出为 CSV（UTF-8 BOM，便于 Excel 直接打开）。"""
+        cols = self._current_columns()
+        rows = self._current_rows()
+        if not cols:
+            messagebox.showinfo(t("导出 CSV"), t("当前没有可导出的结果。"), parent=self)
+            return
+        path = filedialog.asksaveasfilename(
+            parent=self, title=t("导出 CSV"), defaultextension=".csv",
+            initialfile="phpvm_query_result.csv",
+            filetypes=[("CSV", "*.csv"), (t("所有文件"), "*.*")],
+        )
+        if not path:
+            return
+        try:
+            import csv
+
+            with open(path, "w", encoding="utf-8-sig", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow(cols)
+                writer.writerows(rows)
+        except OSError as e:
+            messagebox.showerror(t("导出失败"), str(e), parent=self)
+            return
+        self._set_state(t("已导出 {n} 行到 {path}", n=len(rows), path=path), OK)
+        self.notify(t("已导出 CSV：{path}", path=path))
 
     def _exec_shortcut(self) -> str:
         self.execute()
@@ -344,16 +401,41 @@ class SqlitePanel(ttk.Frame):
 
     def _on_query(self, res) -> None:
         self._render_result(res)
+        self._has_more = bool(res.truncated)
+        self._update_pager()
         if not res.columns:
             self._set_state(t("无结果"), TEXT_DIM)
             return
         ms = f"{res.elapsed:.0f}"
+        page = self._offset // QUERY_LIMIT + 1
         if res.truncated:
             self._set_state(
-                t("共 {n} 行 · 耗时 {ms} ms（结果已截断，仅显示前 {limit} 行）",
-                  n=len(res.rows), ms=ms, limit=QUERY_LIMIT), OK)
+                t("第 {page} 页 · 本页 {n} 行 · 耗时 {ms} ms（还有下一页）",
+                  page=page, n=len(res.rows), ms=ms), OK)
         else:
-            self._set_state(t("共 {n} 行 · 耗时 {ms} ms", n=len(res.rows), ms=ms), OK)
+            self._set_state(
+                t("第 {page} 页 · 共 {n} 行 · 耗时 {ms} ms{more}",
+                  page=page, n=len(res.rows), ms=ms,
+                  more="" if self._offset == 0 else t("（已翻页）")), OK)
+
+    def _update_pager(self) -> None:
+        """按当前 offset 与是否还有下一页刷新翻页按钮可用性。"""
+        self.btn_prev.configure(state="normal" if self._offset > 0 else "disabled")
+        self.btn_next.configure(state="normal" if self._has_more else "disabled")
+
+    def _current_columns(self) -> list[str]:
+        """当前结果表的列名列表。"""
+        cols = []
+        for cid in self.result_tree["columns"]:
+            head = self.result_tree.heading(cid, "text")
+            if head:
+                cols.append(head)
+        return cols
+
+    def _current_rows(self) -> list[list]:
+        """当前结果表的行数据（显示值）。"""
+        return [list(self.result_tree.item(iid, "values"))
+                for iid in self.result_tree.get_children()]
 
     def _on_error(self, msg: str) -> None:
         self._set_state(msg, ERR)

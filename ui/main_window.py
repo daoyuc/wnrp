@@ -203,6 +203,20 @@ class MainWindow(tk.Tk):
             settings, text=t("开机自动启动 phpvm（当前用户）"),
             variable=self._autostart_var, command=self._toggle_autostart,
         ).pack(anchor="w", pady=(0, 6))
+        # 开机自动启动整套服务（Windows：写入「启动」目录脚本；其它平台暂不支持）
+        self._svc_autostart_var = tk.BooleanVar(value=autostart.services_enabled())
+        self._cb_svc_autostart = ttk.Checkbutton(
+            settings, text=t("开机自动启动全部服务（Nginx + PHP + Redis + MySQL）"),
+            variable=self._svc_autostart_var, command=self._toggle_service_autostart,
+            state="normal" if IS_WIN else "disabled",
+        )
+        self._cb_svc_autostart.pack(anchor="w", pady=(0, 6))
+        if not IS_WIN:
+            ttk.Label(
+                settings,
+                text=t("该能力当前仅支持 Windows（写入用户「启动」目录）。"),
+                style="SubTitle.TLabel",
+            ).pack(anchor="w", pady=(0, 6))
         self._recover_var = tk.BooleanVar(value=bool(self.config.get_setting("auto_recover_crash", False)))
         ttk.Checkbutton(
             settings, text=t("php-cgi 崩溃后自动重启（自愈，默认关闭）"),
@@ -306,6 +320,21 @@ class MainWindow(tk.Tk):
             messagebox.showerror(t("开机自启"), t("修改注册表失败，请检查权限"), parent=self)
             return
         self.set_log(t("开机自启已启用") if target else t("开机自启已关闭"))
+
+    def _toggle_service_autostart(self) -> None:
+        """开机自动启动整套服务开关。"""
+        target = self._svc_autostart_var.get()
+        ok = autostart.enable_services() if target else autostart.disable_services()
+        if not ok:
+            self._svc_autostart_var.set(autostart.services_enabled())
+            messagebox.showerror(
+                t("开机启动服务"),
+                t("写入启动项失败：{path}", path=autostart.services_script_path()),
+                parent=self,
+            )
+            return
+        self.set_log(t("已开启开机启动全部服务") if target
+                     else t("已关闭开机启动全部服务"))
 
     def _toggle_recover(self) -> None:
         """自愈开关：开启 → 拉起独立守护进程；关闭 → 守护进程下轮自行退出。

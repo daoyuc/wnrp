@@ -65,10 +65,11 @@ class PhpPanel(ttk.Frame):
         self.btn_download = ttk.Button(bar, text=t("下载新版本"), style="Accent.TButton",
                                        command=self._download_version)
         self.btn_terminal = ttk.Button(bar, text=t("打开终端"), command=self._open_terminal)
+        self.btn_composer = ttk.Button(bar, text=t("Composer"), command=self._composer)
         self.btn_refresh = ttk.Button(bar, text=t("刷新"), command=self.refresh_versions)
         for b in (self.btn_start, self.btn_stop, self.btn_restart, self.btn_port,
                   self.btn_ini, self.btn_edit, self.btn_check, self.btn_ext,
-                  self.btn_download, self.btn_terminal,
+                  self.btn_download, self.btn_terminal, self.btn_composer,
                   self.btn_refresh):
             b.pack(side="left", padx=(0, 6))
         ttk.Label(bar, text=t("选中版本后操作 · 双击行查看配置"),
@@ -388,6 +389,31 @@ class PhpPanel(ttk.Frame):
             )
             return
         ExtensionDialog(self, v, self.php_mgr)
+
+    def _composer(self) -> None:
+        """检测 Composer，并在所选 PHP 版本的 PATH 下打开终端查看版本。"""
+        v = self._selected()
+        if v is None:
+            return
+        from core import tool_manager
+
+        info = tool_manager.info()
+        if not info["ok"]:
+            messagebox.showinfo(t("Composer"), info["message"], parent=self)
+            self.notify(t("未检测到 Composer"))
+            return
+        if tool_manager.open_composer_terminal(php_dir=v.dir):
+            self.notify(t("Composer（{ver}）已在终端打开 · PHP 版本：{name}",
+                          ver=info["version"], name=v.name))
+        else:
+            messagebox.showinfo(
+                t("Composer"),
+                t("已检测到 Composer：{path}\n{ver}\n\n"
+                  "无法自动打开终端，可手动执行：\n"
+                  "  set PATH={dir};%PATH%\n  composer -V",
+                  path=info["path"], ver=info["version"], dir=v.dir),
+                parent=self,
+            )
 
     def _open_terminal(self) -> None:
         """新开终端，PATH 前置所选 PHP 版本目录（新窗口生效）。"""

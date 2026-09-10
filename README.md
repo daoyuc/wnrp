@@ -11,6 +11,7 @@
 - Windows：双击 `phpvm.bat`（使用 `pythonw.exe` 后台运行，无控制台窗口）
 - macOS / Linux：双击 `phpvm.command`（自动挑选带 tkinter 的 Python）或执行 `python3 main.py`
 - 或命令行执行：`C:\Python312\python.exe C:\wnrp\phpvm\main.py`
+- 无界面启动整套服务（供开机自启脚本调用）：`pythonw main.py --start-all`，结果追加到 `autostart_services.log`
 - 依赖：Python 3.x（Windows 优先 `C:\Python312\pythonw.exe`，其次 PATH 中的 `pythonw`；mac 若缺 tkinter 会提示 `brew install python-tk@3.13`），tkinter 标准库，无需第三方包
 
 ## 功能说明
@@ -29,6 +30,7 @@
 - **扩展管理**：扫描 `ext/*.dll` 对照 ini 启停扩展（`.bak` 备份、二进制安全写回）；在线安装 redis / xdebug / imagick / swoole / memcached —— 按「PHP 主版本 + NTS/TS + 编译器 + 架构」从 PECL 与 xdebug.org 自动匹配（macOS 提供 brew/pecl 引导）
 - **下载新版本**：从 php.net 下载安装任意 PHP 系列新版本（SHA-256 校验、防穿越解压、生成 `php.ini` + `php-web.ini`、默认启用 20 个扩展、按规则规划端口、VC 运行库缺失检测）
 - **打开终端**：新开终端窗口并把所选版本目录前置到 PATH（新窗口生效），便于直接以该版本运行 php / composer
+- **Composer**：自动探测系统 Composer（`PATH` 与 `C:\ProgramData\ComposerSetup` 等常见位置），点击后在该 PHP 版本的 PATH 下打开终端执行 `composer -V`；未安装时给出安装指引（不内置下载）
 - **cmd php 版本切换**：顶部实时显示当前 `php` 命令行生效版本（如 `CMD php：php82 · PHP 8.2.4`），点击「切换」可选择任意版本置顶
 - 每 **8 秒**自动刷新运行状态（批量快照：一次 TCP 端口快照 + 一次进程快照完成全部版本状态判定）；顶部 cmd php 版本号按「版本目录 + php.exe 修改时间」缓存，并降频为每 4 轮（约 32 秒）刷新一次
 
@@ -58,7 +60,8 @@
 ### SQLite 数据库页
 - **自动发现**：扫描环境根与各站点 `root` 目录下的 `*.db` / `*.sqlite` / `*.sqlite3` / `*.db3`（跳过 `node_modules`、`.git` 等依赖/缓存目录），下拉选择或「浏览…」手动指定
 - **只读浏览**：左侧列出表 / 视图清单，选中即显示列名 / 类型 / 约束 / 默认值与行数；双击表名自动生成 `SELECT * FROM ... LIMIT 200` 并执行
-- **执行查询**：SQL 编辑框支持 `SELECT` / `WITH` / `PRAGMA` / `EXPLAIN` / `VALUES`（Ctrl/Cmd+Enter 快捷执行），结果表格最多显示 500 行，超出截断提示
+- **执行查询**：SQL 编辑框支持 `SELECT` / `WITH` / `PRAGMA` / `EXPLAIN` / `VALUES`（Ctrl/Cmd+Enter 快捷执行），结果每页 500 行，可「上一页 / 下一页」翻页
+- **导出结果**：把当前页结果导出为 CSV（UTF-8 BOM，Excel 可直接打开）
 - **安全兜底**：连接以只读 URI（`mode=ro` + `PRAGMA query_only`）打开，叠加语句首关键字白名单（`SELECT` / `WITH` / `PRAGMA` / `EXPLAIN` / `VALUES`）双重限制，杜绝误写；查询超时（默认 10s，行数统计 3s）自动中断，避免大表卡死界面
 - 发现范围：环境根 + 各站点 `root` 目录，向下最多 4 层、最多 300 个文件，跳过 `node_modules` / `.git` / `venv` 等依赖与缓存目录
 - 记忆上次打开的数据库（`settings.sqlite_last_db`），下次启动自动带回
@@ -130,6 +133,7 @@
   - php-cgi 崩溃自愈开关（默认关闭），注明「防抖 60 秒、每版本每小时最多 3 次」
   - 界面语言下拉（简体中文 / 繁體中文 / English / 日本語 / 한국어），点「应用」后**重启 phpvm 生效**
   - 服务编排：「全部启动」「全部停止」两个按钮（关于页与托盘菜单均可操作，后台执行并逐项汇总结果）
+  - 开机自动启动全部服务（登录时静默启动 Nginx + 各 PHP + Redis + MySQL，写入用户「启动」目录；**仅 Windows**，无需管理员）
 
 ### 界面语言（i18n）
 - 全部界面文案经 `t()` 翻译，内置 **5 种语言**：简体中文（源码原文，无词条表）、繁體中文、English、日本語、한국어
@@ -212,6 +216,8 @@ C:\wnrp\phpvm\
 │   ├── mysql_manager.py   # MySQL 发现/启停（Windows 服务优先，进程模式兜底）/错误日志
 │   ├── cert_manager.py    # 本地 HTTPS 证书（探测 openssl/mkcert，生成与清理）
 │   ├── service_group.py   # 整套服务编排：一键全启动 / 全停止（PHP+Redis+MySQL+Nginx）
+│   ├── tool_manager.py    # 外部工具探测（Composer 路径/版本与按 PHP 版本运行）
+│   ├── icon.py            # 托盘图标 phpvm.ico 生成（标准库写 ICO，仓库不内置二进制）
 │   ├── vhost_manager.py   # 站点映射解析 + 端口一键同步 + 站点文件写入 / include 自动补全
 │   ├── site_templates.py  # 6 套站点 nginx 模板（Laravel/WordPress/ThinkPHP/通用/静态/SPA）
 │   ├── hosts_manager.py   # hosts 自动映射（跨平台；PowerShell RunAs / osascript 提权写入）

@@ -62,7 +62,7 @@
 | SQLite 只读查询 | ~ | ~ | ✓ | phpvm 特色（只读兜底） |
 | Redis 管理 | ~ | ~ | ✓ | 多实例 + 命令 + 键空间图表 |
 | HTTPS 本地证书一键生成 | ✓ | ✓ | ✓ | P1-1 已实现（mkcert > openssl 自签；本机已装 OpenSSL-Win64） |
-| Composer / Node 等工具随附 | ✓ | ~ | **✗** | 系统已装 composer，未集成，见 P2-1 |
+| Composer / Node 等工具随附 | ✓ | ~ | ✓ | P2-1 已集成：探测 `C:\ProgramData\ComposerSetup`（2.8.1），可按 PHP 版本运行 |
 | 一键启停整套服务 | ✓ | ✓ | ✓ | P1-3 已实现（托盘 + 关于页） |
 | 崩溃检测 / 自愈 | ~ | ✗ | ✓ | phpvm 特色（双数据源 + 独立守护 + 失联兜底） |
 | 多语言界面 | ~ | ~ | ✓ | phpvm 特色（5 语言） |
@@ -138,11 +138,11 @@
 
 ### P2 · 工具集成与打磨
 
-- **P2-1 Composer 探测 + 按版本运行**：系统已装 `C:\ProgramData\ComposerSetup\bin\composer(.bat)`（`[已确认]`）→ 只需探测路径、回显 `composer -V` 与其绑定的 PHP，并提供「用选中 PHP 版本运行 composer」入口（PATH 前置），**无需下载安装分支**。落点 `core/tool_manager.py`（新）。
-- **P2-2 整套服务开机自启 / 可选服务化**：依赖 P1-3 的编排层；Windows 需 `sc create` 与权限设计。落点 `core/autostart.py` 扩展。
-- **P2-3 i18n 覆盖度守护**：`_i18n_scan.py --report` 已有缺失统计，建议加阈值退出码或在关于页加「语言覆盖度」诊断（读 `missing_keys()`），避免漏译不可见。
-- **P2-4 SQLite 面板增强**：结果分页（现 500 行截断）、导出 CSV / SQL。
-- **P2-5 一致性打磨**：托盘图标（`ui/tray` 加载 `<phpvm>\phpvm.ico`，当前不存在 → 回退系统图标）、`SelfCheckDialog` 底部「关键扩展核对 N 项」用的是检查项数 3 而非扩展数 9。
+- **P2-1 ✅ 已实现 Composer 探测 + 按版本运行**：系统已装 `C:\ProgramData\ComposerSetup\bin\composer(.bat)`（`[已确认]`）→ 只需探测路径、回显 `composer -V` 与其绑定的 PHP，并提供「用选中 PHP 版本运行 composer」入口（PATH 前置），**无需下载安装分支**。落点 `core/tool_manager.py`（新）。
+- **P2-2 ✅ 已实现开机自动启动整套服务**（Windows「启动」目录 + `main.py --start-all`；服务化/`sc create` 未做，仍列 P3）：依赖 P1-3 的编排层；Windows 需 `sc create` 与权限设计。落点 `core/autostart.py` 扩展。
+- **P2-3 ✅ 已实现 i18n 覆盖度守护**（`_i18n_scan.py --fail-under=N`，缺失超阈值退出码 1）：`_i18n_scan.py --report` 已有缺失统计，建议加阈值退出码或在关于页加「语言覆盖度」诊断（读 `missing_keys()`），避免漏译不可见。
+- **P2-4 ✅ 已实现 SQLite 面板增强**：结果分页（每页 500 行，上一页 / 下一页）、导出 CSV（SQL 导出未做）。
+- **P2-5 ✅ 已实现一致性打磨**：托盘图标（`core/icon.py` 用标准库生成 `phpvm.ico`）、`SelfCheckDialog` 底部改为显示真实扩展数（9 项）。
 
 ### P3 · 远期候选（仅记录）
 
@@ -169,7 +169,8 @@
 - **第二轮（2026-09-10，文档）**：拉取远端最新代码后重做 `README.md` 与本文档，补齐 i18n / Redis / 扩展 / 下载 / 单实例 / 窗口自适应 / macOS 适配等章节，并将「新建站点向导」「hosts 写入」标记为已实现。
 - **第三轮（2026-09-10，P0 落地）**：实现 P0 全部条目 —— 修复「编辑配置保存」崩溃与 php83/84 ini 选择；新增站点行级操作（浏览器 / 目录直达、启用禁用、站点级换 PHP 版本）与 hosts 删除 / 备份 / 一键还原 / 向导回滚；新增界面文案已用 `t()` 包裹（其它语言待补词条，回落中文）。18 项冒烟用例全部通过（hosts 部分使用临时文件，未触碰系统 hosts）。
 - **第四轮（2026-09-10，P1 落地）**：新增 MySQL 管理页（`core/mysql_manager.py` + `ui/mysql_panel.py`，Windows 服务优先）；新增 HTTPS 证书（`core/cert_manager.py` + 443 模板变体 + 向导勾选，实测本机装有 OpenSSL-Win64 可用）；新增一键全启停（`core/service_group.py`，托盘与关于页入口）与「打开终端」（`pu.open_terminal` + PHP 页按钮）。17 项冒烟用例全部通过（只读，未真的启停 MySQL）。
-- 后续开发按 **P2** 立项（P0 / P1 均已完成），每条动工前先补齐其标注的 `[待确认]` 项；新增文案记得跑 `python _i18n_scan.py --report` 补齐各语言。
+- **第五轮（2026-09-10，P2 落地）**：新增 Composer 探测与按版本运行（`core/tool_manager.py` + PHP 页按钮）；新增开机自动启动整套服务（`main.py --start-all` + `autostart.enable_services()` 写用户「启动」目录，仅 Windows）；SQLite 结果分页与 CSV 导出；i18n 扫描新增 `--fail-under` 覆盖率守护；托盘图标由 `core/icon.py` 生成；自检文案改为显示真实扩展数。18 项冒烟用例通过，并修复了过程中发现的两个缺陷（Composer 版本取到 PHP 告警行、VBS 内引号未转义）。
+- **P0 / P1 / P2 均已完成**，剩余为 P3 远期候选（资源监控、多 server 块逐块编辑、hosts 分节 UI、服务化 `sc create`、SQLite SQL 导出、phpvm 更新通道）。新增文案记得跑 `python _i18n_scan.py --report` 补齐各语言。
 
 ---
 
@@ -179,7 +180,7 @@
 |---|---|---|
 | MySQL | `mysqld Ver 5.7.34 for Win64`；**Windows 服务**：`MySQL` / Running / Automatic，3306 由 PID 10616 监听；wnrp 内无脚本引用 | [已确认] |
 | MySQL root 凭据 | 认证方式 / 密码未知（未尝试登录探测） | [待确认] |
-| composer | 系统已装 `C:\ProgramData\ComposerSetup\bin\composer(.bat)`；wnrp 目录内没有 | [已确认] |
+| composer | 系统已装 `C:\ProgramData\ComposerSetup\bin\composer.bat`，版本 **2.8.1**；`composer -V` 前置输出含 PHP Deprecated 警告，读取版本须取版本行而非首行（已处理） | [已确认] |
 | openssl / mkcert | wnrp 各目录内未找到，但**系统装有 OpenSSL-Win64**：`C:\Program Files\OpenSSL-Win64\bin\openssl.exe`（mkcert 未装）→ HTTPS 走 openssl 自签可用 | [已确认（2026-09-10 更正）] |
 | hosts | 42 行平铺，`.test` 为主，含真实公网 IP 行；phpvm 仅追加标记块，**无删除 / 无备份 / 向导不回滚** | [已确认] |
 | nginx vhost | 30 个 conf，形态统一（listen 80 + `*.test` + Laravel root + fastcgi_pass 9000/9085），已 include `C:/wnrp/nginx/conf/vhost/*.conf`；无 443 | [已确认] |

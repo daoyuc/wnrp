@@ -76,6 +76,22 @@ def load_table(lang):
     return table
 
 
+def _int_arg(name, default=None):
+    """读取 `--name=N` / `--name N` 形式的整数参数。"""
+    for i, a in enumerate(sys.argv[1:]):
+        if a == name and i + 1 < len(sys.argv[1:]):
+            try:
+                return int(sys.argv[1:][i + 1])
+            except ValueError:
+                return default
+        if a.startswith(name + "="):
+            try:
+                return int(a.split("=", 1)[1])
+            except ValueError:
+                return default
+    return default
+
+
 def main():
     keys = collect()
     _keys_path = os.path.join(I18N, "_keys.json")
@@ -83,14 +99,23 @@ def main():
     json.dump(keys, open(_keys_path, "w", encoding="utf-8"),
               ensure_ascii=False, indent=1, sort_keys=True)
     print(f"msgid 总数：{len(keys)}")
-    if "--report" not in sys.argv:
+    if "--report" not in sys.argv and "--fail-under" not in sys.argv:
         return
+
+    # --fail-under=N：每种语言缺失条目数超过 N 时以退出码 1 结束（用于覆盖率守护）
+    threshold = _int_arg("--fail-under")
+    failed = False
     for lang in RESOURCE_LANGS:
         table = load_table(lang)
         missing = [k for k in keys if k not in table]
         print(f"[{lang}] 已译 {len(table)} / 缺失 {len(missing)}")
         if missing:
             print("  示例缺失：", " | ".join(missing[:8]))
+        if threshold is not None and len(missing) > threshold:
+            failed = True
+    if failed:
+        print(f"覆盖率守护失败：存在语言缺失条数 > {threshold}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
