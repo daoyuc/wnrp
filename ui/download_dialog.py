@@ -21,6 +21,7 @@ from core.php_downloader import (
 from core.php_installer import default_port_for, install, install_dir_for
 from core.php_manager import PhpManager
 from .theme import CARD_BG, GRAY, PRIMARY_LIGHT, TEXT, WARN, setup_style
+from .window_utils import fit_window
 
 STATE_INSTALLED = t("已安装")
 STATE_UPDATE = t("可更新")
@@ -56,7 +57,6 @@ class DownloadDialog(tk.Toplevel):
         self._busy = False
 
         self.title(t("下载 PHP 版本"))
-        self.minsize(620, 540)
         self.resizable(True, True)
         self.transient(master)
         self.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -155,9 +155,9 @@ class DownloadDialog(tk.Toplevel):
         self._prog_text = ttk.Label(prog, text="", style="SubTitle.TLabel", anchor="w")
         self._prog_text.pack(fill="x", pady=(4, 0))
 
-        # 操作区
+        # 操作区：先于内容区分配空间（side=bottom），保证右下角按钮始终可见
         actions = ttk.Frame(root, style="Card.TFrame")
-        actions.pack(fill="x")
+        actions.pack(side="bottom", fill="x", before=head)
         self._btn_install = ttk.Button(actions, text=t("开始下载"), style="Accent.TButton",
                                        command=self._on_install)
         self._btn_install.pack(side="right")
@@ -165,14 +165,9 @@ class DownloadDialog(tk.Toplevel):
         self._btn_install.state(["disabled"])
 
     def _center(self):
-        """按屏幕尺寸自适应窗口大小并居中，保证右下角按钮可见。"""
-        self.update_idletasks()
-        sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
-        w = min(780, max(640, int(sw * 0.86)))
-        h = min(700, int(sh * 0.92))
-        x = max(0, (sw - w) // 2)
-        y = max(0, (sh - h) // 2 - 30)
-        self.geometry(f"{w}x{h}+{x}+{y}")
+        """按屏幕可用工作区收敛窗口大小并居中，保证右下角按钮可见。"""
+        fit_window(self, self.master, width=780, height=700,
+                   min_width=620, min_height=540)
 
     # ---------------------------------------------------------- 加载候选列表 #
     def _start_load(self):

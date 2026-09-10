@@ -25,6 +25,7 @@ from core.php_manager import PhpManager
 from core.site_templates import TEMPLATES, TEMPLATE_MAP, render_config
 from core.vhost_manager import VhostManager
 from .theme import CARD_BG, ERR, FONT, OK, PRIMARY, TEXT
+from .window_utils import fit_window
 
 STEP_TITLES = ["基本信息", "应用模板", "hosts 映射", "确认创建"]
 
@@ -69,8 +70,6 @@ class SiteWizardDialog(tk.Toplevel):
         self._fname: str = ""
 
         self.title(t("新建站点 · 可视化向导"))
-        self.geometry("900x690")
-        self.minsize(820, 600)
         self.configure(bg=CARD_BG)
         self.transient(master)
 
@@ -118,9 +117,9 @@ class SiteWizardDialog(tk.Toplevel):
         self.content = ttk.Frame(self)
         self.content.pack(fill="both", expand=True, padx=14, pady=4)
 
-        # 底部导航
+        # 底部导航：先于步骤内容分配空间，窗口被压小时按钮仍优先可见
         nav = ttk.Frame(self, padding=(14, 6, 14, 14))
-        nav.pack(fill="x", side="bottom")
+        nav.pack(side="bottom", fill="x", before=self.content)
         self.btn_cancel = ttk.Button(nav, text=t("取消"), command=self._cancel)
         self.btn_cancel.pack(side="left")
         self.hint_label = ttk.Label(nav, text="", style="SubTitle.TLabel")
@@ -831,7 +830,5 @@ class SiteWizardDialog(tk.Toplevel):
         self.destroy()
 
     def _center(self, master) -> None:
-        self.update_idletasks()
-        x = master.winfo_rootx() + (master.winfo_width() - self.winfo_width()) // 2
-        y = master.winfo_rooty() + (master.winfo_height() - self.winfo_height()) // 3
-        self.geometry(f"+{max(x, 0)}+{max(y, 0)}")
+        """按屏幕可用工作区收敛尺寸并定位，保证底部（右下角）按钮始终可见。"""
+        fit_window(self, master, width=900, height=690, min_width=820, min_height=600)

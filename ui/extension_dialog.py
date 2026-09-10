@@ -14,6 +14,7 @@ from core import php_extension as ext_mod
 from core.i18n import t
 from core.php_manager import PhpManager, PhpVersion
 from .theme import CARD_BG, ERR, FONT, GRAY, OK, PRIMARY_DARK, TEXT, WARN
+from .window_utils import fit_window
 
 
 class ExtensionDialog(tk.Toplevel):
@@ -32,7 +33,6 @@ class ExtensionDialog(tk.Toplevel):
         ver_txt = f"PHP {version.display}" if version.display else t("PHP 版本未知")
         title = t("安装扩展 · {name} ({ver})", name=version.name, ver=ver_txt)
         self.title(title)
-        self.minsize(680, 560)
         self.configure(bg=CARD_BG)
         self.transient(master)
 
@@ -54,7 +54,8 @@ class ExtensionDialog(tk.Toplevel):
         self._build_online_tab()
 
         btns = ttk.Frame(self, padding=(16, 0, 16, 14))
-        btns.pack(fill="x")
+        # 先于页签内容分配空间（side=bottom），保证右下角按钮始终可见
+        btns.pack(side="bottom", fill="x", before=nb)
         self.progress_label = ttk.Label(btns, text="", style="SubTitle.TLabel")
         self.progress_label.pack(side="left")
         ttk.Button(btns, text=t("关闭"), command=self.destroy).pack(side="right")
@@ -355,13 +356,9 @@ class ExtensionDialog(tk.Toplevel):
             pass
 
     def _center(self) -> None:
-        self.update_idletasks()
-        sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
-        w = min(780, max(660, int(sw * 0.86)))
-        h = min(700, int(sh * 0.92))
-        x = max(0, (sw - w) // 2)
-        y = max(0, (sh - h) // 2 - 30)
-        self.geometry(f"{w}x{h}+{x}+{y}")
+        """按屏幕可用工作区收敛窗口大小并居中，保证右下角按钮可见。"""
+        fit_window(self, self.master, width=780, height=700,
+                   min_width=680, min_height=560)
 
     def destroy(self) -> None:
         self.local_canvas.unbind_all("<MouseWheel>")
