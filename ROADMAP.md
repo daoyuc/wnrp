@@ -30,6 +30,7 @@
 | **MySQL** | 实例发现（my.ini 解析端口/数据目录）；**Windows 服务优先**控制（`sc`/`net`，非管理员禁用启停并提示，进程模式兜底）；状态卡、错误日志 tail、配置与数据目录直达 | `core/mysql_manager.py`、`ui/mysql_panel.py` |
 | **HTTPS 证书** | 探测 openssl / mkcert → 为站点生成证书（`<nginx>/SSL/`）+ 443 模板变体；未检测到工具时禁用选项并给安装指引 | `core/cert_manager.py`、`core/site_templates.py`、`ui/site_wizard.py` |
 | **服务编排** | 一键全启停（PHP → Redis → MySQL → Nginx，反向停止）+ 「打开终端」（PATH 前置所选 PHP 版本） | `core/service_group.py`、`pu.open_terminal`、`ui/php_panel.py`、`ui/main_window.py` |
+| **模块开关** | 功能模块可勾选（关于页）：停用的模块不创建页签、不实例化 manager、不导入其代码；PHP/Nginx/站点映射 为刚需不可取消 | `core/modules.py`、`main.py`、`ui/main_window.py` |
 | 崩溃防护 | Windows 事件日志 + **macOS `.ips`** 双数据源；详情弹窗（含自愈历史页）与清空；**独立守护进程**自愈（防抖 60s、每 3600s 限 N 次、连续失败 5 次解除、手动停止 300s 宽限、`recover_history.json`） | `core/health_monitor.py`、`crash_watchdog.py`、`recover_history.py` |
 | **国际化** | 5 语言（zh_CN 为源码原文；en / zh_TW / ja / ko 词条表约 700 条）、系统语言自动探测、`settings.lang` 持久化、重启生效 | `core/i18n.py`、`i18n/`、`_i18n_scan.py` |
 | **跨平台** | 环境根可配置（`WNRP_ROOT`）、lsof/ps 快照、brew 前缀探测、LaunchAgent 自启、单实例 socket 锁、`open` 打开路径、窗口工作区自适应 | `core/config.py`、`process_utils.py`、`ui/window_utils.py` |
@@ -170,6 +171,8 @@
 - **第三轮（2026-09-10，P0 落地）**：实现 P0 全部条目 —— 修复「编辑配置保存」崩溃与 php83/84 ini 选择；新增站点行级操作（浏览器 / 目录直达、启用禁用、站点级换 PHP 版本）与 hosts 删除 / 备份 / 一键还原 / 向导回滚；新增界面文案已用 `t()` 包裹（其它语言待补词条，回落中文）。18 项冒烟用例全部通过（hosts 部分使用临时文件，未触碰系统 hosts）。
 - **第四轮（2026-09-10，P1 落地）**：新增 MySQL 管理页（`core/mysql_manager.py` + `ui/mysql_panel.py`，Windows 服务优先）；新增 HTTPS 证书（`core/cert_manager.py` + 443 模板变体 + 向导勾选，实测本机装有 OpenSSL-Win64 可用）；新增一键全启停（`core/service_group.py`，托盘与关于页入口）与「打开终端」（`pu.open_terminal` + PHP 页按钮）。17 项冒烟用例全部通过（只读，未真的启停 MySQL）。
 - **第五轮（2026-09-10，P2 落地）**：新增 Composer 探测与按版本运行（`core/tool_manager.py` + PHP 页按钮）；新增开机自动启动整套服务（`main.py --start-all` + `autostart.enable_services()` 写用户「启动」目录，仅 Windows）；SQLite 结果分页与 CSV 导出；i18n 扫描新增 `--fail-under` 覆盖率守护；托盘图标由 `core/icon.py` 生成；自检文案改为显示真实扩展数。18 项冒烟用例通过，并修复了过程中发现的两个缺陷（Composer 版本取到 PHP 告警行、VBS 内引号未转义）。
+- **第六轮（2026-09-10，模块开关）**：新增 `core/modules.py` 模块注册表与关于页勾选设置 —— 默认全部启用，取消勾选（刚需模块除外）后重启不再创建该页签、不实例化 manager、不导入其代码（实测停用 sqlite/log 后页签从 8 个减为 6 个且 `core.sqlite_manager` 未进入 `sys.modules`）。
+- **本轮同时修复 P1 遗留缺陷**：`ui/mysql_panel.py` 状态卡混用 `pack` 与 `grid`，导致 MySQL 面板构建即抛 `TclError`（只读冒烟无法发现，改为真实构建主窗口验证后定位）。
 - **P0 / P1 / P2 均已完成**，剩余为 P3 远期候选（资源监控、多 server 块逐块编辑、hosts 分节 UI、服务化 `sc create`、SQLite SQL 导出、phpvm 更新通道）。新增文案记得跑 `python _i18n_scan.py --report` 补齐各语言。
 
 ---

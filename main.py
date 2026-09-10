@@ -32,15 +32,17 @@ def _start_all_services() -> None:
     autostart_services.log，便于排查登录时未起来的服务。
     """
     from core.config import Config
+    from core import modules
     from core.mysql_manager import MysqlManager
     from core.nginx_manager import NginxManager
     from core.php_manager import PhpManager
     from core.redis_manager import RedisManager
     from core.service_group import ServiceGroup
 
-    cfg = Config()
-    group = ServiceGroup(PhpManager(cfg), NginxManager(), RedisManager(),
-                         MysqlManager())
+    # 按模块开关决定是否实例化：停用的模块不加载其 manager（重启后生效）
+    redis_mgr = RedisManager() if modules.is_enabled("redis", cfg) else None
+    mysql_mgr = MysqlManager() if modules.is_enabled("mysql", cfg) else None
+    group = ServiceGroup(PhpManager(cfg), NginxManager(), redis_mgr, mysql_mgr)
     try:
         msg = group.start_all()
     except Exception as e:  # noqa: BLE001
@@ -175,14 +177,24 @@ def main() -> None:
         _start_all_services()
         return
 
-    from core.mysql_manager import MysqlManager
+    from core import modules
     from core.nginx_manager import NginxManager
     from core.php_manager import PhpManager
-    from core.redis_manager import RedisManager
     from ui.main_window import MainWindow
 
-    app = MainWindow(PhpManager(config), NginxManager(), RedisManager(),
-                     MysqlManager(), config)
+    # 停用的模块不实例化、不加载其面板代码（见 core/modules.py）
+    redis_mgr = None
+    if modules.is_enabled("redis", config):
+        from core.redis_manager import RedisManager
+
+        redis_mgr = RedisManager()
+    mysql_mgr = None
+    if modules.is_enabled("mysql", config):
+        from core.mysql_manager import MysqlManager
+
+        mysql_mgr = MysqlManager()
+
+    app = MainWindow(PhpManager(config), NginxManager(), redis_mgr, mysql_mgr, config)
     try:
         app.mainloop()
     finally:

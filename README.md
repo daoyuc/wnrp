@@ -128,6 +128,9 @@
 
 ### 关于页
 - **环境信息**：环境根目录、PHP FastCGI 配置（php82 / php85 → php-web.ini，其余 → php.ini）、FastCGI 监听、Nginx 前缀、隐藏启动器（Windows）、配置持久化路径
+- **功能模块**：勾选需要加载的模块（默认全部启用），取消勾选后**重启 phpvm 生效**，该模块的代码将不再加载（例如取消「SQLite 数据库」后不会创建该页签，也不会导入其管理器）
+  - 可停用：Redis 管理 / MySQL 管理 / SQLite 数据库 / Nginx 日志
+  - 刚需（不可取消）：PHP 版本管理 / Nginx 管理 / 站点映射
 - **设置区**（3 项）：
   - 开机自动启动 phpvm（Windows 写 `HKCU\...\Run` 的 `phpvm` 值；macOS 写 LaunchAgent `com.phpvm.app`）
   - php-cgi 崩溃自愈开关（默认关闭），注明「防抖 60 秒、每版本每小时最多 3 次」
@@ -185,7 +188,7 @@
 - `ports`：键为版本目录名（php / php56 / … / php85），值为 FastCGI 监听端口；「编辑端口」与在线安装写回此处
 - `settings.auto_recover_crash`：崩溃自愈开关，**默认 false**
 - `settings.auto_recover_limit`：自愈限次（每版本每 3600 秒最多 N 次，默认 3）
-- `settings.lang`：界面语言（空=跟随系统），`settings.sqlite_last_db`：上次打开的 SQLite 库
+- `settings.lang`：界面语言（空=跟随系统），`settings.sqlite_last_db`：上次打开的 SQLite 库，`settings.disabled_modules`：已停用的可选模块
 - 文件损坏或 JSON 解析失败时回退内置默认值并覆盖保存（未知键会被丢弃）
 
 ## 目录结构
@@ -217,6 +220,7 @@ C:\wnrp\phpvm\
 │   ├── cert_manager.py    # 本地 HTTPS 证书（探测 openssl/mkcert，生成与清理）
 │   ├── service_group.py   # 整套服务编排：一键全启动 / 全停止（PHP+Redis+MySQL+Nginx）
 │   ├── tool_manager.py    # 外部工具探测（Composer 路径/版本与按 PHP 版本运行）
+│   ├── modules.py         # 可选模块注册表（开关/持久化，停用后不再加载该模块）
 │   ├── icon.py            # 托盘图标 phpvm.ico 生成（标准库写 ICO，仓库不内置二进制）
 │   ├── vhost_manager.py   # 站点映射解析 + 端口一键同步 + 站点文件写入 / include 自动补全
 │   ├── site_templates.py  # 6 套站点 nginx 模板（Laravel/WordPress/ThinkPHP/通用/静态/SPA）

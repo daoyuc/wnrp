@@ -39,6 +39,7 @@ DEFAULT_SETTINGS = {
     "auto_recover_limit": 3,      # 每小时每版本自愈次数上限
     "lang": None,                 # 界面语言；None = 跟随系统 locale（en/zh_CN/zh_TW/ja/ko）
     "sqlite_last_db": "",         # SQLite 查询页上次打开的数据库文件（下次启动自动带回）
+    "disabled_modules": [],       # 已停用的可选模块 key（见 core/modules.py；重启后不再加载）
 }
 
 

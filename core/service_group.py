@@ -30,7 +30,8 @@ class ServiceGroup:
         except Exception:  # noqa: BLE001
             pass
         try:
-            self.redis_mgr.get_status_all()
+            if self.redis_mgr is not None:
+                self.redis_mgr.get_status_all()
         except Exception:  # noqa: BLE001
             pass
         if self.mysql_mgr is not None:
@@ -56,7 +57,7 @@ class ServiceGroup:
             if getattr(v, "running", False):
                 continue
             lines.append(self._call(f"PHP {v.name}", self.php_mgr.start, v))
-        for inst in self.redis_mgr.instances or []:
+        for inst in (self.redis_mgr.instances if self.redis_mgr else []):
             if getattr(inst, "running", False):
                 continue
             lines.append(self._call(f"Redis {inst.name}", self.redis_mgr.start, inst))
@@ -89,7 +90,7 @@ class ServiceGroup:
             if not getattr(v, "running", False):
                 continue
             lines.append(self._call(f"PHP {v.name}", self.php_mgr.stop, v))
-        for inst in self.redis_mgr.instances or []:
+        for inst in (self.redis_mgr.instances if self.redis_mgr else []):
             if not getattr(inst, "running", False):
                 continue
             lines.append(self._call(f"Redis {inst.name}", self.redis_mgr.stop, inst))

@@ -12,12 +12,12 @@ from core import autostart, crash_watchdog, path_manager
 from core.config import Config, IS_WIN, WNRP_ROOT
 from core.i18n import LANGS, t
 from core.health_monitor import HealthMonitor
+from core import modules
 from core.mysql_manager import MysqlManager
 from core.nginx_manager import NginxManager
 from core.php_manager import PhpManager
 from core.redis_manager import RedisManager
 from core.service_group import ServiceGroup
-from core.sqlite_manager import SqliteManager
 from core.vhost_manager import VhostManager
 from .dialogs import CliSwitchDialog, CrashDialog
 from .mysql_panel import MysqlPanel
@@ -26,7 +26,6 @@ from .nginx_panel import NginxPanel
 from .php_panel import PhpPanel
 from .redis_panel import RedisPanel
 from .site_wizard import SiteWizardDialog
-from .sqlite_panel import SqlitePanel
 from .theme import BG, CARD_BG, ERR, FONT, GRAY, OK, PRIMARY, PRIMARY_LIGHT, TEXT, setup_style
 from .vhost_panel import VhostPanel
 from .window_utils import fit_window
@@ -38,6 +37,9 @@ CRASH_POLL_TICKS = 8  # 崩溃检测频率 ≈ 8 × 8s = 64s 一次（仅告警�
 
 
 class MainWindow(tk.Tk):
+    # 控件跨方法创建（_build / _build_about 等），提前声明类型以满足静态检查
+    _module_vars: dict[str, tk.BooleanVar]
+
     def __init__(self, php_mgr: PhpManager, nginx_mgr: NginxManager,
                  redis_mgr: RedisManager, mysql_mgr: MysqlManager, config: Config):
         super().__init__()
@@ -142,28 +144,44 @@ class MainWindow(tk.Tk):
         self.btn_cli = ttk.Button(cli_box, text=t("切换"), command=self._open_cli_switch)
         self.btn_cli.pack(side="left")
 
-        # 页签
+        # 页签：按模块开关构建（停用的模块不实例化、不导入其面板代码）
         nb = ttk.Notebook(self)
         nb.pack(fill="both", expand=True, padx=12, pady=(0, 6))
         self.php_panel = PhpPanel(nb, self.php_mgr, self.config, self.set_log)
         self.nginx_panel = NginxPanel(nb, self.nginx_mgr, self.set_log,
                                       on_new_site=self._open_site_wizard)
-        self.redis_panel = RedisPanel(nb, self.redis_mgr, self.set_log)
-        self.mysql_panel = MysqlPanel(nb, self.mysql_mgr, self.set_log)
+        self.redis_panel = None
+        if self.redis_mgr is not None:
+            self.redis_panel = RedisPanel(nb, self.redis_mgr, self.set_log)
+        self.mysql_panel = None
+        if self.mysql_mgr is not None:
+            self.mysql_panel = MysqlPanel(nb, self.mysql_mgr, self.set_log)
         self.vhost_mgr = VhostManager(self.config)
         self.vhost_panel = VhostPanel(nb, self.vhost_mgr, self.set_log)
-        # SQLite 查询页：复用 vhost 管理器，从站点 root 里发现站点自带的数据库
-        self.sqlite_panel = SqlitePanel(nb, SqliteManager(self.config), self.vhost_mgr,
-                                        self.set_log)
-        self.log_panel = NginxLogPanel(nb, self.set_log, self.nginx_mgr)
+        self.sqlite_panel = None
+        if modules.is_enabled("sqlite", self.config):
+            # 延迟导入：停用时不加载 sqlite 面板与管理器
+            from core.sqlite_manager import SqliteManager
+            from .sqlite_panel import SqlitePanel
+
+            # SQLite 查询页：复用 vhost 管理器，从站点 root 里发现站点自带的数据库
+            self.sqlite_panel = SqlitePanel(nb, SqliteManager(self.config),
+                                            self.vhost_mgr, self.set_log)
+        self.log_panel = None
+        if modules.is_enabled("log", self.config):
+            self.log_panel = NginxLogPanel(nb, self.set_log, self.nginx_mgr)
         about = self._build_about(nb)
         nb.add(self.php_panel, text=f"  {t('PHP 版本管理')}  ")
         nb.add(self.nginx_panel, text=f"  {t('Nginx 管理')}  ")
-        nb.add(self.redis_panel, text=f"  {t('Redis 管理')}  ")
-        nb.add(self.mysql_panel, text=f"  {t('MySQL 管理')}  ")
+        if self.redis_panel is not None:
+            nb.add(self.redis_panel, text=f"  {t('Redis 管理')}  ")
+        if self.mysql_panel is not None:
+            nb.add(self.mysql_panel, text=f"  {t('MySQL 管理')}  ")
         nb.add(self.vhost_panel, text=f"  {t('站点映射')}  ")
-        nb.add(self.sqlite_panel, text=f"  {t('SQLite 数据库')}  ")
-        nb.add(self.log_panel, text=f"  {t('Nginx 日志')}  ")
+        if self.sqlite_panel is not None:
+            nb.add(self.sqlite_panel, text=f"  {t('SQLite 数据库')}  ")
+        if self.log_panel is not None:
+            nb.add(self.log_panel, text=f"  {t('Nginx 日志')}  ")
         nb.add(about, text=f"  {t('关于')}  ")
 
     def _build_about(self, master) -> ttk.Frame:
@@ -194,6 +212,28 @@ class MainWindow(tk.Tk):
             ttk.Label(info, text=v, font=(FONT, 9), background=CARD_BG).grid(
                 row=i, column=1, sticky="w", pady=3
             )
+
+        # 模块开关：取消勾选的可选模块在重启后不再加载
+        mods = ttk.LabelFrame(frame, text=t("功能模块"), padding=12)
+        mods.pack(fill="x", pady=(10, 0))
+        ttk.Label(
+            mods,
+            text=t("默认全部启用；取消勾选后需重启 phpvm 生效（该模块代码将不再加载）。"),
+            style="SubTitle.TLabel",
+        ).pack(anchor="w", pady=(0, 6))
+        self._module_vars: dict[str, tk.BooleanVar] = {}
+        disabled = modules.disabled_modules(self.config)
+        for meta in modules.MODULES:
+            key = str(meta["key"])
+            required = bool(meta["required"])
+            var = tk.BooleanVar(value=(key not in disabled))
+            self._module_vars[key] = var
+            cb = ttk.Checkbutton(
+                mods, text=modules.label(meta), variable=var,
+                state="disabled" if required else "normal",
+                command=lambda k=key: self._toggle_module(k),
+            )
+            cb.pack(anchor="w", pady=1)
 
         # 设置区：开机自启 + 崩溃自愈 + 界面语言
         settings = ttk.LabelFrame(frame, text=t("设置"), padding=12)
@@ -321,6 +361,19 @@ class MainWindow(tk.Tk):
             return
         self.set_log(t("开机自启已启用") if target else t("开机自启已关闭"))
 
+    def _toggle_module(self, key: str) -> None:
+        """模块开关：写入 settings.disabled_modules（刚需模块不可取消）。"""
+        if key in modules.REQUIRED_KEYS:
+            self._module_vars[key].set(True)
+            return
+        disabled = [k for k, v in self._module_vars.items()
+                    if not v.get() and k not in modules.REQUIRED_KEYS]
+        modules.set_disabled(self.config, disabled)
+        state = t("停用") if key in disabled else t("启用")
+        name = next((str(m["name"]) for m in modules.MODULES if str(m["key"]) == key), key)
+        self.set_log(t("模块 {name} 已设为{state}，重启 phpvm 后生效",
+                       name=t(name), state=state))
+
     def _toggle_service_autostart(self) -> None:
         """开机自动启动整套服务开关。"""
         target = self._svc_autostart_var.get()
@@ -390,22 +443,17 @@ class MainWindow(tk.Tk):
 
     def _tick(self) -> None:
         # 自动轻量刷新状态（面板内部自行排队异步执行）
-        try:
-            self.php_panel.auto_refresh()
-            self.nginx_panel.auto_refresh()
-            self.redis_panel.auto_refresh()
-            self.log_panel.auto_refresh()
-        except Exception:  # noqa: BLE001
-            pass
+        self._refresh_panels()
         # cmd php 版本号变化极少，降频刷新（每 4 轮 tick ≈ 32s 一次）
         self._tick_count = getattr(self, "_tick_count", 0) + 1
         if self._tick_count % 4 == 0:
             self._refresh_cli()
             # MySQL 状态查询涉及服务枚举，同样降频
-            try:
-                self.mysql_panel.auto_refresh()
-            except Exception:  # noqa: BLE001
-                pass
+            if self.mysql_panel is not None:
+                try:
+                    self.mysql_panel.auto_refresh()
+                except Exception:  # noqa: BLE001
+                    pass
         # 崩溃检测（低频轮询事件日志，仅用于告警展示）+ 自愈守护保活
         self._crash_tick += 1
         if self._crash_tick >= CRASH_POLL_TICKS:
@@ -545,12 +593,17 @@ class MainWindow(tk.Tk):
         self.state("normal")
         self.lift()
         self.focus_force()
+        self._refresh_panels()
+
+    def _refresh_panels(self) -> None:
+        """刷新已启用的面板（停用的模块不刷新、不触碰其代码）。"""
         try:
             self.php_panel.auto_refresh()
             self.nginx_panel.auto_refresh()
-            self.redis_panel.auto_refresh()
-            self.mysql_panel.auto_refresh()
-            self.log_panel.auto_refresh()
+            if self.redis_panel is not None:
+                self.redis_panel.auto_refresh()
+            if self.log_panel is not None:
+                self.log_panel.auto_refresh()
         except Exception:  # noqa: BLE001
             pass
 
@@ -595,13 +648,15 @@ class MainWindow(tk.Tk):
                             "cmd": lambda: self._tray_action("nginx", "test_config")})
         items.append({"type": "submenu", "label": "Nginx", "items": nginx_items})
 
-        # Redis 快捷启停（多实例时每个实例一个子菜单）
-        redis_items: list[dict] = []
-        try:
-            self.redis_mgr.get_status_all()
-        except Exception:  # noqa: BLE001
-            pass
-        redis_insts = self.redis_mgr.instances
+        # Redis 快捷启停（多实例时每个实例一个子菜单；模块停用时跳过）
+        if self.redis_mgr is None:
+            redis_insts = []
+        else:
+            try:
+                self.redis_mgr.get_status_all()
+            except Exception:  # noqa: BLE001
+                pass
+            redis_insts = self.redis_mgr.instances
         if redis_insts:
             def _redis_submenu(inst) -> list[dict]:
                 if inst.running and inst.pids:
@@ -638,8 +693,8 @@ class MainWindow(tk.Tk):
         else:
             items.append({"type": "item", "label": t("Redis：未发现实例"), "enabled": False})
 
-        # MySQL 快捷启停（实例为 Windows 服务时需管理员权限）
-        mysql_insts = self.mysql_mgr.instances
+        # MySQL 快捷启停（实例为 Windows 服务时需管理员权限；模块停用时跳过）
+        mysql_insts = self.mysql_mgr.instances if self.mysql_mgr is not None else []
         if mysql_insts:
             for mi in mysql_insts:
                 if mi.running and mi.pids:
@@ -739,13 +794,7 @@ class MainWindow(tk.Tk):
             except Exception:  # noqa: BLE001
                 pass
         # 操作完成 → 立即刷新各面板状态
-        try:
-            self.php_panel.auto_refresh()
-            self.nginx_panel.auto_refresh()
-            self.redis_panel.auto_refresh()
-            self.mysql_panel.auto_refresh()
-        except Exception:  # noqa: BLE001
-            pass
+        self._refresh_panels()
 
     def _on_close(self) -> None:
         """点击关闭按钮：弹「重启 / 退出」选择框。
