@@ -2290,6 +2290,12 @@
    "ui/redis_panel.py"
   ]
  },
+ "无法启动新进程：{msg}": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
  "无法打开终端": {
   "count": 1,
   "files": [
@@ -2867,12 +2873,6 @@
    "ui/dialogs.py"
   ]
  },
- "确定要退出 phpvm 吗？": {
-  "count": 1,
-  "files": [
-   "ui/main_window.py"
-  ]
- },
  "示例 myapp.test 或 www.example.com；多个域名用空格分隔；\n支持 *.dev 泛解析（通配项不会写入 hosts）。": {
   "count": 1,
   "files": [
@@ -3362,12 +3362,6 @@
    "ui/tray.py"
   ]
  },
- "退出 phpvm": {
-  "count": 1,
-  "files": [
-   "ui/main_window.py"
-  ]
- },
  "选中版本后操作 · 双击行查看配置": {
   "count": 1,
   "files": [
@@ -3494,7 +3488,7 @@
   ]
  },
  "重启": {
-  "count": 5,
+  "count": 7,
   "files": [
    "ui/main_window.py",
    "ui/php_panel.py",

@@ -35,6 +35,7 @@
  "已达上限": "Limit reached",
  "常见级别见下拉": "Common levels are shown in the dropdown",
  "手动重启": "Manual restart",
+ "无法启动新进程：{msg}": "Unable to start a new process: {msg}",
  "文件类型识别": "File-type detection",
  "显示错误": "Display errors",
  "最大执行秒数": "Max execution time (seconds)",
