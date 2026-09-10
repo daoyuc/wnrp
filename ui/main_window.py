@@ -8,7 +8,7 @@ import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-from core import autostart, crash_watchdog, path_manager
+from core import app_paths, autostart, crash_watchdog, path_manager, updater
 from core.config import Config, IS_WIN, WNRP_ROOT
 from core.i18n import LANGS, t
 from core.health_monitor import HealthMonitor
@@ -27,6 +27,7 @@ from .php_panel import PhpPanel
 from .redis_panel import RedisPanel
 from .site_wizard import SiteWizardDialog
 from .theme import BG, CARD_BG, ERR, FONT, GRAY, OK, PRIMARY, PRIMARY_LIGHT, TEXT, setup_style
+from .update_dialog import UpdateBanner, UpdateDialog
 from .vhost_panel import VhostPanel
 from .window_utils import fit_window
 
@@ -69,6 +70,9 @@ class MainWindow(tk.Tk):
         self.after(8000, self._tick)
         # 启动后稍作延迟，回溯最近 24h 的 php-cgi 崩溃（不弹窗，仅状态栏/托盘提示）
         self.after(1500, self._check_crash_startup)
+        # 启动静默检查更新（可在「关于 → 设置」关闭；发现新版本只做状态栏提示）
+        self._update_banner = UpdateBanner(self, self.config, self._on_update_found)
+        self._update_banner.start()
 
         self._tray = None
         self._init_tray()
@@ -88,6 +92,10 @@ class MainWindow(tk.Tk):
                 command=lambda c=code: self._on_lang_selected(c),
             )
         menubar.add_cascade(label=t("语言"), menu=lang_menu)
+        help_menu = tk.Menu(menubar, tearoff=0)
+        help_menu.add_command(label=t("检查更新"), command=self.open_update_dialog)
+        help_menu.add_command(label=t("下载缓存目录"), command=self._open_update_dir)
+        menubar.add_cascade(label=t("帮助"), menu=help_menu)
         # 注意：实例属性 self.config 是 Config 对象（覆盖了 tk 的 .config 别名），
         # 这里必须用 .configure 才能给根窗口挂上菜单栏。
         self.configure(menu=menubar)
@@ -117,6 +125,14 @@ class MainWindow(tk.Tk):
         )
         self._alert_label.pack(side="right", padx=10, pady=4)
         self._alert_label.bind("<Button-1>", lambda e: self._show_crash_detail())
+
+        # 新版本提示（点击打开更新对话框）
+        self._update_label = tk.Label(
+            bar, text="", font=(FONT, 8, "bold"), foreground=PRIMARY,
+            background=PRIMARY_LIGHT, cursor="hand2",
+        )
+        self._update_label.pack(side="right", padx=(0, 4), pady=4)
+        self._update_label.bind("<Button-1>", lambda e: self.open_update_dialog())
 
         # 标题区
         header = ttk.Frame(self, style="Card.TFrame")
@@ -197,14 +213,16 @@ class MainWindow(tk.Tk):
         info = ttk.LabelFrame(frame, text=t("环境信息"), padding=12)
         info.pack(fill="x")
         rows = [
+            (t("phpvm 版本"), f"v{updater.current_version()}"),
             (t("环境根目录"), WNRP_ROOT_SHOW),
             (t("PHP FastCGI 配置"), t("php82/php85 → php-web.ini，其余 → php.ini")),
             (t("FastCGI 监听"), t("127.0.0.1:端口（按版本配置，见 PHP 版本管理页）")),
             (t("Nginx 前缀"), os.path.join(WNRP_ROOT, "nginx")),
-            (t("配置持久化"), os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config.json")),
+            (t("配置持久化"), self.config.config_path),
+            (t("数据目录"), app_paths.data_dir()),
         ]
         if IS_WIN:
-            rows.insert(4, (t("隐藏启动器"), os.path.join(WNRP_ROOT, "RunHiddenConsole.exe")))
+            rows.insert(5, (t("隐藏启动器"), os.path.join(WNRP_ROOT, "RunHiddenConsole.exe")))
         for i, (k, v) in enumerate(rows):
             ttk.Label(info, text=f"{k}：", font=(FONT, 9, "bold"), background=CARD_BG).grid(
                 row=i, column=0, sticky="w", padx=(8, 4), pady=3
@@ -281,6 +299,26 @@ class MainWindow(tk.Tk):
             side="left", padx=(8, 0)
         )
 
+        # 软件更新：版本显示 + 手动检查 + 启动自动检查开关
+        upd_row = ttk.Frame(settings)
+        upd_row.pack(anchor="w", pady=(10, 0))
+        ttk.Label(upd_row, text=t("软件更新："), font=(FONT, 9, "bold"),
+                  background=CARD_BG).pack(side="left")
+        ttk.Label(upd_row, text=t("当前版本 {ver}", ver=f"v{updater.current_version()}"),
+                  background=CARD_BG).pack(side="left", padx=(4, 10))
+        ttk.Button(upd_row, text=t("检查更新"),
+                   command=self.open_update_dialog).pack(side="left")
+        ttk.Button(upd_row, text=t("打开下载缓存目录"),
+                   command=self._open_update_dir).pack(side="left", padx=(8, 0))
+        self._update_autocheck_var = tk.BooleanVar(
+            value=bool(self.config.get_setting("check_update_on_start", True)))
+        ttk.Checkbutton(
+            settings,
+            text=t("启动时自动检查更新（发现新版本时仅状态栏提示）"),
+            variable=self._update_autocheck_var,
+            command=self._toggle_update_autocheck,
+        ).pack(anchor="w", pady=(4, 0))
+
         # 服务编排：一键启停整套环境
         group_row = ttk.Frame(settings)
         group_row.pack(anchor="w", pady=(10, 0), fill="x")
@@ -320,6 +358,32 @@ class MainWindow(tk.Tk):
             t("界面语言已保存为 {name}。重启 phpvm 后生效。", name=LANGS[code]),
             parent=self,
         )
+
+    # ------------------------------------------------------------------ #
+    # 软件更新
+    # ------------------------------------------------------------------ #
+    def open_update_dialog(self) -> None:
+        """打开「软件更新」对话框（打开即检查一次）。"""
+        self._update_label.configure(text="")
+        UpdateDialog(self, self.config, on_status=self.set_log)
+
+    def _open_update_dir(self) -> None:
+        """打开安装包下载缓存目录。"""
+        from core import process_utils as pu
+
+        pu.open_path(updater.updates_dir())
+
+    def _on_update_found(self, rel) -> None:
+        """启动检查发现新版本：状态栏提示（不弹窗打扰）。"""
+        self._update_label.configure(
+            text=t("发现新版本 {ver}，点击升级", ver=rel.version))
+        self.set_log(t("发现新版本 {ver}，可点击状态栏提示升级", ver=rel.version))
+
+    def _toggle_update_autocheck(self) -> None:
+        enabled = self._update_autocheck_var.get()
+        self.config.set_setting("check_update_on_start", enabled)
+        self.set_log(t("启动时自动检查更新已开启") if enabled
+                     else t("启动时自动检查更新已关闭"))
 
     # ------------------------------------------------------------------ #
     def set_log(self, msg: str) -> None:

@@ -17,3 +17,10 @@ crash_watchdog.lock
 
 # 托盘图标：运行时由 core/icon.py 生成（仓库不内置二进制）
 phpvm.ico
+
+# 安装包构建中间产物与产物（packaging/build.py）
+build/
+dist/
+
+# 自动升级下载缓存（开发态数据目录为包目录时会落在这里）
+updates/

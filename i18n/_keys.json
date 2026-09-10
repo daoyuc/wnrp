@@ -2,828 +2,828 @@
  "\n[错误] 当前模板需要 PHP，但未选择任何 PHP 版本 —— 请返回第 1 步选择。": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "\n提示：修改端口后需同步修改对应 nginx vhost 的 fastcgi_pass 才会生效。\nphpvm 按端口精确启停，不会像旧的 start_phpXX.bat 那样误杀其它版本进程。": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "\n注意：同名配置文件已存在，创建时将覆盖（原文件自动备份为 .bak）": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "           {reasons}": {
   "count": 1,
   "files": [
-   "core\\health_monitor.py"
+   "core/health_monitor.py"
   ]
  },
  " 泛解析": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  " （已禁用）": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "(error) 执行异常：{err}": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
   ]
  },
  "(无输出)": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "(空输出)": {
   "count": 2,
   "files": [
-   "ui\\redis_panel.py",
-   "core\\redis_manager.py"
+   "ui/redis_panel.py",
+   "core/redis_manager.py"
   ]
  },
  "127.0.0.1:端口（按版本配置，见 PHP 版本管理页）": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "== phpvm Nginx 管理器 ==": {
   "count": 1,
   "files": [
-   "ui\\nginx_panel.py"
+   "ui/nginx_panel.py"
   ]
  },
  "== phpvm Redis 管理器 ==": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
   ]
  },
  "== 开始创建站点 ==": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "== 站点创建完成 ==": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "=== 崩溃自愈守护进程启动 ===": {
   "count": 1,
   "files": [
-   "core\\crash_watchdog.py"
+   "core/crash_watchdog.py"
   ]
  },
  "=== 崩溃自愈守护进程退出 ===": {
   "count": 1,
   "files": [
-   "core\\crash_watchdog.py"
+   "core/crash_watchdog.py"
   ]
  },
  "> 读取错误日志…": {
   "count": 1,
   "files": [
-   "ui\\mysql_panel.py"
+   "ui/mysql_panel.py"
   ]
  },
  "Composer": {
   "count": 3,
   "files": [
-   "ui\\php_panel.py"
+   "ui/php_panel.py"
   ]
  },
  "Composer（{ver}）已在终端打开 · PHP 版本：{name}": {
   "count": 1,
   "files": [
-   "ui\\php_panel.py"
+   "ui/php_panel.py"
   ]
  },
  "DB 键空间": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
   ]
  },
  "FastCGI 监听": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "FastCGI 端口：": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "HTTPS（可选）": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "HTTPS：{v}": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "MySQL": {
   "count": 1,
   "files": [
-   "ui\\mysql_panel.py"
+   "ui/mysql_panel.py"
   ]
  },
  "MySQL 仍未停止，请手动结束进程": {
   "count": 1,
   "files": [
-   "core\\mysql_manager.py"
+   "core/mysql_manager.py"
   ]
  },
  "MySQL 启动超时，请查看错误日志：{path}": {
   "count": 1,
   "files": [
-   "core\\mysql_manager.py"
+   "core/mysql_manager.py"
   ]
  },
  "MySQL 实例：": {
   "count": 1,
   "files": [
-   "ui\\mysql_panel.py"
+   "ui/mysql_panel.py"
   ]
  },
  "MySQL 已停止": {
   "count": 2,
   "files": [
-   "core\\mysql_manager.py"
+   "core/mysql_manager.py"
   ]
  },
  "MySQL 已启动（端口 {port}）": {
   "count": 1,
   "files": [
-   "core\\mysql_manager.py"
+   "core/mysql_manager.py"
   ]
  },
  "MySQL 已在运行（端口 {port}）": {
   "count": 1,
   "files": [
-   "core\\mysql_manager.py"
+   "core/mysql_manager.py"
   ]
  },
  "MySQL 已正常关闭": {
   "count": 2,
   "files": [
-   "core\\mysql_manager.py"
+   "core/mysql_manager.py"
   ]
  },
  "MySQL 未在运行": {
   "count": 1,
   "files": [
-   "core\\mysql_manager.py"
+   "core/mysql_manager.py"
   ]
  },
  "MySQL 未在运行（端口 {port}）": {
   "count": 1,
   "files": [
-   "core\\mysql_manager.py"
+   "core/mysql_manager.py"
   ]
  },
  "MySQL 管理": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "MySQL：未发现实例": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "NTS（FastCGI 推荐）": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "Nginx 停止失败，请手动检查进程": {
   "count": 1,
   "files": [
-   "core\\nginx_manager.py"
+   "core/nginx_manager.py"
   ]
  },
  "Nginx 前缀": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "Nginx 启动失败：{detail}": {
   "count": 1,
   "files": [
-   "core\\nginx_manager.py"
+   "core/nginx_manager.py"
   ]
  },
  "Nginx 启动成功（PID {pids}）": {
   "count": 1,
   "files": [
-   "core\\nginx_manager.py"
+   "core/nginx_manager.py"
   ]
  },
  "Nginx 已停止": {
   "count": 1,
   "files": [
-   "core\\nginx_manager.py"
+   "core/nginx_manager.py"
   ]
  },
  "Nginx 已停止（强制结束）": {
   "count": 1,
   "files": [
-   "core\\nginx_manager.py"
+   "core/nginx_manager.py"
   ]
  },
  "Nginx 已在运行（PID {pids}）": {
   "count": 1,
   "files": [
-   "core\\nginx_manager.py"
+   "core/nginx_manager.py"
   ]
  },
  "Nginx 已平滑重载": {
   "count": 1,
   "files": [
-   "core\\nginx_manager.py"
+   "core/nginx_manager.py"
   ]
  },
  "Nginx 已平滑重载（SIGHUP 兜底）：{text}": {
   "count": 1,
   "files": [
-   "core\\nginx_manager.py"
+   "core/nginx_manager.py"
   ]
  },
  "Nginx 已平滑重载：{text}": {
   "count": 1,
   "files": [
-   "core\\nginx_manager.py"
+   "core/nginx_manager.py"
   ]
  },
  "Nginx 日志": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "Nginx 未在运行": {
   "count": 1,
   "files": [
-   "core\\nginx_manager.py"
+   "core/nginx_manager.py"
   ]
  },
  "Nginx 未在运行，无法重载": {
   "count": 1,
   "files": [
-   "core\\nginx_manager.py"
+   "core/nginx_manager.py"
   ]
  },
  "Nginx 管理": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "Nginx 重载失败：{text}": {
   "count": 1,
   "files": [
-   "core\\nginx_manager.py"
+   "core/nginx_manager.py"
   ]
  },
  "PECL 无适配本机 {series} {ts} {arch} 的 {ext} 构建。\n该扩展可能尚未提供当前 PHP 主版本的 Windows 包。": {
   "count": 1,
   "files": [
-   "core\\php_extension.py"
+   "core/php_extension.py"
   ]
  },
  "PECL 未找到 {ext} 的版本目录": {
   "count": 1,
   "files": [
-   "core\\php_extension.py"
+   "core/php_extension.py"
   ]
  },
  "PHP FastCGI 配置": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "PHP {disp}（FastCGI 端口 {port}）": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "PHP {version} 安装成功（{name}，默认端口 {port}）": {
   "count": 1,
   "files": [
-   "core\\php_installer.py"
+   "core/php_installer.py"
   ]
  },
  "PHP 版本": {
   "count": 5,
   "files": [
-   "ui\\dialogs.py",
-   "ui\\download_dialog.py",
-   "ui\\php_panel.py",
-   "ui\\vhost_panel.py",
-   "core\\health_monitor.py"
+   "ui/dialogs.py",
+   "ui/download_dialog.py",
+   "ui/php_panel.py",
+   "ui/vhost_panel.py",
+   "core/health_monitor.py"
   ]
  },
  "PHP 版本未知": {
   "count": 1,
   "files": [
-   "ui\\extension_dialog.py"
+   "ui/extension_dialog.py"
   ]
  },
  "PHP 版本管理": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "PHP 版本管理器": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "PHP 版本：": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "PHP 版本：{v}": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "PHP 配置 · {name} (PHP {display})": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "Redis 命令": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
   ]
  },
  "Redis 实例：": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
   ]
  },
  "Redis 管理": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "Redis：未发现实例": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "SHA-256 校验失败：文件可能被篡改或下载不完整，已自动清理临时文件。": {
   "count": 1,
   "files": [
-   "core\\php_installer.py"
+   "core/php_installer.py"
   ]
  },
  "SQL 查询": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "SQLite 数据库": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "SQLite 文件": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "TS（线程安全）": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "Windows 服务": {
   "count": 1,
   "files": [
-   "ui\\mysql_panel.py"
+   "ui/mysql_panel.py"
   ]
  },
  "[{name}]  PHP {display}": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "[{name}] 停止失败，请手动检查进程": {
   "count": 1,
   "files": [
-   "core\\redis_manager.py"
+   "core/redis_manager.py"
   ]
  },
  "[{name}] 停止失败，请手动结束相关进程": {
   "count": 1,
   "files": [
-   "core\\php_manager.py"
+   "core/php_manager.py"
   ]
  },
  "[{name}] 启动失败：端口 {port} 未能监听。\n请检查 {conf} 配置与目录权限。": {
   "count": 1,
   "files": [
-   "core\\redis_manager.py"
+   "core/redis_manager.py"
   ]
  },
  "[{name}] 启动失败：端口 {port} 未能监听，请查看 php.ini 配置或端口是否被占用。": {
   "count": 1,
   "files": [
-   "core\\php_manager.py"
+   "core/php_manager.py"
   ]
  },
  "[{name}] 启动成功（PID {pids}，端口 {port}）": {
   "count": 1,
   "files": [
-   "core\\redis_manager.py"
+   "core/redis_manager.py"
   ]
  },
  "[{name}] 启动成功（PID {pid}，端口 {port}）": {
   "count": 1,
   "files": [
-   "core\\php_manager.py"
+   "core/php_manager.py"
   ]
  },
  "[{name}] 已停止": {
   "count": 1,
   "files": [
-   "core\\redis_manager.py"
+   "core/redis_manager.py"
   ]
  },
  "[{name}] 已停止（结束 PID {pids}）": {
   "count": 1,
   "files": [
-   "core\\php_manager.py"
+   "core/php_manager.py"
   ]
  },
  "[{name}] 已停止（部分进程强制结束）": {
   "count": 1,
   "files": [
-   "core\\redis_manager.py"
+   "core/redis_manager.py"
   ]
  },
  "[{name}] 已在运行（PID {pids}，端口 {port}）": {
   "count": 1,
   "files": [
-   "core\\redis_manager.py"
+   "core/redis_manager.py"
   ]
  },
  "[{name}] 已在运行（PID {pid}，端口 {port}）": {
   "count": 1,
   "files": [
-   "core\\php_manager.py"
+   "core/php_manager.py"
   ]
  },
  "[{name}] 未使用独立 php.ini（读取 PHP 编译默认配置）。\n如需按版本定制配置，请在版本目录中放置 php.ini 后重新刷新。": {
   "count": 1,
   "files": [
-   "ui\\php_panel.py"
+   "ui/php_panel.py"
   ]
  },
  "[{name}] 未在运行": {
   "count": 1,
   "files": [
-   "core\\redis_manager.py"
+   "core/redis_manager.py"
   ]
  },
  "[{name}] 未在运行（端口 {port} 无监听）": {
   "count": 1,
   "files": [
-   "core\\php_manager.py"
+   "core/php_manager.py"
   ]
  },
  "[{name}] 未找到 {path}": {
   "count": 1,
   "files": [
-   "core\\redis_manager.py"
+   "core/redis_manager.py"
   ]
  },
  "[{name}] 未找到配置文件，无法启动。\n请在 {dir} 放置 redis.conf，或安装 Homebrew redis 并配置对应 /etc/redis.conf。": {
   "count": 1,
   "files": [
-   "core\\redis_manager.py"
+   "core/redis_manager.py"
   ]
  },
  "[{name}] 端口 {port} 已被占用：{names}\n请先停止占用进程，或修改 {conf} 中的 port 配置。": {
   "count": 1,
   "files": [
-   "core\\redis_manager.py"
+   "core/redis_manager.py"
   ]
  },
  "[{name}] 端口 {port} 已被占用：{names}\n请先停止占用进程，或在界面中修改 {name} 的端口，并同步修改 nginx vhost 的 fastcgi_pass。": {
   "count": 1,
   "files": [
-   "core\\php_manager.py"
+   "core/php_manager.py"
   ]
  },
  "[{name}] 端口已改为 {port} 并保存。\n\n若 nginx 配置引用了旧端口 {old}，请手动同步 fastcgi_pass。": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "[{name}] 运行于 macOS，扩展不再使用 Windows .dll 安装页：\n\n已随 brew 公式编译的扩展（redis/memcached/imap 等）装好即默认加载；\n其它 PECL 扩展请在终端安装（默认装到当前 brew 默认 PHP，多版本并存时\n建议先切 keg：brew link php@8.1 --force）：\n  pecl install redis\n\n启用/禁用请点上方「编辑配置」改对应 php.ini：\n  extension=redis.so\nbrew 的 ini 一般在 /opt/homebrew/etc/php/<版本>/php.ini（Intel 前缀为 /usr/local）。": {
   "count": 1,
   "files": [
-   "ui\\php_panel.py"
+   "ui/php_panel.py"
   ]
  },
  "[{ver}] {reason} → {msg}": {
   "count": 1,
   "files": [
-   "core\\crash_watchdog.py"
+   "core/crash_watchdog.py"
   ]
  },
  "[{ver}] {reason} 失败：{err}": {
   "count": 1,
   "files": [
-   "core\\crash_watchdog.py"
+   "core/crash_watchdog.py"
   ]
  },
  "[{ver}] {reason}：处于手动停止宽限期，跳过": {
   "count": 1,
   "files": [
-   "core\\crash_watchdog.py"
+   "core/crash_watchdog.py"
   ]
  },
  "[{ver}] {reason}：已达自愈上限（{limit} 次/小时）": {
   "count": 1,
   "files": [
-   "core\\crash_watchdog.py"
+   "core/crash_watchdog.py"
   ]
  },
  "[{ver}] {reason}：防抖跳过": {
   "count": 1,
   "files": [
-   "core\\crash_watchdog.py"
+   "core/crash_watchdog.py"
   ]
  },
  "[{ver}] 已被手动停止，移除崩溃看护并进入 {sec}s 宽限": {
   "count": 1,
   "files": [
-   "core\\crash_watchdog.py"
+   "core/crash_watchdog.py"
   ]
  },
  "[{ver}] 检测到崩溃事件：{time} {module} 异常码 {code}": {
   "count": 1,
   "files": [
-   "core\\crash_watchdog.py"
+   "core/crash_watchdog.py"
   ]
  },
  "[{ver}] 连续 {n} 次自愈失败，解除看护，需人工介入": {
   "count": 1,
   "files": [
-   "core\\crash_watchdog.py"
+   "core/crash_watchdog.py"
   ]
  },
  "[重载] {msg}": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "[重载失败] {msg}": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "auto_recover_crash 已关闭，守护进程退出": {
   "count": 1,
   "files": [
-   "core\\crash_watchdog.py"
+   "core/crash_watchdog.py"
   ]
  },
  "cmd 生效": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "ext 目录下没有扩展 dll。": {
   "count": 1,
   "files": [
-   "ui\\extension_dialog.py"
+   "ui/extension_dialog.py"
   ]
  },
  "ext：{dir}  |  当前 {rt}  |  {n} 个扩展": {
   "count": 1,
   "files": [
-   "ui\\extension_dialog.py"
+   "ui/extension_dialog.py"
   ]
  },
  "hosts 中无本次写入的条目，无需移除。": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "hosts 中没有 phpvm 托管的这些域名，未做改动：{doms}": {
   "count": 1,
   "files": [
-   "core\\hosts_manager.py"
+   "core/hosts_manager.py"
   ]
  },
  "hosts 或重载未完成。": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "hosts 无需修改（已指向 {ip}：{detail}）": {
   "count": 1,
   "files": [
-   "core\\hosts_manager.py"
+   "core/hosts_manager.py"
   ]
  },
  "hosts 无需修改（已指向 {ip}：{detail}）；以下域名指向其它 IP，未改动：{others}": {
   "count": 1,
   "files": [
-   "core\\hosts_manager.py"
+   "core/hosts_manager.py"
   ]
  },
  "hosts 映射": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "hosts 映射移除失败，请手动清理：{msg}": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "hosts 映射移除异常：{err}": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "hosts 映射（域名 → 本机）": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "hosts 路径：{path}": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "include 已补上": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "logs 目录无 .log 文件": {
   "count": 1,
   "files": [
-   "ui\\nginx_log_panel.py"
+   "ui/nginx_log_panel.py"
   ]
  },
  "macOS 下请用 Homebrew 安装，phpvm 会自动发现已安装的 keg：\n\n  brew install php@8.1        # 示例：PHP 8.1\n  brew install php@7.4 php@5.6\n\n安装完成回到本页点「刷新」即出现新版本。\n也可以自行放置官方二进制到 ~/wnrp/phpNN/（含 bin/php-cgi）后刷新。": {
   "count": 1,
   "files": [
-   "ui\\php_panel.py"
+   "ui/php_panel.py"
   ]
  },
  "macOS 安装 PHP 版本": {
   "count": 1,
   "files": [
-   "ui\\php_panel.py"
+   "ui/php_panel.py"
   ]
  },
  "macOS 扩展管理": {
   "count": 1,
   "files": [
-   "ui\\php_panel.py"
+   "ui/php_panel.py"
   ]
  },
  "nginx -t 校验失败（详见上方输出）": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "nginx -t 校验失败，已自动还原：{output}": {
   "count": 2,
   "files": [
-   "core\\vhost_manager.py"
+   "core/vhost_manager.py"
   ]
  },
  "nginx -t 校验失败，已还原：{output}": {
   "count": 1,
   "files": [
-   "core\\vhost_manager.py"
+   "core/vhost_manager.py"
   ]
  },
  "nginx -t 校验未通过（或写入失败），通常是模板与项目结构不完全匹配。\n\n是否保留已生成的文件以便手动修改？\n（选择「否」将自动还原本次改动）": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "nginx -t 校验输出：": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "nginx -t 输出：\n{text}": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "nginx 未运行，启动后会自动加载新站点": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "php-cgi 崩溃事件": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "php-cgi 崩溃事件（{src}）": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "php-cgi 崩溃后自动重启（自愈，默认关闭）": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "php-cgi 崩溃告警": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "php82/php85 → php-web.ini，其余 → php.ini": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "phpvm · PHP 版本管理器": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "phpvm 已经在运行中，请查看任务栏或系统托盘。": {
@@ -832,4044 +832,4418 @@
    "main.py"
   ]
  },
+ "phpvm 版本": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
  "releases.json 内容无法解析": {
   "count": 1,
   "files": [
-   "core\\php_downloader.py"
+   "core/php_downloader.py"
   ]
  },
  "releases.json 结构异常": {
   "count": 1,
   "files": [
-   "core\\php_downloader.py"
+   "core/php_downloader.py"
   ]
  },
  "vhost 配置已全部同步到新端口，并已通过 nginx -t 校验。\n\n请点击「重载 Nginx」使新配置立即生效。": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "xdebug.org 无适配本机 {series} {ts} {arch} 的构建。": {
   "count": 1,
   "files": [
-   "core\\php_extension.py"
+   "core/php_extension.py"
   ]
  },
  "{action} 失败：{err}": {
   "count": 2,
   "files": [
-   "ui\\nginx_panel.py",
-   "ui\\redis_panel.py"
+   "ui/nginx_panel.py",
+   "ui/redis_panel.py"
   ]
  },
  "{action}失败：{err}": {
   "count": 1,
   "files": [
-   "ui\\php_panel.py"
+   "ui/php_panel.py"
   ]
  },
  "{conflict}\n请在安装完成后到「编辑端口」中为该版本调整端口，并同步修改 nginx vhost 的 fastcgi_pass。": {
   "count": 1,
   "files": [
-   "core\\php_installer.py"
+   "core/php_installer.py"
   ]
  },
  "{count} 项全部就绪": {
   "count": 1,
   "files": [
-   "core\\health_monitor.py"
+   "core/health_monitor.py"
   ]
  },
  "{ext} 扩展已存在于 {dir}\\{dll}，无需重复下载。": {
   "count": 1,
   "files": [
-   "core\\php_extension.py"
+   "core/php_extension.py"
   ]
  },
  "{ini} 加载正常{extra}": {
   "count": 1,
   "files": [
-   "core\\health_monitor.py"
+   "core/health_monitor.py"
   ]
  },
  "{key}：{err}": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "{mark} 生效主配置已 include 站点目录 {dir}\n{main}  → include：{lines}": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "{mark} 站点目录未被 nginx 加载，新建/修改站点不会生效！\n{reason}": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "{msg}\n\n已自动写入 php.ini 启用。\n重启 [{name}]（停止后启动）即可生效。": {
   "count": 1,
   "files": [
-   "ui\\extension_dialog.py"
+   "ui/extension_dialog.py"
   ]
  },
  "{name} 已安装，但 php -v 验证失败：\n{detail}": {
   "count": 1,
   "files": [
-   "core\\php_installer.py"
+   "core/php_installer.py"
   ]
  },
  "{name} 已安装，但缺少 VC 运行时导致无法运行：\n{detail}\n请下载安装对应的 vc_redist.x64.exe（{compiler} 对应运行库）后重试。": {
   "count": 1,
   "files": [
-   "core\\php_installer.py"
+   "core/php_installer.py"
   ]
  },
  "{name}（FastCGI 端口 {port}）": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "{name}：{text}": {
   "count": 2,
   "files": [
-   "ui\\main_window.py",
-   "ui\\nginx_log_panel.py"
+   "ui/main_window.py",
+   "ui/nginx_log_panel.py"
   ]
  },
  "{n} 个已启用": {
   "count": 1,
   "files": [
-   "ui\\extension_dialog.py"
+   "ui/extension_dialog.py"
   ]
  },
  "{n} 行": {
   "count": 1,
   "files": [
-   "ui\\nginx_log_panel.py"
+   "ui/nginx_log_panel.py"
   ]
  },
  "{prefix}：{name} · PHP {version}": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "{prefix}：未启用 wnrp 版本": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "{prefix}：检测中…": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "{reason} → {err}": {
   "count": 1,
   "files": [
-   "core\\crash_watchdog.py"
+   "core/crash_watchdog.py"
   ]
  },
  "{reason} → {msg}": {
   "count": 1,
   "files": [
-   "core\\crash_watchdog.py"
+   "core/crash_watchdog.py"
   ]
  },
  "{reason}：已达上限（{limit} 次/小时），暂停自动重启": {
   "count": 1,
   "files": [
-   "core\\crash_watchdog.py"
+   "core/crash_watchdog.py"
   ]
  },
  "{reason}：距上次自愈不足 {sec}s，跳过": {
   "count": 1,
   "files": [
-   "core\\crash_watchdog.py"
+   "core/crash_watchdog.py"
   ]
  },
  "{time} {ver}{app} 异常码 {code}": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "{total} · 关键扩展核对 {count} 项{tail}": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "· {d} → 已指向 127.0.0.1（自动跳过）": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "· {d} → 当前指向 {ip}（不覆盖，仅提示）": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "· {d} → 未映射，将写入 127.0.0.1": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "· {d} → 泛解析通配，跳过 hosts（不写入）": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "· 写入 hosts 把域名指向 127.0.0.1，nginx -t 校验通过后平滑重载": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "· 如生效 nginx.conf 尚未 include 站点目录，会自动补一行 include（备份 .bak）": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "· 生成独立站点配置文件（{dir}/<域名>.conf）": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "…共 {count} 次": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "① 写入 vhost 配置": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "② nginx.conf include 检查": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "③ nginx -t 配置校验": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "④ 写入 hosts 映射": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "⑤ 平滑重载 Nginx": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "◀ 上一页": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "⚠ php-cgi 崩溃 {n} 次，点击查看": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "✓ 本机": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "✗ 未映射": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "「新建站点」按向导生成 Laravel/WordPress/ThinkPHP 等配置，并自动写 hosts；双击行打开配置文件": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "一键同步": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "一键同步 FastCGI 端口 {old} → {new}": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "上一步": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "下一步": {
   "count": 2,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "下一页 ▶": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "下载 PHP 版本": {
   "count": 2,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "下载 {file} …": {
   "count": 2,
   "files": [
-   "core\\php_extension.py"
+   "core/php_extension.py"
   ]
  },
  "下载内容不是 .dll 文件：{file}": {
   "count": 1,
   "files": [
-   "core\\php_extension.py"
+   "core/php_extension.py"
+  ]
+ },
+ "下载失败：{err}": {
+  "count": 1,
+  "files": [
+   "core/updater.py"
+  ]
+ },
+ "下载安装包": {
+  "count": 1,
+  "files": [
+   "ui/update_dialog.py"
   ]
  },
  "下载安装进行中，请稍候…": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "下载并安装": {
   "count": 1,
   "files": [
-   "ui\\extension_dialog.py"
+   "ui/extension_dialog.py"
   ]
  },
  "下载新版本": {
   "count": 1,
   "files": [
-   "ui\\php_panel.py"
+   "ui/php_panel.py"
+  ]
+ },
+ "下载缓存目录": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
   ]
  },
  "不使用 PHP": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "不使用 PHP（静态 / 纯前端）": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "不是有效的 SQLite 数据库文件：{path}": {
   "count": 1,
   "files": [
-   "core\\sqlite_manager.py"
+   "core/sqlite_manager.py"
   ]
  },
  "不能为空": {
   "count": 2,
   "files": [
-   "core\\ini_editor.py"
+   "core/ini_editor.py"
   ]
  },
  "主配置 {path} 中未找到 http 块，无法确认站点加载": {
   "count": 1,
   "files": [
-   "core\\vhost_manager.py"
+   "core/vhost_manager.py"
   ]
  },
  "事件日志 Application/1000": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "仅支持查询语句（SELECT / WITH / PRAGMA / EXPLAIN / VALUES）。": {
   "count": 1,
   "files": [
-   "core\\sqlite_manager.py"
+   "core/sqlite_manager.py"
   ]
  },
  "从 hosts 移除映射": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "以下域名不在 phpvm 托管块内（未改动，可能为用户手写或其它映射）：{doms}": {
   "count": 1,
   "files": [
-   "core\\hosts_manager.py"
+   "core/hosts_manager.py"
   ]
  },
  "以下域名格式不正确：\n{names}\n\n请使用 字母/数字/中划线/点 组成的合法域名。": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "以下记录来自 Windows 事件日志。异常码 0xc0000005（访问冲突）通常是扩展/JIT/代码段错误导致，崩溃后站点会 502。": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "以下记录来自 macOS 崩溃报告（~/Library/Logs/DiagnosticReports 的 php-cgi-*.ips）。SIGSEGV/SIGABRT 通常是扩展或 opcache JIT 导致，崩溃后站点会 502。": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "以下配置文件中的 fastcgi_pass 仍指向旧端口。一键同步会备份原文件（.bak）、替换端口并执行 nginx -t 校验，校验失败自动还原所有备份。": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "保存": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "保存前自动备份原文件（.bak）；修改后需重启对应版本（FastCGI）才生效。": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "保存失败": {
   "count": 2,
   "files": [
-   "ui\\dialogs.py",
-   "ui\\extension_dialog.py"
+   "ui/dialogs.py",
+   "ui/extension_dialog.py"
+  ]
+ },
+ "保存安装包失败：{err}": {
+  "count": 1,
+  "files": [
+   "core/updater.py"
   ]
  },
  "保存成功": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "保存扩展启用状态": {
   "count": 2,
   "files": [
-   "ui\\extension_dialog.py"
+   "ui/extension_dialog.py"
   ]
  },
  "保存（{n} 项变更）": {
   "count": 1,
   "files": [
-   "ui\\extension_dialog.py"
+   "ui/extension_dialog.py"
   ]
  },
  "修复失败": {
   "count": 2,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "修改后需同步修改 nginx vhost 中的 fastcgi_pass 才会生效": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "修改注册表失败，请检查权限": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "值": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "偏移": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "停止": {
   "count": 7,
   "files": [
-   "ui\\main_window.py",
-   "ui\\nginx_panel.py",
-   "ui\\php_panel.py"
+   "ui/main_window.py",
+   "ui/nginx_panel.py",
+   "ui/php_panel.py"
   ]
  },
  "停止 MySQL 会影响本机全部站点，确定继续？": {
   "count": 1,
   "files": [
-   "ui\\mysql_panel.py"
+   "ui/mysql_panel.py"
   ]
  },
  "停止 Nginx": {
   "count": 1,
   "files": [
-   "ui\\nginx_panel.py"
+   "ui/nginx_panel.py"
   ]
  },
  "停止 Redis": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
   ]
  },
  "停止服务 {svc} 未见效：{msg}": {
   "count": 1,
   "files": [
-   "core\\mysql_manager.py"
+   "core/mysql_manager.py"
   ]
  },
  "停用": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "全部停止": {
   "count": 2,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "全部停止服务": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "全部同步完成：备份保留于各文件 .bak，可点击「重载 Nginx」生效。": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "全部启动": {
   "count": 2,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "全部启动服务": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "全部文件": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "全部通过": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "共 {count} 个文件引用旧端口 {port}{tail}。": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "共 {n} 个可用版本（含历史归档）": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "共 {total} 个 key · 最后统计 {ts} · 点击图表可刷新": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
   ]
  },
  "共更新 {count} 个扩展的启用状态。\n备份：{backup}\n\n重启 [{name}]（停止后启动）即可生效。": {
   "count": 1,
   "files": [
-   "ui\\extension_dialog.py"
+   "ui/extension_dialog.py"
   ]
  },
  "关于": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "关键扩展": {
   "count": 1,
   "files": [
-   "core\\health_monitor.py"
+   "core/health_monitor.py"
   ]
  },
  "关键配置": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "关闭": {
   "count": 7,
   "files": [
-   "ui\\dialogs.py",
-   "ui\\download_dialog.py",
-   "ui\\extension_dialog.py",
-   "ui\\site_wizard.py",
-   "ui\\sqlite_panel.py"
+   "ui/dialogs.py",
+   "ui/download_dialog.py",
+   "ui/extension_dialog.py",
+   "ui/site_wizard.py",
+   "ui/sqlite_panel.py"
   ]
  },
  "关闭 phpvm": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "关闭向导": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "内部错误：{err}": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
   ]
  },
  "写入 /etc/hosts 需要 root 权限。请在终端手动执行：\nsudo sh -c 'echo \"127.0.0.1 {doms}\" >> /etc/hosts'": {
   "count": 1,
   "files": [
-   "core\\hosts_manager.py"
+   "core/hosts_manager.py"
   ]
  },
  "写入 /etc/hosts 需要 root 权限，请手动执行：sudo cp <新内容文件> /etc/hosts": {
   "count": 1,
   "files": [
-   "core\\hosts_manager.py"
+   "core/hosts_manager.py"
   ]
  },
  "写入 /etc/hosts 需要管理员授权（已取消或失败：{err}）。\n可手动编辑 /etc/hosts 追加：127.0.0.1 {doms}": {
   "count": 1,
   "files": [
-   "core\\hosts_manager.py"
+   "core/hosts_manager.py"
   ]
  },
  "写入 hosts 失败：{err}": {
   "count": 2,
   "files": [
-   "core\\hosts_manager.py"
+   "core/hosts_manager.py"
   ]
  },
  "写入 hosts 需要管理员权限（授权被取消或失败）。\n可手动打开 hosts 文件追加：127.0.0.1 {doms}": {
   "count": 1,
   "files": [
-   "core\\hosts_manager.py"
+   "core/hosts_manager.py"
   ]
  },
  "写入 hosts：{v}": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "写入 {file} …": {
   "count": 1,
   "files": [
-   "core\\php_extension.py"
+   "core/php_extension.py"
   ]
  },
  "写入临时文件失败：{err}": {
   "count": 1,
   "files": [
-   "core\\hosts_manager.py"
+   "core/hosts_manager.py"
   ]
  },
  "写入启动项失败：{path}": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "写入失败：{err}": {
   "count": 4,
   "files": [
-   "core\\vhost_manager.py"
+   "core/vhost_manager.py"
   ]
  },
  "写入需要系统管理员权限：macOS 会弹出系统授权框，Windows 会弹出 UAC 确认。\n已指向 127.0.0.1 的域名自动跳过；指向其它 IP 的域名不覆盖，仅提示。": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "决定 nginx 的 fastcgi_pass 端口。": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "切换": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "切换 PHP 版本": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "切换 cmd php 命令版本": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "切换cmd中的 php 命令版本": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "切换失败": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "切换成功": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "切换终端 php 命令版本": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "切换终端中的 php 命令版本": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "列名": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "刚需，不可取消": {
   "count": 1,
   "files": [
-   "core\\modules.py"
+   "core/modules.py"
   ]
  },
  "创建前确认": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "创建站点": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "刷新": {
   "count": 6,
   "files": [
-   "ui\\nginx_log_panel.py",
-   "ui\\php_panel.py",
-   "ui\\redis_panel.py",
-   "ui\\sqlite_panel.py",
-   "ui\\vhost_panel.py"
+   "ui/nginx_log_panel.py",
+   "ui/php_panel.py",
+   "ui/redis_panel.py",
+   "ui/sqlite_panel.py",
+   "ui/vhost_panel.py"
   ]
  },
  "刷新状态": {
   "count": 5,
   "files": [
-   "ui\\mysql_panel.py",
-   "ui\\nginx_panel.py",
-   "ui\\redis_panel.py",
-   "ui\\site_wizard.py"
+   "ui/mysql_panel.py",
+   "ui/nginx_panel.py",
+   "ui/redis_panel.py",
+   "ui/site_wizard.py"
+  ]
+ },
+ "前往发布页": {
+  "count": 2,
+  "files": [
+   "ui/update_dialog.py"
   ]
  },
  "前缀目录": {
   "count": 1,
   "files": [
-   "ui\\nginx_panel.py"
+   "ui/nginx_panel.py"
   ]
  },
  "功能模块": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "加载失败": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "加载失败：{err}": {
   "count": 1,
   "files": [
-   "ui\\extension_dialog.py"
+   "ui/extension_dialog.py"
   ]
  },
  "动作": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "匹配 {ext}-{ver} 与 PHP {series} {ts} {arch}…": {
   "count": 1,
   "files": [
-   "core\\php_extension.py"
+   "core/php_extension.py"
   ]
  },
  "匹配目标：PHP {series} · {ts} · {arch} · {compiler}": {
   "count": 1,
   "files": [
-   "ui\\extension_dialog.py"
+   "ui/extension_dialog.py"
+  ]
+ },
+ "升级失败": {
+  "count": 1,
+  "files": [
+   "ui/update_dialog.py"
+  ]
+ },
+ "升级程序已就绪，phpvm 将自动关闭并完成升级。": {
+  "count": 1,
+  "files": [
+   "core/updater.py"
   ]
  },
  "危险命令确认": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
   ]
  },
  "压缩包内未找到 php_{ext}.dll": {
   "count": 1,
   "files": [
-   "core\\php_extension.py"
+   "core/php_extension.py"
   ]
  },
  "压缩包包含非法路径：{path}": {
   "count": 1,
   "files": [
-   "core\\php_downloader.py"
+   "core/php_downloader.py"
   ]
  },
  "原理：修改用户环境变量 PATH（User 优先级高于系统），将所选版本置顶。新打开的 cmd 生效，无需管理员权限。": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "原理：把所选版本目录写入 shell 配置的 phpvm PATH 块（~/.zshrc 等），新开的终端生效，无需管理员权限。": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
+  ]
+ },
+ "发布信息格式不正确": {
+  "count": 1,
+  "files": [
+   "core/updater.py"
+  ]
+ },
+ "发布信息缺少版本号": {
+  "count": 1,
+  "files": [
+   "core/updater.py"
+  ]
+ },
+ "发布信息解析失败（返回内容不是 JSON）": {
+  "count": 1,
+  "files": [
+   "core/updater.py"
+  ]
+ },
+ "发布源没有可用的正式版（404）：请确认仓库已开启 Releases。": {
+  "count": 1,
+  "files": [
+   "core/updater.py"
   ]
  },
  "发现实例 [{name}]：{server}（端口 {port}）": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
+  ]
+ },
+ "发现新版本 {ver}（{size}）· 当前为源码运行，下载后需手动安装": {
+  "count": 1,
+  "files": [
+   "ui/update_dialog.py"
+  ]
+ },
+ "发现新版本 {ver}（安装包 {size}）": {
+  "count": 1,
+  "files": [
+   "ui/update_dialog.py"
+  ]
+ },
+ "发现新版本 {ver}，可点击状态栏提示升级": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "发现新版本 {ver}，点击升级": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
   ]
  },
  "取消": {
   "count": 5,
   "files": [
-   "ui\\dialogs.py",
-   "ui\\main_window.py",
-   "ui\\site_wizard.py"
+   "ui/dialogs.py",
+   "ui/main_window.py",
+   "ui/site_wizard.py"
+  ]
+ },
+ "取消下载": {
+  "count": 1,
+  "files": [
+   "ui/update_dialog.py"
   ]
  },
  "只能从 {options} 中选择": {
   "count": 1,
   "files": [
-   "core\\ini_editor.py"
+   "core/ini_editor.py"
   ]
  },
  "可在主界面直接启动该版本。": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "可安装": {
   "count": 2,
   "files": [
-   "ui\\download_dialog.py",
-   "ui\\extension_dialog.py"
+   "ui/download_dialog.py",
+   "ui/extension_dialog.py"
   ]
  },
  "可执行文件": {
   "count": 1,
   "files": [
-   "ui\\nginx_panel.py"
+   "ui/nginx_panel.py"
   ]
  },
  "可更新": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "可最小化到系统托盘后台运行，或完全退出。": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "各逻辑库 key 数量统计（忽略空库）": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
   ]
  },
  "同步 vhost 端口 · {old} → {new}": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "同步失败": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "同步完成": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "同步过程异常：{err}": {
   "count": 1,
   "files": [
-   "core\\vhost_manager.py"
+   "core/vhost_manager.py"
   ]
  },
  "名称": {
   "count": 2,
   "files": [
-   "ui\\extension_dialog.py",
-   "ui\\sqlite_panel.py"
+   "ui/extension_dialog.py",
+   "ui/sqlite_panel.py"
   ]
  },
  "否": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "否（仅 80 端口）": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "启停 Windows 服务需要管理员权限。\n请以「管理员身份运行」phpvm 后再停止 {svc} 服务。": {
   "count": 1,
   "files": [
-   "core\\mysql_manager.py"
+   "core/mysql_manager.py"
   ]
  },
  "启停 Windows 服务需要管理员权限。\n请以「管理员身份运行」phpvm 后再启动 {svc} 服务，或在系统服务中手动启动。": {
   "count": 1,
   "files": [
-   "core\\mysql_manager.py"
+   "core/mysql_manager.py"
   ]
  },
  "启动": {
   "count": 7,
   "files": [
-   "ui\\main_window.py",
-   "ui\\nginx_panel.py",
-   "ui\\php_panel.py"
+   "ui/main_window.py",
+   "ui/nginx_panel.py",
+   "ui/php_panel.py"
   ]
  },
  "启动 Nginx": {
   "count": 1,
   "files": [
-   "ui\\nginx_panel.py"
+   "ui/nginx_panel.py"
   ]
  },
  "启动 Redis": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
   ]
  },
  "启动 mysqld 失败：{err}": {
   "count": 1,
   "files": [
-   "core\\mysql_manager.py"
+   "core/mysql_manager.py"
   ]
  },
  "启动守护进程失败：{err}": {
   "count": 1,
   "files": [
-   "core\\crash_watchdog.py"
+   "core/crash_watchdog.py"
   ]
  },
  "启动快照：{count} 个运行中的版本已纳入崩溃看护": {
   "count": 1,
   "files": [
-   "core\\crash_watchdog.py"
+   "core/crash_watchdog.py"
+  ]
+ },
+ "启动时自动检查更新已关闭": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "启动时自动检查更新已开启": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "启动时自动检查更新（发现新版本时仅状态栏提示）": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
   ]
  },
  "启动服务 {svc} 失败：{msg}": {
   "count": 1,
   "files": [
-   "core\\mysql_manager.py"
+   "core/mysql_manager.py"
   ]
  },
  "启动顺序 PHP → Redis → MySQL → Nginx，停止反之；已运行的服务自动跳过。": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "启用": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "启用 HTTPS（443，自动生成本地证书）": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "启用站点": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "启用（443，证书自动生成）": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "命令 {cmd} 会删除数据或影响运行，确定要执行吗？": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
   ]
  },
  "命令执行失败（退出码 {code}）": {
   "count": 1,
   "files": [
-   "core\\redis_manager.py"
+   "core/redis_manager.py"
   ]
  },
  "命令输出": {
   "count": 2,
   "files": [
-   "ui\\nginx_panel.py",
-   "ui\\redis_panel.py"
+   "ui/nginx_panel.py",
+   "ui/redis_panel.py"
   ]
  },
  "命令：": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
   ]
  },
  "在新窗口测试 php -v": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "在线安装": {
   "count": 1,
   "files": [
-   "ui\\extension_dialog.py"
+   "ui/extension_dialog.py"
   ]
  },
  "在线扩展会按本机 PHP 版本 / NTS-TS / 架构自动匹配官方构建，安装后自动启用（重启 FastCGI 生效）。": {
   "count": 1,
   "files": [
-   "ui\\extension_dialog.py"
+   "ui/extension_dialog.py"
   ]
  },
  "域名": {
   "count": 2,
   "files": [
-   "ui\\dialogs.py",
-   "ui\\vhost_panel.py"
+   "ui/dialogs.py",
+   "ui/vhost_panel.py"
   ]
  },
  "域名不合法": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "域名：": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "域名：{v}": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "备份 hosts 失败：{err}": {
   "count": 1,
   "files": [
-   "core\\hosts_manager.py"
+   "core/hosts_manager.py"
   ]
  },
  "备份失败：{err}": {
   "count": 1,
   "files": [
-   "core\\vhost_manager.py"
+   "core/vhost_manager.py"
   ]
  },
  "大小": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "失败": {
   "count": 5,
   "files": [
-   "ui\\dialogs.py",
-   "ui\\mysql_panel.py",
-   "ui\\nginx_panel.py",
-   "ui\\redis_panel.py"
+   "ui/dialogs.py",
+   "ui/mysql_panel.py",
+   "ui/nginx_panel.py",
+   "ui/redis_panel.py"
   ]
  },
  "存在失败的同步（已自动还原备份），请检查上方详情。": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "存在异常": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "守护循环异常：{err}": {
   "count": 1,
   "files": [
-   "core\\crash_watchdog.py"
+   "core/crash_watchdog.py"
   ]
  },
  "守护进程已拉起（稍后自动接管）": {
   "count": 1,
   "files": [
-   "core\\crash_watchdog.py"
+   "core/crash_watchdog.py"
+  ]
+ },
+ "安装包已下载完成，是否立即重启 phpvm 完成升级？": {
+  "count": 1,
+  "files": [
+   "ui/update_dialog.py"
+  ]
+ },
+ "安装包已下载：{path}": {
+  "count": 1,
+  "files": [
+   "ui/update_dialog.py"
+  ]
+ },
+ "安装包已就绪（{path}）": {
+  "count": 1,
+  "files": [
+   "ui/update_dialog.py"
+  ]
+ },
+ "安装包校验失败（SHA-256 不匹配），已删除下载内容。": {
+  "count": 1,
+  "files": [
+   "core/updater.py"
   ]
  },
  "安装失败": {
   "count": 3,
   "files": [
-   "ui\\download_dialog.py",
-   "ui\\extension_dialog.py"
+   "ui/download_dialog.py",
+   "ui/extension_dialog.py"
   ]
  },
  "安装失败：{err}": {
   "count": 2,
   "files": [
-   "ui\\download_dialog.py",
-   "core\\php_installer.py"
+   "ui/download_dialog.py",
+   "core/php_installer.py"
   ]
  },
  "安装完成": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "安装成功": {
   "count": 1,
   "files": [
-   "ui\\extension_dialog.py"
+   "ui/extension_dialog.py"
   ]
  },
  "安装扩展": {
   "count": 1,
   "files": [
-   "ui\\php_panel.py"
+   "ui/php_panel.py"
   ]
  },
  "安装扩展 · {name} ({ver})": {
   "count": 1,
   "files": [
-   "ui\\extension_dialog.py"
+   "ui/extension_dialog.py"
+  ]
+ },
+ "安装程序已启动，phpvm 将自动关闭并完成升级。": {
+  "count": 1,
+  "files": [
+   "core/updater.py"
   ]
  },
  "安装配置": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "完成": {
   "count": 1,
   "files": [
-   "core\\mysql_manager.py"
+   "core/mysql_manager.py"
   ]
  },
  "完成，可关闭本向导": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "完整内容": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "实例未运行，无法统计键空间": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
   ]
  },
  "导出 CSV": {
   "count": 3,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "导出失败": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "将从 hosts 的 phpvm 托管块中移除：{doms}\n（不会改动用户手写的其它映射）确定继续？": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "将停止 Nginx、全部 PHP 版本、Redis 与 MySQL，本机站点会全部不可访问。\n确定继续？": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "将安装 PHP {ver} {ts} → 目录 {name}，默认端口 {port}，包大小 {size}{status}": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "将生成到 {dir} 目录下": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "将自动完成": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "就绪": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "崩溃事件": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "崩溃事件 {code}": {
   "count": 1,
   "files": [
-   "core\\crash_watchdog.py"
+   "core/crash_watchdog.py"
   ]
  },
  "崩溃事件查询失败（无可用数据源），本轮跳过崩溃检测": {
   "count": 1,
   "files": [
-   "core\\crash_watchdog.py"
+   "core/crash_watchdog.py"
   ]
  },
  "崩溃位置：模块 {module} 偏移 {offset}": {
   "count": 1,
   "files": [
-   "core\\health_monitor.py"
+   "core/health_monitor.py"
   ]
  },
  "崩溃报告 DiagnosticReports": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "崩溃时间": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "崩溃时间：{ts}": {
   "count": 1,
   "files": [
-   "core\\health_monitor.py"
+   "core/health_monitor.py"
   ]
  },
  "崩溃自愈守护进程已启动": {
   "count": 1,
   "files": [
-   "core\\crash_watchdog.py"
+   "core/crash_watchdog.py"
   ]
  },
  "崩溃自愈守护进程已在运行": {
   "count": 1,
   "files": [
-   "core\\crash_watchdog.py"
+   "core/crash_watchdog.py"
   ]
  },
  "崩溃自愈已关闭（守护进程将自动退出）": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "崩溃自愈已开启，正在启动守护进程…": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "已下载（未启用）": {
   "count": 1,
   "files": [
-   "ui\\extension_dialog.py"
+   "ui/extension_dialog.py"
   ]
  },
  "已从 hosts 移除：{doms}": {
   "count": 1,
   "files": [
-   "core\\hosts_manager.py"
+   "core/hosts_manager.py"
   ]
  },
  "已从备份还原 hosts：{path}": {
   "count": 1,
   "files": [
-   "core\\hosts_manager.py"
+   "core/hosts_manager.py"
   ]
  },
  "已保存": {
   "count": 1,
   "files": [
-   "ui\\extension_dialog.py"
+   "ui/extension_dialog.py"
   ]
  },
  "已保留生成文件，请手动修正后用「配置检查 + 平滑重载」验证。": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "已修复": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "已停止": {
   "count": 5,
   "files": [
-   "ui\\dialogs.py",
-   "ui\\main_window.py",
-   "ui\\mysql_panel.py",
-   "ui\\nginx_panel.py",
-   "ui\\redis_panel.py"
+   "ui/dialogs.py",
+   "ui/main_window.py",
+   "ui/mysql_panel.py",
+   "ui/nginx_panel.py",
+   "ui/redis_panel.py"
   ]
  },
  "已停止服务": {
   "count": 1,
   "files": [
-   "core\\mysql_manager.py"
+   "core/mysql_manager.py"
   ]
  },
  "已停止服务 {svc}": {
   "count": 1,
   "files": [
-   "core\\mysql_manager.py"
+   "core/mysql_manager.py"
   ]
  },
  "已关闭开机启动全部服务": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "已关闭数据库": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "已写入": {
   "count": 1,
   "files": [
-   "core\\vhost_manager.py"
+   "core/vhost_manager.py"
   ]
  },
  "已写入 hosts：{ip} {doms}": {
   "count": 1,
   "files": [
-   "core\\hosts_manager.py"
+   "core/hosts_manager.py"
   ]
  },
  "已切换 cmd php 命令 → [{name}]（PHP {display}）\n\n注意：已打开的 cmd / 终端不会自动感知，请新开窗口执行 php -v 验证。": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "已切换终端 php 命令 → [{name}]（PHP {display}）\n\n注意：已打开的终端不会自动感知，请新开窗口执行 php -v 验证。": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "已删除本次生成的证书：{dom}": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "已发现 {count} 个 PHP 版本": {
   "count": 1,
   "files": [
-   "ui\\php_panel.py"
+   "ui/php_panel.py"
   ]
  },
  "已发现 {n} 个数据库文件": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
+  ]
+ },
+ "已取消下载": {
+  "count": 1,
+  "files": [
+   "core/updater.py"
   ]
  },
  "已同步移除 hosts 映射：{doms}": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "已同步，备份保留于 .bak": {
   "count": 1,
   "files": [
-   "core\\vhost_manager.py"
+   "core/vhost_manager.py"
   ]
  },
  "已启动服务 {svc}：{msg}": {
   "count": 1,
   "files": [
-   "core\\mysql_manager.py"
+   "core/mysql_manager.py"
   ]
  },
  "已启用": {
   "count": 3,
   "files": [
-   "ui\\extension_dialog.py",
-   "core\\vhost_manager.py"
+   "ui/extension_dialog.py",
+   "core/vhost_manager.py"
   ]
  },
  "已启用扩展": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "已在浏览器打开 {url}": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "已在运行": {
   "count": 2,
   "files": [
-   "ui\\nginx_panel.py",
-   "ui\\redis_panel.py"
+   "ui/nginx_panel.py",
+   "ui/redis_panel.py"
   ]
  },
  "已填入推荐目录：\n{d}\n\n该目录尚不存在，请先在系统中创建（创建站点前向导会再次校验目录存在）。": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "已存在证书，直接复用：{path}": {
   "count": 1,
   "files": [
-   "core\\cert_manager.py"
+   "core/cert_manager.py"
   ]
  },
  "已安装": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "已安装 {dll}（可通过「本地扩展」页启用）。": {
   "count": 1,
   "files": [
-   "core\\php_extension.py"
+   "core/php_extension.py"
   ]
  },
  "已导出 CSV：{path}": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "已导出 {n} 行到 {path}": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "已将 {name} 的 PHP 端口改为 {port}，备份保留于 .bak": {
   "count": 1,
   "files": [
-   "core\\vhost_manager.py"
+   "core/vhost_manager.py"
   ]
  },
  "已开启开机启动全部服务": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "已打开的 cmd 不会自动切换，需重开窗口": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "已打开的终端不会自动切换，需重开终端窗口": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "已打开目录 {path}": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "已打开终端：{name}（PATH 已前置该版本目录）": {
   "count": 1,
   "files": [
-   "ui\\php_panel.py"
+   "ui/php_panel.py"
   ]
  },
  "已打开：{path}": {
   "count": 3,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "已扫描 {count} 个 server 块": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
+  ]
+ },
+ "已是最新版本": {
+  "count": 1,
+  "files": [
+   "ui/update_dialog.py"
   ]
  },
  "已更新 {count} 项配置，备份保留于：\n{backup}\n\n重启 [{name}]（停止后启动）即可生效。": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "已替换 {count} 处": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "已有守护进程在运行，本实例退出": {
   "count": 1,
   "files": [
-   "core\\crash_watchdog.py"
+   "core/crash_watchdog.py"
   ]
  },
  "已检测到 Composer：{path}": {
   "count": 1,
   "files": [
-   "core\\tool_manager.py"
+   "core/tool_manager.py"
   ]
  },
  "已检测到 Composer：{path}\n{ver}\n\n无法自动打开终端，可手动执行：\n  set PATH={dir};%PATH%\n  composer -V": {
   "count": 1,
   "files": [
-   "ui\\php_panel.py"
+   "ui/php_panel.py"
   ]
  },
  "已检测到 mkcert：{path}（生成的证书会被本机自动信任）": {
   "count": 1,
   "files": [
-   "core\\cert_manager.py"
+   "core/cert_manager.py"
   ]
  },
  "已检测到 openssl：{path}（自签证书需浏览器手动信任）": {
   "count": 1,
   "files": [
-   "core\\cert_manager.py"
+   "core/cert_manager.py"
   ]
  },
  "已清空崩溃告警记录": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "已用 mkcert 生成证书：{path}": {
   "count": 1,
   "files": [
-   "core\\cert_manager.py"
+   "core/cert_manager.py"
   ]
  },
  "已用 openssl 生成自签证书（浏览器需手动信任）：{path}": {
   "count": 1,
   "files": [
-   "core\\cert_manager.py"
+   "core/cert_manager.py"
   ]
  },
  "已禁用": {
   "count": 1,
   "files": [
-   "core\\vhost_manager.py"
+   "core/vhost_manager.py"
   ]
  },
  "已自动在 http 块补上 include {path}/*.conf": {
   "count": 1,
   "files": [
-   "core\\vhost_manager.py"
+   "core/vhost_manager.py"
   ]
  },
  "已自动完成：ini 配置生成、端口分配（{port}）。": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "已还原本次改动（vhost 文件、nginx.conf 与 hosts 均恢复）。": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "已选择实例 [{name}]（端口 {port}）": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
   ]
  },
  "已通过管理员授权写入 hosts：{doms}": {
   "count": 1,
   "files": [
-   "core\\hosts_manager.py"
+   "core/hosts_manager.py"
   ]
  },
  "已通过管理员授权更新 hosts": {
   "count": 1,
   "files": [
-   "core\\hosts_manager.py"
+   "core/hosts_manager.py"
   ]
  },
  "已通过管理员授权还原 hosts": {
   "count": 1,
   "files": [
-   "core\\hosts_manager.py"
+   "core/hosts_manager.py"
   ]
  },
  "已通过系统授权写入 hosts：{doms}": {
   "count": 1,
   "files": [
-   "core\\hosts_manager.py"
+   "core/hosts_manager.py"
   ]
  },
  "已通过系统授权更新 hosts": {
   "count": 1,
   "files": [
-   "core\\hosts_manager.py"
+   "core/hosts_manager.py"
   ]
  },
  "已通过系统授权还原 hosts": {
   "count": 1,
   "files": [
-   "core\\hosts_manager.py"
+   "core/hosts_manager.py"
+  ]
+ },
+ "帮助": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
   ]
  },
  "平滑重载": {
   "count": 2,
   "files": [
-   "ui\\nginx_panel.py"
+   "ui/nginx_panel.py"
   ]
  },
  "应用": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "应用模板：": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "应用模板：{v}": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "开始下载": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "开机启动服务": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "开机自动启动 phpvm（当前用户）": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "开机自动启动全部服务（Nginx + PHP + Redis + MySQL）": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "开机自启": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "开机自启已关闭": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "开机自启已启用": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "异常": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "异常码": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "异常：{exception}": {
   "count": 1,
   "files": [
-   "core\\health_monitor.py"
+   "core/health_monitor.py"
+  ]
+ },
+ "当前不是从 .app 运行，无法自动替换；请手动挂载安装镜像。": {
+  "count": 1,
+  "files": [
+   "core/updater.py"
+  ]
+ },
+ "当前已是最新版本（{ver}）": {
+  "count": 1,
+  "files": [
+   "core/updater.py"
+  ]
+ },
+ "当前平台暂不支持自动替换，请手动安装已下载的安装包。": {
+  "count": 1,
+  "files": [
+   "core/updater.py"
   ]
  },
  "当前没有可导出的结果。": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
+  ]
+ },
+ "当前版本 {cur} · 最新版本 {new}": {
+  "count": 1,
+  "files": [
+   "ui/update_dialog.py"
+  ]
+ },
+ "当前版本 {cur} → 最新版本 {new}": {
+  "count": 1,
+  "files": [
+   "ui/update_dialog.py"
+  ]
+ },
+ "当前版本 {ver}": {
+  "count": 2,
+  "files": [
+   "ui/main_window.py",
+   "ui/update_dialog.py"
   ]
  },
  "当前生效": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "待同步": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "必须为 -1 或正整数": {
   "count": 1,
   "files": [
-   "core\\ini_editor.py"
+   "core/ini_editor.py"
   ]
  },
  "必须是 On 或 Off": {
   "count": 1,
   "files": [
-   "core\\ini_editor.py"
+   "core/ini_editor.py"
   ]
  },
  "必须是数字，可带 K/M/G 后缀（如 128M）": {
   "count": 1,
   "files": [
-   "core\\ini_editor.py"
+   "core/ini_editor.py"
   ]
  },
  "必须是整数": {
   "count": 1,
   "files": [
-   "core\\ini_editor.py"
+   "core/ini_editor.py"
   ]
  },
  "成功": {
   "count": 2,
   "files": [
-   "ui\\nginx_panel.py",
-   "ui\\redis_panel.py"
+   "ui/nginx_panel.py",
+   "ui/redis_panel.py"
   ]
  },
  "所有文件": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "所有服务均已在运行，无需启动": {
   "count": 1,
   "files": [
-   "core\\service_group.py"
+   "core/service_group.py"
   ]
  },
  "打开": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "打开 hosts 文件": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "打开 vhost 目录": {
   "count": 2,
   "files": [
-   "ui\\dialogs.py",
-   "ui\\vhost_panel.py"
+   "ui/dialogs.py",
+   "ui/vhost_panel.py"
+  ]
+ },
+ "打开下载缓存目录": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
   ]
  },
  "打开失败：{err}": {
   "count": 1,
   "files": [
-   "core\\sqlite_manager.py"
+   "core/sqlite_manager.py"
+  ]
+ },
+ "打开安装包目录": {
+  "count": 1,
+  "files": [
+   "ui/update_dialog.py"
   ]
  },
  "打开数据目录": {
   "count": 1,
   "files": [
-   "ui\\mysql_panel.py"
+   "ui/mysql_panel.py"
   ]
  },
  "打开目录": {
   "count": 1,
   "files": [
-   "ui\\nginx_log_panel.py"
+   "ui/nginx_log_panel.py"
   ]
  },
  "打开站点（浏览器）": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "打开终端": {
   "count": 1,
   "files": [
-   "ui\\php_panel.py"
+   "ui/php_panel.py"
   ]
  },
  "打开配置文件": {
   "count": 3,
   "files": [
-   "ui\\mysql_panel.py",
-   "ui\\redis_panel.py",
-   "ui\\vhost_panel.py"
+   "ui/mysql_panel.py",
+   "ui/redis_panel.py",
+   "ui/vhost_panel.py"
   ]
  },
  "打开项目根目录": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "执 行": {
   "count": 2,
   "files": [
-   "ui\\redis_panel.py",
-   "ui\\sqlite_panel.py"
+   "ui/redis_panel.py",
+   "ui/sqlite_panel.py"
   ]
  },
  "执行中（实例 {name} · DB{db}）…": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
   ]
  },
  "执行日志": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "扩展": {
   "count": 2,
   "files": [
-   "ui\\dialogs.py",
-   "ui\\extension_dialog.py"
+   "ui/dialogs.py",
+   "ui/extension_dialog.py"
   ]
  },
  "扫描失败": {
   "count": 3,
   "files": [
-   "ui\\php_panel.py",
-   "ui\\vhost_panel.py"
+   "ui/php_panel.py",
+   "ui/vhost_panel.py"
   ]
  },
  "扫描失败：{err}": {
   "count": 1,
   "files": [
-   "ui\\php_panel.py"
+   "ui/php_panel.py"
   ]
  },
  "报告：{file}": {
   "count": 1,
   "files": [
-   "core\\health_monitor.py"
+   "core/health_monitor.py"
   ]
  },
  "按步骤填写信息并选择应用模板，向导将自动生成 vhost 配置、写入 hosts 映射并执行 nginx -t 校验。": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "推荐目录": {
   "count": 2,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "提示": {
   "count": 8,
   "files": [
-   "ui\\dialogs.py",
-   "ui\\download_dialog.py",
-   "ui\\extension_dialog.py",
-   "ui\\php_panel.py",
-   "ui\\redis_panel.py"
+   "ui/dialogs.py",
+   "ui/download_dialog.py",
+   "ui/extension_dialog.py",
+   "ui/php_panel.py",
+   "ui/redis_panel.py"
   ]
  },
  "提示：Redis 监听端口在各自配置文件中\n（port 项），修改后重启 Redis 生效。": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
   ]
  },
  "提示：修改 vhost 配置后点「配置检查」\n验证通过，再点「平滑重载」生效。": {
   "count": 1,
   "files": [
-   "ui\\nginx_panel.py"
+   "ui/nginx_panel.py"
   ]
  },
  "提示：只读查询模式，仅支持 SELECT / PRAGMA / EXPLAIN / WITH 等语句；双击左侧表名可生成查询语句。": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "操作与日志": {
   "count": 1,
   "files": [
-   "ui\\mysql_panel.py"
+   "ui/mysql_panel.py"
   ]
  },
  "操作失败": {
   "count": 2,
   "files": [
-   "ui\\php_panel.py",
-   "ui\\vhost_panel.py"
+   "ui/php_panel.py",
+   "ui/vhost_panel.py"
   ]
  },
  "操作完成": {
   "count": 2,
   "files": [
-   "ui\\php_panel.py",
-   "ui\\vhost_panel.py"
+   "ui/php_panel.py",
+   "ui/vhost_panel.py"
   ]
  },
  "故障模块": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "数据库文件：": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "数据源 windows.php.net，自动适配当前系统架构": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "数据目录": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui\\mysql_panel.py"
+   "ui/main_window.py",
+   "ui/mysql_panel.py"
   ]
  },
  "文件不存在": {
   "count": 2,
   "files": [
-   "ui\\nginx_log_panel.py",
-   "ui\\vhost_panel.py"
+   "ui/nginx_log_panel.py",
+   "ui/vhost_panel.py"
   ]
  },
  "文件不存在：{path}": {
   "count": 1,
   "files": [
-   "core\\sqlite_manager.py"
+   "core/sqlite_manager.py"
   ]
  },
  "文档根(root)：{doc}": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "文档根(root)：{v}": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "新建 Nginx 站点": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "新建站点 · 可视化向导": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "新版本已安装，正在刷新列表…": {
   "count": 1,
   "files": [
-   "ui\\php_panel.py"
+   "ui/php_panel.py"
   ]
  },
  "无响应": {
   "count": 1,
   "files": [
-   "core\\redis_manager.py"
+   "core/redis_manager.py"
   ]
  },
  "无效时区（如 Asia/Shanghai）": {
   "count": 1,
   "files": [
-   "core\\ini_editor.py"
+   "core/ini_editor.py"
   ]
  },
  "无数据：所有逻辑库均为空": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
+  ]
+ },
+ "无法创建下载目录：{err}": {
+  "count": 1,
+  "files": [
+   "core/updater.py"
+  ]
+ },
+ "无法创建升级脚本：{err}": {
+  "count": 2,
+  "files": [
+   "core/updater.py"
+  ]
+ },
+ "无法启动升级脚本：{err}": {
+  "count": 1,
+  "files": [
+   "core/updater.py"
+  ]
+ },
+ "无法启动安装程序：{err}": {
+  "count": 1,
+  "files": [
+   "core/updater.py"
   ]
  },
  "无法启动新进程：{msg}": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "无法打开": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "无法打开终端": {
   "count": 2,
   "files": [
-   "ui\\dialogs.py",
-   "ui\\php_panel.py"
+   "ui/dialogs.py",
+   "ui/php_panel.py"
   ]
  },
  "无法探测 PHP 版本信息，在线安装不可用。": {
   "count": 1,
   "files": [
-   "ui\\extension_dialog.py"
+   "ui/extension_dialog.py"
   ]
  },
  "无法获取版本": {
   "count": 1,
   "files": [
-   "core\\health_monitor.py"
+   "core/health_monitor.py"
+  ]
+ },
+ "无法连接发布源：{reason}": {
+  "count": 1,
+  "files": [
+   "core/updater.py"
   ]
  },
  "无独立配置文件": {
   "count": 1,
   "files": [
-   "ui\\php_panel.py"
+   "ui/php_panel.py"
   ]
  },
  "无结果": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "无输出": {
   "count": 6,
   "files": [
-   "core\\cert_manager.py",
-   "core\\hosts_manager.py"
+   "core/cert_manager.py",
+   "core/hosts_manager.py"
   ]
  },
  "无需处理": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "日志文件：": {
   "count": 1,
   "files": [
-   "ui\\nginx_log_panel.py"
+   "ui/nginx_log_panel.py"
   ]
  },
  "时间": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "是（指向 127.0.0.1）": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "显示 phpvm": {
   "count": 1,
   "files": [
-   "ui\\tray.py"
+   "ui/tray.py"
   ]
  },
  "显示 {n}": {
   "count": 1,
   "files": [
-   "ui\\nginx_log_panel.py"
+   "ui/nginx_log_panel.py"
   ]
  },
  "暂无可安装的版本": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "更新 /etc/hosts 需要管理员授权（已取消或失败：{err}）": {
   "count": 1,
   "files": [
-   "core\\hosts_manager.py"
+   "core/hosts_manager.py"
   ]
  },
  "更新 hosts 需要管理员权限（授权被取消或失败：{err}）": {
   "count": 1,
   "files": [
-   "core\\hosts_manager.py"
+   "core/hosts_manager.py"
+  ]
+ },
+ "更新说明": {
+  "count": 1,
+  "files": [
+   "ui/update_dialog.py"
   ]
  },
  "最小化到托盘": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "服务编排：": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "未使用独立配置文件（将读取 PHP 编译默认配置）": {
   "count": 1,
   "files": [
-   "core\\php_manager.py"
+   "core/php_manager.py"
   ]
  },
  "未发现 MySQL 实例": {
   "count": 1,
   "files": [
-   "ui\\mysql_panel.py"
+   "ui/mysql_panel.py"
   ]
  },
  "未发现 PHP 版本": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "未发现 Redis 实例": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
   ]
  },
  "未发现 Redis 实例。": {
   "count": 2,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
   ]
  },
  "未发现数据库文件（点击「浏览…」选择其它文件）": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "未启用": {
   "count": 1,
   "files": [
-   "ui\\extension_dialog.py"
+   "ui/extension_dialog.py"
   ]
  },
  "未在 {file} 中找到 server_name 为 {name} 的 server 块": {
   "count": 1,
   "files": [
-   "core\\vhost_manager.py"
+   "core/vhost_manager.py"
   ]
  },
  "未在生效 nginx.conf 中找到 http 块，无法自动补 include": {
   "count": 1,
   "files": [
-   "core\\vhost_manager.py"
+   "core/vhost_manager.py"
   ]
  },
  "未在运行": {
   "count": 4,
   "files": [
-   "ui\\main_window.py",
-   "ui\\nginx_panel.py",
-   "ui\\redis_panel.py",
-   "core\\redis_manager.py"
+   "ui/main_window.py",
+   "ui/nginx_panel.py",
+   "ui/redis_panel.py",
+   "core/redis_manager.py"
   ]
  },
  "未扫描到可用 PHP 版本（可先到「PHP 版本管理」页确认）。\nLaravel / WordPress / ThinkPHP 等模板需要 PHP，可先选「静态站点 / SPA」模板。": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "未找到 Homebrew nginx，请先安装：brew install nginx": {
   "count": 1,
   "files": [
-   "core\\nginx_manager.py"
+   "core/nginx_manager.py"
   ]
  },
  "未找到 hosts 备份：{path}": {
   "count": 1,
   "files": [
-   "core\\hosts_manager.py"
+   "core/hosts_manager.py"
   ]
  },
  "未找到 nginx（{path}），已跳过配置校验；请配置好 nginx 后手动执行「配置检查」。": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "未找到 openssl 与 mkcert，无法生成本地 HTTPS 证书。\n可选安装方式：\n  · Windows（推荐）：choco install mkcert  或  scoop install mkcert\n  · macOS：brew install mkcert nss\n  · 或安装 Git for Windows / OpenSSL-Win64 后重启 phpvm 自动探测": {
   "count": 1,
   "files": [
-   "core\\cert_manager.py"
+   "core/cert_manager.py"
   ]
  },
  "未找到 redis-cli 可执行文件，无法测试连接": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
   ]
  },
  "未找到 redis-cli，无法执行命令": {
   "count": 1,
   "files": [
-   "core\\redis_manager.py"
+   "core/redis_manager.py"
   ]
  },
  "未找到 redis-server 实例（请将 redis 安装目录放入环境根目录下的 Redis* 文件夹）": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
   ]
  },
  "未找到 {path}": {
   "count": 1,
   "files": [
-   "core\\nginx_manager.py"
+   "core/nginx_manager.py"
   ]
  },
  "未找到可用的终端程序。可手动执行：\n  set PATH={dir};%PATH%": {
   "count": 1,
   "files": [
-   "ui\\php_panel.py"
+   "ui/php_panel.py"
   ]
  },
  "未找到含 bin/mysqld 的 mysql 目录（环境根：{root}）。": {
   "count": 1,
   "files": [
-   "ui\\mysql_panel.py"
+   "ui/mysql_panel.py"
   ]
  },
  "未找到生效主配置 {path}，无法自动补 include，请手动配置": {
   "count": 1,
   "files": [
-   "core\\vhost_manager.py"
+   "core/vhost_manager.py"
   ]
  },
  "未找到生效主配置，跳过 include 自动补全": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "未找到生效主配置：{path}\n站点不会被 nginx 加载": {
   "count": 1,
   "files": [
-   "core\\vhost_manager.py"
+   "core/vhost_manager.py"
   ]
  },
  "未找到配置文件。": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
   ]
  },
  "未找到配置文件：{path}": {
   "count": 1,
   "files": [
-   "ui\\mysql_panel.py"
+   "ui/mysql_panel.py"
   ]
  },
  "未找到错误日志（数据目录：{dir}）": {
   "count": 1,
   "files": [
-   "core\\mysql_manager.py"
+   "core/mysql_manager.py"
   ]
  },
  "未指定域名": {
   "count": 1,
   "files": [
-   "core\\cert_manager.py"
+   "core/cert_manager.py"
   ]
  },
  "未指定要移除的域名": {
   "count": 1,
   "files": [
-   "core\\hosts_manager.py"
+   "core/hosts_manager.py"
   ]
  },
  "未检测到 Composer": {
   "count": 1,
   "files": [
-   "ui\\php_panel.py"
+   "ui/php_panel.py"
   ]
  },
  "未检测到 Composer。可任选一种方式安装：\n  · macOS：brew install composer\n  · Linux：sudo apt install composer（或按 getcomposer.org 官方指引安装）\n安装后重启 phpvm 即自动识别。": {
   "count": 1,
   "files": [
-   "core\\tool_manager.py"
+   "core/tool_manager.py"
   ]
  },
  "未检测到 Composer。可任选一种方式安装：\n  · 下载 Composer-Setup.exe（https://getcomposer.org/Composer-Setup.exe），安装后重启 phpvm 即自动识别\n  · 或下载 composer.phar 放到任意目录后，在「编辑端口」同级设置里用 php 调用\n安装后 Composer 会使用系统 PATH 中的 php；如需指定版本，请用本页「打开终端」或「Composer」按钮（会前置所选版本目录）。": {
   "count": 1,
   "files": [
-   "core\\tool_manager.py"
+   "core/tool_manager.py"
   ]
  },
  "未知": {
   "count": 7,
   "files": [
-   "ui\\main_window.py",
-   "core\\health_monitor.py",
-   "core\\nginx_manager.py",
-   "core\\php_manager.py",
-   "core\\redis_manager.py"
+   "ui/main_window.py",
+   "core/health_monitor.py",
+   "core/nginx_manager.py",
+   "core/php_manager.py",
+   "core/redis_manager.py"
   ]
  },
  "未知错误": {
   "count": 2,
   "files": [
-   "core\\nginx_manager.py"
+   "core/nginx_manager.py"
   ]
  },
  "未选择数据库文件。": {
   "count": 4,
   "files": [
-   "ui\\sqlite_panel.py",
-   "core\\sqlite_manager.py"
+   "ui/sqlite_panel.py",
+   "core/sqlite_manager.py"
   ]
  },
  "本地扩展": {
   "count": 1,
   "files": [
-   "ui\\extension_dialog.py"
+   "ui/extension_dialog.py"
   ]
  },
  "本机 {arch}": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "本次操作已写入部分文件。\n\n是否在关闭前还原（回滚）已写入的内容？\n（选择「否」将保留已写入的文件）": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "查看配置": {
   "count": 1,
   "files": [
-   "ui\\php_panel.py"
+   "ui/php_panel.py"
   ]
  },
  "查看错误日志": {
   "count": 1,
   "files": [
-   "ui\\mysql_panel.py"
+   "ui/mysql_panel.py"
   ]
  },
  "查询超时（超过 {sec} 秒），已中断。请添加 LIMIT 或优化查询条件。": {
   "count": 1,
   "files": [
-   "core\\sqlite_manager.py"
+   "core/sqlite_manager.py"
   ]
  },
  "校验失败": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
+  ]
+ },
+ "检查更新": {
+  "count": 2,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "检查更新失败：{msg}": {
+  "count": 1,
+  "files": [
+   "ui/update_dialog.py"
   ]
  },
  "检查项": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "检测中…": {
   "count": 3,
   "files": [
-   "ui\\mysql_panel.py",
-   "ui\\nginx_panel.py",
-   "ui\\redis_panel.py"
+   "ui/mysql_panel.py",
+   "ui/nginx_panel.py",
+   "ui/redis_panel.py"
   ]
  },
  "检测到 php-cgi 崩溃（{n} 次），详见状态栏告警": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "检测失败": {
   "count": 1,
   "files": [
-   "ui\\mysql_panel.py"
+   "ui/mysql_panel.py"
   ]
  },
  "模块 {name} 已设为{state}，重启 phpvm 后生效": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "模板 [{tpl}] 需要 PHP 解析，但未选择任何 PHP 版本。\n请返回第 1 步选择一个已安装的 PHP 版本。": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "正在{action} [{name}] …": {
   "count": 1,
   "files": [
-   "ui\\php_panel.py"
+   "ui/php_panel.py"
   ]
  },
  "正在{label}…": {
   "count": 1,
   "files": [
-   "ui\\mysql_panel.py"
+   "ui/mysql_panel.py"
   ]
  },
  "正在{title}…": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "正在下载": {
   "count": 2,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
+  ]
+ },
+ "正在下载安装包…": {
+  "count": 1,
+  "files": [
+   "ui/update_dialog.py"
+  ]
+ },
+ "正在下载安装包… {done}": {
+  "count": 1,
+  "files": [
+   "ui/update_dialog.py"
+  ]
+ },
+ "正在下载安装包… {done} / {total}": {
+  "count": 1,
+  "files": [
+   "ui/update_dialog.py"
   ]
  },
  "正在切换 {name} 的 PHP 版本…": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "正在加载…": {
   "count": 1,
   "files": [
-   "ui\\extension_dialog.py"
+   "ui/extension_dialog.py"
+  ]
+ },
+ "正在取消下载…": {
+  "count": 1,
+  "files": [
+   "ui/update_dialog.py"
   ]
  },
  "正在启用站点…": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "正在安装 {name} …": {
   "count": 1,
   "files": [
-   "ui\\extension_dialog.py"
+   "ui/extension_dialog.py"
   ]
  },
  "正在打开…": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "正在执行…": {
   "count": 2,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "正在扫描 PHP 版本…": {
   "count": 1,
   "files": [
-   "ui\\php_panel.py"
+   "ui/php_panel.py"
   ]
  },
  "正在扫描 nginx 配置…": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "正在扫描引用旧端口 {port} 的配置文件…": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "正在扫描数据库文件…": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "正在替换端口并校验 nginx 配置…": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "正在校验 SHA-256": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
+  ]
+ },
+ "正在检查更新…": {
+  "count": 2,
+  "files": [
+   "ui/update_dialog.py"
   ]
  },
  "正在检测 PHP 版本…": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "正在检测…": {
   "count": 2,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "正在检测站点目录加载状态…": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "正在生成 php.ini / php-web.ini": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "正在禁用站点…": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "正在移除 hosts 映射…": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "正在自动补 include 并校验…": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "正在获取可用版本…": {
   "count": 2,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "正在落盘到目标目录": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "正在解压": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "正在运行 php -v 验证": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "正常": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "没有可写入 hosts 的域名（通配项已跳过）": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "没有可用于签发证书的域名（仅填写了泛解析）": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "没有正在运行的服务": {
   "count": 1,
   "files": [
-   "core\\service_group.py"
+   "core/service_group.py"
   ]
  },
  "没有配置文件引用旧端口，无需同步。": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "没有需要保存的变更。": {
   "count": 1,
   "files": [
-   "ui\\extension_dialog.py"
+   "ui/extension_dialog.py"
   ]
  },
  "注意：{msg}": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "测试连接 (PING)": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
   ]
  },
  "浏览…": {
   "count": 2,
   "files": [
-   "ui\\site_wizard.py",
-   "ui\\sqlite_panel.py"
+   "ui/site_wizard.py",
+   "ui/sqlite_panel.py"
   ]
  },
  "清屏": {
   "count": 1,
   "files": [
-   "ui\\nginx_log_panel.py"
+   "ui/nginx_log_panel.py"
   ]
  },
  "清空": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "清空记录": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
+  ]
+ },
+ "点击「检查更新」开始": {
+  "count": 1,
+  "files": [
+   "ui/update_dialog.py"
   ]
  },
  "版本": {
   "count": 2,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "版本信息未知": {
   "count": 1,
   "files": [
-   "ui\\extension_dialog.py"
+   "ui/extension_dialog.py"
   ]
  },
  "版本目录": {
   "count": 2,
   "files": [
-   "ui\\dialogs.py",
-   "ui\\php_panel.py"
+   "ui/dialogs.py",
+   "ui/php_panel.py"
   ]
  },
  "版本自检 · {name} (PHP {display})": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "状态": {
   "count": 4,
   "files": [
-   "ui\\dialogs.py",
-   "ui\\download_dialog.py",
-   "ui\\extension_dialog.py",
-   "ui\\php_panel.py"
+   "ui/dialogs.py",
+   "ui/download_dialog.py",
+   "ui/extension_dialog.py",
+   "ui/php_panel.py"
   ]
  },
  "状态与日志": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
   ]
  },
  "状态获取失败：{err}": {
   "count": 2,
   "files": [
-   "ui\\nginx_panel.py",
-   "ui\\redis_panel.py"
+   "ui/nginx_panel.py",
+   "ui/redis_panel.py"
   ]
  },
  "状态：已停止": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "状态：已停止 · 端口 {port}": {
   "count": 3,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "状态：运行中": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "状态：运行中 · PID {pids} · 端口 {port}": {
   "count": 2,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "状态：运行中 · PID {pid}": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "状态：运行中 · PID {pid} · 端口 {port}": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "状态：运行中 · 端口 {port}": {
   "count": 3,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "独立进程": {
   "count": 1,
   "files": [
-   "ui\\mysql_panel.py"
+   "ui/mysql_panel.py"
   ]
  },
  "环境信息": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "环境根目录": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "环境根目录 {dir}": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "生效 nginx.conf 已 include 站点目录，无需修改": {
   "count": 1,
   "files": [
-   "core\\vhost_manager.py"
+   "core/vhost_manager.py"
   ]
  },
  "生效主配置 {main} 尚未 include 站点目录：{vhost}\n当前 http 块 include：{cur}": {
   "count": 1,
   "files": [
-   "core\\vhost_manager.py"
+   "core/vhost_manager.py"
   ]
  },
  "用编辑器打开": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "界面语言已保存为 {name}。重启 phpvm 后生效。": {
   "count": 2,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "界面语言：": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "目录不存在": {
   "count": 2,
   "files": [
-   "ui\\site_wizard.py",
-   "ui\\vhost_panel.py"
+   "ui/site_wizard.py",
+   "ui/vhost_panel.py"
   ]
  },
  "目录不存在：{path}": {
   "count": 1,
   "files": [
-   "ui\\mysql_panel.py"
+   "ui/mysql_panel.py"
   ]
  },
  "目标 DB：": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
   ]
  },
  "目标文件已存在，无法重命名：{path}": {
   "count": 1,
   "files": [
-   "core\\vhost_manager.py"
+   "core/vhost_manager.py"
   ]
  },
  "目标目录 {dir} 已存在，请勿重复安装。": {
   "count": 1,
   "files": [
-   "core\\php_installer.py"
+   "core/php_installer.py"
   ]
  },
  "确定": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "示例 myapp.test 或 www.example.com；多个域名用空格分隔；\n支持 *.dev 泛解析（通配项不会写入 hosts）。": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "示例：SET k1 hello / GET k1 / INFO / DBSIZE / KEYS *  （FLUSHALL、FLUSHDB、SHUTDOWN 等危险命令执行前需确认）": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
   ]
  },
  "禁用后该站点配置不再被 nginx 加载，访问将失败。\n确定禁用 {name}？": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "禁用站点": {
   "count": 2,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "移除 hosts 映射": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
+  ]
+ },
+ "稍后": {
+  "count": 2,
+  "files": [
+   "ui/update_dialog.py"
+  ]
+ },
+ "立即升级": {
+  "count": 2,
+  "files": [
+   "ui/update_dialog.py"
+  ]
+ },
+ "立即重启并升级": {
+  "count": 1,
+  "files": [
+   "ui/update_dialog.py"
   ]
  },
  "站点信息": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "站点创建成功": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "站点已处于启用状态": {
   "count": 1,
   "files": [
-   "core\\vhost_manager.py"
+   "core/vhost_manager.py"
   ]
  },
  "站点已处于禁用状态": {
   "count": 1,
   "files": [
-   "core\\vhost_manager.py"
+   "core/vhost_manager.py"
   ]
  },
  "站点映射": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "站点目录已被主配置 include，无需修复": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "站点配置已就绪：\n{path}": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "端口": {
   "count": 3,
   "files": [
-   "ui\\dialogs.py",
-   "ui\\php_panel.py",
-   "ui\\vhost_panel.py"
+   "ui/dialogs.py",
+   "ui/php_panel.py",
+   "ui/vhost_panel.py"
   ]
  },
  "端口 {port} 已被 [{other}] 占用": {
   "count": 1,
   "files": [
-   "core\\config.py"
+   "core/config.py"
   ]
  },
  "端口 {port} 未映射到任何 PHP 版本": {
   "count": 1,
   "files": [
-   "core\\vhost_manager.py"
+   "core/vhost_manager.py"
   ]
  },
  "端口不合法": {
   "count": 2,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "端口冲突": {
   "count": 2,
   "files": [
-   "ui\\dialogs.py",
-   "ui\\php_panel.py"
+   "ui/dialogs.py",
+   "ui/php_panel.py"
   ]
  },
  "端口已修改": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "端口必须在 1-65535 之间": {
   "count": 1,
   "files": [
-   "core\\config.py"
+   "core/config.py"
   ]
  },
  "端口必须是整数": {
   "count": 1,
   "files": [
-   "core\\config.py"
+   "core/config.py"
   ]
  },
  "端口必须是整数。": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "端口未变化，跳过": {
   "count": 1,
   "files": [
-   "core\\vhost_manager.py"
+   "core/vhost_manager.py"
   ]
  },
  "第 {page} 页 · 共 {n} 行 · 耗时 {ms} ms{more}": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "第 {page} 页 · 本页 {n} 行 · 耗时 {ms} ms（还有下一页）": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "管理 {root} 下多个 PHP 版本的启动 / 停止 / 重启 / 状态 / 端口 / 配置，并附带 Nginx 与 Redis 管理。": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "类型": {
   "count": 2,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "约束": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "线程": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "线程安全模式：": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "终止原因：{reason}": {
   "count": 1,
   "files": [
-   "core\\health_monitor.py"
+   "core/health_monitor.py"
   ]
  },
  "终端": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "终端 php": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "终端 生效": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "结构": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "结果": {
   "count": 2,
   "files": [
-   "ui\\dialogs.py",
-   "ui\\sqlite_panel.py"
+   "ui/dialogs.py",
+   "ui/sqlite_panel.py"
   ]
  },
  "编译器": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "编辑常用配置项 · {file}": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "编辑端口": {
   "count": 1,
   "files": [
-   "ui\\php_panel.py"
+   "ui/php_panel.py"
   ]
  },
  "编辑端口 · {name}": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "编辑配置": {
   "count": 1,
   "files": [
-   "ui\\php_panel.py"
+   "ui/php_panel.py"
   ]
  },
  "编辑配置 · {name}": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "缺失：{list}": {
   "count": 1,
   "files": [
-   "core\\health_monitor.py"
+   "core/health_monitor.py"
   ]
  },
  "缺少 PHP 版本": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "缺少域名": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "缺少目录": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
+  ]
+ },
+ "网络请求失败（HTTP {code}）": {
+  "count": 1,
+  "files": [
+   "core/updater.py"
   ]
  },
  "自动写入 hosts，使下列域名指向本机 127.0.0.1": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "自动补 include 并校验": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "自动跟随": {
   "count": 1,
   "files": [
-   "ui\\nginx_log_panel.py"
+   "ui/nginx_log_panel.py"
   ]
  },
  "自愈历史": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "自愈守护异常：{msg}": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "自愈守护进程异常：{msg}": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "自愈操作历史（防抖/限次/重启/失败，存于 recover_history.json）": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "自愈防抖 60 秒、每版本每小时最多 3 次，防止崩溃循环刷进程。": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "自检": {
   "count": 1,
   "files": [
-   "ui\\php_panel.py"
+   "ui/php_panel.py"
   ]
  },
  "自检 [{name}] · PHP {display}": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "自检失败：{text}": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "获取 xdebug.org 文件列表…": {
   "count": 1,
   "files": [
-   "core\\php_extension.py"
+   "core/php_extension.py"
   ]
  },
  "获取 {ext} 版本列表…": {
   "count": 1,
   "files": [
-   "core\\php_extension.py"
+   "core/php_extension.py"
   ]
  },
  "获取版本列表失败：{err}（请检查网络后重试）": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "行数：{n}": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "表": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "表 / 视图（{n}）": {
   "count": 2,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "要如何关闭 phpvm？": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "视图": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "解压 {file} …": {
   "count": 1,
   "files": [
-   "core\\php_extension.py"
+   "core/php_extension.py"
   ]
  },
  "解压内容异常：未找到 php.exe / php-cgi.exe": {
   "count": 1,
   "files": [
-   "core\\php_installer.py"
+   "core/php_installer.py"
   ]
  },
  "警告 {n}": {
   "count": 1,
   "files": [
-   "ui\\nginx_log_panel.py"
+   "ui/nginx_log_panel.py"
   ]
  },
  "设为当前": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "设置": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
+  ]
+ },
+ "访问发布源被拒绝（{code}）：私有仓库需设置 PHPVM_GH_TOKEN。": {
+  "count": 1,
+  "files": [
+   "core/updater.py"
   ]
  },
  "证书删除失败：{err}": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "证书生成失败：{err}": {
   "count": 1,
   "files": [
-   "core\\cert_manager.py"
+   "core/cert_manager.py"
   ]
  },
  "该实例为 Windows 服务，启停需要管理员权限。\n请以「管理员身份运行」phpvm 后再操作（当前仅可查看状态）。": {
   "count": 1,
   "files": [
-   "ui\\mysql_panel.py"
+   "ui/mysql_panel.py"
   ]
  },
  "该版本在当前架构下没有可用安装包。": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "该版本已安装，请选择其他版本。": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
+  ]
+ },
+ "该版本未发布 {platform} 平台安装包": {
+  "count": 1,
+  "files": [
+   "core/updater.py"
+  ]
+ },
+ "该版本未发布当前平台安装包，可前往发布页手动下载": {
+  "count": 1,
+  "files": [
+   "ui/update_dialog.py"
   ]
  },
  "该站点没有可直接映射的域名（仅泛解析）": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "该站点没有可直接访问的域名（仅泛解析）": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "该站点没有指向 127.0.0.1 的 fastcgi_pass（静态 / 纯前端站点无需指定 PHP 版本）": {
   "count": 1,
   "files": [
-   "core\\vhost_manager.py"
+   "core/vhost_manager.py"
   ]
  },
  "该能力当前仅支持 Windows（写入用户「启动」目录）。": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "详情": {
   "count": 3,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "语言": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "语言已切换": {
   "count": 2,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "说明": {
   "count": 2,
   "files": [
-   "ui\\extension_dialog.py",
-   "ui\\vhost_panel.py"
+   "ui/extension_dialog.py",
+   "ui/vhost_panel.py"
   ]
  },
  "请先在列表中选择一个 PHP 版本。": {
   "count": 1,
   "files": [
-   "ui\\php_panel.py"
+   "ui/php_panel.py"
   ]
  },
  "请先填写站点域名。": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "请先选择一个 PHP 版本。": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "请输入 SQL 语句后执行": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "请选择一个版本": {
   "count": 3,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "请选择站点项目目录。": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "读取 hosts 失败：{err}": {
   "count": 2,
   "files": [
-   "core\\hosts_manager.py"
+   "core/hosts_manager.py"
   ]
  },
  "读取主配置失败：{err}": {
   "count": 1,
   "files": [
-   "core\\vhost_manager.py"
+   "core/vhost_manager.py"
   ]
  },
  "读取失败": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "读取失败：{err}": {
   "count": 3,
   "files": [
-   "core\\php_manager.py",
-   "core\\vhost_manager.py"
+   "core/php_manager.py",
+   "core/vhost_manager.py"
   ]
  },
  "读取错误日志失败：{err}": {
   "count": 1,
   "files": [
-   "core\\mysql_manager.py"
+   "core/mysql_manager.py"
   ]
  },
  "调用栈：": {
   "count": 1,
   "files": [
-   "core\\health_monitor.py"
+   "core/health_monitor.py"
+  ]
+ },
+ "跳过此版本": {
+  "count": 1,
+  "files": [
+   "ui/update_dialog.py"
+  ]
+ },
+ "软件更新": {
+  "count": 4,
+  "files": [
+   "ui/update_dialog.py"
+  ]
+ },
+ "软件更新：": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
   ]
  },
  "输入 Redis 命令后回车执行，输出显示在此区。": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
   ]
  },
  "过滤：": {
   "count": 1,
   "files": [
-   "ui\\nginx_log_panel.py"
+   "ui/nginx_log_panel.py"
   ]
  },
  "运行中": {
   "count": 4,
   "files": [
-   "ui\\dialogs.py",
-   "ui\\mysql_panel.py",
-   "ui\\nginx_panel.py",
-   "ui\\redis_panel.py"
+   "ui/dialogs.py",
+   "ui/mysql_panel.py",
+   "ui/nginx_panel.py",
+   "ui/redis_panel.py"
   ]
  },
  "运行状态": {
   "count": 3,
   "files": [
-   "ui\\mysql_panel.py",
-   "ui\\nginx_panel.py",
-   "ui\\redis_panel.py"
+   "ui/mysql_panel.py",
+   "ui/nginx_panel.py",
+   "ui/redis_panel.py"
   ]
  },
  "还原 /etc/hosts 需要 root 权限，请手动执行：sudo cp {src} {dst}": {
   "count": 1,
   "files": [
-   "core\\hosts_manager.py"
+   "core/hosts_manager.py"
   ]
  },
  "还原 /etc/hosts 需要管理员授权（已取消或失败：{err}）": {
   "count": 1,
   "files": [
-   "core\\hosts_manager.py"
+   "core/hosts_manager.py"
   ]
  },
  "还原 hosts 失败：{err}": {
   "count": 1,
   "files": [
-   "core\\hosts_manager.py"
+   "core/hosts_manager.py"
   ]
  },
  "还原 hosts 需要管理员权限（授权被取消或失败：{err}）": {
   "count": 1,
   "files": [
-   "core\\hosts_manager.py"
+   "core/hosts_manager.py"
   ]
  },
  "进程": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "进程失联（端口 {port} 无监听）": {
   "count": 1,
   "files": [
-   "core\\crash_watchdog.py"
+   "core/crash_watchdog.py"
   ]
  },
  "进程路径：{path}": {
   "count": 1,
   "files": [
-   "core\\health_monitor.py"
+   "core/health_monitor.py"
+  ]
+ },
+ "连接发布源失败：{err}": {
+  "count": 1,
+  "files": [
+   "core/updater.py"
   ]
  },
  "连续 {n} 次失败，已解除看护，请手动检查 php.ini/端口": {
   "count": 1,
   "files": [
-   "core\\crash_watchdog.py"
+   "core/crash_watchdog.py"
   ]
  },
  "退出": {
   "count": 2,
   "files": [
-   "ui\\main_window.py",
-   "ui\\tray.py"
+   "ui/main_window.py",
+   "ui/tray.py"
   ]
  },
  "选中版本后操作 · 双击行查看配置": {
   "count": 1,
   "files": [
-   "ui\\php_panel.py"
+   "ui/php_panel.py"
   ]
  },
  "选择 SQLite 数据库文件": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "选择站点项目目录": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "选择要绑定到该域名的项目目录（Laravel/ThinkPHP 等会自动拼 /public）。": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "配置加载 ({ini})": {
   "count": 1,
   "files": [
-   "core\\health_monitor.py"
+   "core/health_monitor.py"
   ]
  },
  "配置持久化": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "配置文件": {
   "count": 4,
   "files": [
-   "ui\\dialogs.py",
-   "ui\\mysql_panel.py",
-   "ui\\php_panel.py",
-   "ui\\vhost_panel.py"
+   "ui/dialogs.py",
+   "ui/mysql_panel.py",
+   "ui/php_panel.py",
+   "ui/vhost_panel.py"
   ]
  },
  "配置文件不存在：\n{path}": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "配置文件名：": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "配置文件名：{v}": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "配置文件已写入：{path}": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "配置文件：{path}": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "配置文件：{v}": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "配置校验失败": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "配置校验未通过": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "配置检查": {
   "count": 2,
   "files": [
-   "ui\\main_window.py",
-   "ui\\nginx_panel.py"
+   "ui/main_window.py",
+   "ui/nginx_panel.py"
   ]
  },
  "配置检查 (nginx -t)": {
   "count": 2,
   "files": [
-   "ui\\nginx_panel.py"
+   "ui/nginx_panel.py"
   ]
  },
  "配置检查失败": {
   "count": 1,
   "files": [
-   "core\\nginx_manager.py"
+   "core/nginx_manager.py"
   ]
  },
  "配置检查通过": {
   "count": 3,
   "files": [
-   "ui\\site_wizard.py",
-   "ui\\vhost_panel.py",
-   "core\\nginx_manager.py"
+   "ui/site_wizard.py",
+   "ui/vhost_panel.py",
+   "core/nginx_manager.py"
   ]
  },
  "配置项": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "配置预览（只读，可稍后手动微调文件）": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "重启": {
   "count": 8,
   "files": [
-   "ui\\main_window.py",
-   "ui\\php_panel.py",
-   "ui\\redis_panel.py"
+   "ui/main_window.py",
+   "ui/php_panel.py",
+   "ui/redis_panel.py"
   ]
  },
  "重启中止（停止未成功）：{msg}": {
   "count": 1,
   "files": [
-   "core\\mysql_manager.py"
+   "core/mysql_manager.py"
   ]
  },
  "重命名失败：{err}": {
   "count": 1,
   "files": [
-   "core\\vhost_manager.py"
+   "core/vhost_manager.py"
   ]
  },
  "重新创建": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "重新检测": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "重试": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "重载 Nginx": {
   "count": 2,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "重载配置": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "错误": {
   "count": 5,
   "files": [
-   "ui\\download_dialog.py",
-   "ui\\nginx_panel.py",
-   "ui\\php_panel.py",
-   "ui\\redis_panel.py"
+   "ui/download_dialog.py",
+   "ui/nginx_panel.py",
+   "ui/php_panel.py",
+   "ui/redis_panel.py"
   ]
  },
  "错误 {n}": {
   "count": 1,
   "files": [
-   "ui\\nginx_log_panel.py"
+   "ui/nginx_log_panel.py"
   ]
  },
  "错误：{text}": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "键空间分布（DB → key 数）": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
   ]
  },
  "键空间获取失败，请确认实例可连接后重试": {
   "count": 1,
   "files": [
-   "ui\\redis_panel.py"
+   "ui/redis_panel.py"
   ]
  },
  "隐藏到托盘": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "隐藏启动器": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "需要平滑重载 nginx 才会加载站点目录。\n是否立即重载？": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "需要管理员权限": {
   "count": 1,
   "files": [
-   "ui\\mysql_panel.py"
+   "ui/mysql_panel.py"
   ]
  },
  "非法版本系列：{series}": {
   "count": 1,
   "files": [
-   "core\\php_installer.py"
+   "core/php_installer.py"
   ]
  },
  "项目根目录": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "项目根目录不存在或未配置：{path}": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "项目目录不存在或不是文件夹：\n{root}": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "项目目录：": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "项目目录：{v}": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "首轮就绪：事件游标已推进，{count} 条历史事件进入看护待复核": {
   "count": 1,
   "files": [
-   "core\\crash_watchdog.py"
+   "core/crash_watchdog.py"
   ]
  },
  "默认值": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "默认全部启用；取消勾选后需重启 phpvm 生效（该模块代码将不再加载）。": {
   "count": 1,
   "files": [
-   "ui\\main_window.py"
+   "ui/main_window.py"
   ]
  },
  "（全新安装）": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "（已安装 {inst}）": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "（已翻页）": {
   "count": 1,
   "files": [
-   "ui\\sqlite_panel.py"
+   "ui/sqlite_panel.py"
   ]
  },
  "（已装 {old}，可更新到 {new}）": {
   "count": 1,
   "files": [
-   "ui\\download_dialog.py"
+   "ui/download_dialog.py"
   ]
  },
  "（无）": {
   "count": 2,
   "files": [
-   "ui\\vhost_panel.py",
-   "core\\vhost_manager.py"
+   "ui/vhost_panel.py",
+   "core/vhost_manager.py"
   ]
  },
  "（日志为空）": {
   "count": 1,
   "files": [
-   "core\\mysql_manager.py"
+   "core/mysql_manager.py"
   ]
  },
  "（暂无自愈记录）": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "（未使用独立配置文件：将读取 PHP 编译默认配置，如需独立配置请在版本目录放置 php.ini）": {
   "count": 1,
   "files": [
-   "core\\php_manager.py"
+   "core/php_manager.py"
   ]
  },
  "（未在 php.ini 中启用任何 extension 指令）": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "（未填写）": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "（未能读取版本）": {
   "count": 1,
   "files": [
-   "core\\tool_manager.py"
+   "core/tool_manager.py"
   ]
  },
  "（未选择项目目录）": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "（未选择）": {
   "count": 2,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "（没有崩溃记录）": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "（覆盖原文件，备份 .bak）": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
+  ]
+ },
+ "（该版本未提供更新说明）": {
+  "count": 1,
+  "files": [
+   "ui/update_dialog.py"
   ]
  },
  "（该站点无 fastcgi_pass）": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "（请先在第 1 步填写域名）": {
   "count": 1,
   "files": [
-   "ui\\site_wizard.py"
+   "ui/site_wizard.py"
   ]
  },
  "＋ 新建站点…": {
   "count": 1,
   "files": [
-   "ui\\vhost_panel.py"
+   "ui/vhost_panel.py"
   ]
  },
  "＋ 新建站点向导…": {
   "count": 1,
   "files": [
-   "ui\\nginx_panel.py"
+   "ui/nginx_panel.py"
   ]
  },
  "，存在警告": {
   "count": 1,
   "files": [
-   "core\\health_monitor.py"
+   "core/health_monitor.py"
   ]
  },
  "，有缺失": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  },
  "，点击「一键同步」执行": {
   "count": 1,
   "files": [
-   "ui\\dialogs.py"
+   "ui/dialogs.py"
   ]
  }
 }

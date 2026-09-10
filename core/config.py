@@ -13,13 +13,30 @@ import os
 import re
 import sys
 
+from . import app_paths
+
 IS_WIN = sys.platform.startswith("win")
 
 # 环境根目录：Windows 默认 C:\wnrp；macOS/Linux 默认 ~/wnrp（可用 WNRP_ROOT 覆盖）
 WNRP_ROOT = os.environ.get("WNRP_ROOT") or (
     r"C:\wnrp" if IS_WIN else os.path.join(os.path.expanduser("~"), "wnrp")
 )
-CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config.json")
+
+
+def default_config_path() -> str:
+    """配置文件路径（由 core/app_paths.py 判定数据目录）。
+
+    - 源码 / 绿色版（包目录可写）：包目录内的 config.json，与历史行为一致；
+    - 安装包（.app / Program Files 等只读目录）：~/.phpvm/config.json，
+      这样升级替换程序文件时，端口映射与设置不会丢失。
+
+    可用 ``PHPVM_CONFIG`` 环境变量强制指定（测试用）。
+    """
+    env = (os.environ.get("PHPVM_CONFIG") or "").strip()
+    return os.path.expanduser(env) if env else app_paths.data_file("config.json")
+
+
+CONFIG_PATH = default_config_path()
 
 DEFAULT_PORTS = {
     "php": 9001,     # PHP 5.x 老版本（start_nginx-php72.bat 中曾用 9001）
@@ -40,6 +57,8 @@ DEFAULT_SETTINGS = {
     "lang": None,                 # 界面语言；None = 跟随系统 locale（en/zh_CN/zh_TW/ja/ko）
     "sqlite_last_db": "",         # SQLite 查询页上次打开的数据库文件（下次启动自动带回）
     "disabled_modules": [],       # 已停用的可选模块 key（见 core/modules.py；重启后不再加载）
+    "check_update_on_start": True,  # 启动时静默检查新版本（发现后仅状态栏提示）
+    "skipped_version": "",          # 用户点过「跳过此版本」的版本号，启动检查不再提示
 }
 
 
