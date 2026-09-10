@@ -553,3 +553,54 @@ def open_path(path: str) -> None:
             )
     except Exception:  # noqa: BLE001
         pass
+
+
+def open_terminal(cwd: str = "", path_prepend: str = "") -> bool:
+    """新开一个终端窗口；可把目录前置到 PATH 并切换工作目录。
+
+    Windows：cmd /k（先 set PATH，再 cd /d）；macOS：Terminal do script；
+    其它 Linux：尝试常见终端模拟器，找不到返回 False。
+    """
+    try:
+        if IS_WIN:
+            script = ""
+            if path_prepend:
+                script += f'set "PATH={path_prepend};%PATH%" && '
+            if cwd:
+                script += f'cd /d "{cwd}" && '
+            script += "echo phpvm && php -v"
+            subprocess.Popen(
+                ["cmd", "/k", script],
+                creationflags=subprocess.CREATE_NEW_CONSOLE,
+            )
+            return True
+        if sys.platform == "darwin":
+            script = ""
+            if path_prepend:
+                script += f'export PATH="{path_prepend}:$PATH"; '
+            if cwd:
+                script += f'cd "{cwd}"; '
+            script += "echo phpvm; php -v"
+            subprocess.Popen(
+                ["osascript", "-e", f'tell application "Terminal" to do script "{script}"',
+                 "-e", 'tell application "Terminal" to activate'],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            return True
+        # 其它 Linux：常见终端二选一
+        for term in ("x-terminal-emulator", "gnome-terminal", "konsole", "xterm"):
+            args = [term]
+            if term in ("gnome-terminal", "konsole"):
+                args += ["--"] if term == "gnome-terminal" else ["-e"]
+            args += ["bash", "-c",
+                     (f'export PATH="{path_prepend}:$PATH"; ' if path_prepend else "")
+                     + (f'cd "{cwd}"; ' if cwd else "") + "php -v; exec bash"]
+            try:
+                subprocess.Popen(args, stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL)
+                return True
+            except OSError:
+                continue
+    except Exception:  # noqa: BLE001
+        pass
+    return False

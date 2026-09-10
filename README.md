@@ -1,6 +1,6 @@
 # phpvm · PHP 版本管理器
 
-跨平台（Windows / macOS / Linux）桌面 GUI 工具，用于统一管理开发环境（Windows 默认 `C:\wnrp`，其它平台 `~/wnrp`，可用环境变量 `WNRP_ROOT` 覆盖）中的 **多个 PHP 版本**、**Nginx**、**Redis** 与 **SQLite**，取代手动双击各种 bat 脚本的繁琐操作。
+跨平台（Windows / macOS / Linux）桌面 GUI 工具，用于统一管理开发环境（Windows 默认 `C:\wnrp`，其它平台 `~/wnrp`，可用环境变量 `WNRP_ROOT` 覆盖）中的 **多个 PHP 版本**、**Nginx**、**Redis**、**MySQL** 与 **SQLite**，取代手动双击各种 bat 脚本的繁琐操作。
 
 仅本机使用，无需登录。按端口精确启停各 PHP 版本，互不干扰 —— 不再像旧版 `start_phpXX.bat` 那样 `taskkill /IM php-cgi.exe` 一刀切误杀其它版本进程。
 
@@ -28,6 +28,7 @@
 - **版本自检**：对选中版本一键执行三项检查并分级展示（正常/异常）——① `php -v` 版本解析；② `php -m` 核对 **9 项关键扩展**（redis、pdo_mysql、mysqli、openssl、curl、mbstring、gd、fileinfo、zip）；③ `php -c <该版本 ini>` 校验配置能否正常加载
 - **扩展管理**：扫描 `ext/*.dll` 对照 ini 启停扩展（`.bak` 备份、二进制安全写回）；在线安装 redis / xdebug / imagick / swoole / memcached —— 按「PHP 主版本 + NTS/TS + 编译器 + 架构」从 PECL 与 xdebug.org 自动匹配（macOS 提供 brew/pecl 引导）
 - **下载新版本**：从 php.net 下载安装任意 PHP 系列新版本（SHA-256 校验、防穿越解压、生成 `php.ini` + `php-web.ini`、默认启用 20 个扩展、按规则规划端口、VC 运行库缺失检测）
+- **打开终端**：新开终端窗口并把所选版本目录前置到 PATH（新窗口生效），便于直接以该版本运行 php / composer
 - **cmd php 版本切换**：顶部实时显示当前 `php` 命令行生效版本（如 `CMD php：php82 · PHP 8.2.4`），点击「切换」可选择任意版本置顶
 - 每 **8 秒**自动刷新运行状态（批量快照：一次 TCP 端口快照 + 一次进程快照完成全部版本状态判定）；顶部 cmd php 版本号按「版本目录 + php.exe 修改时间」缓存，并降频为每 4 轮（约 32 秒）刷新一次
 
@@ -50,7 +51,8 @@
 - **第 2 步 应用模板**：内置 **Laravel / WordPress / ThinkPHP / 通用 PHP（无框架）/ 静态站点 / 前端 SPA（history 路由回退）** 六套模板，自动拼文档根（Laravel / ThinkPHP → `/public`），可自定义生成的配置文件名（默认 `<安全域名>.conf`），右侧**深色实时预览**最终 nginx 配置
 - **第 3 步 hosts 映射**：一键把域名写入 hosts 指向 `127.0.0.1` —— 已指向本机自动跳过、指向其它 IP 不覆盖仅提示、`*.` 泛解析跳过；写入内容带 `# >>> phpvm-managed >>>` 标记块；无写权限时 Windows 弹 UAC（PowerShell RunAs）、macOS 弹系统授权框（osascript）完成提权写入；提供「打开 hosts 文件」「刷新状态」
 - **第 4 步 确认创建**：自动完成「写 vhost 配置（同名自动备份 `.bak`）→ 主配置未 include vhost 时自动补行 → `nginx -t` 校验 → 写入 hosts → 平滑重载」共 5 步，全程日志可视化；配置/补 include/校验为硬项，任一失败即询问保留或一键回滚
-- 已知边界：未找到 nginx 可执行文件时跳过校验与重载（仍写配置与 hosts）；不支持编辑既有站点（同名覆盖重建）；模板均为 `listen 80`，无 HTTPS/443 变体
+- **HTTPS（可选）**：第 2 步可勾选「启用 HTTPS」—— 检测到系统 openssl / mkcert 时可用，创建时先生成证书到 `<nginx>/SSL/` 再生成 443 变体配置（mkcert 优先，其证书本机自动信任；openssl 自签需浏览器手动信任；失败视为硬失败并触发回滚）；未检测到工具时选项禁用并给出安装指引
+- 已知边界：未找到 nginx 可执行文件时跳过校验与重载（仍写配置与 hosts）；不支持编辑既有站点（同名覆盖重建）；未勾选 HTTPS 时模板为 `listen 80`
 - **回滚范围**：失败或取消时还原 vhost 文件、`nginx.conf` **与本次写入的 hosts 映射**（hosts 每次写入前自动备份为 `hosts.phpvm.bak`，可一键还原）
 
 ### SQLite 数据库页
@@ -85,10 +87,12 @@
 
 ### 系统托盘
 - **最小化到托盘**：点最小化按钮直接隐藏到托盘；关闭按钮弹确认框（最小化到托盘 / **重启** / 退出 / 取消），「重启」会以 `PHPVM_RESTART=1` 重新拉起 phpvm 并抢回单实例锁
+- **一键启停整套服务**：菜单顶部为「全部启动服务」「全部停止服务」（启动顺序 PHP → Redis → MySQL → Nginx，停止反之；已运行的自动跳过，结果逐项汇总）
 - **右键动态菜单**：每次弹出实时生成——
   - `显示 phpvm` / `隐藏到托盘` / `退出`
   - `Nginx` 子菜单：状态（PID）+ 启动 / 停止 / 重载配置 / 配置检查（按运行状态自动禁用，配置检查始终可用）
   - `Redis` 子菜单（每实例一个，标题 `Redis [<目录名>]`）：状态（运行 / 停止 · PID · 端口）+ 启动 / 停止 / 重启；未发现实例时显示灰色的「Redis：未发现实例」
+  - `MySQL` 子菜单（每实例一个，标题 `MySQL [<目录名>]`）：状态（运行 / 停止 · PID · 端口）+ 启动 / 停止 / 重启；未发现实例时显示灰色的「MySQL：未发现实例」（服务模式启停需管理员权限）
   - 各 PHP 版本子菜单：状态（端口/PID）+ 启动 / 停止 / 重启（停止与重启仅在运行中可用）；运行中的版本前缀 `●`
 - 托盘操作结果：状态栏提示 + 气泡通知，并立即刷新各面板状态；手动停止某版本会同时解除崩溃看护
 - 双击托盘图标恢复主窗口（托盘仅 Windows 可用，macOS 无菜单栏托盘）
@@ -112,12 +116,20 @@
 - **Redis 命令**：选择目标逻辑库（DB 下拉 **0–15**）后输入单行命令，回车或点「执 行」（`redis-cli -p <端口> -n <db>` stdin 逐行模式，输出异步渲染）；`FLUSHALL` / `FLUSHDB` / `SHUTDOWN` / `SLAVEOF` / `REPLICAOF` / `DEBUG` 执行前弹二次确认；执行完成后自动刷新键空间
 - **DB 键空间**：Canvas 柱状图展示各逻辑库 key 数（忽略空库，大数值按语言本地化为「万 / k / M」，底部显示总 key 数与统计时间）；点击图表或「刷新」重新统计
 
+### MySQL 管理页
+- **自动发现**：扫描环境根下含 `bin/mysqld` 的 `mysql*` 目录，解析 `my.ini` / `my.cnf` 得到端口（默认 3306）与数据目录，并显示 `mysqld --version` 版本
+- **Windows 服务优先**：若该实例已注册为 Windows 服务（如服务名 `MySQL`），状态与启停走 `sc` / `net start|stop`，**不会再拉起第二个 mysqld**；未注册服务时退回独立进程模式（隐藏启动 mysqld，关闭优先 `mysqladmin shutdown`）
+- 状态卡显示版本 / 端口 / PID / 运行方式 / 服务名 / 启动类型 / 配置文件 / 数据目录；按钮为启动 / 停止 / 重启 / 打开配置文件 / 打开数据目录 / 查看错误日志（读 `data/*.err` 尾部）
+- **权限提示**：启停 Windows 服务需要管理员权限，非管理员运行时启停按钮禁用并提示「以管理员身份运行 phpvm」（状态查看不受影响）；停止前有二次确认
+- 托盘菜单提供各实例快捷启停
+
 ### 关于页
 - **环境信息**：环境根目录、PHP FastCGI 配置（php82 / php85 → php-web.ini，其余 → php.ini）、FastCGI 监听、Nginx 前缀、隐藏启动器（Windows）、配置持久化路径
 - **设置区**（3 项）：
   - 开机自动启动 phpvm（Windows 写 `HKCU\...\Run` 的 `phpvm` 值；macOS 写 LaunchAgent `com.phpvm.app`）
   - php-cgi 崩溃自愈开关（默认关闭），注明「防抖 60 秒、每版本每小时最多 3 次」
   - 界面语言下拉（简体中文 / 繁體中文 / English / 日本語 / 한국어），点「应用」后**重启 phpvm 生效**
+  - 服务编排：「全部启动」「全部停止」两个按钮（关于页与托盘菜单均可操作，后台执行并逐项汇总结果）
 
 ### 界面语言（i18n）
 - 全部界面文案经 `t()` 翻译，内置 **5 种语言**：简体中文（源码原文，无词条表）、繁體中文、English、日本語、한국어
@@ -197,6 +209,9 @@ C:\wnrp\phpvm\
 │   ├── path_manager.py    # 终端 php 版本切换（Win 用户 PATH 置顶 / posix 写 .zshrc 块）
 │   ├── nginx_manager.py   # nginx 启停/重载/配置检查（Win -p / brew 模式；派生 vhost 与日志目录）
 │   ├── redis_manager.py   # Redis 多实例发现/启停/命令执行/键空间统计
+│   ├── mysql_manager.py   # MySQL 发现/启停（Windows 服务优先，进程模式兜底）/错误日志
+│   ├── cert_manager.py    # 本地 HTTPS 证书（探测 openssl/mkcert，生成与清理）
+│   ├── service_group.py   # 整套服务编排：一键全启动 / 全停止（PHP+Redis+MySQL+Nginx）
 │   ├── vhost_manager.py   # 站点映射解析 + 端口一键同步 + 站点文件写入 / include 自动补全
 │   ├── site_templates.py  # 6 套站点 nginx 模板（Laravel/WordPress/ThinkPHP/通用/静态/SPA）
 │   ├── hosts_manager.py   # hosts 自动映射（跨平台；PowerShell RunAs / osascript 提权写入）
@@ -211,6 +226,7 @@ C:\wnrp\phpvm\
     ├── php_panel.py       # PHP 版本管理页（启停/端口/ini/自检/扩展/下载新版本）
     ├── nginx_panel.py     # Nginx 管理页（含新建站点向导入口）
     ├── redis_panel.py     # Redis 管理页（状态/日志 + 命令执行 + DB 键空间图表）
+    ├── mysql_panel.py     # MySQL 管理页（服务/进程状态 + 启停 + 配置与错误日志）
     ├── vhost_panel.py     # 站点映射页（hosts 状态列 + include 检测 + 新建站点入口）
     ├── site_wizard.py     # 新建站点可视化向导（4 步 + 配置实时预览 + 自动校验/回滚）
     ├── sqlite_panel.py    # SQLite 数据库页（表/结构浏览 + 只读查询）

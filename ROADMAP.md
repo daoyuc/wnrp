@@ -27,6 +27,9 @@
 | **hosts 管理** | 写入（提权）+ **删除条目** + **写入前自动备份 `hosts.phpvm.bak` 与一键还原** + 向导失败回滚 hosts；只操作 `# >>> phpvm-managed >>>` 块 | `core/hosts_manager.py`、`ui/site_wizard.py` |
 | **SQLite 面板** | 自动发现库文件（含各站点 root）、表/视图与结构浏览、只读查询（mode=ro + query_only + 关键字白名单，500 行上限、10s 超时）、记忆上次库 | `core/sqlite_manager.py`、`ui/sqlite_panel.py` |
 | Redis | 多实例发现与启停、信息卡与日志、**命令执行**（DB 0–15、6 个危险命令确认）、**DB 键空间柱状图** | `core/redis_manager.py`、`ui/redis_panel.py` |
+| **MySQL** | 实例发现（my.ini 解析端口/数据目录）；**Windows 服务优先**控制（`sc`/`net`，非管理员禁用启停并提示，进程模式兜底）；状态卡、错误日志 tail、配置与数据目录直达 | `core/mysql_manager.py`、`ui/mysql_panel.py` |
+| **HTTPS 证书** | 探测 openssl / mkcert → 为站点生成证书（`<nginx>/SSL/`）+ 443 模板变体；未检测到工具时禁用选项并给安装指引 | `core/cert_manager.py`、`core/site_templates.py`、`ui/site_wizard.py` |
+| **服务编排** | 一键全启停（PHP → Redis → MySQL → Nginx，反向停止）+ 「打开终端」（PATH 前置所选 PHP 版本） | `core/service_group.py`、`pu.open_terminal`、`ui/php_panel.py`、`ui/main_window.py` |
 | 崩溃防护 | Windows 事件日志 + **macOS `.ips`** 双数据源；详情弹窗（含自愈历史页）与清空；**独立守护进程**自愈（防抖 60s、每 3600s 限 N 次、连续失败 5 次解除、手动停止 300s 宽限、`recover_history.json`） | `core/health_monitor.py`、`crash_watchdog.py`、`recover_history.py` |
 | **国际化** | 5 语言（zh_CN 为源码原文；en / zh_TW / ja / ko 词条表约 700 条）、系统语言自动探测、`settings.lang` 持久化、重启生效 | `core/i18n.py`、`i18n/`、`_i18n_scan.py` |
 | **跨平台** | 环境根可配置（`WNRP_ROOT`）、lsof/ps 快照、brew 前缀探测、LaunchAgent 自启、单实例 socket 锁、`open` 打开路径、窗口工作区自适应 | `core/config.py`、`process_utils.py`、`ui/window_utils.py` |
@@ -55,12 +58,12 @@
 | 站点启用 / 禁用 | ✓ | ✓ | ✓ | P0-3 已实现：改名 `.conf.disabled` |
 | 站点级选择 PHP 版本 | ✓ | ✓ | ✓ | P0-3 已实现：只改目标 server 块 |
 | 浏览器 / 资源管理器直达站点 | ✓ | ~ | ✓ | P0-3 已实现：右键菜单 |
-| MySQL / MariaDB 管理 | ✓ | ✓ | **✗** | 见 P1-2 |
+| MySQL / MariaDB 管理 | ✓ | ✓ | ✓ | P1-2 已实现（Windows 服务优先，需管理员才能启停） |
 | SQLite 只读查询 | ~ | ~ | ✓ | phpvm 特色（只读兜底） |
 | Redis 管理 | ~ | ~ | ✓ | 多实例 + 命令 + 键空间图表 |
-| HTTPS 本地证书一键生成 | ✓ | ✓ | **✗** | 模板均为 listen 80，见 P1-1 |
+| HTTPS 本地证书一键生成 | ✓ | ✓ | ✓ | P1-1 已实现（mkcert > openssl 自签；本机已装 OpenSSL-Win64） |
 | Composer / Node 等工具随附 | ✓ | ~ | **✗** | 系统已装 composer，未集成，见 P2-1 |
-| 一键启停整套服务 | ✓ | ✓ | **✗** | 见 P1-3 |
+| 一键启停整套服务 | ✓ | ✓ | ✓ | P1-3 已实现（托盘 + 关于页） |
 | 崩溃检测 / 自愈 | ~ | ✗ | ✓ | phpvm 特色（双数据源 + 独立守护 + 失联兜底） |
 | 多语言界面 | ~ | ~ | ✓ | phpvm 特色（5 语言） |
 | 跨平台（Win + mac） | ✗ | ✗ | ◐ | GUI/服务已适配，仅缺 mac 托盘 |
@@ -110,7 +113,7 @@
 
 ### P1 · 需提权或外部二进制的能力
 
-#### P1-1 HTTPS 本地证书 + 443 模板变体
+#### P1-1 ✅ 已实现 HTTPS 本地证书 + 443 模板变体
 - 事实：本机 `nginx/SSL` 仅有 `rootSSL.pem/key` 与 1 份 CSR/私钥，无站点证书；30 个 vhost 与 6 套模板全部 `listen 80`；`openssl.exe` / `mkcert` 在 wnrp 各目录均未找到。`[已确认]`
 - MVP 边界：Python 标准库无法签发 X.509 证书 → 只能**探测并调用外部 openssl / mkcert**；
   1. 探测系统 openssl（含常见 git `usr/bin`）与 mkcert；
@@ -119,7 +122,7 @@
 - 落点：`core/cert_manager.py`（新）、`core/site_templates.py`（443 变体）、`ui/site_wizard.py`。
 - 前置：P0-4（hosts 能力已就绪）。
 
-#### P1-2 MySQL 管理面板（服务控制优先）
+#### P1-2 ✅ 已实现 MySQL 管理面板（服务控制优先）
 - 事实（2026-09-10 实测）：`C:\wnrp\mysql` 为解压版 **MySQL 5.7.34**，`my.ini` 于安装目录内（`port=3306`、`utf8`、`INNODB`，`datadir` 含约 40 个业务库）；**当前以 Windows 服务运行**：服务名 `MySQL`、Running、启动类型 Automatic，3306 由 PID 10616 监听；wnrp 内无任何脚本引用 mysql。`[已确认]`
 - 目标：
   - `core/mysql_manager.py`：探测安装目录与 `my.ini`；**状态优先走服务**（`sc query MySQL` / `Get-Service`），辅以 3306 占用进程校验；启停用 `net start/stop MySQL`（或 `sc`）；服务不存在才降级进程模式（`RunHiddenConsole mysqld --defaults-file=`，停止用 `mysqladmin shutdown`）。
@@ -128,7 +131,7 @@
 - `[待确认]`：`root@localhost` 凭据 → 未确认前**不做**任何 SQL 执行 / 库表浏览功能。
 - 验收：面板正确显示 5.7.34 / Running / 3306；停止后端口释放且不影响 PHP/Nginx/Redis。
 
-#### P1-3 一键全启停 + 「打开终端」
+#### P1-3 ✅ 已实现一键全启停 + 「打开终端」
 - 一键全启停：托盘顶层与关于页加「全部启动 / 全部停止」（Nginx + 各 PHP + Redis[+ MySQL]），并发编排并汇总结果。落点 `core/service_group.py`（新）+ `ui/main_window` 托盘菜单。
 - 「打开终端」：php_panel 行按钮 → 新开终端，PATH 前置所选 PHP 目录，工作目录可选。落点 `core/process_utils.open_terminal()`（Windows `start cmd /k`，mac `osascript Terminal`）+ `ui/php_panel.py`。
 - 风险：全停会中断本机全部站点，需二次确认；MySQL 若纳入需管理员权限。
@@ -165,7 +168,8 @@
 
 - **第二轮（2026-09-10，文档）**：拉取远端最新代码后重做 `README.md` 与本文档，补齐 i18n / Redis / 扩展 / 下载 / 单实例 / 窗口自适应 / macOS 适配等章节，并将「新建站点向导」「hosts 写入」标记为已实现。
 - **第三轮（2026-09-10，P0 落地）**：实现 P0 全部条目 —— 修复「编辑配置保存」崩溃与 php83/84 ini 选择；新增站点行级操作（浏览器 / 目录直达、启用禁用、站点级换 PHP 版本）与 hosts 删除 / 备份 / 一键还原 / 向导回滚；新增界面文案已用 `t()` 包裹（其它语言待补词条，回落中文）。18 项冒烟用例全部通过（hosts 部分使用临时文件，未触碰系统 hosts）。
-- 后续开发按 **P1 → P2** 立项（P0 已完成），每条动工前先补齐其标注的 `[待确认]` 项；新增文案记得跑 `python _i18n_scan.py --report` 补齐各语言。
+- **第四轮（2026-09-10，P1 落地）**：新增 MySQL 管理页（`core/mysql_manager.py` + `ui/mysql_panel.py`，Windows 服务优先）；新增 HTTPS 证书（`core/cert_manager.py` + 443 模板变体 + 向导勾选，实测本机装有 OpenSSL-Win64 可用）；新增一键全启停（`core/service_group.py`，托盘与关于页入口）与「打开终端」（`pu.open_terminal` + PHP 页按钮）。17 项冒烟用例全部通过（只读，未真的启停 MySQL）。
+- 后续开发按 **P2** 立项（P0 / P1 均已完成），每条动工前先补齐其标注的 `[待确认]` 项；新增文案记得跑 `python _i18n_scan.py --report` 补齐各语言。
 
 ---
 
@@ -176,7 +180,7 @@
 | MySQL | `mysqld Ver 5.7.34 for Win64`；**Windows 服务**：`MySQL` / Running / Automatic，3306 由 PID 10616 监听；wnrp 内无脚本引用 | [已确认] |
 | MySQL root 凭据 | 认证方式 / 密码未知（未尝试登录探测） | [待确认] |
 | composer | 系统已装 `C:\ProgramData\ComposerSetup\bin\composer(.bat)`；wnrp 目录内没有 | [已确认] |
-| openssl / mkcert | wnrp 根目录、`nginx/`、`extend/`、`php82/85`、`Redis-8.4.4` 均未找到（git `usr/bin` 未覆盖） | [已确认（限已查目录）] |
+| openssl / mkcert | wnrp 各目录内未找到，但**系统装有 OpenSSL-Win64**：`C:\Program Files\OpenSSL-Win64\bin\openssl.exe`（mkcert 未装）→ HTTPS 走 openssl 自签可用 | [已确认（2026-09-10 更正）] |
 | hosts | 42 行平铺，`.test` 为主，含真实公网 IP 行；phpvm 仅追加标记块，**无删除 / 无备份 / 向导不回滚** | [已确认] |
 | nginx vhost | 30 个 conf，形态统一（listen 80 + `*.test` + Laravel root + fastcgi_pass 9000/9085），已 include `C:/wnrp/nginx/conf/vhost/*.conf`；无 443 | [已确认] |
 | 站点行级操作 | vhost_panel 仅 3 按钮（新建 / 打开目录 / 刷新）+ 双击打开 conf；无启禁用、无站点级换 PHP、无浏览器/目录直达 | [已确认] |

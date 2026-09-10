@@ -10,6 +10,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 from core import crash_watchdog
+from core import process_utils as pu
 from core.config import Config, IS_WIN
 from core.health_monitor import HealthMonitor
 from core.i18n import t
@@ -63,10 +64,11 @@ class PhpPanel(ttk.Frame):
         self.btn_ext = ttk.Button(bar, text=t("安装扩展"), command=self._manage_ext)
         self.btn_download = ttk.Button(bar, text=t("下载新版本"), style="Accent.TButton",
                                        command=self._download_version)
+        self.btn_terminal = ttk.Button(bar, text=t("打开终端"), command=self._open_terminal)
         self.btn_refresh = ttk.Button(bar, text=t("刷新"), command=self.refresh_versions)
         for b in (self.btn_start, self.btn_stop, self.btn_restart, self.btn_port,
                   self.btn_ini, self.btn_edit, self.btn_check, self.btn_ext,
-                  self.btn_download,
+                  self.btn_download, self.btn_terminal,
                   self.btn_refresh):
             b.pack(side="left", padx=(0, 6))
         ttk.Label(bar, text=t("选中版本后操作 · 双击行查看配置"),
@@ -386,3 +388,17 @@ class PhpPanel(ttk.Frame):
             )
             return
         ExtensionDialog(self, v, self.php_mgr)
+
+    def _open_terminal(self) -> None:
+        """新开终端，PATH 前置所选 PHP 版本目录（新窗口生效）。"""
+        v = self._selected()
+        if v is None:
+            return
+        if pu.open_terminal(cwd=v.dir, path_prepend=v.dir):
+            self.notify(t("已打开终端：{name}（PATH 已前置该版本目录）", name=v.name))
+        else:
+            messagebox.showwarning(
+                t("无法打开终端"),
+                t("未找到可用的终端程序。可手动执行：\n  set PATH={dir};%PATH%", dir=v.dir),
+                parent=self,
+            )

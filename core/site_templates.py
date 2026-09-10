@@ -12,7 +12,11 @@
 fastcgi 参数直接内联（不依赖 include fastcgi_params），保证任意 nginx
 布局下 nginx -t 均可通过，且不要求用户环境存在公共 fastcgi 片段。
 """
+import re
 import time
+
+# 模板中的 listen 80（HTTPS 变体会把它替换为 listen 443 ssl）
+_RE_LISTEN80 = re.compile(r"^\s*listen\s+80\s*;.*$", re.M)
 
 _PHP_LOCATION = r"""    location ~ \.php$ {
         try_files $uri =404;
@@ -266,17 +270,30 @@ TEMPLATE_MAP: dict[str, dict] = {t["key"]: t for t in TEMPLATES}
 
 
 def render_config(key: str, *, server_name: str, docroot: str,
-                  port: int | None) -> str:
+                  port: int | None, ssl_cert: str = "", ssl_key: str = "") -> str:
     """渲染完整 vhost 配置文件文本。
 
     server_name：已格式化的域名串（空格分隔，可含通配符）
     docroot    ：nginx 正斜杠文档根（已去尾斜杠）
     port       ：FastCGI 端口（PHP 模板必填；非 PHP 模板可传 None）
+    ssl_cert / ssl_key：非空时生成 HTTPS 变体（listen 443 ssl + 证书指令）
     """
     meta = TEMPLATE_MAP[key]
     body = meta["body"]
     if meta["needs_php"]:
         body = body.replace("{{php_block}}", _PHP_LOCATION)
+
+    if ssl_cert and ssl_key:
+        listen_block = (
+            "    listen 443 ssl;\n"
+            "    http2 on;\n"
+            f"    ssl_certificate     {ssl_cert};\n"
+            f"    ssl_certificate_key {ssl_key};\n"
+        )
+        # 模板默认 listen 80 → 换成 443 ssl（保留模板其余结构）
+        body = _RE_LISTEN80.sub(listen_block.rstrip("\n"), body, count=1)
+        if "listen 443" not in body:
+            body = listen_block + body
 
     replacements = {
         "server_name": server_name.strip(),

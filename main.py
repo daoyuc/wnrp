@@ -141,12 +141,14 @@ def main() -> None:
 
     set_language(config.get_lang())
 
+    from core.mysql_manager import MysqlManager
     from core.nginx_manager import NginxManager
     from core.php_manager import PhpManager
     from core.redis_manager import RedisManager
     from ui.main_window import MainWindow
 
-    app = MainWindow(PhpManager(config), NginxManager(), RedisManager(), config)
+    app = MainWindow(PhpManager(config), NginxManager(), RedisManager(),
+                     MysqlManager(), config)
     try:
         app.mainloop()
     finally:
