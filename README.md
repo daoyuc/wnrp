@@ -8,6 +8,14 @@
 
 ## 启动方式
 
+**方式一：安装包（推荐给最终用户，内置自动升级）**
+
+- macOS：下载 `phpvm-<版本>-macos.dmg`，把 `phpvm.app` 拖入「应用程序」；首次打开若提示来源不明，右键 →「打开」
+- Windows：下载 `phpvm-<版本>-windows-setup.exe` 双击安装（默认装到 `C:\wnrp\phpvm`，可在向导中更改）
+- 安装版启动后会**静默检查新版本**（可在「关于」页关闭），发现新版本时状态栏出现提示，点击即可一键下载、校验、安装并重启（详见[安装包与自动升级](#安装包与自动升级)）
+
+**方式二：源码 / 绿色版**
+
 - Windows：双击 `phpvm.bat`（使用 `pythonw.exe` 后台运行，无控制台窗口）
 - macOS / Linux：双击 `phpvm.command`（自动挑选带 tkinter 的 Python）或执行 `python3 main.py`
 - 或命令行执行：`C:\Python312\python.exe C:\wnrp\phpvm\main.py`
@@ -127,14 +135,15 @@
 - 托盘菜单提供各实例快捷启停
 
 ### 关于页
-- **环境信息**：环境根目录、PHP FastCGI 配置（php82 / php85 → php-web.ini，其余 → php.ini）、FastCGI 监听、Nginx 前缀、隐藏启动器（Windows）、配置持久化路径
+- **环境信息**：phpvm 版本、环境根目录、PHP FastCGI 配置（php82 / php85 → php-web.ini，其余 → php.ini）、FastCGI 监听、Nginx 前缀、隐藏启动器（Windows）、配置持久化路径、数据目录
 - **功能模块**：勾选需要加载的模块（默认全部启用），取消勾选后**重启 phpvm 生效**，该模块的代码将不再加载（例如取消「SQLite 数据库」后不会创建该页签，也不会导入其管理器）
   - 可停用：Redis 管理 / MySQL 管理 / SQLite 数据库 / Nginx 日志
   - 刚需（不可取消）：PHP 版本管理 / Nginx 管理 / 站点映射
-- **设置区**（3 项）：
+- **设置区**（6 项）：
   - 开机自动启动 phpvm（Windows 写 `HKCU\...\Run` 的 `phpvm` 值；macOS 写 LaunchAgent `com.phpvm.app`）
   - php-cgi 崩溃自愈开关（默认关闭），注明「防抖 60 秒、每版本每小时最多 3 次」
   - 界面语言下拉（简体中文 / 繁體中文 / English / 日本語 / 한국어），点「应用」后**重启 phpvm 生效**
+  - 软件更新：显示当前版本，「检查更新」打开更新窗口，「打开下载缓存目录」，以及**启动时自动检查更新**勾选（默认开启；发现新版本仅状态栏提示，不弹窗打扰）
   - 服务编排：「全部启动」「全部停止」两个按钮（关于页与托盘菜单均可操作，后台执行并逐项汇总结果）
   - 开机自动启动全部服务（登录时静默启动 Nginx + 各 PHP + Redis + MySQL，写入用户「启动」目录；**仅 Windows**，无需管理员）
 
@@ -142,7 +151,29 @@
 - 全部界面文案经 `t()` 翻译，内置 **5 种语言**：简体中文（源码原文，无词条表）、繁體中文、English、日本語、한국어
 - 切换入口：菜单栏「语言」与关于页「界面语言」下拉；选择写入 `config.json` 的 `settings.lang`，重启后生效（与关闭框的「重启」配合）
 - 首次运行按系统 UI 语言自动选择（Windows 读 LCID，其它平台读 `LC_ALL` / `LANG`），未知语言回落 English
-- 词条表位于 `i18n/<语言>/` 下 11 个分块 JSON（约 700 条）；`i18n/_keys.json` 与 `_i18n_scan.py` 是覆盖度扫描工具（`python _i18n_scan.py --report` 查看各语言缺失）
+- 词条表位于 `i18n/<语言>/` 下 12 个分块 JSON（约 760 条）；`i18n/_keys.json` 与 `_i18n_scan.py` 是覆盖度扫描工具（`python _i18n_scan.py --report` 查看各语言缺失）
+
+### 安装包与自动升级
+- **版本号单一来源**：`core/version.py` 的 `APP_VERSION`；构建时由 `packaging/build.py --version`（或 CI 从 tag）注入到**构建副本**，不改动仓库源码。比较规则见 `version.is_newer()`：数字段优先，正式版高于同号预发布版
+- **更新源**：GitHub Releases（`daoyuc/wnrp`，见 `version.GITHUB_REPO`）。仓库公开时开箱可用；私有仓库需提供令牌 —— 环境变量 `PHPVM_GH_TOKEN`（或 `GITHUB_TOKEN`）
+- **检查时机**：① 启动后约 4 秒静默检查（默认开启，关于页可关闭，`settings.check_update_on_start`）；② 菜单栏「帮助 → 检查更新」或关于页「检查更新」按钮；③ 状态栏蓝色提示「发现新版本 vX.Y.Z，点击升级」直接打开更新窗口
+- **更新窗口**：显示当前 / 最新版本、Release 说明与安装包大小；按钮为「立即升级」「跳过此版本」（写入 `settings.skipped_version`，此后启动检查不再提示）、「前往发布页」「稍后」；下载过程中可「取消下载」
+- **下载与校验**：按平台挑选资产 → 下载到 `<数据目录>/updates/`（先写 `.part`，完成后原子改名）→ 与 Release 附带的 `SHA256SUMS.txt` 比对 SHA-256，不匹配立即删除并报错；进度与取消均经队列回主线程刷新
+- **安装方式**：
+  - macOS：仍从 `.app` 运行时，写一个延迟脚本 —— 等主进程退出 → `hdiutil` 挂载 dmg → `ditto` 替换 `.app` → 清除隔离属性 → 重新打开
+  - Windows：写一个延迟批处理 —— 等 2 秒 → `start /wait <setup.exe> /SILENT /NORESTART /CLOSEAPPLICATIONS`（Inno Setup 安装包，AppId 固定故识别为**升级**而非并存）→ 重新拉起 `phpvm.bat`
+  - 源码运行（未打包）时不支持一键替换：改为下载安装包并提示手动安装
+- **数据目录（关键设计）**：`core/app_paths.py` 统一决定 `config.json` / `recover_history.json` / `crash_watchdog.*` / 升级缓存的落点 —— 包目录**可写**（源码、绿色版、`C:\wnrp\phpvm`）时沿用包目录（与历史行为完全一致、零迁移）；包目录**只读**（`.app`、`Program Files`）时自动改用 `~/.phpvm`。因此升级覆盖程序文件**不会丢失**端口映射与设置；`PHPVM_HOME` 可强制指定数据目录（测试 / 便携部署）
+- **构建安装包**（`packaging/build.py`，纯标准库，跨平台可跑）：
+  ```bash
+  python3 packaging/build.py macos                 # dist/phpvm-<ver>-macos.dmg（含 .app）
+  python3 packaging/build.py windows               # dist/phpvm-<ver>-windows/ 与 .zip
+  python3 packaging/build.py all --version 1.2.0   # 指定版本号构建两个平台
+  python3 packaging/build.py sums                  # 仅重建 SHA256SUMS.txt
+  ```
+  macOS 产物含运行时生成的应用图标（标准库写 PNG → `iconutil` 转 `.icns`）与 `/Applications` 拖拽快捷方式；Windows 需装 Inno Setup 6 —— `iscc` 在 PATH 时自动编译 `packaging/phpvm.iss`，否则只输出目录与 zip 并给出提示
+- **发版流程**：`git tag v1.0.1 && git push origin v1.0.1` → `.github/workflows/release.yml` 在 macOS / Windows 矩阵构建，汇总生成 `SHA256SUMS.txt` 并创建 Release（也可在 Actions 页手动触发并填写版本号）
+- **安装包不含 `config.json`**：首次运行由程序在数据目录自动生成；Windows 安装包内的 `config.json` 以 `onlyifdoesntexist` 安装，升级与卸载均不覆盖用户配置
 
 ### 单实例与窗口自适应
 - **单实例**：Windows 用命名互斥体 `Global\wnrp_phpvm_singleton_mutex`；macOS/Linux 用 `<tmp>/phpvm_singleton.sock` 抽象套接字锁（残留自动清理）。重复启动提示「phpvm 已经在运行中」后退出；带 `PHPVM_RESTART=1` 启动时会轮询约 5 秒抢锁，实现平滑重启
@@ -180,7 +211,9 @@
     "auto_recover_crash": false,
     "auto_recover_limit": 3,
     "lang": null,
-    "sqlite_last_db": ""
+    "sqlite_last_db": "",
+    "check_update_on_start": true,
+    "skipped_version": ""
   }
 }
 ```
@@ -189,6 +222,7 @@
 - `settings.auto_recover_crash`：崩溃自愈开关，**默认 false**
 - `settings.auto_recover_limit`：自愈限次（每版本每 3600 秒最多 N 次，默认 3）
 - `settings.lang`：界面语言（空=跟随系统），`settings.sqlite_last_db`：上次打开的 SQLite 库，`settings.disabled_modules`：已停用的可选模块
+- `settings.check_update_on_start`：启动时静默检查新版本（默认 true），`settings.skipped_version`：被「跳过此版本」的版本号
 - 文件损坏或 JSON 解析失败时回退内置默认值并覆盖保存（未知键会被丢弃）
 
 ## 目录结构
@@ -198,14 +232,19 @@ C:\wnrp\phpvm\
 ├── main.py                # 入口（单实例：Win 互斥体 / posix socket 锁；重启抢锁）
 ├── phpvm.bat              # Windows 双击启动脚本
 ├── phpvm.command          # macOS / Linux 双击启动脚本
-├── config.json            # 端口映射 + 功能开关（auto_recover_crash / auto_recover_limit / lang / sqlite_last_db）
+├── config.json            # 端口映射 + 功能开关（auto_recover_crash / auto_recover_limit / lang / sqlite_last_db / check_update_on_start / skipped_version）
 ├── _bench.py              # 状态刷新性能基准
 ├── _e2e.py                # 端到端冒烟：版本扫描 + 状态判定耗时
+├── _e2e_update.py         # 自动升级链路自测（模拟发布源：检查 → 下载 → SHA-256 校验/取消）
 ├── _i18n_scan.py          # i18n 文案扫描（生成 i18n/_keys.json，--report 看覆盖度）
 ├── README.md
 ├── ROADMAP.md             # 功能缺口调研与开发路线（规划文档）
-├── i18n/                  # 词条表：<语言>/00a_core_install … 10z_dynamic（en / ja / ko / zh_TW）
+├── packaging/             # 安装包构建（build.py 跨平台构建 .app/.dmg 与 Windows 包 + phpvm.iss）
+├── .github/workflows/     # release.yml：打 tag 自动构建双平台安装包并发布 Release
+├── i18n/                  # 词条表：<语言>/00a_core_install … 11a_update（en / ja / ko / zh_TW）
 ├── core/                  # 服务层
+│   ├── version.py         # 版本号 / 发布源 / 安装包命名约定（自动升级的单一事实来源）
+│   ├── app_paths.py       # 可写数据目录判定（包目录只读时自动改用 ~/.phpvm）
 │   ├── config.py          # 配置加载/保存/端口校验 + 环境根 / brew 前缀推导
 │   ├── i18n.py            # t() 翻译与语言检测/切换（settings.lang）
 │   ├── process_utils.py   # 批量快照 API（Win: GetExtendedTcpTable/EnumProcesses；posix: lsof/ps）+ 启停/命令执行
@@ -230,9 +269,10 @@ C:\wnrp\phpvm\
 │   ├── crash_watchdog.py  # 崩溃自愈独立守护进程（事件 + 失联探测 + 防抖限次）
 │   ├── recover_history.py # 自愈决策历史读写（recover_history.json）
 │   ├── ini_editor.py      # ini 关键配置项表单编辑（校验/备份/精确行替换）
-│   └── autostart.py       # 开机自启（Win HKCU Run / mac LaunchAgent）
+│   ├── autostart.py       # 开机自启（Win HKCU Run / mac LaunchAgent）
+│   └── updater.py         # 自动升级：检查 GitHub Releases / 下载 / SHA-256 校验 / 替换安装
 └── ui/                    # 界面层
-    ├── main_window.py     # 主窗口（七页签 + 菜单栏语言 + 状态栏 + 崩溃告警/自愈 + 设置区）
+    ├── main_window.py     # 主窗口（七页签 + 菜单栏语言/帮助 + 状态栏 + 崩溃告警/自愈 + 设置区）
     ├── php_panel.py       # PHP 版本管理页（启停/端口/ini/自检/扩展/下载新版本）
     ├── nginx_panel.py     # Nginx 管理页（含新建站点向导入口）
     ├── redis_panel.py     # Redis 管理页（状态/日志 + 命令执行 + DB 键空间图表）
@@ -243,6 +283,7 @@ C:\wnrp\phpvm\
     ├── nginx_log_panel.py # Nginx 日志页（tail 增量 / 自动跟随 / 过滤）
     ├── dialogs.py         # 端口同步/配置查看编辑/自检/崩溃详情/CLI 切换对话框
     ├── download_dialog.py # 新版本下载安装对话框
+    ├── update_dialog.py   # 软件更新窗口（检查/更新说明/下载进度/一键升级重启 + 启动静默检查）
     ├── extension_dialog.py# 扩展管理对话框（启停 + 在线安装）
     ├── tray.py            # 系统托盘（动态右键菜单/气泡告警/最小化到托盘，仅 Windows）
     ├── window_utils.py    # 窗口尺寸与位置自适应（工作区收敛/居中/夹紧）
@@ -276,6 +317,7 @@ phpvm 已可在 macOS 管理本地多版本 PHP + Nginx + Redis（Windows 的路
   cd <phpvm 目录>
   ./phpvm.command        # 或 python3 main.py
   ```
+- **安装包**：`python3 packaging/build.py macos` 产出 `phpvm-<版本>-macos.dmg`（内含 `phpvm.app`，其启动器会自动挑选带 tkinter 的 Python）。安装版的用户数据（`config.json` 等）落在 `~/.phpvm`，因此自动升级替换 `.app` 不会丢失配置。
 - **已适配**：
   - 进程 / 端口：`lsof` / `ps` 快照（与 Windows 双快照同接口）；后台启动用 `start_new_session`；终止 `SIGTERM` → `SIGKILL`
   - PHP：扫描 Homebrew keg `<prefix>/opt/php*`（`php@7.4` → `php74`），按 realpath 去重别名；仍以 `php-cgi -b 127.0.0.1:<port>` 运行（**不使用 php-fpm**）
@@ -285,4 +327,5 @@ phpvm 已可在 macOS 管理本地多版本 PHP + Nginx + Redis（Windows 的路
   - hosts 写入：`osascript ... with administrator privileges` 弹系统授权框提权
   - 崩溃检测：解析 `~/Library/Logs/DiagnosticReports` 与 `/Library/Logs/DiagnosticReports` 下的 `php-cgi-*.ips`
   - 开机自启：写入 LaunchAgent `com.phpvm.app`；单实例用 `<tmp>/phpvm_singleton.sock`；路径打开统一走 `open`
-- **尚未支持**：macOS 菜单栏托盘（非 Windows 直接跳过托盘初始化）；在线下载/安装 PHP 与扩展在 mac 改为给出 brew / pecl 引导，不走 php.net 安装包。
+  - 自动升级：`.app` 内运行时下载 dmg，等待主进程退出后用 `hdiutil` 挂载 + `ditto` 替换 `.app` 并重新打开
+- **尚未支持**：macOS 菜单栏托盘（非 Windows 直接跳过托盘初始化）；在线下载/安装 PHP 与扩展在 mac 改为给出 brew / pecl 引导，不走 php.net 安装包；Linux 的自动升级只下载不替换（需手动解压覆盖）。

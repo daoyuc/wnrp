@@ -32,8 +32,9 @@
 | **服务编排** | 一键全启停（PHP → Redis → MySQL → Nginx，反向停止）+ 「打开终端」（PATH 前置所选 PHP 版本） | `core/service_group.py`、`pu.open_terminal`、`ui/php_panel.py`、`ui/main_window.py` |
 | **模块开关** | 功能模块可勾选（关于页）：停用的模块不创建页签、不实例化 manager、不导入其代码；PHP/Nginx/站点映射 为刚需不可取消 | `core/modules.py`、`main.py`、`ui/main_window.py` |
 | 崩溃防护 | Windows 事件日志 + **macOS `.ips`** 双数据源；详情弹窗（含自愈历史页）与清空；**独立守护进程**自愈（防抖 60s、每 3600s 限 N 次、连续失败 5 次解除、手动停止 300s 宽限、`recover_history.json`） | `core/health_monitor.py`、`crash_watchdog.py`、`recover_history.py` |
-| **国际化** | 5 语言（zh_CN 为源码原文；en / zh_TW / ja / ko 词条表约 700 条）、系统语言自动探测、`settings.lang` 持久化、重启生效 | `core/i18n.py`、`i18n/`、`_i18n_scan.py` |
-| **跨平台** | 环境根可配置（`WNRP_ROOT`）、lsof/ps 快照、brew 前缀探测、LaunchAgent 自启、单实例 socket 锁、`open` 打开路径、窗口工作区自适应 | `core/config.py`、`process_utils.py`、`ui/window_utils.py` |
+| **分发与自动升级** | `packaging/build.py` 跨平台构建 macOS `.app`/`.dmg`（标准库写 PNG → `iconutil` 转 `.icns`，附 `/Applications` 快捷方式）与 Windows 目录/zip/Inno Setup 安装程序；内置 `core/updater.py` 从 GitHub Releases 检查更新 → 下载（`.part` 原子改名）→ SHA-256 校验 → 一键替换重启（mac `hdiutil`+`ditto`；Win 静默安装）；数据目录自动外置（`~/.phpvm`），升级不丢配置 | `core/updater.py`、`core/version.py`、`core/app_paths.py`、`ui/update_dialog.py`、`packaging/`、`.github/workflows/release.yml` |
+| **国际化** | 5 语言（zh_CN 为源码原文；en / zh_TW / ja / ko 词条表约 760 条）、系统语言自动探测、`settings.lang` 持久化、重启生效 | `core/i18n.py`、`i18n/`、`_i18n_scan.py` |
+| **跨平台** | 环境根可配置（`WNRP_ROOT`）、lsof/ps 快照、brew 前缀探测、LaunchAgent 自启、单实例 socket 锁、`open` 打开路径、窗口工作区自适应、可写数据目录自动判定（`.app`/只读安装目录 → `~/.phpvm`） | `core/config.py`、`process_utils.py`、`core/app_paths.py`、`ui/window_utils.py` |
 | 系统集成 | 托盘动态菜单（Nginx / Redis / 各 PHP）、开机自启、最小化到托盘、**关闭框「重启」**、状态栏崩溃告警 | `main.py`、`ui/tray.py`、`ui/main_window.py`、`core/autostart.py` |
 
 > 工程约束（新增功能须遵守）：
@@ -150,7 +151,7 @@
 - 轻量资源监控（php-cgi 进程数 / 内存、Nginx 连接数）
 - 多 server 块逐块编辑（改端口时按块粒度操作）
 - hosts 分节管理 UI（按项目分组、一键 on/off 某段）—— 前置能力 P0-4 完成后才现实
-- phpvm 自身更新通道与配置迁移 / 备份导出
+- 配置迁移 / 备份导出（自身更新通道已于第七轮实现，仅剩配置导入导出）
 - macOS 菜单栏托盘（纯标准库实现成本高，倾向「不做」，或改用状态栏入口替代）
 
 ---
@@ -173,7 +174,8 @@
 - **第五轮（2026-09-10，P2 落地）**：新增 Composer 探测与按版本运行（`core/tool_manager.py` + PHP 页按钮）；新增开机自动启动整套服务（`main.py --start-all` + `autostart.enable_services()` 写用户「启动」目录，仅 Windows）；SQLite 结果分页与 CSV 导出；i18n 扫描新增 `--fail-under` 覆盖率守护；托盘图标由 `core/icon.py` 生成；自检文案改为显示真实扩展数。18 项冒烟用例通过，并修复了过程中发现的两个缺陷（Composer 版本取到 PHP 告警行、VBS 内引号未转义）。
 - **第六轮（2026-09-10，模块开关）**：新增 `core/modules.py` 模块注册表与关于页勾选设置 —— 默认全部启用，取消勾选（刚需模块除外）后重启不再创建该页签、不实例化 manager、不导入其代码（实测停用 sqlite/log 后页签从 8 个减为 6 个且 `core.sqlite_manager` 未进入 `sys.modules`）。
 - **本轮同时修复 P1 遗留缺陷**：`ui/mysql_panel.py` 状态卡混用 `pack` 与 `grid`，导致 MySQL 面板构建即抛 `TclError`（只读冒烟无法发现，改为真实构建主窗口验证后定位）。
-- **P0 / P1 / P2 均已完成**，剩余为 P3 远期候选（资源监控、多 server 块逐块编辑、hosts 分节 UI、服务化 `sc create`、SQLite SQL 导出、phpvm 更新通道）。新增文案记得跑 `python _i18n_scan.py --report` 补齐各语言。
+- **P0 / P1 / P2 均已完成**，剩余为 P3 远期候选（资源监控、多 server 块逐块编辑、hosts 分节 UI、服务化 `sc create`、SQLite SQL 导出、配置迁移 / 备份导出）。新增文案记得跑 `python _i18n_scan.py --report` 补齐各语言。
+- **第七轮（2026-09-10，安装包与自动升级）**：新增 `core/version.py`（版本号/发布源/资产命名单一来源）、`core/app_paths.py`（可写数据目录判定，包目录只读时自动改用 `~/.phpvm`）、`core/updater.py`（检查 → 下载 → SHA-256 校验 → 替换安装）与 `ui/update_dialog.py`（更新窗口 + 启动静默检查）；关于页新增版本/数据目录信息与「检查更新 / 打开下载缓存目录 / 启动时自动检查更新」，菜单栏新增「帮助」，状态栏新增新版本提示；新增 `packaging/build.py`（macOS `.app`/`.dmg`、Windows 包、`SHA256SUMS.txt`）与 `packaging/phpvm.iss`（AppId 固定故识别为升级、`config.json` 以 `onlyifdoesntexist` 保护）；新增 `.github/workflows/release.yml`（打 tag 自动构建双平台并发布 Release）。实测 macOS 出包成功（`phpvm-1.0.0-macos.dmg`，575 KB，含图标与排除项校验），升级链路自测通过（检查解析 / 下载校验 / 校验和不匹配拒绝并清理 / 取消下载）。新增 63 条文案已补齐 en / zh_TW / ja / ko 四语言。
 
 ---
 
