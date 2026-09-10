@@ -17,11 +17,10 @@ import tkinter as tk
 from tkinter import ttk
 
 from core import process_utils as pu
-from core.config import WNRP_ROOT
 from core.i18n import t
+from core.nginx_manager import NginxManager
 from .theme import ERR, LOG_ACCENT, LOG_BG, LOG_FG, WARN
 
-NGINX_LOGS_DIR = os.path.join(WNRP_ROOT, "nginx", "logs")
 TAIL_BYTES = 256 * 1024
 MAX_LINES = 2000
 _DEFAULT_PREFER = ("error.log", "access.log")
@@ -33,9 +32,13 @@ _WARN_WORDS = ("[warn]", "[notice]")
 
 
 class NginxLogPanel(ttk.Frame):
-    def __init__(self, master, notify):
+    def __init__(self, master, notify, nginx_mgr: NginxManager | None = None):
         super().__init__(master, padding=8)
         self.notify = notify
+        # 日志目录跟随实际生效的 nginx 布局（brew / WNRP-root / Windows），
+        # 不再写死 <WNRP_ROOT>/nginx/logs（macOS brew 下该目录不存在 → 面板为空）。
+        nginx_mgr = nginx_mgr or NginxManager()
+        self._logs_dir = nginx_mgr.logs_dir
         self._queue: queue.Queue[tuple] = queue.Queue()
         self._busy = False
         self._offset = 0  # 已读到的文件偏移
@@ -98,7 +101,7 @@ class NginxLogPanel(ttk.Frame):
     def refresh_file_list(self) -> None:
         try:
             files = sorted(
-                f for f in os.listdir(NGINX_LOGS_DIR)
+                f for f in os.listdir(self._logs_dir)
                 if f.endswith(".log") or f.endswith((".log.1", ".log.2"))
             )
         except OSError:
@@ -115,7 +118,7 @@ class NginxLogPanel(ttk.Frame):
 
     def _current_path(self) -> str | None:
         name = self.file_var.get()
-        return os.path.join(NGINX_LOGS_DIR, name) if name else None
+        return os.path.join(self._logs_dir, name) if name else None
 
     def _reset_and_reload(self) -> None:
         """切换文件：清空显示/缓存并重置偏移后重新加载。"""
@@ -135,7 +138,7 @@ class NginxLogPanel(ttk.Frame):
         self.text.configure(state="disabled")
 
     def _open_dir(self) -> None:
-        pu.open_path(NGINX_LOGS_DIR)
+        pu.open_path(self._logs_dir)
 
     # ------------------------------------------------------------------ #
     def reload(self) -> None:

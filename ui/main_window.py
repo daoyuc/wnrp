@@ -127,7 +127,7 @@ class MainWindow(tk.Tk):
                                       on_new_site=self._open_site_wizard)
         self.redis_panel = RedisPanel(nb, self.redis_mgr, self.set_log)
         self.vhost_panel = VhostPanel(nb, VhostManager(self.config), self.set_log)
-        self.log_panel = NginxLogPanel(nb, self.set_log)
+        self.log_panel = NginxLogPanel(nb, self.set_log, self.nginx_mgr)
         about = self._build_about(nb)
         nb.add(self.php_panel, text=f"  {t('PHP 版本管理')}  ")
         nb.add(self.nginx_panel, text=f"  {t('Nginx 管理')}  ")
