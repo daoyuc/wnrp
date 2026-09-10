@@ -24,7 +24,7 @@
 - **编辑配置**：提供 **11 项**常用配置表单（memory_limit、post_max_size、upload_max_filesize、max_file_uploads、max_execution_time、max_input_time、display_errors、error_reporting、date.timezone、default_charset、opcache.enable）：
   - 类型校验：size（数字可带 K/M/G）、int（≥ -1 的整数）、onoff（On/Off）、enum（error_reporting 四个预设级别下拉）、timezone（须为合法时区）、str（非空）
   - 保存前自动备份为 `<ini>.bak`（成功也保留），二进制 latin-1 无损逐行替换，未找到的键追加到文件尾
-  - 编辑对象是该版本实际使用的配置文件：**php82 / php85 为 `php-web.ini`，其余为 `php.ini`**（安装器生成的 php83 / php84 虽也有 `php-web.ini`，当前版本仍按其规则取 `php.ini`，见「常见问题」）
+  - 编辑对象是该版本实际使用的配置文件：**目录内存在 `php-web.ini` 时优先编辑它（php82 / php83 / php84 / php85 等由安装器生成的版本均是），否则编辑 `php.ini`**
 - **版本自检**：对选中版本一键执行三项检查并分级展示（正常/异常）——① `php -v` 版本解析；② `php -m` 核对 **9 项关键扩展**（redis、pdo_mysql、mysqli、openssl、curl、mbstring、gd、fileinfo、zip）；③ `php -c <该版本 ini>` 校验配置能否正常加载
 - **扩展管理**：扫描 `ext/*.dll` 对照 ini 启停扩展（`.bak` 备份、二进制安全写回）；在线安装 redis / xdebug / imagick / swoole / memcached —— 按「PHP 主版本 + NTS/TS + 编译器 + 架构」从 PECL 与 xdebug.org 自动匹配（macOS 提供 brew/pecl 引导）
 - **下载新版本**：从 php.net 下载安装任意 PHP 系列新版本（SHA-256 校验、防穿越解压、生成 `php.ini` + `php-web.ini`、默认启用 20 个扩展、按规则规划端口、VC 运行库缺失检测）
@@ -38,6 +38,11 @@
 - **异常高亮**：server 块的 `fastcgi_pass 127.0.0.1:<端口>` 若在 phpvm 端口表中未映射到任何 PHP 版本，该条目标红并显示原因（指向 upstream 或无 PHP 处理的块不算异常），一眼定位「端口改了但 vhost 没同步」等 502 根源
 - **一键同步 vhost**：修改端口保存后，自动扫描引用旧端口的配置文件 → 备份（`.bak`）→ 替换 `fastcgi_pass` → `nginx -t` 校验（失败自动还原全部备份）→ 一键平滑重载生效；无文件引用旧端口时只弹普通提示
 - 页内按钮为「＋ 新建站点…」「打开 vhost 目录」「刷新」，双击任意行用默认程序打开对应配置文件；**「一键同步」不在本页** —— 它由「编辑端口」保存后自动弹出的同步对话框提供
+- **右键站点行**可对该站点直接操作（改配置前自动备份、变更后 `nginx -t` 校验，失败自动还原）：
+  - 打开站点（浏览器）/ 打开项目根目录 / 打开配置文件
+  - **切换 PHP 版本** ▸ 只改该 `server` 块的 `fastcgi_pass` 端口（同文件多站点互不影响；静态站点无 `fastcgi_pass` 时禁用）
+  - **启用 / 禁用站点**：配置改名 `<name>.conf.disabled`（nginx 不再加载）与反向恢复；已禁用站点在列表中置灰显示
+  - **从 hosts 移除映射**：只清理 `# >>> phpvm-managed >>>` 托管块内的域名，不碰用户手写映射
 
 ### 新建站点向导（可视化分步建站）
 - **入口**：站点映射页与 Nginx 管理页的「＋ 新建站点…」按钮
@@ -45,7 +50,8 @@
 - **第 2 步 应用模板**：内置 **Laravel / WordPress / ThinkPHP / 通用 PHP（无框架）/ 静态站点 / 前端 SPA（history 路由回退）** 六套模板，自动拼文档根（Laravel / ThinkPHP → `/public`），可自定义生成的配置文件名（默认 `<安全域名>.conf`），右侧**深色实时预览**最终 nginx 配置
 - **第 3 步 hosts 映射**：一键把域名写入 hosts 指向 `127.0.0.1` —— 已指向本机自动跳过、指向其它 IP 不覆盖仅提示、`*.` 泛解析跳过；写入内容带 `# >>> phpvm-managed >>>` 标记块；无写权限时 Windows 弹 UAC（PowerShell RunAs）、macOS 弹系统授权框（osascript）完成提权写入；提供「打开 hosts 文件」「刷新状态」
 - **第 4 步 确认创建**：自动完成「写 vhost 配置（同名自动备份 `.bak`）→ 主配置未 include vhost 时自动补行 → `nginx -t` 校验 → 写入 hosts → 平滑重载」共 5 步，全程日志可视化；配置/补 include/校验为硬项，任一失败即询问保留或一键回滚
-- 已知边界：**回滚只还原 vhost 文件与 `nginx.conf`，不还原 hosts**；未找到 nginx 可执行文件时跳过校验与重载（仍写配置与 hosts）；不支持编辑既有站点（同名覆盖重建）；模板均为 `listen 80`，无 HTTPS/443 变体
+- 已知边界：未找到 nginx 可执行文件时跳过校验与重载（仍写配置与 hosts）；不支持编辑既有站点（同名覆盖重建）；模板均为 `listen 80`，无 HTTPS/443 变体
+- **回滚范围**：失败或取消时还原 vhost 文件、`nginx.conf` **与本次写入的 hosts 映射**（hosts 每次写入前自动备份为 `hosts.phpvm.bak`，可一键还原）
 
 ### SQLite 数据库页
 - **自动发现**：扫描环境根与各站点 `root` 目录下的 `*.db` / `*.sqlite` / `*.sqlite3` / `*.db3`（跳过 `node_modules`、`.git` 等依赖/缓存目录），下拉选择或「浏览…」手动指定
@@ -232,7 +238,7 @@ C:\wnrp\phpvm\
 - **修改端口后站点 502/404**：编辑端口保存后务必在弹出的一键同步对话框中执行替换并「重载 Nginx」；或在「站点映射」页检查异常高亮条目。
 - **php-cgi 反复崩溃（站点 502）**：状态栏会弹出崩溃告警，点击查看事件详情（故障模块/异常码/偏移）。异常码 0xc0000005 常见于 opcache JIT 或扩展冲突，可检查 `php-web.ini` 中 `opcache.jit` 设置。
 - **php82 / php85 特殊**：FastCGI 使用 `php-web.ini`（与 CLI 的 `php.ini` 区分），工具已自动处理。
-- **php83 / php84 的 ini 注意**：安装器同样生成了 `php-web.ini`，但当前版本仅对 `php82`、`php85` 两个目录名优先取 `php-web.ini`，因此 php83 / php84 的 FastCGI 实际加载的是 `php.ini`。若需给这两个版本调整 FastCGI 相关配置（如 `opcache.jit`），请改其 `php.ini`（已记录为待修缺陷，见 [ROADMAP](ROADMAP.md)）。
+- **FastCGI 用哪个 ini**：目录内存在 `php-web.ini` 时 FastCGI 就使用它（安装器为 php82 / php83 / php84 / php85 等均生成了该文件），否则用 `php.ini`。早期版本仅对 `php82`、`php85` 两个目录名生效，导致 php83 / php84 改 `php-web.ini` 不起作用，现已修正。
 
 ## macOS / Linux 支持
 

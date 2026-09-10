@@ -89,9 +89,12 @@ def _brew_name(base: str) -> str:
 def _resolve_ini(d: str, name: str, is_brew: bool, brew_conf: str = "") -> str:
     """解析版本实际使用的 FastCGI 配置；无则返回 ""（走 PHP 编译默认配置）。
 
-    Windows 版目录习惯：php82/php85 用 php-web.ini，其余用 php.ini（保持原语义）。
+    优先取目录内的 `php-web.ini`（FastCGI 专用配置），其次 `php.ini`。
+    早前仅在 php82 / php85 两个目录名上优先 php-web.ini，导致在线安装的
+    php83 / php84（安装器同样生成 php-web.ini）的 FastCGI 实际仍加载 php.ini，
+    改 php-web.ini 不生效；改为「存在即用」后对旧版本行为不变。
     """
-    prefer_web = name in ("php82", "php85")
+    prefer_web = os.path.exists(os.path.join(d, WEB_INI_NAME))
     cands = [WEB_INI_NAME, INI_NAME] if prefer_web else [INI_NAME]
     for fname in cands:
         p = os.path.join(d, fname)

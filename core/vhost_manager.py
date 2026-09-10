@@ -45,6 +45,7 @@ class VhostEntry:
     php_version: str | None = None  # 反查到的 PHP 版本名（可多个，逗号分隔）
     note: str = ""  # 异常说明（如端口未映射到任何版本）
     conf_dir: str = ""  # 主配置所在目录（相对展示基准）；空则显示绝对路径
+    disabled: bool = False  # 配置文件是否被重命名为 .conf.disabled（不参与 nginx 加载）
 
     @property
     def file_rel(self) -> str:
@@ -57,6 +58,8 @@ class VhostEntry:
 
 class VhostManager:
     """nginx vhost 扫描与端口一键同步。"""
+
+    DISABLED_SUFFIX = ".disabled"  # 禁用站点：配置改名 <name>.conf.disabled（不参与 include）
 
     def __init__(self, config: Config | None = None):
         self.config = config or Config()
@@ -83,17 +86,20 @@ class VhostManager:
     # ------------------------------------------------------------------ #
     # 扫描
     # ------------------------------------------------------------------ #
-    def scan_files(self) -> list[str]:
-        """返回需扫描的配置文件：生效主配置 nginx.conf + 站点目录 vhost/*.conf。"""
+    def scan_files(self, include_disabled: bool = False) -> list[str]:
+        """返回需扫描的配置文件：生效主配置 nginx.conf + 站点目录 vhost/*.conf。
+
+        include_disabled=True 时额外包含被禁用的 <name>.conf.disabled（用于面板展示与重新启用）。
+        """
         files: list[str] = []
         if os.path.exists(self.main_conf):
             files.append(self.main_conf)
         if os.path.isdir(self.vhost_dir):
-            files.extend(
-                os.path.join(self.vhost_dir, f)
-                for f in sorted(os.listdir(self.vhost_dir))
-                if f.endswith(".conf")
-            )
+            for f in sorted(os.listdir(self.vhost_dir)):
+                if f.endswith(".conf"):
+                    files.append(os.path.join(self.vhost_dir, f))
+                elif include_disabled and f.endswith(".conf" + self.DISABLED_SUFFIX):
+                    files.append(os.path.join(self.vhost_dir, f))
         return files
 
     def port_to_versions(self) -> dict[int, list[str]]:
@@ -103,18 +109,23 @@ class VhostManager:
             mapping.setdefault(port, []).append(name)
         return mapping
 
-    def scan(self) -> list[VhostEntry]:
-        """扫描全部 server 块并反查端口对应 PHP 版本。"""
+    def scan(self, include_disabled: bool = False) -> list[VhostEntry]:
+        """扫描全部 server 块并反查端口对应 PHP 版本。
+
+        include_disabled=True 时一并返回已禁用站点（disabled=True，界面可置灰并允许重新启用）。
+        """
         port_versions = self.port_to_versions()
         entries: list[VhostEntry] = []
-        for path in self.scan_files():
+        for path in self.scan_files(include_disabled=include_disabled):
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     text = f.read()
             except OSError:
                 continue
             for block in _iter_server_blocks(text):
-                entries.append(_parse_block(block, path, port_versions, self.conf_dir))
+                entry = _parse_block(block, path, port_versions, self.conf_dir)
+                entry.disabled = path.endswith(self.DISABLED_SUFFIX)
+                entries.append(entry)
         return entries
 
     def entries_with_port(self, port: int) -> list[VhostEntry]:
@@ -243,6 +254,99 @@ class VhostManager:
         except OSError as e:
             return {"path": path, "existed": existed, "backup": backup,
                     "ok": False, "message": t("写入失败：{err}", err=e)}
+
+    # ------------------------------------------------------------------ #
+    # 站点级操作（启用/禁用、切换 PHP 版本）
+    # ------------------------------------------------------------------ #
+    @staticmethod
+    def site_url(entry: VhostEntry) -> str:
+        """站点首选访问地址（跳过泛解析域名）；无可用域名返回空串。"""
+        for d in entry.server_name.split():
+            if d and not d.startswith("*."):
+                return "http://" + d
+        return ""
+
+    def set_site_enabled(self, path: str, enabled: bool) -> dict:
+        """启用 / 禁用站点：重命名配置文件（<name>.conf ↔ <name>.conf.disabled）。
+
+        nginx 只 include *.conf，改名后该站点即不再加载（重新启用只需改回）。
+        返回 {ok, path, message}；nginx -t 失败时自动改回原名。
+        """
+        disabled = path.endswith(self.DISABLED_SUFFIX)
+        if enabled and not disabled:
+            return {"ok": True, "path": path, "message": t("站点已处于启用状态")}
+        if not enabled and disabled:
+            return {"ok": True, "path": path, "message": t("站点已处于禁用状态")}
+        target = (path[: -len(self.DISABLED_SUFFIX)] if disabled
+                  else path + self.DISABLED_SUFFIX)
+        if os.path.exists(target):
+            return {"ok": False, "path": path,
+                    "message": t("目标文件已存在，无法重命名：{path}", path=target)}
+        try:
+            os.rename(path, target)
+        except OSError as e:
+            return {"ok": False, "path": path,
+                    "message": t("重命名失败：{err}", err=e)}
+        output = (self.nginx.test_config() or "").strip()
+        if output and "failed" in output.lower():
+            try:
+                os.rename(target, path)  # 校验失败 → 改回原名
+            except OSError:
+                pass
+            return {"ok": False, "path": path,
+                    "message": t("nginx -t 校验失败，已还原：{output}", output=output)}
+        verb = t("已启用") if enabled else t("已禁用")
+        return {"ok": True, "path": target, "message": f"{verb}：{os.path.basename(target)}"}
+
+    def set_site_php(self, path: str, server_name: str, new_port: int) -> dict:
+        """把指定 server 块的 fastcgi_pass 端口改为 new_port（站点级切换 PHP 版本）。
+
+        只改目标 server 块（同文件多 server 时互不影响）；改前备份 .bak，
+        nginx -t 失败自动还原。返回 {ok, message, backup}。
+        """
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                text = f.read()
+        except OSError as e:
+            return {"ok": False, "message": t("读取失败：{err}", err=e), "backup": None}
+
+        target = None
+        for start, end, block in _iter_server_spans(text):
+            m = _RE_SERVER_NAME.search(block)
+            if m and m.group(1).strip() == server_name:
+                target = (start, end, block)
+                break
+        if target is None:
+            return {"ok": False, "backup": None,
+                    "message": t("未在 {file} 中找到 server_name 为 {name} 的 server 块",
+                                 file=os.path.basename(path), name=server_name)}
+        start, end, block = target
+
+        def _sub(m: re.Match) -> str:
+            return f"{m.group(1)}fastcgi_pass 127.0.0.1:{new_port}{m.group(3)}"
+
+        new_block, count = _RE_FCGI_LOCAL.subn(_sub, block)
+        if count == 0:
+            return {"ok": False, "backup": None,
+                    "message": t("该站点没有指向 127.0.0.1 的 fastcgi_pass"
+                                 "（静态 / 纯前端站点无需指定 PHP 版本）")}
+        backup = path + ".bak"
+        try:
+            shutil.copy2(path, backup)
+            with open(path, "w", encoding="utf-8", newline="") as f:
+                f.write(text[:start] + new_block + text[end:])
+        except OSError as e:
+            return {"ok": False, "backup": backup,
+                    "message": t("写入失败：{err}", err=e)}
+        output = self.nginx.test_config()
+        ok = "successful" in output.lower() and "failed" not in output.lower()
+        if not ok:
+            self._restore_backup(backup, path)
+            return {"ok": False, "backup": None,
+                    "message": t("nginx -t 校验失败，已自动还原：{output}", output=output)}
+        return {"ok": True, "backup": backup,
+                "message": t("已将 {name} 的 PHP 端口改为 {port}，备份保留于 .bak",
+                             name=server_name, port=new_port)}
 
     # ------------------------------------------------------------------ #
     # include 自动检测 / 补全（针对「实际生效的 nginx.conf」）
@@ -394,10 +498,10 @@ def _http_block_text(no_comment: str) -> str | None:
     return None
 
 
-def _iter_server_blocks(text: str):
+def _iter_server_spans(text: str):
     """按大括号匹配切分所有 server 块（支持嵌套 location、忽略行注释）。
 
-    对每个 server 块 yield 其在原始 text 中的切片（含首尾行）。
+    yield (start, end, block_text)：server 块在**原文**中的字符区间 [start, end) 与切片。
     """
     # 行注释替换为等长空格，保持原始坐标一致
     no_comment = _RE_LINE_COMMENT.sub(lambda m: " " * len(m.group(0)), text)
@@ -426,8 +530,14 @@ def _iter_server_blocks(text: str):
         if depth > 0:
             break  # 括号未闭合，文件损坏，终止扫描
         block_end = j  # 闭合 } 之后的位置
-        yield text[line_start:block_end]
+        yield line_start, block_end, text[line_start:block_end]
         i = block_end
+
+
+def _iter_server_blocks(text: str):
+    """只 yield server 块切片（_iter_server_spans 的便捷包装）。"""
+    for _start, _end, block in _iter_server_spans(text):
+        yield block
 
 
 def _parse_block(block: str, path: str, port_versions: dict[int, list[str]],

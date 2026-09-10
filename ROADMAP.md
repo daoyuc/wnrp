@@ -23,6 +23,8 @@
 | **新建站点向导** | 4 步向导（域名+目录+PHP 版本 → 6 套模板 + 实时预览 → hosts 映射 → 落盘）；自动补 include、`nginx -t`、平滑重载、失败回滚 | `ui/site_wizard.py`、`core/site_templates.py`、`core/vhost_manager.py` |
 | **hosts 写入** | `ensure_entries` 追加带 `# >>> phpvm-managed >>>` 标记块；冲突 IP 不覆盖；Windows PowerShell RunAs / mac osascript 提权 | `core/hosts_manager.py` |
 | 站点映射 | server 块矩阵 + hosts 状态列（✓/✗/⚠/泛解析）+ include 检测与一键修复 + 端口同步（备份/`nginx -t`/回滚/reload） | `core/vhost_manager.py`、`ui/vhost_panel.py` |
+| **站点行级操作** | 右键站点：浏览器打开 / 打开项目根目录 / **启用禁用**（改名 `.conf.disabled`）/ **站点级切换 PHP 版本**（只改目标 server 块）/ 从 hosts 移除映射；改前备份、`nginx -t` 失败自动还原 | `core/vhost_manager.set_site_enabled/set_site_php`、`ui/vhost_panel` 右键菜单 |
+| **hosts 管理** | 写入（提权）+ **删除条目** + **写入前自动备份 `hosts.phpvm.bak` 与一键还原** + 向导失败回滚 hosts；只操作 `# >>> phpvm-managed >>>` 块 | `core/hosts_manager.py`、`ui/site_wizard.py` |
 | **SQLite 面板** | 自动发现库文件（含各站点 root）、表/视图与结构浏览、只读查询（mode=ro + query_only + 关键字白名单，500 行上限、10s 超时）、记忆上次库 | `core/sqlite_manager.py`、`ui/sqlite_panel.py` |
 | Redis | 多实例发现与启停、信息卡与日志、**命令执行**（DB 0–15、6 个危险命令确认）、**DB 键空间柱状图** | `core/redis_manager.py`、`ui/redis_panel.py` |
 | 崩溃防护 | Windows 事件日志 + **macOS `.ips`** 双数据源；详情弹窗（含自愈历史页）与清空；**独立守护进程**自愈（防抖 60s、每 3600s 限 N 次、连续失败 5 次解除、手动停止 300s 宽限、`recover_history.json`） | `core/health_monitor.py`、`crash_watchdog.py`、`recover_history.py` |
@@ -49,10 +51,10 @@
 | php.ini / 扩展可视化编辑 | ✓ | ✓ | ✓ | 含 PECL 在线扩展 |
 | 站点创建向导（域名+目录+vhost） | ✓ | ✓ | ✓ | 6 套模板 + 实时预览 + 回滚 |
 | hosts 自动写入 | ✓ | ✓ | ✓ | 提权写入 + 标记块 |
-| **hosts 条目管理（删除/备份/回滚）** | ✓ | ~ | **✗** | 只增不减、无备份，见 P0-4 |
-| **站点启用 / 禁用** | ✓ | ✓ | **✗** | vhost 面板无行级操作 |
-| **站点级选择 PHP 版本** | ✓ | ✓ | **✗** | 现仅按端口全局同步 |
-| **浏览器 / 资源管理器直达站点** | ✓ | ~ | **✗** | 仅能打开 conf / vhost 目录 |
+| hosts 条目管理（删除/备份/回滚） | ✓ | ~ | ✓ | P0-4 已实现：写入/删除均自动备份 `hosts.phpvm.bak`，可一键还原 |
+| 站点启用 / 禁用 | ✓ | ✓ | ✓ | P0-3 已实现：改名 `.conf.disabled` |
+| 站点级选择 PHP 版本 | ✓ | ✓ | ✓ | P0-3 已实现：只改目标 server 块 |
+| 浏览器 / 资源管理器直达站点 | ✓ | ~ | ✓ | P0-3 已实现：右键菜单 |
 | MySQL / MariaDB 管理 | ✓ | ✓ | **✗** | 见 P1-2 |
 | SQLite 只读查询 | ~ | ~ | ✓ | phpvm 特色（只读兜底） |
 | Redis 管理 | ~ | ~ | ✓ | 多实例 + 命令 + 键空间图表 |
@@ -73,18 +75,18 @@
 
 ### P0 · 修既有问题 + 站点运维闭环
 
-#### P0-1 修复「编辑配置 → 保存」失效（疑似）
+#### P0-1 ✅ 已修复「编辑配置 → 保存」失效
 - 现象：`ui/dialogs.py` 保存逻辑中 `key, value = meta["key"], self._vars[key].get()...` 右值先整体求值，首次迭代 `key` 尚未绑定 → 应抛 `UnboundLocalError`。`[读码发现·待复核]`
 - 动工前：先手动打开「编辑配置」点保存复现；若确认，修法为拆成两行赋值（先取 `key` 再取 `value`）。
 - 验收：任意修改一项并保存成功、生成 `.bak`、ini 内容正确变更、重启版本后生效。
 
-#### P0-2 php83 / php84 的 FastCGI ini 选择修正
+#### P0-2 ✅ 已修复 php83 / php84 的 FastCGI ini 选择
 - 事实：`php_manager._resolve_ini` 的白名单仅 `("php82","php85")`，但安装器为 php83/php84 也生成了 `php-web.ini` → 这两个版本 FastCGI 实际加载 `php.ini`，改 `php-web.ini` 不生效（尤其 `opcache.jit` 等排障项）。`[已确认]`
 - 建议：改为「目录内存在 `php-web.ini` 即优先」（或按安装器产物标记），并同步 README 与自检提示。
 - 落点：`core/php_manager._resolve_ini`。
 - 验收：php83/php84 面板显示的配置文件为 `php-web.ini`，修改后 FastCGI 行为随之变化。
 
-#### P0-3 站点行级操作（把「建站」延伸到「日常运维」）
+#### P0-3 ✅ 已实现站点行级操作（把「建站」延伸到「日常运维」）
 - 目标（vhost 面板加右键菜单/列按钮）：
   1. **浏览器打开站点** `http://<域名>`（无 `webbrowser` 依赖，标准库即可）；
   2. **打开站点 root 目录**（现有 `pu.open_path` 仅用于 conf 与 vhost 目录）；
@@ -94,7 +96,7 @@
 - 风险：同文件多 server / 多 location 时替换必须限定在目标块内；改前备份，重载失败自动还原。
 - 验收：禁用后该站点不可访问且矩阵标注「已禁用」；换版本后目标站点 `phpinfo()` 变化，同端口其它站点不受影响。
 
-#### P0-4 hosts 管理补全（安全网，建议与 P0-3 同期）
+#### P0-4 ✅ 已实现 hosts 管理补全（安全网）
 - 现状缺口：`hosts_manager` 只有 `ensure_entries`（追加）语义 —— **无删除、无启用/禁用、无任何备份**，且 `site_wizard._rollback` 不还原 hosts。这是目前唯一「写系统文件却无回滚」的路径，而本机 hosts 含真实公网 IP 映射行。`[已确认]`
 - 目标：
   1. 增 `remove_entries(domains)`、`backup()` / `restore()`（`hosts.bak`），且**只操作自身 `phpvm-managed` 标记块**，绝不触碰其它行；
@@ -103,7 +105,7 @@
 - 落点：`core/hosts_manager.py`、`ui/site_wizard.py`。
 - 验收：建站失败后 hosts 无残留条目；删除域名后 `ping` 失效；其它 IP 行全程未被修改。
 
-#### P0-5 文档同步（本轮已完成）
+#### P0-5 ✅ 文档同步（已完成）
 - 按最新代码重写 README（补齐 8 秒刷新周期、7 页签、Redis / 扩展 / 下载 / i18n / 单实例 / 窗口自适应章节、php83/84、ini 11 项、托盘 Redis 子菜单、崩溃守护参数、`config.json` 四键、macOS 适配清单），并给 README ↔ ROADMAP 互链。**每次功能落地后须同步两份文档**，避免再次漂移。
 
 ### P1 · 需提权或外部二进制的能力
@@ -161,8 +163,9 @@
 
 ## 五、本轮范围声明
 
-- **本轮（2026-09-10）**：拉取远端最新代码后，按最新实现**重做** `README.md` 与本文档 —— README 补齐 i18n / Redis / 扩展 / 下载 / 单实例 / 窗口自适应 / macOS 适配等缺失章节并校正过期数值；ROADMAP 将「新建站点向导」「hosts 写入」标记为已实现，重排 P0-P3 并新增 P0-1/P0-2 两个既有问题。**未修改任何业务/运行代码**。
-- 后续开发按 P0 → P1 → P2 立项，每条动工前先补齐其标注的 `[待确认]` / `[读码发现·待复核]` 项。
+- **第二轮（2026-09-10，文档）**：拉取远端最新代码后重做 `README.md` 与本文档，补齐 i18n / Redis / 扩展 / 下载 / 单实例 / 窗口自适应 / macOS 适配等章节，并将「新建站点向导」「hosts 写入」标记为已实现。
+- **第三轮（2026-09-10，P0 落地）**：实现 P0 全部条目 —— 修复「编辑配置保存」崩溃与 php83/84 ini 选择；新增站点行级操作（浏览器 / 目录直达、启用禁用、站点级换 PHP 版本）与 hosts 删除 / 备份 / 一键还原 / 向导回滚；新增界面文案已用 `t()` 包裹（其它语言待补词条，回落中文）。18 项冒烟用例全部通过（hosts 部分使用临时文件，未触碰系统 hosts）。
+- 后续开发按 **P1 → P2** 立项（P0 已完成），每条动工前先补齐其标注的 `[待确认]` 项；新增文案记得跑 `python _i18n_scan.py --report` 补齐各语言。
 
 ---
 
@@ -177,7 +180,7 @@
 | hosts | 42 行平铺，`.test` 为主，含真实公网 IP 行；phpvm 仅追加标记块，**无删除 / 无备份 / 向导不回滚** | [已确认] |
 | nginx vhost | 30 个 conf，形态统一（listen 80 + `*.test` + Laravel root + fastcgi_pass 9000/9085），已 include `C:/wnrp/nginx/conf/vhost/*.conf`；无 443 | [已确认] |
 | 站点行级操作 | vhost_panel 仅 3 按钮（新建 / 打开目录 / 刷新）+ 双击打开 conf；无启禁用、无站点级换 PHP、无浏览器/目录直达 | [已确认] |
-| 编辑配置保存 | `ui/dialogs.py` 保存处疑似 `UnboundLocalError` | [读码发现·待复核] |
-| php83 / php84 ini | 两目录均有 `php-web.ini`（安装器生成），但白名单仅 php82/php85 → FastCGI 实际加载 `php.ini` | [已确认] |
+| 编辑配置保存 | `ui/dialogs.py` 保存处 `UnboundLocalError` —— **已修复**（拆分元组解包赋值） | [已修复] |
+| php83 / php84 ini | 两目录均有 `php-web.ini` 但未被采用 —— **已修复**（改为「存在即用」，php82/85 行为不变，php74 仍用 `php.ini`） | [已修复] |
 | 托盘图标 | `<phpvm>\phpvm.ico` 不存在，回退系统默认图标 | [已确认] |
 | README 状态（重做前） | 仍写 4 秒刷新、五页签、缺 Redis / 扩展 / 下载 / i18n / 单实例章节、目录树与端口表不全、macOS 进度过时 | [已确认·本轮已修复] |
