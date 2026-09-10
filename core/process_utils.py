@@ -555,12 +555,14 @@ def open_path(path: str) -> None:
         pass
 
 
-def open_terminal(cwd: str = "", path_prepend: str = "") -> bool:
-    """新开一个终端窗口；可把目录前置到 PATH 并切换工作目录。
+def open_terminal(cwd: str = "", path_prepend: str = "",
+                  command: str = "php -v") -> bool:
+    """新开一个终端窗口；可把目录前置到 PATH、切换工作目录并执行一条命令。
 
     Windows：cmd /k（先 set PATH，再 cd /d）；macOS：Terminal do script；
     其它 Linux：尝试常见终端模拟器，找不到返回 False。
     """
+    cmd_line = command or "php -v"
     try:
         if IS_WIN:
             script = ""
@@ -568,7 +570,7 @@ def open_terminal(cwd: str = "", path_prepend: str = "") -> bool:
                 script += f'set "PATH={path_prepend};%PATH%" && '
             if cwd:
                 script += f'cd /d "{cwd}" && '
-            script += "echo phpvm && php -v"
+            script += f"echo phpvm && {cmd_line}"
             subprocess.Popen(
                 ["cmd", "/k", script],
                 creationflags=subprocess.CREATE_NEW_CONSOLE,
@@ -580,7 +582,7 @@ def open_terminal(cwd: str = "", path_prepend: str = "") -> bool:
                 script += f'export PATH="{path_prepend}:$PATH"; '
             if cwd:
                 script += f'cd "{cwd}"; '
-            script += "echo phpvm; php -v"
+            script += f"echo phpvm; {cmd_line}"
             subprocess.Popen(
                 ["osascript", "-e", f'tell application "Terminal" to do script "{script}"',
                  "-e", 'tell application "Terminal" to activate'],

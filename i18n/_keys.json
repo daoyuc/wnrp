@@ -102,6 +102,18 @@
    "ui\\mysql_panel.py"
   ]
  },
+ "Composer": {
+  "count": 3,
+  "files": [
+   "ui\\php_panel.py"
+  ]
+ },
+ "Composer（{ver}）已在终端打开 · PHP 版本：{name}": {
+  "count": 1,
+  "files": [
+   "ui\\php_panel.py"
+  ]
+ },
  "DB 键空间": {
   "count": 1,
   "files": [
@@ -990,7 +1002,7 @@
    "ui\\main_window.py"
   ]
  },
- "{total} · 关键扩展核对 {count} 项": {
+ "{total} · 关键扩展核对 {count} 项{tail}": {
   "count": 1,
   "files": [
    "ui\\dialogs.py"
@@ -1074,6 +1086,12 @@
    "ui\\site_wizard.py"
   ]
  },
+ "◀ 上一页": {
+  "count": 1,
+  "files": [
+   "ui\\sqlite_panel.py"
+  ]
+ },
  "⚠ php-cgi 崩溃 {n} 次，点击查看": {
   "count": 1,
   "files": [
@@ -1120,6 +1138,12 @@
   "count": 2,
   "files": [
    "ui\\site_wizard.py"
+  ]
+ },
+ "下一页 ▶": {
+  "count": 1,
+  "files": [
+   "ui\\sqlite_panel.py"
   ]
  },
  "下载 PHP 版本": {
@@ -1389,18 +1413,6 @@
    "ui\\download_dialog.py"
   ]
  },
- "共 {n} 行 · 耗时 {ms} ms": {
-  "count": 1,
-  "files": [
-   "ui\\sqlite_panel.py"
-  ]
- },
- "共 {n} 行 · 耗时 {ms} ms（结果已截断，仅显示前 {limit} 行）": {
-  "count": 1,
-  "files": [
-   "ui\\sqlite_panel.py"
-  ]
- },
  "共 {total} 个 key · 最后统计 {ts} · 点击图表可刷新": {
   "count": 1,
   "files": [
@@ -1505,6 +1517,12 @@
   "count": 1,
   "files": [
    "core\\hosts_manager.py"
+  ]
+ },
+ "写入启动项失败：{path}": {
+  "count": 1,
+  "files": [
+   "ui\\main_window.py"
   ]
  },
  "写入失败：{err}": {
@@ -2043,6 +2061,18 @@
    "ui\\redis_panel.py"
   ]
  },
+ "导出 CSV": {
+  "count": 3,
+  "files": [
+   "ui\\sqlite_panel.py"
+  ]
+ },
+ "导出失败": {
+  "count": 1,
+  "files": [
+   "ui\\sqlite_panel.py"
+  ]
+ },
  "将从 hosts 的 phpvm 托管块中移除：{doms}\n（不会改动用户手写的其它映射）确定继续？": {
   "count": 1,
   "files": [
@@ -2203,6 +2233,12 @@
    "core\\mysql_manager.py"
   ]
  },
+ "已关闭开机启动全部服务": {
+  "count": 1,
+  "files": [
+   "ui\\main_window.py"
+  ]
+ },
  "已关闭数据库": {
   "count": 1,
   "files": [
@@ -2319,10 +2355,28 @@
    "core\\php_extension.py"
   ]
  },
+ "已导出 CSV：{path}": {
+  "count": 1,
+  "files": [
+   "ui\\sqlite_panel.py"
+  ]
+ },
+ "已导出 {n} 行到 {path}": {
+  "count": 1,
+  "files": [
+   "ui\\sqlite_panel.py"
+  ]
+ },
  "已将 {name} 的 PHP 端口改为 {port}，备份保留于 .bak": {
   "count": 1,
   "files": [
    "core\\vhost_manager.py"
+  ]
+ },
+ "已开启开机启动全部服务": {
+  "count": 1,
+  "files": [
+   "ui\\main_window.py"
   ]
  },
  "已打开的 cmd 不会自动切换，需重开窗口": {
@@ -2377,6 +2431,18 @@
   "count": 1,
   "files": [
    "core\\crash_watchdog.py"
+  ]
+ },
+ "已检测到 Composer：{path}": {
+  "count": 1,
+  "files": [
+   "core\\tool_manager.py"
+  ]
+ },
+ "已检测到 Composer：{path}\n{ver}\n\n无法自动打开终端，可手动执行：\n  set PATH={dir};%PATH%\n  composer -V": {
+  "count": 1,
+  "files": [
+   "ui\\php_panel.py"
   ]
  },
  "已检测到 mkcert：{path}（生成的证书会被本机自动信任）": {
@@ -2505,7 +2571,19 @@
    "ui\\download_dialog.py"
   ]
  },
+ "开机启动服务": {
+  "count": 1,
+  "files": [
+   "ui\\main_window.py"
+  ]
+ },
  "开机自动启动 phpvm（当前用户）": {
+  "count": 1,
+  "files": [
+   "ui\\main_window.py"
+  ]
+ },
+ "开机自动启动全部服务（Nginx + PHP + Redis + MySQL）": {
   "count": 1,
   "files": [
    "ui\\main_window.py"
@@ -2545,6 +2623,12 @@
   "count": 1,
   "files": [
    "core\\health_monitor.py"
+  ]
+ },
+ "当前没有可导出的结果。": {
+  "count": 1,
+  "files": [
+   "ui\\sqlite_panel.py"
   ]
  },
  "当前生效": {
@@ -2588,6 +2672,12 @@
   "files": [
    "ui\\nginx_panel.py",
    "ui\\redis_panel.py"
+  ]
+ },
+ "所有文件": {
+  "count": 1,
+  "files": [
+   "ui\\sqlite_panel.py"
   ]
  },
  "所有服务均已在运行，无需启动": {
@@ -2679,8 +2769,9 @@
   ]
  },
  "扩展": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "ui\\dialogs.py",
    "ui\\extension_dialog.py"
   ]
  },
@@ -3141,6 +3232,24 @@
    "core\\hosts_manager.py"
   ]
  },
+ "未检测到 Composer": {
+  "count": 1,
+  "files": [
+   "ui\\php_panel.py"
+  ]
+ },
+ "未检测到 Composer。可任选一种方式安装：\n  · macOS：brew install composer\n  · Linux：sudo apt install composer（或按 getcomposer.org 官方指引安装）\n安装后重启 phpvm 即自动识别。": {
+  "count": 1,
+  "files": [
+   "core\\tool_manager.py"
+  ]
+ },
+ "未检测到 Composer。可任选一种方式安装：\n  · 下载 Composer-Setup.exe（https://getcomposer.org/Composer-Setup.exe），安装后重启 phpvm 即自动识别\n  · 或下载 composer.phar 放到任意目录后，在「编辑端口」同级设置里用 php 调用\n安装后 Composer 会使用系统 PATH 中的 php；如需指定版本，请用本页「打开终端」或「Composer」按钮（会前置所选版本目录）。": {
+  "count": 1,
+  "files": [
+   "core\\tool_manager.py"
+  ]
+ },
  "未知": {
   "count": 7,
   "files": [
@@ -3293,7 +3402,7 @@
   ]
  },
  "正在执行…": {
-  "count": 1,
+  "count": 2,
   "files": [
    "ui\\sqlite_panel.py"
   ]
@@ -3788,6 +3897,18 @@
    "core\\vhost_manager.py"
   ]
  },
+ "第 {page} 页 · 共 {n} 行 · 耗时 {ms} ms{more}": {
+  "count": 1,
+  "files": [
+   "ui\\sqlite_panel.py"
+  ]
+ },
+ "第 {page} 页 · 本页 {n} 行 · 耗时 {ms} ms（还有下一页）": {
+  "count": 1,
+  "files": [
+   "ui\\sqlite_panel.py"
+  ]
+ },
  "管理 {root} 下多个 PHP 版本的启动 / 停止 / 重启 / 状态 / 端口 / 配置，并附带 Nginx 与 Redis 管理。": {
   "count": 1,
   "files": [
@@ -4105,6 +4226,12 @@
   "count": 1,
   "files": [
    "core\\vhost_manager.py"
+  ]
+ },
+ "该能力当前仅支持 Windows（写入用户「启动」目录）。": {
+  "count": 1,
+  "files": [
+   "ui\\main_window.py"
   ]
  },
  "详情": {
@@ -4588,6 +4715,12 @@
    "ui\\download_dialog.py"
   ]
  },
+ "（已翻页）": {
+  "count": 1,
+  "files": [
+   "ui\\sqlite_panel.py"
+  ]
+ },
  "（已装 {old}，可更新到 {new}）": {
   "count": 1,
   "files": [
@@ -4629,6 +4762,12 @@
   "count": 1,
   "files": [
    "ui\\site_wizard.py"
+  ]
+ },
+ "（未能读取版本）": {
+  "count": 1,
+  "files": [
+   "core\\tool_manager.py"
   ]
  },
  "（未选择项目目录）": {
@@ -4683,6 +4822,12 @@
   "count": 1,
   "files": [
    "core\\health_monitor.py"
+  ]
+ },
+ "，有缺失": {
+  "count": 1,
+  "files": [
+   "ui\\dialogs.py"
   ]
  },
  "，点击「一键同步」执行": {

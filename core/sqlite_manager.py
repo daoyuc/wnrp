@@ -269,14 +269,18 @@ class SqliteManager:
 
     # ---- 查询 ----
     def query(self, sql: str, limit: int = QUERY_LIMIT,
-              timeout: float = QUERY_TIMEOUT) -> QueryResult:
-        """执行查询类语句；非查询语句抛 ValueError，执行失败抛 sqlite3.Error。"""
+              timeout: float = QUERY_TIMEOUT, offset: int = 0) -> QueryResult:
+        """执行查询类语句；非查询语句抛 ValueError，执行失败抛 sqlite3.Error。
+
+        offset：跳过前 N 行（结果分页用；SQL 本身保持不变，避免与用户 LIMIT 冲突）。
+        """
         if first_keyword(sql) not in _ALLOWED_HEADS:
             raise ValueError(
                 t("仅支持查询语句（SELECT / WITH / PRAGMA / EXPLAIN / VALUES）。"))
-        return self._run(sql, limit, timeout)
+        return self._run(sql, limit, timeout, offset)
 
-    def _run(self, sql: str, limit: int, timeout: float) -> QueryResult:
+    def _run(self, sql: str, limit: int, timeout: float,
+             offset: int = 0) -> QueryResult:
         with self._lock:
             conn = self._require()
             deadline = time.monotonic() + max(0.5, float(timeout))
@@ -286,6 +290,8 @@ class SqliteManager:
             try:
                 cur = conn.execute(sql)
                 columns = [d[0] for d in (cur.description or [])]
+                if columns and offset > 0:
+                    cur.fetchmany(offset)  # 分页：丢弃前面已展示的行
                 rows = cur.fetchmany(limit + 1) if columns else []
                 truncated = len(rows) > limit
                 if truncated:

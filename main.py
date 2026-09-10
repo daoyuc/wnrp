@@ -25,6 +25,35 @@ _RESTART_RETRIES = 50
 _RESTART_RETRY_DELAY = 0.1
 
 
+def _start_all_services() -> None:
+    """无界面启动整套服务（Nginx + 各 PHP + Redis + MySQL）。
+
+    供「开机自动启动服务」写入的启动脚本调用；结果追加到
+    autostart_services.log，便于排查登录时未起来的服务。
+    """
+    from core.config import Config
+    from core.mysql_manager import MysqlManager
+    from core.nginx_manager import NginxManager
+    from core.php_manager import PhpManager
+    from core.redis_manager import RedisManager
+    from core.service_group import ServiceGroup
+
+    cfg = Config()
+    group = ServiceGroup(PhpManager(cfg), NginxManager(), RedisManager(),
+                         MysqlManager())
+    try:
+        msg = group.start_all()
+    except Exception as e:  # noqa: BLE001
+        msg = f"{type(e).__name__}: {e}"
+    log = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                       "autostart_services.log")
+    try:
+        with open(log, "a", encoding="utf-8") as f:
+            f.write(f"\n[{time.strftime('%Y-%m-%d %H:%M:%S')}] --start-all\n{msg}\n")
+    except OSError:
+        pass
+
+
 def _is_restart() -> bool:
     """当前进程是否为「重启」拉起的新实例（由 UI 重启功能注入环境变量）。"""
     return os.environ.get("PHPVM_RESTART") == "1"
@@ -140,6 +169,11 @@ def main() -> None:
     from core.i18n import set_language
 
     set_language(config.get_lang())
+
+    # 开机自启场景：--start-all 只启动整套服务，不拉起界面、不占用单例锁
+    if "--start-all" in sys.argv[1:]:
+        _start_all_services()
+        return
 
     from core.mysql_manager import MysqlManager
     from core.nginx_manager import NginxManager

@@ -9,6 +9,7 @@ from tkinter import messagebox, ttk
 
 from core import path_manager, process_utils as pu, recover_history
 from core.config import Config, IS_WIN
+from core.health_monitor import KEY_EXTENSIONS
 from core.i18n import t
 from core.php_manager import PhpManager, PhpVersion
 from core.vhost_manager import VhostManager
@@ -831,9 +832,12 @@ class SelfCheckDialog(tk.Toplevel):
             tag = "ok" if c["ok"] else "err"
             self.tree.insert("", "end", values=(c["name"], status, c["detail"]), tags=(tag,))
         total = t("全部通过") if result["ok"] else t("存在异常")
+        # 显示真正核对的扩展数（KEY_EXTENSIONS），而非检查项数量
+        ext_ng = any((not c["ok"]) and t("扩展") in c["name"] for c in result["checks"])
         self.state_label.configure(
-            text=t("{total} · 关键扩展核对 {count} 项",
-                   total=total, count=len(result["checks"]))
+            text=t("{total} · 关键扩展核对 {count} 项{tail}",
+                   total=total, count=len(KEY_EXTENSIONS),
+                   tail=t("，有缺失") if ext_ng else "")
         )
         if not result["ok"]:
             self.state_label.configure(foreground=ERR)

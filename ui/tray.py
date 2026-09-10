@@ -139,7 +139,11 @@ class TrayIcon:
         self._install()
 
     def _load_icon(self):
+        from core.icon import ensure_icon
+
         ico_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "phpvm.ico")
+        # 仓库不内置二进制图标：缺失时按主题蓝生成一个简易 phpvm.ico
+        ico_file = ensure_icon(os.path.abspath(ico_file))
         if os.path.exists(ico_file):
             hicon = user32.LoadImageW(0, ico_file, IMAGE_ICON, 0, 0, LR_LOADFROMFILE)
             if hicon:
