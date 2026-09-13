@@ -85,9 +85,14 @@ class SiteWizardDialog(tk.Toplevel):
         self.v_hosts = tk.BooleanVar(value=True)
         self.v_https = tk.BooleanVar(value=False)  # HTTPS 变体（需 openssl/mkcert）
 
-        self._build()
-        self._render_steps()
-        self._show_step(0)
+        try:
+            self._build()
+            self._render_steps()
+            self._show_step(0)
+        except Exception:
+            # 构建失败时必须销毁半成品窗口，否则会残留「只有按钮、没有输入框」的空壳
+            self.destroy()
+            raise
         self._load_php_versions()
         self._center(master)
 
@@ -146,7 +151,8 @@ class SiteWizardDialog(tk.Toplevel):
         card.pack(fill="x")
         grid = ttk.Frame(card)
         grid.pack(fill="x")
-        grid.columnconfigure(1, weight=1)
+        # 输入列占满剩余宽度，并给下限：否则会被右侧说明文字把输入框挤到不可见
+        grid.columnconfigure(1, weight=1, minsize=280)
 
         def add_label_row(row, text):
             ttk.Label(grid, text=text, font=(FONT, 9, "bold"),
@@ -161,6 +167,8 @@ class SiteWizardDialog(tk.Toplevel):
             text=t("示例 myapp.test 或 www.example.com；多个域名用空格分隔；\n"
                    "支持 *.dev 泛解析（通配项不会写入 hosts）。"),
             style="SubTitle.TLabel",
+            # wraplength 必须设置：否则整行文本会按最长行撑开第 2 列，把输入框挤没
+            wraplength=300, justify="left",
         ).grid(row=0, column=2, sticky="w", padx=(8, 0))
         self.entry_domain.bind("<KeyRelease>", lambda e: self._on_input_changed())
 
@@ -179,6 +187,7 @@ class SiteWizardDialog(tk.Toplevel):
             grid,
             text=t("选择要绑定到该域名的项目目录（Laravel/ThinkPHP 等会自动拼 /public）。"),
             style="SubTitle.TLabel",
+            wraplength=300, justify="left",
         ).grid(row=1, column=2, sticky="w", padx=(8, 0))
 
         # PHP 版本
@@ -233,7 +242,7 @@ class SiteWizardDialog(tk.Toplevel):
         self._https_ok = bool(st["ok"])
         ttk.Checkbutton(
             cert_box, text=t("启用 HTTPS（443，自动生成本地证书）"),
-            variable=self.v_https, command=self._render_preview,
+            variable=self.v_https, command=self._refresh_preview,
             state="normal" if st["ok"] else "disabled",
         ).pack(anchor="w")
         ttk.Label(cert_box, text=st["message"], style="SubTitle.TLabel",
