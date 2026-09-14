@@ -179,6 +179,66 @@
 - **单实例**：Windows 用命名互斥体 `Global\wnrp_phpvm_singleton_mutex`；macOS/Linux 用 `<tmp>/phpvm_singleton.sock` 抽象套接字锁（残留自动清理）。重复启动提示「phpvm 已经在运行中」后退出；带 `PHPVM_RESTART=1` 启动时会轮询约 5 秒抢锁，实现平滑重启
 - **窗口自适应**：所有窗口经 `ui/window_utils.fit_window()` 计算 —— 按屏幕真实工作区（Windows 排除任务栏、macOS 预留程序坞）收敛期望尺寸并夹紧在可视区内，父窗口已映射时在其中偏上居中；对话框底部按钮栏优先布局，确保小屏也可见
 
+## 命令行入口（cli.py · 供 AI / 脚本调用）
+
+GUI 之外另提供**无界面、完全非交互**的命令行入口 `cli.py`（只依赖标准库与 `core/*`，不 import tkinter，可在 SSH / CI 下运行），
+让 AI 工具或运维脚本能直接检查环境、建站、切版本，而不必操作界面。
+
+```bash
+python3 cli.py env --json                 # 环境与全部服务快照
+python3 cli.py schema --json              # 输出全部命令 / 参数 / 示例的自描述契约
+```
+
+**约定（面向程序调用）**
+
+| 项 | 说明 |
+|---|---|
+| JSON 输出 | 任意命令加 `--json`：stdout **只**输出一个 `{"ok": bool, "command": "<group>.<action>", "data": {...}, "warnings": [...]}` 文档；字段名与枚举值一律英文（稳定契约） |
+| 退出码 | `0` 成功 / `1` 业务失败（`ok=false`，含 `data.error`）/ `2` 参数用法错误 |
+| 非交互 | 永不弹窗、不等待输入；写 hosts 需显式 `--hosts`（无权限时会触发系统授权弹窗） |
+| 安全默认 | 写操作支持 `--dry-run`（只报告将做什么）；删除需 `--yes`；Redis 的 `FLUSHALL/FLUSHDB/SHUTDOWN` 等需 `--force`；改动前自动备份 `.bak` |
+| 语言 | `--lang en|zh_CN|zh_TW|ja|ko`（默认取 `config.json` 的 `settings.lang`） |
+| 自描述 | `phpvm schema --json` 输出命令树（含每个参数的 flags / 默认值 / 说明），AI 可先读契约再调用 |
+
+**命令一览**
+
+| 分组 | 动作 |
+|---|---|
+| `version` / `env` / `schema` | 版本与环境路径；全部服务快照（nginx / PHP / Redis / MySQL / 模块开关）；命令自描述契约 |
+| `config` | `list` 列出全部配置 · `get <ports.php83|settings.lang>` · `set <key> <value> [--dry-run]` |
+| `php` | `list [--no-status|--precise]` · `status <版>` · `start|stop|restart <版|all>` · `port <版> [--set N]` · `ini <版> [--key K|--all]` · `check <版>` · `ext-list <版>` · `ext-set <版> --enable a,b --disable c` |
+| `nginx` | `status` · `start` · `stop` · `reload` · `test`（`nginx -t`）· `logs [--file error.log] [--lines N] [--list]` |
+| `site` | `list [--domain x]` · `show <域名/文件>` · `render`（只渲染配置不落盘）· `create`（写 vhost → 补 include → 校验 → hosts → 重载，失败自动回滚）· `remove --yes` · `enable` · `disable` · `php --php <版>` · `sync-port --old --new [--reload]` |
+| `hosts` | `status` · `add` · `remove`（只动 phpvm 托管块，`--dry-run` 可预览） |
+| `redis` / `mysql` | `list` · `status` · `start` · `stop` · `restart` ·（`redis` 另含 `ping`、`cmd --command "GET foo" --db 0 --force`）·（`mysql` 另含 `log --lines N`） |
+| `sqlite` | `tables <path>` · `columns <path> <table>` · `query <path> "<sql>" [--limit N] [--offset N]`（只读：仅 SELECT / WITH / PRAGMA / EXPLAIN / VALUES） |
+| `services` | `start-all` · `stop-all`（按序启动 PHP → Redis → MySQL → Nginx） |
+| `update` | `check` · `download`（GitHub Releases，SHA-256 校验） |
+| `module` | `list` · `enable <key…>` · `disable <key…>`（redis / mysql / sqlite / log） |
+
+**典型用法**
+
+```bash
+# 1) 先摸清环境（AI 推荐的第一步）
+python3 cli.py env --json
+
+# 2) 建站：先预览配置，再落盘
+python3 cli.py site create --domain app.test --root ~/wnrp/www/app \
+    --template laravel --php php82 --dry-run
+python3 cli.py site create --domain app.test --root ~/wnrp/www/app \
+    --template laravel --php php82 --hosts
+
+# 3) 切换站点 PHP 版本 + 一键同步端口
+python3 cli.py site php app.test --php php83 --json
+python3 cli.py site sync-port --old 9082 --new 9083 --reload
+
+# 4) 只读查库（不会写入 settings.sqlite_last_db）
+python3 cli.py sqlite query /path/database.sqlite "select * from users limit 5" --json
+```
+
+> 提示：CLI 与 GUI 共用同一份 `config.json` 与同一批 `core/*` 管理器，两者可同时工作；
+> 但模块开关（`module disable`）与语言（ `--lang` 之外的持久化）需重启 GUI 后才反映到界面。
+
 ## 端口映射（默认）
 
 | 版本目录 | 默认端口 | 说明 |
@@ -229,7 +289,8 @@
 
 ```
 C:\wnrp\phpvm\
-├── main.py                # 入口（单实例：Win 互斥体 / posix socket 锁；重启抢锁）
+├── main.py                # GUI 入口（单实例：Win 互斥体 / posix socket 锁；重启抢锁）
+├── cli.py                 # 命令行入口（无 GUI / 非交互 / --json，供 AI 与脚本调用；schema 自描述）
 ├── phpvm.bat              # Windows 双击启动脚本
 ├── phpvm.command          # macOS / Linux 双击启动脚本
 ├── config.json            # 端口映射 + 功能开关（auto_recover_crash / auto_recover_limit / lang / sqlite_last_db / check_update_on_start / skipped_version）
