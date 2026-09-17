@@ -29,6 +29,7 @@ class ExtensionDialog(tk.Toplevel):
         self._vars: dict[str, tk.BooleanVar] = {}
         self._runtime: ext_mod.RuntimeInfo | None = None
         self._busy = False
+        self._draining = False  # 队列 drain 是否已启动（唯一消费者）
 
         ver_txt = f"PHP {version.display}" if version.display else t("PHP 版本未知")
         title = t("安装扩展 · {name} ({ver})", name=version.name, ver=ver_txt)
@@ -134,17 +135,42 @@ class ExtensionDialog(tk.Toplevel):
                 self._queue.put(("error", str(e)))
 
         threading.Thread(target=worker, daemon=True).start()
-        self._poll()
+        self._start_drain()
 
-    def _poll(self) -> None:
-        try:
-            kind, payload = self._queue.get_nowait()
-        except queue.Empty:
-            self.after(80, self._poll)
+    # ------------------------------------------------------------------ #
+    # 队列分发：drain 是唯一消费者（加载 / 保存 / 安装各自一个 after 轮询
+    # 抢同一队列会互相吞消息，导致保存与安装结果永远显示不出来）
+    # ------------------------------------------------------------------ #
+    def _start_drain(self) -> None:
+        if self._draining:
             return
+        self._draining = True
+        self.after(80, self._drain)
+
+    def _drain(self) -> None:
+        if not self.winfo_exists():
+            self._draining = False
+            return
+        try:
+            while True:
+                self._dispatch(*self._queue.get_nowait())
+        except queue.Empty:
+            pass
+        self.after(80, self._drain)
+
+    def _dispatch(self, kind: str, payload) -> None:
         if kind == "error":
             self.sub_label.configure(text=t("加载失败：{err}", err=payload))
-            return
+        elif kind == "loaded":
+            self._on_loaded(payload)
+        elif kind == "prog":
+            self.progress_label.configure(text=payload)
+        elif kind in ("saved", "save_err"):
+            self._on_saved(kind, payload)
+        elif kind == "installed":
+            self._on_installed(payload)
+
+    def _on_loaded(self, payload: tuple) -> None:
         infos, rt = payload
         self._infos = infos
         self._runtime = rt
@@ -241,14 +267,9 @@ class ExtensionDialog(tk.Toplevel):
                 self._queue.put(("save_err", str(e)))
 
         threading.Thread(target=worker, daemon=True).start()
-        self._poll_save()
+        self._start_drain()
 
-    def _poll_save(self) -> None:
-        try:
-            kind, payload = self._queue.get_nowait()
-        except queue.Empty:
-            self.after(80, self._poll_save)
-            return
+    def _on_saved(self, kind: str, payload) -> None:
         self._busy = False
         self.btn_save.configure(state="normal")
         if kind == "save_err":
@@ -311,18 +332,9 @@ class ExtensionDialog(tk.Toplevel):
                 self._queue.put(("installed", (item["key"], False, str(e), "")))
 
         threading.Thread(target=worker, daemon=True).start()
-        self._poll_install()
+        self._start_drain()
 
-    def _poll_install(self) -> None:
-        try:
-            kind, payload = self._queue.get_nowait()
-        except queue.Empty:
-            self.after(80, self._poll_install)
-            return
-        if kind == "prog":
-            self.progress_label.configure(text=payload)
-            self.after(80, self._poll_install)
-            return
+    def _on_installed(self, payload: tuple) -> None:
         key, ok, msg, dll = payload
         self._busy = False
         self.progress_label.configure(text="")

@@ -1,0 +1,8 @@
+{
+ "停止 PHP": "Stop PHP",
+ "停止 [{name}] 后使用该版本的站点会无法访问（502），确定继续？": "Stopping {name} makes sites using this version unavailable (502). Continue?",
+ "停止 Redis": "Stop Redis",
+ "停止 Redis 后依赖缓存/会话的站点可能异常，确定继续？": "Stopping Redis may break sites that rely on cache/session. Continue?",
+ "停止 Nginx": "Stop Nginx",
+ "停止 Nginx 后本机全部站点将不可访问，确定继续？": "Stopping Nginx makes all local sites unreachable. Continue?"
+}

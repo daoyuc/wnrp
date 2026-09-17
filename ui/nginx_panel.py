@@ -24,9 +24,11 @@ class NginxPanel(ttk.Frame):
         self._busy = False
         self._pending_refresh = False
         self._running = False
+        self._draining = False  # 队列 drain 是否已启动（唯一消费者）
 
         self._build()
         self.refresh_status()
+        self._start_drain()
 
     # ------------------------------------------------------------------ #
     def _build(self) -> None:
@@ -122,20 +124,46 @@ class NginxPanel(ttk.Frame):
                 self._queue.put(("error", t("状态获取失败：{err}", err=e)))
 
         threading.Thread(target=worker, daemon=True).start()
-        self._poll_status()
+        self._start_drain()
 
-    def _poll_status(self) -> None:
-        try:
-            kind, payload = self._queue.get_nowait()
-        except queue.Empty:
-            self.after(80, self._poll_status)
+    # ------------------------------------------------------------------ #
+    # 队列分发：worker 线程只负责 put，UI 操作全部收敛到主线程的 drain
+    # 循环（唯一消费者）—— 此前自动刷新 / 手动刷新 / 启停三个 after 轮询
+    # 抢同一个队列，会互相吞掉消息，导致状态永久刷不出来。
+    # ------------------------------------------------------------------ #
+    def _start_drain(self) -> None:
+        if self._draining:
             return
-        self._set_busy(False)
+        self._draining = True
+        self.after(80, self._drain)
+
+    def _drain(self) -> None:
+        if not self.winfo_exists():
+            self._draining = False
+            return
+        try:
+            while True:
+                self._dispatch(*self._queue.get_nowait())
+        except queue.Empty:
+            pass
+        self.after(80, self._drain)
+
+    def _dispatch(self, kind: str, payload) -> None:
         if kind == "status":
+            self._set_busy(False)
             running, pids, version = payload
             self._render_status(running, pids, version)
+        elif kind == "auto":
+            self._pending_refresh = False
+            running, pids = payload
+            self._render_status(running, pids, self.info_vars["ver"].get())
+        elif kind == "op":
+            self._set_busy(False)
+            self._on_op_done(*payload)
         elif kind == "error":
+            self._set_busy(False)
             messagebox.showerror(t("错误"), payload, parent=self)
+            self._append_log(payload, "err")
 
     def _render_status(self, running: bool, pids: list[int], version: str) -> None:
         self._running = running
@@ -164,22 +192,15 @@ class NginxPanel(ttk.Frame):
                 self._queue.put(("auto", (False, [])))
 
         threading.Thread(target=worker, daemon=True).start()
-        self._poll_auto()
-
-    def _poll_auto(self) -> None:
-        try:
-            kind, payload = self._queue.get_nowait()
-        except queue.Empty:
-            self.after(80, self._poll_auto)
-            return
-        self._pending_refresh = False
-        if kind == "auto":
-            running, pids = payload
-            self._render_status(running, pids, self.info_vars["ver"].get())
+        self._start_drain()
 
     # ------------------------------------------------------------------ #
     def _run(self, action: str) -> None:
         if self._busy:
+            return
+        if action == "stop" and not messagebox.askyesno(
+                t("停止 Nginx"),
+                t("停止 Nginx 后本机全部站点将不可访问，确定继续？"), parent=self):
             return
         self._set_busy(True)
 
@@ -198,20 +219,9 @@ class NginxPanel(ttk.Frame):
                 self._queue.put(("error", t("{action} 失败：{err}", action=action, err=e)))
 
         threading.Thread(target=worker, daemon=True).start()
-        self._poll_op()
+        self._start_drain()
 
-    def _poll_op(self) -> None:
-        try:
-            kind, payload = self._queue.get_nowait()
-        except queue.Empty:
-            self.after(80, self._poll_op)
-            return
-        self._set_busy(False)
-        if kind == "error":
-            messagebox.showerror(t("错误"), payload, parent=self)
-            self._append_log(payload, "err")
-            return
-        action, msg = payload
+    def _on_op_done(self, action: str, msg: str) -> None:
         action_disp = {"start": t("启动"), "stop": t("停止"),
                        "reload": t("平滑重载"), "test": t("配置检查")}.get(action, action)
         if action == "test":

@@ -443,6 +443,10 @@ class RedisPanel(ttk.Frame):
         if inst is None:
             messagebox.showwarning(t("提示"), t("未发现 Redis 实例。"), parent=self)
             return
+        if action == "stop" and not messagebox.askyesno(
+                t("停止 Redis"),
+                t("停止 Redis 后依赖缓存/会话的站点可能异常，确定继续？"), parent=self):
+            return
         self._set_busy(True)
 
         def worker():

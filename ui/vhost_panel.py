@@ -41,9 +41,12 @@ class VhostPanel(ttk.Frame):
         self._queue: queue.Queue = queue.Queue()
         self._busy = False
         self._entries: list[VhostEntry] = []
+        self._draining = False  # 队列 drain 是否已启动（唯一消费者）
+        self._fixing = False    # include 一键修复进行中
 
         self._build()
         self.refresh()
+        self._start_drain()
 
     # ------------------------------------------------------------------ #
     def _build(self) -> None:
@@ -127,29 +130,48 @@ class VhostPanel(ttk.Frame):
                 self._queue.put(("error", str(e)))
 
         threading.Thread(target=worker, daemon=True).start()
-        self._poll()
+        self._start_drain()
 
-    def _poll(self) -> None:
-        try:
-            kind, payload = self._queue.get_nowait()
-        except queue.Empty:
-            self.after(80, self._poll)
+    # ------------------------------------------------------------------ #
+    # 队列分发：drain 是唯一消费者，按 kind 精确处理；此前单一 _poll
+    # 既等扫描结果又等操作结果，并发时会把消息串味（op 当 data、data 过期）。
+    # ------------------------------------------------------------------ #
+    def _start_drain(self) -> None:
+        if self._draining:
             return
-        self._set_busy(False)
-        if kind == "op":
+        self._draining = True
+        self.after(80, self._drain)
+
+    def _drain(self) -> None:
+        if not self.winfo_exists():
+            self._draining = False
+            return
+        try:
+            while True:
+                self._dispatch(*self._queue.get_nowait())
+        except queue.Empty:
+            pass
+        self.after(80, self._drain)
+
+    def _dispatch(self, kind: str, payload) -> None:
+        if kind == "data":
+            self._set_busy(False)
+            entries, inc = payload
+            self._render(entries)
+            self._render_include_status(inc)
+            self.notify(t("已扫描 {count} 个 server 块", count=len(entries)))
+        elif kind == "op":
+            self._set_busy(False)
             res = payload or {}
             if res.get("ok"):
                 self.notify(res.get("message") or t("操作完成"))
             else:
                 messagebox.showerror(t("操作失败"), res.get("message") or "", parent=self)
             self.refresh()
-            return
-        if kind == "data":
-            entries, inc = payload
-            self._render(entries)
-            self._render_include_status(inc)
-            self.notify(t("已扫描 {count} 个 server 块", count=len(entries)))
-        else:
+        elif kind == "fix":
+            self._on_fix_done(payload)
+        else:  # error
+            self._set_busy(False)
             self._render_include_status(None)
             messagebox.showerror(t("扫描失败"), payload, parent=self)
             self.notify(t("扫描失败"))
@@ -352,7 +374,7 @@ class VhostPanel(ttk.Frame):
             self._queue.put(("op", res))
 
         threading.Thread(target=worker, daemon=True).start()
-        self._poll()
+        self._start_drain()
 
     # ------------------------------------------------------------------ #
     # include 状态检测 / 一键修复
@@ -383,43 +405,65 @@ class VhostPanel(ttk.Frame):
             self._btn_fix_inc.pack(side="right", padx=6, pady=4)
 
     def _fix_include(self) -> None:
-        """自动补 include → nginx -t 校验 → 询问是否平滑重载。"""
-        if self._inc_status is None:
+        """自动补 include → nginx -t 校验 → 询问是否平滑重载。
+
+        校验与状态检测都可能在慢盘/大配置下耗时数秒，故放到后台线程，
+        避免整窗卡住（UI 提示与弹窗回到主线程处理）。
+        """
+        if self._inc_status is None or self._fixing:
             return
+        self._fixing = True
         self._btn_fix_inc.state(["disabled"])
-        try:
-            if self.vhost_mgr.include_status().get("covered"):
-                self.notify(t("站点目录已被主配置 include，无需修复"))
-                self.refresh()
-                return
-            self.notify(t("正在自动补 include 并校验…"))
-            res = self.vhost_mgr.ensure_include()
-            final = res["message"]
-            cfg_ok = not res["ok"]
-            if res["ok"]:
-                out = (self.vhost_mgr.nginx.test_config() or "").strip()
-                if out:
-                    final = f"{final}\n{out}"
-                cfg_ok = "successful" in out or out == t("配置检查通过")
-            self._render_include_status(self.vhost_mgr.include_status())
-            if not res["ok"]:
-                messagebox.showerror(t("修复失败"), final, parent=self)
-            elif not cfg_ok:
-                messagebox.showwarning(t("配置校验未通过"), final, parent=self)
-            else:
-                messagebox.showinfo(t("已修复"), final, parent=self)
+        self.notify(t("正在自动补 include 并校验…"))
+
+        def worker():
+            try:
+                if self.vhost_mgr.include_status().get("covered"):
+                    self._queue.put(("fix", {"ok": True, "cfg_ok": True, "covered": True,
+                                             "message": t("站点目录已被主配置 include，无需修复"),
+                                             "inc": None, "running": False}))
+                    return
+                res = self.vhost_mgr.ensure_include()
+                final = res["message"]
+                cfg_ok = False
+                if res["ok"]:
+                    out = (self.vhost_mgr.nginx.test_config() or "").strip()
+                    if out:
+                        final = f"{final}\n{out}"
+                    cfg_ok = "successful" in out or out == t("配置检查通过")
+                inc = self.vhost_mgr.include_status()
                 running, _ = self.vhost_mgr.nginx.get_status()
-                if running and messagebox.askyesno(
+                self._queue.put(("fix", {"ok": res["ok"], "cfg_ok": cfg_ok, "covered": False,
+                                         "message": final, "inc": inc, "running": running}))
+            except Exception as e:  # noqa: BLE001
+                self._queue.put(("fix", {"ok": False, "cfg_ok": False, "covered": False,
+                                         "message": str(e), "inc": None, "running": False}))
+
+        threading.Thread(target=worker, daemon=True).start()
+        self._start_drain()
+
+    def _on_fix_done(self, res: dict) -> None:
+        self._fixing = False
+        self._btn_fix_inc.state(["!disabled"])
+        if res.get("inc") is not None:
+            self._render_include_status(res["inc"])
+        msg = res.get("message") or ""
+        if not res.get("ok"):
+            messagebox.showerror(t("修复失败"), msg, parent=self)
+        elif not res.get("cfg_ok"):
+            messagebox.showwarning(t("配置校验未通过"), msg, parent=self)
+        else:
+            if res.get("covered"):
+                self.notify(msg)
+            else:
+                messagebox.showinfo(t("已修复"), msg, parent=self)
+                if res.get("running") and messagebox.askyesno(
                     t("include 已补上"),
                     t("需要平滑重载 nginx 才会加载站点目录。\n是否立即重载？"),
                     parent=self,
                 ):
                     self.notify(self.vhost_mgr.nginx.reload())
-        except Exception as e:  # noqa: BLE001
-            messagebox.showerror(t("修复失败"), str(e), parent=self)
-        finally:
-            self._btn_fix_inc.state(["!disabled"])
-            self.refresh()
+        self.refresh()
 
     def _set_busy(self, busy: bool) -> None:
         self._busy = busy

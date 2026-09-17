@@ -42,9 +42,11 @@ class PhpPanel(ttk.Frame):
         self._versions: list[PhpVersion] = []
         self._name_to_iid: dict[str, str] = {}
         self._pending_row_refresh = False
+        self._draining = False  # 队列 drain 是否已启动（唯一消费者）
 
         self._build()
         self.refresh_versions()
+        self._start_drain()
 
     # ------------------------------------------------------------------ #
     # 界面构建
@@ -124,24 +126,53 @@ class PhpPanel(ttk.Frame):
                 versions = self.php_mgr.resolve(refresh_status=True, fast=True)
                 self._queue.put(("versions", versions))
             except Exception as e:  # noqa: BLE001
-                self._queue.put(("error", t("扫描失败：{err}", err=e)))
+                self._queue.put(("error", ("", t("扫描失败：{err}", err=e))))
 
         threading.Thread(target=worker, daemon=True).start()
-        self._poll_versions()
+        self._start_drain()
 
-    def _poll_versions(self) -> None:
-        try:
-            kind, payload = self._queue.get_nowait()
-        except queue.Empty:
-            self.after(80, self._poll_versions)
+    # ------------------------------------------------------------------ #
+    # 队列分发：worker 线程只负责 put，所有 UI 操作收敛到主线程的
+    # drain 循环（唯一消费者）。此前 scan / 操作 / 自动刷新 / 单行刷新各有
+    # 一个 after 轮询抢同一个队列，会互相吞掉消息，导致状态永久刷不出来。
+    # ------------------------------------------------------------------ #
+    def _start_drain(self) -> None:
+        if self._draining:
             return
-        self._set_busy(False)
+        self._draining = True
+        self.after(80, self._drain)
+
+    def _drain(self) -> None:
+        if not self.winfo_exists():
+            self._draining = False
+            return
+        try:
+            while True:
+                self._dispatch(*self._queue.get_nowait())
+        except queue.Empty:
+            pass
+        self.after(80, self._drain)
+
+    def _dispatch(self, kind: str, payload) -> None:
         if kind == "versions":
+            self._set_busy(False)
             self._render(payload)
             self.notify(t("已发现 {count} 个 PHP 版本", count=len(payload)))
-        else:
-            messagebox.showerror(t("错误"), payload, parent=self)
-            self.notify(t("扫描失败"))
+        elif kind in ("op", "conflict"):
+            self._set_busy(False)
+            self._on_op_done(kind, payload)
+        elif kind == "error":
+            self._set_busy(False)
+            name, msg = payload
+            self.notify(msg)
+            messagebox.showerror(t("操作失败") if name else t("错误"), msg, parent=self)
+            if name:
+                self._refresh_row(name)
+        elif kind == "status":
+            self._pending_row_refresh = False
+            self._apply_status(payload)
+        elif kind == "row":
+            self._update_rows()
 
     def _render(self, versions: list[PhpVersion]) -> None:
         self._versions = versions
@@ -174,6 +205,11 @@ class PhpPanel(ttk.Frame):
         if self._busy:
             return
         action_text = {"start": t("启动"), "stop": t("停止"), "restart": t("重启")}[action]
+        if action == "stop" and not messagebox.askyesno(
+                t("停止 PHP"),
+                t("停止 [{name}] 后使用该版本的站点会无法访问（502），确定继续？", name=v.name),
+                parent=self):
+            return
         self._set_busy(True)
         self.notify(t("正在{action} [{name}] …", action=action_text, name=v.name))
 
@@ -199,25 +235,16 @@ class PhpPanel(ttk.Frame):
                                                      action=action_text, err=e))))
 
         threading.Thread(target=worker, daemon=True).start()
-        self._poll_op()
+        self._start_drain()
 
-    def _poll_op(self) -> None:
-        try:
-            kind, payload = self._queue.get_nowait()
-        except queue.Empty:
-            self.after(80, self._poll_op)
-            return
-        self._set_busy(False)
+    def _on_op_done(self, kind: str, payload: tuple[str, str]) -> None:
+        """启停/重启结果（kind 为 op 正常完成、conflict 端口冲突）。"""
         name, msg = payload
-        if kind == "op":
-            self.notify(msg)
-            messagebox.showinfo(t("操作完成"), msg, parent=self)
-        elif kind == "conflict":
-            self.notify(msg)
+        self.notify(msg)
+        if kind == "conflict":
             messagebox.showwarning(t("端口冲突"), msg, parent=self)
         else:
-            self.notify(msg)
-            messagebox.showerror(t("操作失败"), msg, parent=self)
+            messagebox.showinfo(t("操作完成"), msg, parent=self)
         self._refresh_row(name)
 
     # ------------------------------------------------------------------ #
@@ -238,18 +265,9 @@ class PhpPanel(ttk.Frame):
             self._queue.put(("status", results))
 
         threading.Thread(target=worker, daemon=True).start()
-        self._poll_status()
+        self._start_drain()
 
-    def _poll_status(self) -> None:
-        try:
-            kind, payload = self._queue.get_nowait()
-        except queue.Empty:
-            self.after(80, self._poll_status)
-            return
-        self._pending_row_refresh = False
-        if kind != "status":
-            return
-        results = payload
+    def _apply_status(self, results: dict) -> None:
         changed = False
         for name, (running, pid) in results.items():
             v = next((x for x in self._versions if x.name == name), None)
@@ -271,16 +289,7 @@ class PhpPanel(ttk.Frame):
             self._queue.put(("row", v))
 
         threading.Thread(target=worker, daemon=True).start()
-        self._poll_row()
-
-    def _poll_row(self) -> None:
-        try:
-            kind, payload = self._queue.get_nowait()
-        except queue.Empty:
-            self.after(80, self._poll_row)
-            return
-        if kind == "row":
-            self._update_rows()
+        self._start_drain()
 
     def _update_rows(self) -> None:
         for i, v in enumerate(self._versions):

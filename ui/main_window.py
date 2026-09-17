@@ -568,6 +568,8 @@ class MainWindow(tk.Tk):
         self._poll_cli()
 
     def _poll_cli(self) -> None:
+        if not self.winfo_exists():  # 窗口已销毁：停止轮询
+            return
         try:
             info = self._cli_queue.get_nowait()
         except queue.Empty:
@@ -653,6 +655,8 @@ class MainWindow(tk.Tk):
         self._poll_crash_queue()
 
     def _poll_crash_queue(self) -> None:
+        if not self.winfo_exists():  # 窗口已销毁：停止轮询
+            return
         try:
             kind, events = self._crash_queue.get_nowait()
         except queue.Empty:
@@ -927,6 +931,8 @@ class MainWindow(tk.Tk):
         self._poll_tray_queue()
 
     def _poll_tray_queue(self) -> None:
+        if not self.winfo_exists():  # 窗口已销毁：停止轮询
+            return
         try:
             msg = self._tray_queue.get_nowait()
         except queue.Empty:
