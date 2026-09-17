@@ -84,7 +84,10 @@ class ExtensionDialog(tk.Toplevel):
         )
         self.local_canvas.pack(side="left", fill="both", expand=True)
         vsb.pack(side="right", fill="y")
-        self.local_canvas.bind_all("<MouseWheel>", self._on_wheel, add="+")
+        # 只接管本区域滚轮：bind_all 是全应用级，常驻会劫持其它窗口的滚动，
+        # 且对话框销毁后回调仍可能被触发。canvas 内部控件是它的子 widget，
+        # 事件冒泡会经过 canvas，无需 bind_all。
+        self.local_canvas.bind("<MouseWheel>", self._on_wheel)
 
     def _build_online_tab(self) -> None:
         hint = ttk.Label(
@@ -156,7 +159,7 @@ class ExtensionDialog(tk.Toplevel):
                 self._dispatch(*self._queue.get_nowait())
         except queue.Empty:
             pass
-        self.after(80, self._drain)
+        self.after(80 if self.winfo_ismapped() else 400, self._drain)
 
     def _dispatch(self, kind: str, payload) -> None:
         if kind == "error":
@@ -362,6 +365,8 @@ class ExtensionDialog(tk.Toplevel):
     # 辅助
     # ------------------------------------------------------------------ #
     def _on_wheel(self, event) -> None:
+        if not self.winfo_exists():
+            return
         try:
             self.local_canvas.yview_scroll(int(-event.delta / 120), "units")
         except tk.TclError:
@@ -373,5 +378,8 @@ class ExtensionDialog(tk.Toplevel):
                    min_width=680, min_height=560)
 
     def destroy(self) -> None:
-        self.local_canvas.unbind_all("<MouseWheel>")
+        try:
+            self.local_canvas.unbind("<MouseWheel>")
+        except Exception:  # noqa: BLE001
+            pass
         super().destroy()

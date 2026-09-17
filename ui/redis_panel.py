@@ -310,6 +310,8 @@ class RedisPanel(ttk.Frame):
         self.after(150, self._drain)
 
     def _drain(self) -> None:
+        if not self.winfo_exists():  # 面板已销毁：停止轮询
+            return
         try:
             while True:
                 item = self._queue.get_nowait()
@@ -319,7 +321,8 @@ class RedisPanel(ttk.Frame):
                     self._append_log(t("内部错误：{err}", err=e), "err")
         except queue.Empty:
             pass
-        self.after(150, self._drain)
+        # 不可见页签降频：drain 只是空转取消息，不必跟着 150ms 跑
+        self.after(150 if self.winfo_ismapped() else 400, self._drain)
 
     def _dispatch(self, kind: str, payload: Any) -> None:
         if kind == "status":

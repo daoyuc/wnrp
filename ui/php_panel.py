@@ -151,7 +151,8 @@ class PhpPanel(ttk.Frame):
                 self._dispatch(*self._queue.get_nowait())
         except queue.Empty:
             pass
-        self.after(80, self._drain)
+        # 不可见页签降频：drain 只是空转取消息，不必跟着 80ms 跑
+        self.after(80 if self.winfo_ismapped() else 400, self._drain)
 
     def _dispatch(self, kind: str, payload) -> None:
         if kind == "versions":
