@@ -24,7 +24,7 @@ from core.nginx_manager import NginxManager
 from core.php_manager import PhpManager
 from core.site_templates import TEMPLATES, TEMPLATE_MAP, render_config
 from core.vhost_manager import VhostManager
-from .theme import CARD_BG, ERR, FONT, OK, PRIMARY, TEXT
+from . import theme
 from .window_utils import fit_window
 
 STEP_TITLES = ["基本信息", "应用模板", "hosts 映射", "确认创建"]
@@ -73,7 +73,7 @@ class SiteWizardDialog(tk.Toplevel):
         self._fname: str = ""
 
         self.title(t("新建站点 · 可视化向导"))
-        self.configure(bg=CARD_BG)
+        self.configure(bg=theme.CARD_BG)
         self.transient(master)
 
         # 变量
@@ -116,8 +116,8 @@ class SiteWizardDialog(tk.Toplevel):
         self.step_labels: list[tk.Label] = []
         for i, name in enumerate(STEP_TITLES):
             lab = tk.Label(
-                self.step_row, text=f"  {i + 1}. {t(name)}  ", font=(FONT, 9, "bold"),
-                background="#DDE3EC", foreground=TEXT, padx=8, pady=4,
+                self.step_row, text=f"  {i + 1}. {t(name)}  ", font=(theme.FONT, 9, "bold"),
+                background=theme.TAB_BG, foreground=theme.TEXT, padx=8, pady=4,
             )
             lab.pack(side="left", padx=(0, 8))
             self.step_labels.append(lab)
@@ -155,12 +155,12 @@ class SiteWizardDialog(tk.Toplevel):
         grid.columnconfigure(1, weight=1, minsize=280)
 
         def add_label_row(row, text):
-            ttk.Label(grid, text=text, font=(FONT, 9, "bold"),
-                      background=CARD_BG).grid(row=row, column=0, sticky="ne", pady=5, padx=(0, 8))
+            ttk.Label(grid, text=text, font=(theme.FONT, 9, "bold"),
+                      background=theme.CARD_BG).grid(row=row, column=0, sticky="ne", pady=5, padx=(0, 8))
 
         # 域名
         add_label_row(0, t("域名："))
-        self.entry_domain = ttk.Entry(grid, textvariable=self.v_domain, font=(FONT, 11))
+        self.entry_domain = ttk.Entry(grid, textvariable=self.v_domain, font=(theme.FONT, 11))
         self.entry_domain.grid(row=0, column=1, sticky="ew", pady=4)
         ttk.Label(
             grid,
@@ -177,7 +177,7 @@ class SiteWizardDialog(tk.Toplevel):
         row1 = ttk.Frame(grid)
         row1.grid(row=1, column=1, sticky="ew", pady=4)
         row1.columnconfigure(0, weight=1)
-        self.entry_root = ttk.Entry(row1, textvariable=self.v_root, font=(FONT, 10))
+        self.entry_root = ttk.Entry(row1, textvariable=self.v_root, font=(theme.FONT, 10))
         self.entry_root.grid(row=0, column=0, sticky="ew")
         self.entry_root.bind("<KeyRelease>", lambda e: self._on_input_changed())
         self.entry_root.bind("<<FocusOut>>", lambda e: self._on_input_changed())
@@ -207,7 +207,7 @@ class SiteWizardDialog(tk.Toplevel):
         ttk.Label(
             info,
             text="\n".join(auto_lines),
-            style="SubTitle.TLabel", justify="left", background=CARD_BG,
+            style="SubTitle.TLabel", justify="left", background=theme.CARD_BG,
         ).pack(anchor="w")
         return fr
 
@@ -219,7 +219,7 @@ class SiteWizardDialog(tk.Toplevel):
 
         left = ttk.Frame(top)
         left.pack(side="left", fill="y")
-        ttk.Label(left, text=t("应用模板："), font=(FONT, 9, "bold"), background=CARD_BG).pack(anchor="w")
+        ttk.Label(left, text=t("应用模板："), font=(theme.FONT, 9, "bold"), background=theme.CARD_BG).pack(anchor="w")
         tpl_names = [t(x["name"]) for x in TEMPLATES]
         self.cmb_tpl = ttk.Combobox(left, textvariable=self.v_template, values=tpl_names,
                                     state="readonly", width=28)
@@ -227,7 +227,7 @@ class SiteWizardDialog(tk.Toplevel):
         self.cmb_tpl.bind("<<ComboboxSelected>>", lambda e: self._on_template_change())
         self.cmb_tpl.current(0)
 
-        ttk.Label(left, text=t("配置文件名："), font=(FONT, 9, "bold"), background=CARD_BG).pack(
+        ttk.Label(left, text=t("配置文件名："), font=(theme.FONT, 9, "bold"), background=theme.CARD_BG).pack(
             anchor="w", pady=(12, 0))
         self.entry_fn = ttk.Entry(left, textvariable=self.v_filename, width=28)
         self.entry_fn.pack(anchor="w", pady=(4, 0))
@@ -251,8 +251,8 @@ class SiteWizardDialog(tk.Toplevel):
         right = ttk.Frame(top)
         right.pack(side="left", fill="both", expand=True, padx=(12, 0))
         self.tpl_summary = tk.Text(
-            right, height=6, wrap="word", font=(FONT, 9), relief="flat",
-            background="#F4F6FA", foreground=TEXT, padx=10, pady=8, state="disabled",
+            right, height=6, wrap="word", font=(theme.FONT, 9), relief="flat",
+            background=theme.PANEL_ALT, foreground=theme.TEXT, padx=10, pady=8, state="disabled",
         )
         self.tpl_summary.pack(fill="x")
         self.docroot_label = ttk.Label(right, text="", style="SubTitle.TLabel")
@@ -263,8 +263,8 @@ class SiteWizardDialog(tk.Toplevel):
         wrap = ttk.Frame(fr)
         wrap.pack(fill="both", expand=True)
         self.preview = tk.Text(
-            wrap, wrap="none", font=("Menlo" if not IS_WIN else "Consolas", 9),
-            background="#1E1E1E", foreground="#C8C8C8", relief="flat", padx=10, pady=8,
+            wrap, wrap="none", font=theme.mono(),
+            background=theme.LOG_BG, foreground=theme.LOG_FG, relief="flat", padx=10, pady=8,
             state="disabled",
         )
         hs = ttk.Scrollbar(wrap, orient="horizontal", command=self.preview.xview)
@@ -289,12 +289,12 @@ class SiteWizardDialog(tk.Toplevel):
             card,
             text=t("写入需要系统管理员权限：macOS 会弹出系统授权框，Windows 会弹出 UAC 确认。\n"
                    "已指向 127.0.0.1 的域名自动跳过；指向其它 IP 的域名不覆盖，仅提示。"),
-            style="SubTitle.TLabel", justify="left", background=CARD_BG,
+            style="SubTitle.TLabel", justify="left", background=theme.CARD_BG,
         ).pack(anchor="w", pady=(4, 6))
 
         self.hosts_status = tk.Text(
-            card, height=7, wrap="word", font=(FONT, 9), relief="flat",
-            background="#F4F6FA", foreground=TEXT, padx=8, pady=6, state="disabled",
+            card, height=7, wrap="word", font=(theme.FONT, 9), relief="flat",
+            background=theme.PANEL_ALT, foreground=theme.TEXT, padx=8, pady=6, state="disabled",
         )
         self.hosts_status.pack(fill="x")
 
@@ -315,8 +315,8 @@ class SiteWizardDialog(tk.Toplevel):
         card = ttk.LabelFrame(fr, text=t("创建前确认"), padding=14)
         card.pack(fill="x")
         self.summary = tk.Text(
-            card, height=10, wrap="word", font=(FONT, 9), relief="flat",
-            background="#F4F6FA", foreground=TEXT, padx=10, pady=8, state="disabled",
+            card, height=10, wrap="word", font=(theme.FONT, 9), relief="flat",
+            background=theme.PANEL_ALT, foreground=theme.TEXT, padx=10, pady=8, state="disabled",
         )
         self.summary.pack(fill="x")
 
@@ -324,17 +324,17 @@ class SiteWizardDialog(tk.Toplevel):
         wrap = ttk.Frame(fr)
         wrap.pack(fill="both", expand=True)
         self.log = tk.Text(
-            wrap, wrap="word", font=("Menlo" if not IS_WIN else "Consolas", 9),
-            background="#1E1E1E", foreground="#C8C8C8", relief="flat", padx=10, pady=8,
+            wrap, wrap="word", font=theme.mono(),
+            background=theme.LOG_BG, foreground=theme.LOG_FG, relief="flat", padx=10, pady=8,
             state="disabled",
         )
         vs = ttk.Scrollbar(wrap, orient="vertical", command=self.log.yview)
         self.log.configure(yscrollcommand=vs.set)
         self.log.pack(side="left", fill="both", expand=True)
         vs.pack(side="right", fill="y")
-        self.log.tag_configure("ok", foreground=OK)
-        self.log.tag_configure("err", foreground=ERR)
-        self.log.tag_configure("info", foreground=PRIMARY)
+        self.log.tag_configure("ok", foreground=theme.OK)
+        self.log.tag_configure("err", foreground=theme.ERR)
+        self.log.tag_configure("info", foreground=theme.PRIMARY)
         return fr
 
     # ------------------------------------------------------------------ #
@@ -342,8 +342,8 @@ class SiteWizardDialog(tk.Toplevel):
     # ------------------------------------------------------------------ #
     def _render_steps(self) -> None:
         for i, lab in enumerate(self.step_labels):
-            bg = "#2B579A" if i <= self._step else "#DDE3EC"
-            fg = "#FFFFFF" if i <= self._step else "#555555"
+            bg = theme.PRIMARY if i <= self._step else theme.TAB_BG
+            fg = theme.BG if i <= self._step else theme.TEXT_DIM
             lab.configure(bg=bg, fg=fg)
 
     def _show_step(self, idx: int) -> None:
@@ -821,7 +821,7 @@ class SiteWizardDialog(tk.Toplevel):
         if notes:
             msg += "\n\n" + "\n".join(notes)
         messagebox.showinfo(t("站点创建成功"), msg, parent=self)
-        self.hint_label.configure(text=t("完成，可关闭本向导"), foreground=OK)
+        self.hint_label.configure(text=t("完成，可关闭本向导"), foreground=theme.OK)
         if self.on_done:
             self.on_done()
         self.destroy()

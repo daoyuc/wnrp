@@ -20,7 +20,7 @@ from core.php_downloader import (
 )
 from core.php_installer import default_port_for, install, install_dir_for
 from core.php_manager import PhpManager
-from .theme import CARD_BG, GRAY, PRIMARY_LIGHT, TEXT, WARN, setup_style
+from . import theme
 from .window_utils import fit_window
 
 STATE_INSTALLED = t("已安装")
@@ -68,7 +68,7 @@ class DownloadDialog(tk.Toplevel):
 
     # ------------------------------------------------------------------ UI #
     def _build_ui(self):
-        st = setup_style(self)
+        st = theme.setup_style(self)
         root = ttk.Frame(self, style="Card.TFrame", padding=18)
         root.pack(fill="both", expand=True)
 
@@ -83,7 +83,7 @@ class DownloadDialog(tk.Toplevel):
         ).pack(anchor="w", pady=(2, 0))
         arch_badge = tk.Label(
             head, text=t("本机 {arch}", arch=self.arch.upper()),
-            bg=PRIMARY_LIGHT, fg=TEXT, font=("Microsoft YaHei", 9, "bold"),
+            bg=theme.PRIMARY_LIGHT, fg=theme.TEXT, font=(theme.FONT, 9, "bold"),
             padx=12, pady=4,
         )
         arch_badge.pack(side="right", anchor="n")
@@ -114,9 +114,9 @@ class DownloadDialog(tk.Toplevel):
             self._tree.heading(col, text=col_text[col])
             self._tree.column(col, width=widths[col], anchor="w" if col == "series" else "center",
                               stretch=col in ("series",))
-        self._tree.tag_configure("installed", foreground=GRAY)
-        self._tree.tag_configure("update", foreground=WARN, font=("Microsoft YaHei", 9, "bold"))
-        self._tree.tag_configure("ready", foreground=TEXT)
+        self._tree.tag_configure("installed", foreground=theme.GRAY)
+        self._tree.tag_configure("update", foreground=theme.WARN, font=(theme.FONT, 9, "bold"))
+        self._tree.tag_configure("ready", foreground=theme.TEXT)
         vsb = ttk.Scrollbar(list_frame, orient="vertical", command=self._tree.yview)
         self._tree.configure(yscrollcommand=vsb.set)
         self._tree.pack(side="left", fill="both", expand=True)
@@ -136,15 +136,15 @@ class DownloadDialog(tk.Toplevel):
         for val, label in (("nts", t("NTS（FastCGI 推荐）")), ("ts", t("TS（线程安全）"))):
             rb = tk.Radiobutton(
                 ts_frame, text=label, value=val, variable=self.ts_mode,
-                command=self._on_ts_change, bg=CARD_BG, fg=TEXT,
-                activebackground=CARD_BG, activeforeground=TEXT,
-                selectcolor="#FFFFFF", font=("Microsoft YaHei", 9),
+                command=self._on_ts_change, bg=theme.CARD_BG, fg=theme.TEXT,
+                activebackground=theme.CARD_BG, activeforeground=theme.TEXT,
+                selectcolor=theme.CARD_BG, font=(theme.FONT, 9),
                 highlightthickness=0, bd=0,
             )
             rb.pack(side="left", padx=(0, 14))
 
         self._summary = ttk.Label(cfg, text=t("请选择一个版本"), style="SubTitle.TLabel",
-                                  background=CARD_BG, anchor="w")
+                                  background=theme.CARD_BG, anchor="w")
         self._summary.grid(row=2, column=0, columnspan=3, sticky="w", pady=(8, 0))
 
         # 进度区

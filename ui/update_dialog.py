@@ -13,7 +13,7 @@ from tkinter import messagebox, ttk
 
 from core import updater
 from core.i18n import t
-from .theme import CARD_BG, ERR, FONT, GRAY, OK, PRIMARY, TEXT
+from . import theme
 from .window_utils import fit_window
 
 
@@ -48,7 +48,7 @@ class UpdateDialog(tk.Toplevel):
 
         self.title(t("软件更新"))
         self.resizable(False, True)
-        self.configure(bg=CARD_BG)
+        self.configure(bg=theme.CARD_BG)
         self.transient(master)
         self.grab_set()
 
@@ -62,13 +62,13 @@ class UpdateDialog(tk.Toplevel):
             anchor="w", pady=(2, 10))
 
         # ---- 更新说明 ----
-        ttk.Label(body, text=t("更新说明"), font=(FONT, 9, "bold"),
-                  background=CARD_BG).pack(anchor="w")
+        ttk.Label(body, text=t("更新说明"), font=(theme.FONT, 9, "bold"),
+                  background=theme.CARD_BG).pack(anchor="w")
         wrap = ttk.Frame(body)
         wrap.pack(fill="both", expand=True, pady=(4, 10))
         self._notes = tk.Text(
-            wrap, height=12, wrap="word", font=(FONT, 9),
-            background="#FAFBFD", foreground=TEXT, relief="solid", borderwidth=1,
+            wrap, height=12, wrap="word", font=(theme.FONT, 9),
+            background=theme.PANEL_ALT, foreground=theme.TEXT, relief="solid", borderwidth=1,
         )
         scroll = ttk.Scrollbar(wrap, orient="vertical", command=self._notes.yview)
         self._notes.configure(yscrollcommand=scroll.set, state="disabled")
@@ -103,7 +103,7 @@ class UpdateDialog(tk.Toplevel):
         if auto_check:
             self.start_check()
         else:
-            self._set_status(t("点击「检查更新」开始"), GRAY)
+            self._set_status(t("点击「检查更新」开始"), theme.GRAY)
 
     # ------------------------------------------------------------------ #
     def _center(self, master) -> None:
@@ -111,7 +111,7 @@ class UpdateDialog(tk.Toplevel):
         fit_window(self, master, width=w, height=h, min_width=mw, min_height=mh)
 
     # ---- 状态辅助 ----
-    def _set_status(self, text: str, color: str = TEXT) -> None:
+    def _set_status(self, text: str, color: str = theme.TEXT) -> None:
         self._status_var.set(text)
         try:
             self._status_label.configure(foreground=color)
@@ -135,7 +135,7 @@ class UpdateDialog(tk.Toplevel):
         """下载中 = 取消下载；空闲 = 关闭窗口。"""
         if self._busy:
             self._cancel = True
-            self._set_status(t("正在取消下载…"), GRAY)
+            self._set_status(t("正在取消下载…"), theme.GRAY)
             return
         self.destroy()
 
@@ -163,7 +163,7 @@ class UpdateDialog(tk.Toplevel):
     # ------------------------------------------------------------------ #
     def start_check(self) -> None:
         """后台查询最新版本。"""
-        self._set_status(t("正在检查更新…"), GRAY)
+        self._set_status(t("正在检查更新…"), theme.GRAY)
         self._progress_bar.configure(mode="indeterminate", value=0)
         self._progress_bar.start(12)
         self._set_buttons(busy=True)
@@ -184,7 +184,7 @@ class UpdateDialog(tk.Toplevel):
         self._cancel = False
         self._progress = (0, 0)
         self._progress_bar.configure(mode="determinate", maximum=100, value=0)
-        self._set_status(t("正在下载安装包…"), PRIMARY)
+        self._set_status(t("正在下载安装包…"), theme.PRIMARY)
         self._set_buttons(busy=True)
 
         release = self._release
@@ -212,7 +212,7 @@ class UpdateDialog(tk.Toplevel):
             return
         if self.on_status:
             self.on_status(msg)
-        self._set_status(msg, OK)
+        self._set_status(msg, theme.OK)
         messagebox.showinfo(t("软件更新"), msg, parent=self)
         updater.exit_app()
 
@@ -237,9 +237,9 @@ class UpdateDialog(tk.Toplevel):
             self._progress_bar.configure(value=min(100, done * 100 / total))
             self._set_status(
                 t("正在下载安装包… {done} / {total}",
-                  done=format_size(done), total=format_size(total)), PRIMARY)
+                  done=format_size(done), total=format_size(total)), theme.PRIMARY)
         elif self._busy and done:
-            self._set_status(t("正在下载安装包… {done}", done=format_size(done)), PRIMARY)
+            self._set_status(t("正在下载安装包… {done}", done=format_size(done)), theme.PRIMARY)
 
         if self.winfo_exists():
             self.after(120, self._poll)
@@ -253,7 +253,7 @@ class UpdateDialog(tk.Toplevel):
             self._head_var.set(t("当前版本 {cur} · 最新版本 {new}",
                                  cur=updater.current_version(), new=rel.version))
             self._set_notes(rel.notes)
-            self._set_status(t("已是最新版本"), OK)
+            self._set_status(t("已是最新版本"), theme.OK)
             self._set_buttons(update=False, skip=False, page=True, busy=False)
             return
 
@@ -264,17 +264,17 @@ class UpdateDialog(tk.Toplevel):
 
         if asset is None:
             self._set_buttons(update=False, skip=True, page=True, busy=False)
-            self._set_status(t("该版本未发布当前平台安装包，可前往发布页手动下载"), GRAY)
+            self._set_status(t("该版本未发布当前平台安装包，可前往发布页手动下载"), theme.GRAY)
             return
 
         size = format_size(asset.size)
         if updater.supports_auto_update():
             self._set_status(t("发现新版本 {ver}（安装包 {size}）",
-                               ver=rel.version, size=size), PRIMARY)
+                               ver=rel.version, size=size), theme.PRIMARY)
             self._btn_update.configure(text=t("立即升级"), command=self._start_download)
         else:
             self._set_status(t("发现新版本 {ver}（{size}）· 当前为源码运行，下载后需手动安装",
-                               ver=rel.version, size=size), GRAY)
+                               ver=rel.version, size=size), theme.GRAY)
             self._btn_update.configure(text=t("下载安装包"), command=self._start_download)
         self._set_buttons(update=True, skip=True, page=True, busy=False)
 
@@ -282,11 +282,11 @@ class UpdateDialog(tk.Toplevel):
         self._pkg = path
         self._progress_bar.configure(value=100)
         if not updater.supports_auto_update():
-            self._set_status(t("安装包已下载：{path}", path=path), OK)
+            self._set_status(t("安装包已下载：{path}", path=path), theme.OK)
             self._set_buttons(busy=False)
             self._btn_update.configure(text=t("打开安装包目录"), command=self._open_pkg_dir)
             return
-        self._set_status(t("安装包已就绪（{path}）", path=path), OK)
+        self._set_status(t("安装包已就绪（{path}）", path=path), theme.OK)
         self._set_buttons(busy=False)
         self._btn_update.configure(text=t("立即重启并升级"), command=self._do_apply)
         if messagebox.askyesno(t("软件更新"),
@@ -297,7 +297,7 @@ class UpdateDialog(tk.Toplevel):
     def _on_error(self, message: str) -> None:
         self._progress_bar.stop()
         self._progress_bar.configure(mode="determinate", value=0)
-        self._set_status(message, ERR)
+        self._set_status(message, theme.ERR)
         self._set_buttons(busy=False)
         if self.on_status:
             self.on_status(t("检查更新失败：{msg}", msg=message))

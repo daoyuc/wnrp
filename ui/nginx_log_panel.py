@@ -19,7 +19,7 @@ from tkinter import ttk
 from core import process_utils as pu
 from core.i18n import t
 from core.nginx_manager import NginxManager
-from .theme import ERR, LOG_ACCENT, LOG_BG, LOG_FG, WARN
+from . import theme
 
 TAIL_BYTES = 256 * 1024
 MAX_LINES = 2000
@@ -82,20 +82,20 @@ class NginxLogPanel(ttk.Frame):
         wrap = ttk.Frame(self)
         wrap.pack(fill="both", expand=True)
         self.text = tk.Text(
-            wrap, wrap="char", font=("Consolas", 9),
-            background=LOG_BG, foreground=LOG_FG, relief="flat", padx=10, pady=8,
+            wrap, wrap="char", font=theme.mono(),
+            background=theme.LOG_BG, foreground=theme.LOG_FG, relief="flat", padx=10, pady=8,
             state="disabled",
         )
         vsb = ttk.Scrollbar(wrap, orient="vertical", command=self.text.yview)
         self.text.configure(yscrollcommand=vsb.set)
         self.text.pack(side="left", fill="both", expand=True)
         vsb.pack(side="right", fill="y")
-        self.text.tag_configure("err", foreground=ERR)
-        self.text.tag_configure("warn", foreground=WARN)
-        self.text.tag_configure("ts", foreground=LOG_ACCENT)
-        self.text.tag_configure("code4", foreground=WARN)
-        self.text.tag_configure("code5", foreground=ERR)
-        self.text.tag_configure("hl", background="#3B2F00")
+        self.text.tag_configure("err", foreground=theme.ERR)
+        self.text.tag_configure("warn", foreground=theme.WARN)
+        self.text.tag_configure("ts", foreground=theme.LOG_ACCENT)
+        self.text.tag_configure("code4", foreground=theme.WARN)
+        self.text.tag_configure("code5", foreground=theme.ERR)
+        self.text.tag_configure("hl", background=theme.HL_BG)
 
     # ------------------------------------------------------------------ #
     def refresh_file_list(self) -> None:

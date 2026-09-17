@@ -54,6 +54,10 @@ python3 cli.py site sync-port --old 9082 --new 9083 --reload
 # 只读查库（不会写 settings.sqlite_last_db）
 python3 cli.py sqlite query /path/database.sqlite "select * from users limit 5" --json
 
+# 外观主题（light / dark / system；GUI 切换立即生效，也允许脚本代改）
+python3 cli.py config get settings.theme
+python3 cli.py config set settings.theme dark
+
 # 服务编排
 python3 cli.py services start-all        # PHP → Redis → MySQL → Nginx
 python3 cli.py nginx test                # 任何改配置后都建议先跑

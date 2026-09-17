@@ -18,10 +18,7 @@ from typing import Any
 from core import process_utils as pu
 from core.i18n import current_language, t
 from core.redis_manager import RedisInstance, RedisManager  # pyright: ignore[reportImplicitRelativeImport]
-from .theme import (
-    CARD_BG, ERR, FONT, GRAY, LOG_ACCENT, LOG_BG, LOG_FG, OK,
-    PRIMARY, PRIMARY_DARK, TEXT, TEXT_DIM, WARN,
-)
+from . import theme
 
 # 执行前需要二次确认的命令（首词小写匹配）
 _DANGEROUS_CMDS = {
@@ -86,10 +83,10 @@ class RedisPanel(ttk.Frame):
         # 顶部：实例选择（全部页签共享）
         top = ttk.Frame(self)
         top.pack(fill="x", pady=(0, 6))
-        ttk.Label(top, text=t("Redis 实例："), font=(FONT, 9, "bold")).pack(side="left")
+        ttk.Label(top, text=t("Redis 实例："), font=(theme.FONT, 9, "bold")).pack(side="left")
         self.instance_var = tk.StringVar()
         self.instance_cb = ttk.Combobox(top, textvariable=self.instance_var, state="readonly",
-                                        width=24, font=(FONT, 9))
+                                        width=24, font=(theme.FONT, 9))
         self.instance_cb.pack(side="left", padx=(4, 10))
         self.instance_cb.bind("<<ComboboxSelected>>", lambda e: self._on_select())
         self.instance_cb["values"] = [i.name for i in self.redis_mgr.instances]
@@ -117,22 +114,22 @@ class RedisPanel(ttk.Frame):
 
         card = ttk.LabelFrame(left, text=t("运行状态"), padding=14)
         card.pack(fill="x")
-        self.dot_label = ttk.Label(card, text="●", font=(FONT, 16, "bold"), foreground=GRAY)
+        self.dot_label = ttk.Label(card, text="●", font=(theme.FONT, 16, "bold"), foreground=theme.GRAY)
         self.dot_label.pack(anchor="w")
-        self.state_label = ttk.Label(card, text=t("检测中…"), font=(FONT, 12, "bold"),
-                                     foreground=PRIMARY_DARK)
+        self.state_label = ttk.Label(card, text=t("检测中…"), font=(theme.FONT, 12, "bold"),
+                                     foreground=theme.PRIMARY_DARK)
         self.state_label.pack(anchor="w", pady=(4, 8))
 
         info_grid = ttk.Frame(card)
         info_grid.pack(anchor="w")
         self.info_vars = {}
         for i, (rid, label) in enumerate(_INFO_ROWS):
-            ttk.Label(info_grid, text=f"{t(label)}：", font=(FONT, 9, "bold")).grid(
+            ttk.Label(info_grid, text=f"{t(label)}：", font=(theme.FONT, 9, "bold")).grid(
                 row=i, column=0, sticky="e", pady=2
             )
             var = tk.StringVar(value="—")
             self.info_vars[rid] = var
-            ttk.Label(info_grid, textvariable=var, font=(FONT, 9)).grid(
+            ttk.Label(info_grid, textvariable=var, font=(theme.FONT, 9)).grid(
                 row=i, column=1, sticky="w", padx=(6, 0), pady=2
             )
 
@@ -160,31 +157,31 @@ class RedisPanel(ttk.Frame):
         ttk.Label(
             left,
             text=t("提示：Redis 监听端口在各自配置文件中\n（port 项），修改后重启 Redis 生效。"),
-            foreground=TEXT_DIM,
-            font=(FONT, 8),
+            foreground=theme.TEXT_DIM,
+            font=(theme.FONT, 8),
             justify="left",
         ).pack(anchor="w", pady=(10, 0))
 
         # 右侧：命令输出日志
         right = ttk.Frame(page)
         right.pack(side="left", fill="both", expand=True)
-        ttk.Label(right, text=t("命令输出"), foreground=PRIMARY_DARK,
-                  font=(FONT, 9, "bold")).pack(anchor="w", pady=(0, 4))
+        ttk.Label(right, text=t("命令输出"), foreground=theme.PRIMARY_DARK,
+                  font=(theme.FONT, 9, "bold")).pack(anchor="w", pady=(0, 4))
         log_wrap = ttk.Frame(right)
         log_wrap.pack(fill="both", expand=True)
         self.log_text = tk.Text(
-            log_wrap, wrap="word", font=("Consolas", 9),
-            background=LOG_BG, foreground=LOG_FG,
+            log_wrap, wrap="word", font=theme.mono(),
+            background=theme.LOG_BG, foreground=theme.LOG_FG,
             relief="flat", padx=10, pady=8, state="disabled",
         )
         vsb = ttk.Scrollbar(log_wrap, orient="vertical", command=self.log_text.yview)
         self.log_text.configure(yscrollcommand=vsb.set)
         self.log_text.pack(side="left", fill="both", expand=True)
         vsb.pack(side="right", fill="y")
-        self.log_text.tag_configure("ok", foreground=OK)
-        self.log_text.tag_configure("err", foreground=ERR)
-        self.log_text.tag_configure("warn", foreground=WARN)
-        self.log_text.tag_configure("info", foreground=LOG_ACCENT)
+        self.log_text.tag_configure("ok", foreground=theme.OK)
+        self.log_text.tag_configure("err", foreground=theme.ERR)
+        self.log_text.tag_configure("warn", foreground=theme.WARN)
+        self.log_text.tag_configure("info", foreground=theme.LOG_ACCENT)
 
         self._append_log(t("== phpvm Redis 管理器 =="), "info")
         if self.redis_mgr.instances:
@@ -207,13 +204,13 @@ class RedisPanel(ttk.Frame):
 
         bar = ttk.Frame(page)
         bar.pack(fill="x", pady=(0, 6))
-        ttk.Label(bar, text=t("目标 DB："), font=(FONT, 9, "bold")).pack(side="left")
+        ttk.Label(bar, text=t("目标 DB："), font=(theme.FONT, 9, "bold")).pack(side="left")
         self.db_var = tk.StringVar(value="0")
         db_cb = ttk.Combobox(bar, textvariable=self.db_var, state="readonly",
-                             values=_DBS, width=4, font=(FONT, 9))
+                             values=_DBS, width=4, font=(theme.FONT, 9))
         db_cb.pack(side="left", padx=(0, 10))
-        ttk.Label(bar, text=t("命令："), font=(FONT, 9, "bold")).pack(side="left")
-        self.cmd_entry = ttk.Entry(bar, font=("Consolas", 9))
+        ttk.Label(bar, text=t("命令："), font=(theme.FONT, 9, "bold")).pack(side="left")
+        self.cmd_entry = ttk.Entry(bar, font=theme.mono())
         self.cmd_entry.pack(side="left", fill="x", expand=True, padx=(0, 8))
         self.cmd_entry.bind("<Return>", self._exec_cmd)
         self.btn_exec = ttk.Button(bar, text=t("执 行"), style="Accent.TButton",
@@ -224,25 +221,25 @@ class RedisPanel(ttk.Frame):
             page,
             text=t("示例：SET k1 hello / GET k1 / INFO / DBSIZE / KEYS *  "
                    "（FLUSHALL、FLUSHDB、SHUTDOWN 等危险命令执行前需确认）"),
-            foreground=TEXT_DIM, font=(FONT, 8),
+            foreground=theme.TEXT_DIM, font=(theme.FONT, 8),
         ).pack(anchor="w", pady=(0, 6))
 
         wrap = ttk.Frame(page)
         wrap.pack(fill="both", expand=True)
         self.cmd_out = tk.Text(
-            wrap, wrap="word", font=("Consolas", 9),
-            background=LOG_BG, foreground=LOG_FG,
+            wrap, wrap="word", font=theme.mono(),
+            background=theme.LOG_BG, foreground=theme.LOG_FG,
             relief="flat", padx=10, pady=8, state="disabled",
         )
         cvsb = ttk.Scrollbar(wrap, orient="vertical", command=self.cmd_out.yview)
         self.cmd_out.configure(yscrollcommand=cvsb.set)
         self.cmd_out.pack(side="left", fill="both", expand=True)
         cvsb.pack(side="right", fill="y")
-        self.cmd_out.tag_configure("cmd", foreground=LOG_ACCENT,
-                                   font=("Consolas", 9, "bold"))
-        self.cmd_out.tag_configure("err", foreground=ERR)
-        self.cmd_out.tag_configure("info", foreground=LOG_ACCENT)
-        self.cmd_state = ttk.Label(page, text="", foreground=TEXT_DIM, font=(FONT, 8))
+        self.cmd_out.tag_configure("cmd", foreground=theme.LOG_ACCENT,
+                                   font=theme.mono(bold=True))
+        self.cmd_out.tag_configure("err", foreground=theme.ERR)
+        self.cmd_out.tag_configure("info", foreground=theme.LOG_ACCENT)
+        self.cmd_state = ttk.Label(page, text="", foreground=theme.TEXT_DIM, font=(theme.FONT, 8))
         self.cmd_state.pack(anchor="w", pady=(6, 0))
         self._append_cmd(t("输入 Redis 命令后回车执行，输出显示在此区。"), "info")
         return page
@@ -256,14 +253,14 @@ class RedisPanel(ttk.Frame):
         bar = ttk.Frame(page)
         bar.pack(fill="x", pady=(0, 6))
         ttk.Label(bar, text=t("各逻辑库 key 数量统计（忽略空库）"),
-                  foreground=PRIMARY_DARK, font=(FONT, 9, "bold")).pack(side="left")
-        self.ks_state = ttk.Label(bar, text="", foreground=TEXT_DIM, font=(FONT, 8))
+                  foreground=theme.PRIMARY_DARK, font=(theme.FONT, 9, "bold")).pack(side="left")
+        self.ks_state = ttk.Label(bar, text="", foreground=theme.TEXT_DIM, font=(theme.FONT, 8))
         self.ks_state.pack(side="right", padx=(8, 0))
         self.btn_ks_refresh = ttk.Button(bar, text=t("刷新"), command=self.refresh_keyspace)
         self.btn_ks_refresh.pack(side="right")
 
-        self.ks_canvas = tk.Canvas(page, background=CARD_BG, highlightthickness=1,
-                                   highlightbackground="#D3DCE8")
+        self.ks_canvas = tk.Canvas(page, background=theme.CARD_BG, highlightthickness=1,
+                                   highlightbackground=theme.BORDER)
         self.ks_canvas.pack(fill="both", expand=True)
         self.ks_canvas.bind("<Configure>", lambda e: self._draw_keyspace())
         self.ks_canvas.bind("<Button-1>", lambda e: self.refresh_keyspace())
@@ -407,12 +404,12 @@ class RedisPanel(ttk.Frame):
         running, pids = data[inst.name]
         self._inst_running = running
         if running:
-            self.dot_label.configure(text="●", foreground=OK)
-            self.state_label.configure(text=t("运行中"), foreground=OK)
+            self.dot_label.configure(text="●", foreground=theme.OK)
+            self.state_label.configure(text=t("运行中"), foreground=theme.OK)
             self.info_vars["pid"].set(", ".join(map(str, pids)) if pids else "—")
         else:
-            self.dot_label.configure(text="○", foreground=GRAY)
-            self.state_label.configure(text=t("已停止"), foreground=GRAY)
+            self.dot_label.configure(text="○", foreground=theme.GRAY)
+            self.state_label.configure(text=t("已停止"), foreground=theme.GRAY)
             self.info_vars["pid"].set("—")
         self.info_vars["ver"].set(ver)
         self.info_vars["port"].set(str(inst.port))
@@ -547,6 +544,10 @@ class RedisPanel(ttk.Frame):
             return f"{n / 10000:.1f}{unit}"
         return str(n)
 
+    def refresh_theme(self) -> None:
+        """主题切换钩子：键空间图是 Canvas 自绘，按新配色重画一次。"""
+        self._draw_keyspace()
+
     def _draw_keyspace(self) -> None:
         c = self.ks_canvas
         c.delete("all")
@@ -558,7 +559,7 @@ class RedisPanel(ttk.Frame):
         title_top = 10
         c.create_text(
             w // 2, title_top, text=t("键空间分布（DB → key 数）"),
-            fill=TEXT_DIM, font=(FONT, 9),
+            fill=theme.TEXT_DIM, font=(theme.FONT, 9),
         )
         state_text = ""
         if inst is None:
@@ -571,7 +572,7 @@ class RedisPanel(ttk.Frame):
             state_text = t("无数据：所有逻辑库均为空")
         if state_text or not stats:
             if state_text:
-                c.create_text(w // 2, h // 2, text=state_text, fill=GRAY, font=(FONT, 10))
+                c.create_text(w // 2, h // 2, text=state_text, fill=theme.GRAY, font=(theme.FONT, 10))
             return
 
         total = sum(k for _, k in stats)
@@ -579,7 +580,7 @@ class RedisPanel(ttk.Frame):
             w // 2, h - 8,
             text=t("共 {total} 个 key · 最后统计 {ts} · 点击图表可刷新",
                    total=total, ts=self._ks_ts),
-            fill=TEXT_DIM, font=(FONT, 8),
+            fill=theme.TEXT_DIM, font=(theme.FONT, 8),
         )
 
         # 柱状图区（顶部标题 / 底部汇总信息 / 轴标签留白）
@@ -596,7 +597,7 @@ class RedisPanel(ttk.Frame):
         for i, (db, keys) in enumerate(stats):
             cx = left + slot * i + slot / 2
             bh = max(3.0, (keys / max_keys) * (chart_h - 4))
-            color = PRIMARY_DARK if keys == max_keys else PRIMARY
+            color = theme.PRIMARY_DARK if keys == max_keys else theme.PRIMARY
             c.create_rectangle(
                 cx - bar_w / 2, base_y - bh, cx + bar_w / 2, base_y,
                 fill=color, outline="",
@@ -606,8 +607,8 @@ class RedisPanel(ttk.Frame):
             if bh < 26:
                 ny = base_y - bh - 2
             c.create_text(cx, max(ny, 6), text=self._fmt_keys(keys),
-                          fill=TEXT, font=(FONT, 8))
-            c.create_text(cx, h - 18, text=f"db{db}", fill=TEXT_DIM, font=(FONT, 8))
+                          fill=theme.TEXT, font=(theme.FONT, 8))
+            c.create_text(cx, h - 18, text=f"db{db}", fill=theme.TEXT_DIM, font=(theme.FONT, 8))
 
     # ------------------------------------------------------------------ #
     def _open_conf(self) -> None:

@@ -13,7 +13,7 @@ from tkinter import messagebox, ttk
 from core import php_extension as ext_mod
 from core.i18n import t
 from core.php_manager import PhpManager, PhpVersion
-from .theme import CARD_BG, ERR, FONT, GRAY, OK, PRIMARY_DARK, TEXT, WARN
+from . import theme
 from .window_utils import fit_window
 
 
@@ -33,7 +33,7 @@ class ExtensionDialog(tk.Toplevel):
         ver_txt = f"PHP {version.display}" if version.display else t("PHP 版本未知")
         title = t("安装扩展 · {name} ({ver})", name=version.name, ver=ver_txt)
         self.title(title)
-        self.configure(bg=CARD_BG)
+        self.configure(bg=theme.CARD_BG)
         self.transient(master)
 
         header = ttk.Frame(self, padding=(16, 14, 16, 4))
@@ -70,7 +70,7 @@ class ExtensionDialog(tk.Toplevel):
     # UI 构建
     # ------------------------------------------------------------------ #
     def _build_local_tab(self) -> None:
-        self.local_canvas = tk.Canvas(self.local_tab, background=CARD_BG, highlightthickness=0)
+        self.local_canvas = tk.Canvas(self.local_tab, background=theme.CARD_BG, highlightthickness=0)
         vsb = ttk.Scrollbar(self.local_tab, orient="vertical", command=self.local_canvas.yview)
         self.local_canvas.configure(yscrollcommand=vsb.set)
         self.local_inner = ttk.Frame(self.local_canvas)
@@ -105,9 +105,9 @@ class ExtensionDialog(tk.Toplevel):
         self.online_tree.configure(yscrollcommand=ovsb.set)
         self.online_tree.pack(side="left", fill="both", expand=True, pady=(0, 4))
         ovsb.pack(side="right", fill="y", pady=(0, 4))
-        self.online_tree.tag_configure("ok", foreground=OK)
-        self.online_tree.tag_configure("warn", foreground=WARN)
-        self.online_tree.tag_configure("err", foreground=ERR)
+        self.online_tree.tag_configure("ok", foreground=theme.OK)
+        self.online_tree.tag_configure("warn", foreground=theme.WARN)
+        self.online_tree.tag_configure("err", foreground=theme.ERR)
         self.online_tree.bind("<<TreeviewSelect>>", lambda e: self._update_online_btn())
 
         bar = ttk.Frame(self.online_tab)
@@ -165,8 +165,8 @@ class ExtensionDialog(tk.Toplevel):
             w.destroy()
         self._vars.clear()
         if not infos:
-            ttk.Label(self.local_inner, text=t("ext 目录下没有扩展 dll。"), background=CARD_BG,
-                      foreground=GRAY).pack(anchor="w", padx=6, pady=8)
+            ttk.Label(self.local_inner, text=t("ext 目录下没有扩展 dll。"), background=theme.CARD_BG,
+                      foreground=theme.GRAY).pack(anchor="w", padx=6, pady=8)
             return
         for info in infos:
             row = ttk.Frame(self.local_inner)
@@ -174,20 +174,20 @@ class ExtensionDialog(tk.Toplevel):
             var = tk.BooleanVar(value=info.enabled)
             self._vars[info.key] = var
             ttk.Checkbutton(row, variable=var, command=self._update_dirty).pack(side="left")
-            ttk.Label(row, text=info.dll, font=(FONT, 9, "bold"),
-                      background=CARD_BG, width=24, anchor="w").pack(side="left", padx=(2, 8))
-            ttk.Label(row, text=t(info.desc), style="SubTitle.TLabel", background=CARD_BG,
+            ttk.Label(row, text=info.dll, font=(theme.FONT, 9, "bold"),
+                      background=theme.CARD_BG, width=24, anchor="w").pack(side="left", padx=(2, 8))
+            ttk.Label(row, text=t(info.desc), style="SubTitle.TLabel", background=theme.CARD_BG,
                       width=26, anchor="w").pack(side="left")
             status = t("已启用") if info.enabled else t("未启用")
-            ttk.Label(row, text=status, foreground=OK if info.enabled else GRAY,
-                      background=CARD_BG, font=(FONT, 9, "bold")).pack(side="right", padx=8)
+            ttk.Label(row, text=status, foreground=theme.OK if info.enabled else theme.GRAY,
+                      background=theme.CARD_BG, font=(theme.FONT, 9, "bold")).pack(side="right", padx=8)
 
     def _render_online(self, infos: list[ext_mod.ExtInfo], rt: ext_mod.RuntimeInfo) -> None:
         self.online_tree.delete(*self.online_tree.get_children())
         installed_keys = {i.key for i in infos}
         enabled_keys = ext_mod.read_enabled_exts(self.version.ini)
         if not rt.series:
-            self.online_status.configure(text=t("无法探测 PHP 版本信息，在线安装不可用。"), foreground=ERR)
+            self.online_status.configure(text=t("无法探测 PHP 版本信息，在线安装不可用。"), foreground=theme.ERR)
         else:
             self.online_status.configure(
                 text=t("匹配目标：PHP {series} · {ts} · {arch} · {compiler}",

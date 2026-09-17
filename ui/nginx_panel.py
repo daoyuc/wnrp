@@ -7,7 +7,7 @@ from tkinter import messagebox, ttk
 
 from core.i18n import t
 from core.nginx_manager import NginxManager
-from .theme import ERR, FONT, GRAY, LOG_ACCENT, LOG_BG, LOG_FG, OK, PRIMARY_DARK, WARN
+from . import theme
 
 # 左侧信息卡：行 ID -> (显示标签 msgid, 占位)
 _INFO_ROWS = [("pid", "PID"), ("ver", "版本"), ("prefix", "前缀")]
@@ -36,22 +36,22 @@ class NginxPanel(ttk.Frame):
 
         card = ttk.LabelFrame(left, text=t("运行状态"), padding=14)
         card.pack(fill="x")
-        self.dot_label = ttk.Label(card, text="●", font=(FONT, 16, "bold"), foreground=GRAY)
+        self.dot_label = ttk.Label(card, text="●", font=(theme.FONT, 16, "bold"), foreground=theme.GRAY)
         self.dot_label.pack(anchor="w")
-        self.state_label = ttk.Label(card, text=t("检测中…"), font=(FONT, 12, "bold"),
-                                     foreground=PRIMARY_DARK)
+        self.state_label = ttk.Label(card, text=t("检测中…"), font=(theme.FONT, 12, "bold"),
+                                     foreground=theme.PRIMARY_DARK)
         self.state_label.pack(anchor="w", pady=(4, 8))
 
         info_grid = ttk.Frame(card)
         info_grid.pack(anchor="w")
         self.info_vars = {}
         for i, (rid, label) in enumerate(_INFO_ROWS):
-            ttk.Label(info_grid, text=f"{t(label)}：", font=(FONT, 9, "bold")).grid(
+            ttk.Label(info_grid, text=f"{t(label)}：", font=(theme.FONT, 9, "bold")).grid(
                 row=i, column=0, sticky="e", pady=2
             )
             var = tk.StringVar(value="—")
             self.info_vars[rid] = var
-            ttk.Label(info_grid, textvariable=var, font=(FONT, 9)).grid(
+            ttk.Label(info_grid, textvariable=var, font=(theme.FONT, 9)).grid(
                 row=i, column=1, sticky="w", padx=(6, 0), pady=2
             )
 
@@ -90,18 +90,18 @@ class NginxPanel(ttk.Frame):
         log_wrap = ttk.Frame(right)
         log_wrap.pack(fill="both", expand=True)
         self.log_text = tk.Text(
-            log_wrap, wrap="word", font=("Consolas", 9),
-            background=LOG_BG, foreground=LOG_FG,
+            log_wrap, wrap="word", font=theme.mono(),
+            background=theme.LOG_BG, foreground=theme.LOG_FG,
             relief="flat", padx=10, pady=8, state="disabled",
         )
         vsb = ttk.Scrollbar(log_wrap, orient="vertical", command=self.log_text.yview)
         self.log_text.configure(yscrollcommand=vsb.set)
         self.log_text.pack(side="left", fill="both", expand=True)
         vsb.pack(side="right", fill="y")
-        self.log_text.tag_configure("ok", foreground=OK)
-        self.log_text.tag_configure("err", foreground=ERR)
-        self.log_text.tag_configure("warn", foreground=WARN)
-        self.log_text.tag_configure("info", foreground=LOG_ACCENT)
+        self.log_text.tag_configure("ok", foreground=theme.OK)
+        self.log_text.tag_configure("err", foreground=theme.ERR)
+        self.log_text.tag_configure("warn", foreground=theme.WARN)
+        self.log_text.tag_configure("info", foreground=theme.LOG_ACCENT)
 
         self._append_log(t("== phpvm Nginx 管理器 =="), "info")
         self._append_log(f"{t('可执行文件')}：{self.nginx_mgr.exe}", "info")
@@ -140,12 +140,12 @@ class NginxPanel(ttk.Frame):
     def _render_status(self, running: bool, pids: list[int], version: str) -> None:
         self._running = running
         if running:
-            self.dot_label.configure(text="●", foreground=OK)
-            self.state_label.configure(text=t("运行中"), foreground=OK)
+            self.dot_label.configure(text="●", foreground=theme.OK)
+            self.state_label.configure(text=t("运行中"), foreground=theme.OK)
             self.info_vars["pid"].set(", ".join(map(str, pids)) if pids else "—")
         else:
-            self.dot_label.configure(text="○", foreground=GRAY)
-            self.state_label.configure(text=t("已停止"), foreground=GRAY)
+            self.dot_label.configure(text="○", foreground=theme.GRAY)
+            self.state_label.configure(text=t("已停止"), foreground=theme.GRAY)
             self.info_vars["pid"].set("—")
         self.info_vars["ver"].set(version)
         self.info_vars["prefix"].set(self.nginx_mgr.prefix)

@@ -14,10 +14,7 @@ from typing import Any
 from core import process_utils as pu
 from core.i18n import t
 from core.mysql_manager import MysqlInstance, MysqlManager, is_admin
-from .theme import (
-    CARD_BG, ERR, FONT, GRAY, LOG_ACCENT, LOG_BG, LOG_FG, OK,
-    PRIMARY, TEXT, TEXT_DIM, WARN,
-)
+from . import theme
 
 # 状态卡信息行：(内部键, 标签 msgid)
 _INFO_ROWS = [
@@ -65,10 +62,10 @@ class MysqlPanel(ttk.Frame):
     def _build(self) -> None:
         top = ttk.Frame(self)
         top.pack(fill="x", pady=(0, 6))
-        ttk.Label(top, text=t("MySQL 实例："), font=(FONT, 9, "bold")).pack(side="left")
+        ttk.Label(top, text=t("MySQL 实例："), font=(theme.FONT, 9, "bold")).pack(side="left")
         self.instance_var = tk.StringVar()
         self.instance_cb = ttk.Combobox(top, textvariable=self.instance_var,
-                                        state="readonly", width=20, font=(FONT, 9))
+                                        state="readonly", width=20, font=(theme.FONT, 9))
         self.instance_cb.pack(side="left", padx=(4, 10))
         self.instance_cb.bind("<<ComboboxSelected>>", lambda e: self.refresh_status())
         self.instance_cb["values"] = [i.name for i in self.mysql_mgr.instances]
@@ -86,10 +83,10 @@ class MysqlPanel(ttk.Frame):
         card.pack(fill="x")
         head = ttk.Frame(card)
         head.pack(fill="x")
-        self.dot_label = tk.Label(head, text="●", font=(FONT, 16, "bold"),
-                                  background=CARD_BG, foreground=GRAY)
+        self.dot_label = tk.Label(head, text="●", font=(theme.FONT, 16, "bold"),
+                                  background=theme.CARD_BG, foreground=theme.GRAY)
         self.dot_label.pack(side="left")
-        self.state_label = ttk.Label(head, text=t("检测中…"), font=(FONT, 10, "bold"))
+        self.state_label = ttk.Label(head, text=t("检测中…"), font=(theme.FONT, 10, "bold"))
         self.state_label.pack(side="left", padx=(8, 0))
 
         # 信息行用独立容器承载：避免与上方 head 的 pack 混用同一父容器
@@ -97,17 +94,17 @@ class MysqlPanel(ttk.Frame):
         grid_box.pack(fill="x", pady=(8, 0))
         self.info_vars = {}
         for i, (key, label) in enumerate(_INFO_ROWS):
-            ttk.Label(grid_box, text=f"{t(label)}：", font=(FONT, 9, "bold"),
-                      background=CARD_BG, width=10, anchor="w").grid(
+            ttk.Label(grid_box, text=f"{t(label)}：", font=(theme.FONT, 9, "bold"),
+                      background=theme.CARD_BG, width=10, anchor="w").grid(
                 row=i, column=0, sticky="w", pady=2)
             var = tk.StringVar(value="—")
             self.info_vars[key] = var
-            ttk.Label(grid_box, textvariable=var, font=(FONT, 9),
-                      background=CARD_BG, foreground=TEXT_DIM, wraplength=320,
+            ttk.Label(grid_box, textvariable=var, font=(theme.FONT, 9),
+                      background=theme.CARD_BG, foreground=theme.TEXT_DIM, wraplength=320,
                       justify="left").grid(row=i, column=1, sticky="w", pady=2)
 
         self.hint_label = ttk.Label(left, text="", style="SubTitle.TLabel",
-                                    wraplength=360, justify="left", foreground=WARN)
+                                    wraplength=360, justify="left", foreground=theme.WARN)
         self.hint_label.pack(anchor="w", pady=(8, 0))
 
         btns = ttk.Frame(left)
@@ -136,13 +133,13 @@ class MysqlPanel(ttk.Frame):
         right.pack(side="left", fill="both", expand=True)
         ttk.Label(right, text=t("操作与日志"), style="Section.TLabel").pack(anchor="w")
         self.log_text = tk.Text(
-            right, wrap="word", font=("Consolas", 9), background=LOG_BG,
-            foreground=LOG_FG, relief="flat", height=18, padx=8, pady=6,
+            right, wrap="word", font=theme.mono(), background=theme.LOG_BG,
+            foreground=theme.LOG_FG, relief="flat", height=18, padx=8, pady=6,
         )
         self.log_text.pack(fill="both", expand=True, pady=(4, 0))
-        self.log_text.tag_configure("ok", foreground=OK)
-        self.log_text.tag_configure("err", foreground=ERR)
-        self.log_text.tag_configure("info", foreground=LOG_ACCENT)
+        self.log_text.tag_configure("ok", foreground=theme.OK)
+        self.log_text.tag_configure("err", foreground=theme.ERR)
+        self.log_text.tag_configure("info", foreground=theme.LOG_ACCENT)
         self.log_text.configure(state="disabled")
 
     # ------------------------------------------------------------------ #
@@ -171,7 +168,7 @@ class MysqlPanel(ttk.Frame):
 
     def _render_status(self, payload) -> None:
         if payload is None:
-            self.dot_label.configure(foreground=GRAY)
+            self.dot_label.configure(foreground=theme.GRAY)
             self.state_label.configure(text=t("未发现 MySQL 实例"))
             for key, _ in _INFO_ROWS:
                 self.info_vars[key].set("—")
@@ -181,7 +178,7 @@ class MysqlPanel(ttk.Frame):
             self._set_ctrl(False)
             return
         inst, running, pids = payload
-        self.dot_label.configure(foreground=OK if running else GRAY)
+        self.dot_label.configure(foreground=theme.OK if running else theme.GRAY)
         self.state_label.configure(
             text=t("运行中") if running else t("已停止"))
         self.info_vars["version"].set(inst.version or "—")

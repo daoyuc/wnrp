@@ -1,0 +1,10 @@
+{
+ "外观": "Appearance",
+ "外观主题：": "Appearance:",
+ "外观已切换为{name}": "Appearance switched to {name}",
+ "外观已跟随系统切换为{name}": "Appearance now follows the system: {name}",
+ "深色": "Dark",
+ "深色/浅色切换立即生效；「跟随系统」会随系统外观自动切换。": "Light/dark switching applies immediately; \"Follow system\" updates with the system appearance.",
+ "浅色": "Light",
+ "跟随系统": "Follow system"
+}

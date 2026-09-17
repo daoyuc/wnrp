@@ -13,7 +13,7 @@ from core.health_monitor import KEY_EXTENSIONS
 from core.i18n import t
 from core.php_manager import PhpManager, PhpVersion
 from core.vhost_manager import VhostManager
-from .theme import CARD_BG, ERR, FONT, GRAY, OK, PRIMARY, PRIMARY_DARK, TEXT
+from . import theme
 from .window_utils import fit_window
 
 # 终端别名文案（Windows 的 cmd / macOS 的终端）
@@ -31,7 +31,7 @@ class PortDialog(tk.Toplevel):
 
         self.title(t("编辑端口 · {name}", name=version.name))
         self.resizable(False, False)
-        self.configure(bg=CARD_BG)
+        self.configure(bg=theme.CARD_BG)
         self.transient(master)
         self.grab_set()
 
@@ -46,9 +46,9 @@ class PortDialog(tk.Toplevel):
 
         row = ttk.Frame(body)
         row.pack(fill="x", pady=(14, 4))
-        ttk.Label(row, text=t("FastCGI 端口："), font=(FONT, 9, "bold"), background=CARD_BG).pack(side="left")
+        ttk.Label(row, text=t("FastCGI 端口："), font=(theme.FONT, 9, "bold"), background=theme.CARD_BG).pack(side="left")
         self.var = tk.StringVar(value=str(version.port))
-        entry = ttk.Entry(row, textvariable=self.var, width=10, font=(FONT, 11))
+        entry = ttk.Entry(row, textvariable=self.var, width=10, font=(theme.FONT, 11))
         entry.pack(side="left", padx=(8, 0))
         entry.focus_set()
         entry.select_range(0, "end")
@@ -130,7 +130,7 @@ class VhostSyncDialog(tk.Toplevel):
         self._file_domains: dict[str, str] = {}
 
         self.title(t("同步 vhost 端口 · {old} → {new}", old=old_port, new=new_port))
-        self.configure(bg=CARD_BG)
+        self.configure(bg=theme.CARD_BG)
         self.transient(master)
         self.grab_set()
 
@@ -159,14 +159,14 @@ class VhostSyncDialog(tk.Toplevel):
         self.tree.configure(yscrollcommand=vsb.set)
         self.tree.pack(side="left", fill="both", expand=True)
         vsb.pack(side="right", fill="y")
-        self.tree.tag_configure("ok", foreground=OK)
-        self.tree.tag_configure("err", foreground=ERR)
-        self.tree.tag_configure("wait", foreground=GRAY)
+        self.tree.tag_configure("ok", foreground=theme.OK)
+        self.tree.tag_configure("err", foreground=theme.ERR)
+        self.tree.tag_configure("wait", foreground=theme.GRAY)
 
         ttk.Label(self, text=t("nginx -t 校验输出："), style="SubTitle.TLabel").pack(anchor="w", padx=16)
         self.result_text = tk.Text(
-            self, height=7, wrap="char", font=("Consolas", 9),
-            background="#FFFFFF", foreground=TEXT, relief="flat", padx=8, pady=6, state="disabled",
+            self, height=7, wrap="char", font=theme.mono(),
+            background=theme.CARD_BG, foreground=theme.TEXT, relief="flat", padx=8, pady=6, state="disabled",
         )
         self.result_text.pack(fill="x", padx=16, pady=(2, 8))
 
@@ -341,7 +341,7 @@ class IniDialog(tk.Toplevel):
 
         self.title(t("PHP 配置 · {name} (PHP {display})",
                      name=version.name, display=version.display))
-        self.configure(bg=CARD_BG)
+        self.configure(bg=theme.CARD_BG)
         self.transient(master)
 
         header = ttk.Frame(self, padding=(14, 12, 14, 4))
@@ -384,8 +384,8 @@ class IniDialog(tk.Toplevel):
     def _build_ext_frame(self, master) -> ttk.Frame:
         frame = ttk.Frame(master, padding=10)
         text = tk.Text(
-            frame, wrap="char", font=("Consolas", 9),
-            background="#FFFFFF", foreground=TEXT, relief="flat", padx=8, pady=6,
+            frame, wrap="char", font=theme.mono(),
+            background=theme.CARD_BG, foreground=theme.TEXT, relief="flat", padx=8, pady=6,
         )
         vsb = ttk.Scrollbar(frame, orient="vertical", command=text.yview)
         text.configure(yscrollcommand=vsb.set)
@@ -404,8 +404,8 @@ class IniDialog(tk.Toplevel):
     def _build_full_frame(self, master) -> ttk.Frame:
         frame = ttk.Frame(master, padding=10)
         text = tk.Text(
-            frame, wrap="none", font=("Consolas", 9),
-            background="#1E1E1E", foreground="#C8C8C8", relief="flat", padx=8, pady=6,
+            frame, wrap="none", font=theme.mono(),
+            background=theme.LOG_BG, foreground=theme.LOG_FG, relief="flat", padx=8, pady=6,
         )
         hs = ttk.Scrollbar(frame, orient="horizontal", command=text.xview)
         vs = ttk.Scrollbar(frame, orient="vertical", command=text.yview)
@@ -451,7 +451,7 @@ class CliSwitchDialog(tk.Toplevel):
         self._effective = path_manager.get_effective_php_dir()
 
         self.title(t("切换 cmd php 命令版本") if IS_WIN else t("切换终端 php 命令版本"))
-        self.configure(bg=CARD_BG)
+        self.configure(bg=theme.CARD_BG)
         self.transient(master)
 
         header = ttk.Frame(self, padding=(16, 14, 16, 4))
@@ -482,9 +482,9 @@ class CliSwitchDialog(tk.Toplevel):
         self.tree.configure(yscrollcommand=vsb.set)
         self.tree.pack(side="left", fill="both", expand=True)
         vsb.pack(side="right", fill="y")
-        self.tree.tag_configure("dot_run", foreground=OK)
-        self.tree.tag_configure("dot_stop", foreground=GRAY)
-        self.tree.tag_configure("mark_now", foreground=OK)
+        self.tree.tag_configure("dot_run", foreground=theme.OK)
+        self.tree.tag_configure("dot_stop", foreground=theme.GRAY)
+        self.tree.tag_configure("mark_now", foreground=theme.OK)
         self.tree.bind("<Double-1>", lambda e: self._apply())
 
         btns = ttk.Frame(self, padding=(16, 0, 16, 14))
@@ -619,7 +619,7 @@ class CrashDialog(tk.Toplevel):
         self.events = events
         self.on_clear = on_clear
         self.title(t("php-cgi 崩溃事件"))
-        self.configure(bg=CARD_BG)
+        self.configure(bg=theme.CARD_BG)
         self.transient(master)
 
         if IS_WIN:
@@ -678,8 +678,8 @@ class CrashDialog(tk.Toplevel):
         detail_wrap = ttk.Frame(parent)
         detail_wrap.pack(fill="both", expand=True, pady=(4, 0))
         self.detail = tk.Text(detail_wrap, height=9, wrap="char",
-                              font=(("Menlo", 9) if not IS_WIN else ("Consolas", 9)),
-                              background="#FFFFFF", foreground=TEXT, relief="flat",
+                              font=theme.mono(),
+                              background=theme.CARD_BG, foreground=theme.TEXT, relief="flat",
                               padx=10, pady=8, state="disabled")
         dvsb = ttk.Scrollbar(detail_wrap, orient="vertical", command=self.detail.yview)
         self.detail.configure(yscrollcommand=dvsb.set)
@@ -714,8 +714,8 @@ class CrashDialog(tk.Toplevel):
         self.rec_tree.configure(yscrollcommand=rvsb.set)
         self.rec_tree.pack(side="left", fill="both", expand=True)
         rvsb.pack(side="right", fill="y")
-        self.rec_tree.tag_configure("fail", foreground=ERR)
-        self.rec_tree.tag_configure("ok", foreground=OK)
+        self.rec_tree.tag_configure("fail", foreground=theme.ERR)
+        self.rec_tree.tag_configure("ok", foreground=theme.OK)
 
         rows = recover_history.load()
         if not rows:
@@ -769,7 +769,7 @@ class SelfCheckDialog(tk.Toplevel):
 
         self.title(t("版本自检 · {name} (PHP {display})",
                      name=version.name, display=version.display))
-        self.configure(bg=CARD_BG)
+        self.configure(bg=theme.CARD_BG)
         self.transient(master)
 
         header = ttk.Frame(self, padding=(16, 14, 16, 4))
@@ -792,8 +792,8 @@ class SelfCheckDialog(tk.Toplevel):
         self.tree.configure(yscrollcommand=vsb.set)
         self.tree.pack(side="left", fill="both", expand=True)
         vsb.pack(side="right", fill="y")
-        self.tree.tag_configure("ok", foreground=OK)
-        self.tree.tag_configure("err", foreground=ERR)
+        self.tree.tag_configure("ok", foreground=theme.OK)
+        self.tree.tag_configure("err", foreground=theme.ERR)
 
         btns = ttk.Frame(self, padding=(16, 0, 16, 14))
         # 先于内容区分配空间（side=bottom）：窗口被压小时按钮仍优先可见
@@ -840,7 +840,7 @@ class SelfCheckDialog(tk.Toplevel):
                    tail=t("，有缺失") if ext_ng else "")
         )
         if not result["ok"]:
-            self.state_label.configure(foreground=ERR)
+            self.state_label.configure(foreground=theme.ERR)
 
     def _center(self, master) -> None:
         """按屏幕可用工作区收敛尺寸并定位，保证底部（右下角）按钮始终可见。"""
@@ -862,7 +862,7 @@ class IniEditDialog(tk.Toplevel):
         self._vars: dict[str, tk.Variable] = {}
 
         self.title(t("编辑配置 · {name}", name=version.name))
-        self.configure(bg=CARD_BG)
+        self.configure(bg=theme.CARD_BG)
         self.transient(master)
 
         header = ttk.Frame(self, padding=(16, 14, 16, 4))
@@ -877,7 +877,7 @@ class IniEditDialog(tk.Toplevel):
 
         wrap = ttk.Frame(self)
         wrap.pack(fill="both", expand=True, padx=16, pady=10)
-        canvas = tk.Canvas(wrap, background=CARD_BG, highlightthickness=0)
+        canvas = tk.Canvas(wrap, background=theme.CARD_BG, highlightthickness=0)
         vsb = ttk.Scrollbar(wrap, orient="vertical", command=canvas.yview)
         canvas.configure(yscrollcommand=vsb.set)
         inner = ttk.Frame(canvas)
@@ -903,8 +903,8 @@ class IniEditDialog(tk.Toplevel):
         for i, meta in enumerate(ini_editor.INI_ITEMS_META):
             row = ttk.Frame(self._form)
             row.pack(fill="x", pady=4, padx=8)
-            ttk.Label(row, text=meta["key"], font=(FONT, 9, "bold"),
-                      background=CARD_BG, width=24, anchor="w").grid(
+            ttk.Label(row, text=meta["key"], font=(theme.FONT, 9, "bold"),
+                      background=theme.CARD_BG, width=24, anchor="w").grid(
                 row=0, column=0, sticky="w")
             var = tk.StringVar(value=current.get(meta["key"], ""))
             self._vars[meta["key"]] = var
@@ -917,7 +917,7 @@ class IniEditDialog(tk.Toplevel):
                 entry = ttk.Entry(row, textvariable=var, width=32)
                 entry.grid(row=0, column=1, sticky="w")
             ttk.Label(row, text=t(meta.get("hint", "")), style="SubTitle.TLabel",
-                      background=CARD_BG).grid(row=0, column=2, sticky="w", padx=(8, 0))
+                      background=theme.CARD_BG).grid(row=0, column=2, sticky="w", padx=(8, 0))
 
     def _save(self) -> None:
         from core import ini_editor

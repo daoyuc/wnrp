@@ -19,7 +19,7 @@ from tkinter import filedialog, messagebox, ttk
 
 from core.i18n import t
 from core.sqlite_manager import QUERY_LIMIT, SqliteManager, format_value, quote_ident
-from .theme import CARD_BG, ERR, FONT, OK, TEXT, TEXT_DIM
+from . import theme
 
 
 class SqlitePanel(ttk.Frame):
@@ -62,7 +62,7 @@ class SqlitePanel(ttk.Frame):
                                    command=lambda: self._goto_page(1))
         self.btn_next.pack(side="right", padx=(0, 6))
         self.state_label = ttk.Label(bar, text=t("未选择数据库文件。"),
-                                     foreground=TEXT_DIM, font=(FONT, 8))
+                                     foreground=theme.TEXT_DIM, font=(theme.FONT, 8))
         self.state_label.pack(side="left")
 
         # 顶部：数据库文件选择
@@ -84,7 +84,7 @@ class SqlitePanel(ttk.Frame):
             self,
             text=t("提示：只读查询模式，仅支持 SELECT / PRAGMA / EXPLAIN / WITH 等语句；"
                    "双击左侧表名可生成查询语句。"),
-            foreground=TEXT_DIM, font=(FONT, 8), wraplength=900, justify="left",
+            foreground=theme.TEXT_DIM, font=(theme.FONT, 8), wraplength=900, justify="left",
         ).pack(anchor="w", pady=(0, 6))
 
         main = ttk.Frame(self)
@@ -112,8 +112,8 @@ class SqlitePanel(ttk.Frame):
 
         self.schema_box = ttk.LabelFrame(left, text=t("结构"), padding=6)
         self.schema_box.pack(fill="both", expand=True, pady=(6, 0))
-        self.schema_info = ttk.Label(self.schema_box, text="", foreground=TEXT_DIM,
-                                     font=(FONT, 8))
+        self.schema_info = ttk.Label(self.schema_box, text="", foreground=theme.TEXT_DIM,
+                                     font=(theme.FONT, 8))
         self.schema_info.pack(anchor="w", pady=(0, 4))
         self.schema_tree = ttk.Treeview(
             self.schema_box, columns=("col", "type", "key", "dflt"),
@@ -139,9 +139,9 @@ class SqlitePanel(ttk.Frame):
 
         sql_box = ttk.LabelFrame(right, text=t("SQL 查询"), padding=6)
         sql_box.pack(fill="x")
-        self.sql_text = tk.Text(sql_box, height=5, wrap="none", font=("Consolas", 9),
-                                background=CARD_BG, foreground=TEXT, relief="flat",
-                                padx=8, pady=6, insertbackground=TEXT)
+        self.sql_text = tk.Text(sql_box, height=5, wrap="none", font=theme.mono(),
+                                background=theme.CARD_BG, foreground=theme.TEXT, relief="flat",
+                                padx=8, pady=6, insertbackground=theme.TEXT)
         ssvb = ttk.Scrollbar(sql_box, orient="vertical", command=self.sql_text.yview)
         self.sql_text.configure(yscrollcommand=ssvb.set)
         self.sql_text.pack(side="left", fill="both", expand=True)
@@ -190,7 +190,7 @@ class SqlitePanel(ttk.Frame):
             return
         target = (path if path is not None else self.file_var.get()).strip()
         if not target:
-            self._set_state(t("未选择数据库文件。"), ERR)
+            self._set_state(t("未选择数据库文件。"), theme.ERR)
             return
         self._set_state(t("正在打开…"))
 
@@ -205,7 +205,7 @@ class SqlitePanel(ttk.Frame):
         self.mgr.close()
         self._render_tables([])
         self._clear_result()
-        self._set_state(t("已关闭数据库"), TEXT_DIM)
+        self._set_state(t("已关闭数据库"), theme.TEXT_DIM)
 
     def _browse(self) -> None:
         path = filedialog.askopenfilename(
@@ -249,7 +249,7 @@ class SqlitePanel(ttk.Frame):
             return
         sql = self.sql_text.get("1.0", "end").strip()
         if not sql:
-            self._set_state(t("请输入 SQL 语句后执行"), ERR)
+            self._set_state(t("请输入 SQL 语句后执行"), theme.ERR)
             return
         self._last_sql = sql
         self._offset = 0
@@ -300,7 +300,7 @@ class SqlitePanel(ttk.Frame):
         except OSError as e:
             messagebox.showerror(t("导出失败"), str(e), parent=self)
             return
-        self._set_state(t("已导出 {n} 行到 {path}", n=len(rows), path=path), OK)
+        self._set_state(t("已导出 {n} 行到 {path}", n=len(rows), path=path), theme.OK)
         self.notify(t("已导出 CSV：{path}", path=path))
 
     def _exec_shortcut(self) -> str:
@@ -313,9 +313,9 @@ class SqlitePanel(ttk.Frame):
         self._clear_result()
         self._render_schema([], None)
         if self.mgr.is_open:
-            self._set_state(t("已打开：{path}", path=self.mgr.path), TEXT_DIM)
+            self._set_state(t("已打开：{path}", path=self.mgr.path), theme.TEXT_DIM)
         else:
-            self._set_state(t("未选择数据库文件。"), TEXT_DIM)
+            self._set_state(t("未选择数据库文件。"), theme.TEXT_DIM)
 
     # ------------------------------------------------------------------ #
     # 后台任务与渲染
@@ -365,7 +365,7 @@ class SqlitePanel(ttk.Frame):
         self._busy = busy
         self.btn_exec.configure(state="disabled" if busy else "normal")
 
-    def _set_state(self, text: str, color: str = TEXT_DIM) -> None:
+    def _set_state(self, text: str, color: str = theme.TEXT_DIM) -> None:
         self.state_label.configure(text=text, foreground=color)
 
     # ---- 渲染 ----
@@ -378,9 +378,9 @@ class SqlitePanel(ttk.Frame):
         elif paths:
             self.file_var.set(paths[0])
         if not paths:
-            self._set_state(t("未发现数据库文件（点击「浏览…」选择其它文件）"), TEXT_DIM)
+            self._set_state(t("未发现数据库文件（点击「浏览…」选择其它文件）"), theme.TEXT_DIM)
         else:
-            self._set_state(t("已发现 {n} 个数据库文件", n=len(paths)), TEXT_DIM)
+            self._set_state(t("已发现 {n} 个数据库文件", n=len(paths)), theme.TEXT_DIM)
         if self._pending_open:
             path, self._pending_open = self._pending_open, ""
             if os.path.isfile(path):
@@ -392,7 +392,7 @@ class SqlitePanel(ttk.Frame):
         self.file_var.set(path)
         self._render_tables(tables)
         self._clear_result()
-        self._set_state(t("已打开：{path}", path=path), OK)
+        self._set_state(t("已打开：{path}", path=path), theme.OK)
         self.notify(t("已打开：{path}", path=path))
 
     def _on_schema(self, payload) -> None:
@@ -404,19 +404,19 @@ class SqlitePanel(ttk.Frame):
         self._has_more = bool(res.truncated)
         self._update_pager()
         if not res.columns:
-            self._set_state(t("无结果"), TEXT_DIM)
+            self._set_state(t("无结果"), theme.TEXT_DIM)
             return
         ms = f"{res.elapsed:.0f}"
         page = self._offset // QUERY_LIMIT + 1
         if res.truncated:
             self._set_state(
                 t("第 {page} 页 · 本页 {n} 行 · 耗时 {ms} ms（还有下一页）",
-                  page=page, n=len(res.rows), ms=ms), OK)
+                  page=page, n=len(res.rows), ms=ms), theme.OK)
         else:
             self._set_state(
                 t("第 {page} 页 · 共 {n} 行 · 耗时 {ms} ms{more}",
                   page=page, n=len(res.rows), ms=ms,
-                  more="" if self._offset == 0 else t("（已翻页）")), OK)
+                  more="" if self._offset == 0 else t("（已翻页）")), theme.OK)
 
     def _update_pager(self) -> None:
         """按当前 offset 与是否还有下一页刷新翻页按钮可用性。"""
@@ -438,7 +438,7 @@ class SqlitePanel(ttk.Frame):
                 for iid in self.result_tree.get_children()]
 
     def _on_error(self, msg: str) -> None:
-        self._set_state(msg, ERR)
+        self._set_state(msg, theme.ERR)
         self.notify(msg)
 
     def _render_tables(self, tables: list) -> None:
