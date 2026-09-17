@@ -944,6 +944,8 @@ class IniEditDialog(tk.Toplevel):
         self._poll_save()
 
     def _poll_save(self) -> None:
+        if not self.winfo_exists():  # 窗口已关闭：停止轮询
+            return
         try:
             kind, payload = self._queue.get_nowait()
         except queue.Empty:

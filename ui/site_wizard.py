@@ -495,6 +495,8 @@ class SiteWizardDialog(tk.Toplevel):
         self._poll()
 
     def _poll(self) -> None:
+        if not self.winfo_exists():  # 窗口已关闭：停止轮询
+            return
         try:
             kind, payload = self._queue.get_nowait()
         except queue.Empty:
@@ -695,7 +697,8 @@ class SiteWizardDialog(tk.Toplevel):
             steps.append(("file", self._step_create_file(content)))
             steps.append(("inc", self._step_ensure_include()))
             steps.append(("test", self._step_test_config()))
-            test_payload = steps[2][1]
+            # 按名字取结果：启用 HTTPS 时前面多一步 cert，固定下标会取错步骤
+            test_payload = next((s[1] for s in steps if s[0] == "test"), {})
             if test_payload.get("ok"):
                 if snapshot["hosts_wanted"]:
                     steps.append(("hosts", self._step_hosts(snapshot["domains"])))
