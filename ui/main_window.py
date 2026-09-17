@@ -222,6 +222,9 @@ class MainWindow(tk.Tk):
         # 页签：按模块开关构建（停用的模块不实例化、不导入其面板代码）
         nb = ttk.Notebook(self)
         nb.pack(fill="both", expand=True, padx=12, pady=(0, 6))
+        self.notebook = nb
+        # 切回某个页签时立即补一次刷新（不可见页签的自动刷新是暂停的）
+        nb.bind("<<NotebookTabChanged>>", lambda e: self._refresh_panels())
         self.php_panel = PhpPanel(nb, self.php_mgr, self.config, self.set_log)
         self.nginx_panel = NginxPanel(nb, self.nginx_mgr, self.set_log,
                                       on_new_site=self._open_site_wizard)
@@ -595,8 +598,8 @@ class MainWindow(tk.Tk):
             self._refresh_cli()
             # 跟随系统外观时，探测系统是否切了浅色/深色
             self._check_system_theme()
-            # MySQL 状态查询涉及服务枚举，同样降频
-            if self.mysql_panel is not None:
+            # MySQL 状态查询涉及服务枚举，同样降频（且只在页签可见时）
+            if self.mysql_panel is not None and self._panel_visible(self.mysql_panel):
                 try:
                     self.mysql_panel.auto_refresh()
                 except Exception:  # noqa: BLE001
@@ -744,17 +747,27 @@ class MainWindow(tk.Tk):
         self.focus_force()
         self._refresh_panels()
 
-    def _refresh_panels(self) -> None:
-        """刷新已启用的面板（停用的模块不刷新、不触碰其代码）。"""
+    def _panel_visible(self, panel) -> bool:
+        """面板是否可见（notebook 非当前页 / 窗口最小化时 widget 未映射）。"""
         try:
-            self.php_panel.auto_refresh()
-            self.nginx_panel.auto_refresh()
-            if self.redis_panel is not None:
-                self.redis_panel.auto_refresh()
-            if self.log_panel is not None:
-                self.log_panel.auto_refresh()
+            return bool(panel.winfo_ismapped())
         except Exception:  # noqa: BLE001
-            pass
+            return False
+
+    def _refresh_panels(self) -> None:
+        """刷新已启用的面板（停用的模块不刷新、不触碰其代码）。
+
+        只刷新当前可见的页签：不可见面板的状态扫描纯属白跑子进程/线程，
+        切回时由 <<NotebookTabChanged>> 立即补一次，不会看到陈旧数据。
+        """
+        for panel in (self.php_panel, self.nginx_panel,
+                      self.redis_panel, self.log_panel):
+            if panel is None or not self._panel_visible(panel):
+                continue
+            try:
+                panel.auto_refresh()
+            except Exception:  # noqa: BLE001
+                pass
 
     # ------------------------------------------------------------------ #
     # 托盘动态菜单：PHP 版本 + Nginx + Redis + MySQL 快捷启停
