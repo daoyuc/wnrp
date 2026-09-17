@@ -139,13 +139,25 @@
 - **功能模块**：勾选需要加载的模块（默认全部启用），取消勾选后**重启 phpvm 生效**，该模块的代码将不再加载（例如取消「SQLite 数据库」后不会创建该页签，也不会导入其管理器）
   - 可停用：Redis 管理 / MySQL 管理 / SQLite 数据库 / Nginx 日志
   - 刚需（不可取消）：PHP 版本管理 / Nginx 管理 / 站点映射
-- **设置区**（6 项）：
+- **设置区**（7 项）：
   - 开机自动启动 phpvm（Windows 写 `HKCU\...\Run` 的 `phpvm` 值；macOS 写 LaunchAgent `com.phpvm.app`）
   - php-cgi 崩溃自愈开关（默认关闭），注明「防抖 60 秒、每版本每小时最多 3 次」
   - 界面语言下拉（简体中文 / 繁體中文 / English / 日本語 / 한국어），点「应用」后**重启 phpvm 生效**
+  - 外观主题下拉（浅色 / 深色 / 跟随系统），点「应用」**立即生效**，无需重启
   - 软件更新：显示当前版本，「检查更新」打开更新窗口，「打开下载缓存目录」，以及**启动时自动检查更新**勾选（默认开启；发现新版本仅状态栏提示，不弹窗打扰）
   - 服务编排：「全部启动」「全部停止」两个按钮（关于页与托盘菜单均可操作，后台执行并逐项汇总结果）
   - 开机自动启动全部服务（登录时静默启动 Nginx + 各 PHP + Redis + MySQL，写入用户「启动」目录；**仅 Windows**，无需管理员）
+
+### 外观主题（浅色 / 深色 / 跟随系统）
+- 两种内置调色板：`light`（`#F5F5F5` 底 + `#2B579A` 主色）与 `dark`（`#1E1F22` 底 + `#4C8DFF` 主色），外加 `system` = 跟随系统外观
+- 切换入口：菜单栏「外观」与关于页「外观主题」下拉；**切换立即生效**（重建 ttk 样式 + 递归刷新已打开窗口的原生控件颜色，Canvas 自绘与 Treeview 标记色由各面板的 `refresh_theme()` 钩子重画）
+- 「跟随系统」按平台探测：macOS 读 `defaults read -g AppleInterfaceStyle`，Windows 读注册表 `AppsUseLightTheme`，Linux 读 `gsettings` / `GTK_THEME`；启动后每约 32 秒探测一次，系统切换外观时自动跟随
+- 持久化在 `config.json` 的 `settings.theme`（`light` / `dark` / `system`，默认 `system`），CLI 亦可读写：
+  ```bash
+  python3 cli.py config set settings.theme dark
+  python3 cli.py config get settings.theme
+  ```
+- 实现分层：`core/theme.py` 只有调色板与系统探测（不 import tkinter，CLI/后台线程可用）；`ui/theme.py` 负责 ttk 样式与热切换。界面代码一律写角色名（`theme.CARD_BG` / `theme.TEXT` / `theme.mono()`），**不再硬编码色值与字体**
 
 ### 界面语言（i18n）
 - 全部界面文案经 `t()` 翻译，内置 **5 种语言**：简体中文（源码原文，无词条表）、繁體中文、English、日本語、한국어
@@ -283,6 +295,7 @@ python3 cli.py sqlite query /path/database.sqlite "select * from users limit 5" 
 - `settings.auto_recover_limit`：自愈限次（每版本每 3600 秒最多 N 次，默认 3）
 - `settings.lang`：界面语言（空=跟随系统），`settings.sqlite_last_db`：上次打开的 SQLite 库，`settings.disabled_modules`：已停用的可选模块
 - `settings.check_update_on_start`：启动时静默检查新版本（默认 true），`settings.skipped_version`：被「跳过此版本」的版本号
+- `settings.theme`：外观主题 `light` / `dark` / `system`（默认 `system`，跟随系统外观；GUI 切换立即生效）
 - 文件损坏或 JSON 解析失败时回退内置默认值并覆盖保存（未知键会被丢弃）
 
 ## 目录结构
@@ -308,6 +321,7 @@ C:\wnrp\phpvm\
 │   ├── app_paths.py       # 可写数据目录判定（包目录只读时自动改用 ~/.phpvm）
 │   ├── config.py          # 配置加载/保存/端口校验 + 环境根 / brew 前缀推导
 │   ├── i18n.py            # t() 翻译与语言检测/切换（settings.lang）
+│   ├── theme.py           # 外观主题：调色板（light/dark）+ 系统深浅色探测（settings.theme，无 GUI 依赖）
 │   ├── process_utils.py   # 批量快照 API（Win: GetExtendedTcpTable/EnumProcesses；posix: lsof/ps）+ 启停/命令执行
 │   ├── php_manager.py     # 版本扫描/解析/启停/状态（三重校验）+ 批量状态刷新（含 brew keg）
 │   ├── php_downloader.py  # php.net / PECL 下载与安全解压（架构/编译器探测、SHA-256）
@@ -333,7 +347,8 @@ C:\wnrp\phpvm\
 │   ├── autostart.py       # 开机自启（Win HKCU Run / mac LaunchAgent）
 │   └── updater.py         # 自动升级：检查 GitHub Releases / 下载 / SHA-256 校验 / 替换安装
 └── ui/                    # 界面层
-    ├── main_window.py     # 主窗口（七页签 + 菜单栏语言/帮助 + 状态栏 + 崩溃告警/自愈 + 设置区）
+    ├── theme.py           # 界面主题：当前调色板（动态属性）+ ttk 样式 + 热切换（各面板 refresh_theme 钩子）
+    ├── main_window.py     # 主窗口（七页签 + 菜单栏外观/语言/帮助 + 状态栏 + 崩溃告警/自愈 + 设置区）
     ├── php_panel.py       # PHP 版本管理页（启停/端口/ini/自检/扩展/下载新版本）
     ├── nginx_panel.py     # Nginx 管理页（含新建站点向导入口）
     ├── redis_panel.py     # Redis 管理页（状态/日志 + 命令执行 + DB 键空间图表）

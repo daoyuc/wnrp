@@ -18,7 +18,7 @@ from core.php_manager import PhpManager, PhpVersion, PortConflictError
 from .dialogs import IniDialog, IniEditDialog, PortDialog, SelfCheckDialog
 from .download_dialog import DownloadDialog
 from .extension_dialog import ExtensionDialog
-from .theme import CARD_BG, ERR, FONT, GRAY, OK, PRIMARY, TEXT
+from . import theme
 
 COLUMNS = [
     ("status", t("状态"), 70, "center"),
@@ -92,17 +92,25 @@ class PhpPanel(ttk.Frame):
         self.tree.pack(side="left", fill="both", expand=True)
         vsb.pack(side="right", fill="y")
 
-        self.tree.tag_configure("dot_run", foreground=OK)
-        self.tree.tag_configure("dot_stop", foreground=GRAY)
-        self.tree.tag_configure("dot_err", foreground=ERR)
-        self.tree.tag_configure("odd", background="#FAFBFC")
-        self.tree.tag_configure("even", background=CARD_BG)
+        self.tree.tag_configure("dot_run", foreground=theme.OK)
+        self.tree.tag_configure("dot_stop", foreground=theme.GRAY)
+        self.tree.tag_configure("dot_err", foreground=theme.ERR)
+        self.tree.tag_configure("odd", background=theme.ROW_ALT)
+        self.tree.tag_configure("even", background=theme.CARD_BG)
         self.tree.bind("<Double-1>", lambda e: self._view_ini())
         self.tree.bind("<<TreeviewSelect>>", lambda e: self._update_buttons())
 
     # ------------------------------------------------------------------ #
     # 数据加载 / 渲染
     # ------------------------------------------------------------------ #
+    def refresh_theme(self) -> None:
+        """主题切换钩子：重设 Treeview 标记色（ttk 不会自动刷新 tag 配色）。"""
+        self.tree.tag_configure("dot_run", foreground=theme.OK)
+        self.tree.tag_configure("dot_stop", foreground=theme.GRAY)
+        self.tree.tag_configure("dot_err", foreground=theme.ERR)
+        self.tree.tag_configure("odd", background=theme.ROW_ALT)
+        self.tree.tag_configure("even", background=theme.CARD_BG)
+
     def refresh_versions(self) -> None:
         """全量扫描 + 版本解析 + 状态刷新（后台线程）。"""
         if self._busy:

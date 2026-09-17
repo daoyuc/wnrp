@@ -9,6 +9,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 from core import app_paths, autostart, crash_watchdog, path_manager, updater
+from core import theme as theme_prefs
 from core.config import Config, IS_WIN, WNRP_ROOT
 from core.i18n import LANGS, t
 from core.health_monitor import HealthMonitor
@@ -26,7 +27,7 @@ from .nginx_panel import NginxPanel
 from .php_panel import PhpPanel
 from .redis_panel import RedisPanel
 from .site_wizard import SiteWizardDialog
-from .theme import BG, CARD_BG, ERR, FONT, GRAY, OK, PRIMARY, PRIMARY_LIGHT, TEXT, setup_style
+from . import theme
 from .update_dialog import UpdateBanner, UpdateDialog
 from .vhost_panel import VhostPanel
 from .window_utils import fit_window
@@ -35,6 +36,13 @@ APP_TITLE = t("phpvm · PHP 版本管理器")
 WNRP_ROOT_SHOW = WNRP_ROOT
 CLI_PREFIX = "CMD php" if IS_WIN else t("终端 php")
 CRASH_POLL_TICKS = 8  # 崩溃检测频率 ≈ 8 × 8s = 64s 一次（仅告警展示用）
+# 外观模式顺序（与下拉框/菜单一致）：浅色 / 深色 / 跟随系统
+THEME_MODES = (theme_prefs.LIGHT, theme_prefs.DARK, theme_prefs.SYSTEM)
+
+
+def theme_label(mode: str) -> str:
+    """外观模式的展示名（经 i18n 翻译）。"""
+    return t(theme_prefs.MODE_LABELS.get(theme_prefs.normalize(mode), "跟随系统"))
 
 
 class MainWindow(tk.Tk):
@@ -52,8 +60,10 @@ class MainWindow(tk.Tk):
         self.services = ServiceGroup(php_mgr, nginx_mgr, redis_mgr, mysql_mgr)
 
         self.title(APP_TITLE)
-        self.configure(bg=BG)
-        setup_style(self)
+        # 主题：先按配置（默认跟随系统）载入调色板，再建样式与界面
+        theme.set_mode(theme_prefs.get_mode(self.config))
+        self.configure(bg=theme.BG)
+        theme.setup_style(self)
         self._build_menubar()
 
         self._log_var = tk.StringVar(value=t("就绪"))
@@ -82,8 +92,17 @@ class MainWindow(tk.Tk):
 
     # ------------------------------------------------------------------ #
     def _build_menubar(self) -> None:
-        """顶部菜单栏：目前提供界面语言切换（重启后生效）。"""
+        """顶部菜单栏：外观主题（立即生效）+ 界面语言（重启后生效）。"""
         menubar = tk.Menu(self)
+        # 外观：浅色 / 深色 / 跟随系统 —— 切换后立即重刷整个界面
+        theme_menu = tk.Menu(menubar, tearoff=0)
+        self._theme_var = tk.StringVar(value=theme_prefs.get_mode(self.config))
+        for mode in THEME_MODES:
+            theme_menu.add_radiobutton(
+                label=theme_label(mode), value=mode, variable=self._theme_var,
+                command=lambda m=mode: self._on_theme_selected(m),
+            )
+        menubar.add_cascade(label=t("外观"), menu=theme_menu)
         lang_menu = tk.Menu(menubar, tearoff=0)
         self._lang_var = tk.StringVar(value=self.config.get_lang())
         for code, name in LANGS.items():
@@ -99,6 +118,46 @@ class MainWindow(tk.Tk):
         # 注意：实例属性 self.config 是 Config 对象（覆盖了 tk 的 .config 别名），
         # 这里必须用 .configure 才能给根窗口挂上菜单栏。
         self.configure(menu=menubar)
+
+    # ------------------------------------------------------------------ #
+    # 外观主题
+    # ------------------------------------------------------------------ #
+    def _on_theme_selected(self, mode: str) -> None:
+        """切换外观：写入配置并立即应用到主窗口与所有已打开的对话框。"""
+        mode = theme_prefs.normalize(mode)
+        self._theme_var.set(mode)
+        if mode != theme_prefs.get_mode(self.config):
+            theme_prefs.set_mode(self.config, mode)
+        theme.apply_mode(self, mode)
+        self._sync_theme_box()
+        self.set_log(t("外观已切换为{name}", name=theme_label(mode)))
+
+    def _sync_theme_box(self) -> None:
+        """关于页的主题下拉与当前模式保持一致。"""
+        box = getattr(self, "_theme_box", None)
+        if box is None:
+            return
+        mode = theme_prefs.get_mode(self.config)
+        if mode in THEME_MODES:
+            box.current(THEME_MODES.index(mode))
+
+    def _apply_theme_box(self) -> None:
+        """关于页下拉：应用所选外观（与菜单等效）。"""
+        idx = self._theme_box.current()
+        if 0 <= idx < len(THEME_MODES):
+            self._on_theme_selected(THEME_MODES[idx])
+
+    def _check_system_theme(self) -> None:
+        """「跟随系统」时：系统外观变化后自动重刷主题（低频探测）。"""
+        if theme_prefs.get_mode(self.config) != theme_prefs.SYSTEM:
+            return
+        dark = theme_prefs.system_prefers_dark()
+        if dark is None:
+            return
+        want = theme_prefs.DARK if dark else theme_prefs.LIGHT
+        if want != theme.current_mode():
+            theme.apply_mode(self, theme_prefs.SYSTEM)
+            self.set_log(t("外观已跟随系统切换为{name}", name=theme_label(want)))
 
     def _on_lang_selected(self, code: str) -> None:
         """保存语言选择；界面文本在重启后切换，因此仅提示。"""
@@ -120,16 +179,16 @@ class MainWindow(tk.Tk):
             side="left", fill="x", expand=True, padx=10, pady=4
         )
         self._alert_label = tk.Label(
-            bar, text="", font=(FONT, 9, "bold"), foreground=ERR,
-            background=PRIMARY_LIGHT, cursor="hand2",
+            bar, text="", font=(theme.FONT, 9, "bold"), foreground=theme.ERR,
+            background=theme.PRIMARY_LIGHT, cursor="hand2",
         )
         self._alert_label.pack(side="right", padx=10, pady=4)
         self._alert_label.bind("<Button-1>", lambda e: self._show_crash_detail())
 
         # 新版本提示（点击打开更新对话框）
         self._update_label = tk.Label(
-            bar, text="", font=(FONT, 8, "bold"), foreground=PRIMARY,
-            background=PRIMARY_LIGHT, cursor="hand2",
+            bar, text="", font=(theme.FONT, 8, "bold"), foreground=theme.PRIMARY,
+            background=theme.PRIMARY_LIGHT, cursor="hand2",
         )
         self._update_label.pack(side="right", padx=(0, 4), pady=4)
         self._update_label.bind("<Button-1>", lambda e: self.open_update_dialog())
@@ -149,12 +208,12 @@ class MainWindow(tk.Tk):
         cli_box = ttk.Frame(header)
         cli_box.pack(side="right", padx=16, pady=10)
         self.cli_dot = tk.Label(
-            cli_box, text="●", font=(FONT, 12), background=CARD_BG, foreground=GRAY
+            cli_box, text="●", font=(theme.FONT, 12), background=theme.CARD_BG, foreground=theme.GRAY
         )
         self.cli_dot.pack(side="left", padx=(0, 6))
         self.cli_label = tk.Label(
             cli_box, text=t("{prefix}：检测中…", prefix=CLI_PREFIX),
-            font=(FONT, 9, "bold"), background=CARD_BG, foreground=TEXT,
+            font=(theme.FONT, 9, "bold"), background=theme.CARD_BG, foreground=theme.TEXT,
         )
         self.cli_label.pack(side="left", padx=(0, 10))
         self.btn_cli = ttk.Button(cli_box, text=t("切换"), command=self._open_cli_switch)
@@ -224,10 +283,10 @@ class MainWindow(tk.Tk):
         if IS_WIN:
             rows.insert(5, (t("隐藏启动器"), os.path.join(WNRP_ROOT, "RunHiddenConsole.exe")))
         for i, (k, v) in enumerate(rows):
-            ttk.Label(info, text=f"{k}：", font=(FONT, 9, "bold"), background=CARD_BG).grid(
+            ttk.Label(info, text=f"{k}：", font=(theme.FONT, 9, "bold"), background=theme.CARD_BG).grid(
                 row=i, column=0, sticky="w", padx=(8, 4), pady=3
             )
-            ttk.Label(info, text=v, font=(FONT, 9), background=CARD_BG).grid(
+            ttk.Label(info, text=v, font=(theme.FONT, 9), background=theme.CARD_BG).grid(
                 row=i, column=1, sticky="w", pady=3
             )
 
@@ -287,8 +346,8 @@ class MainWindow(tk.Tk):
         ).pack(anchor="w", pady=(4, 0))
         lang_row = ttk.Frame(settings)
         lang_row.pack(anchor="w", pady=(8, 0))
-        ttk.Label(lang_row, text=t("界面语言："), font=(FONT, 9, "bold"),
-                  background=CARD_BG).pack(side="left")
+        ttk.Label(lang_row, text=t("界面语言："), font=(theme.FONT, 9, "bold"),
+                  background=theme.CARD_BG).pack(side="left")
         self._lang_box = ttk.Combobox(
             lang_row, state="readonly", width=16,
             values=[f"{name}（{code}）" for code, name in LANGS.items()],
@@ -299,13 +358,33 @@ class MainWindow(tk.Tk):
             side="left", padx=(8, 0)
         )
 
+        # 外观主题：浅色 / 深色 / 跟随系统（立即生效，无需重启）
+        theme_row = ttk.Frame(settings)
+        theme_row.pack(anchor="w", pady=(8, 0))
+        ttk.Label(theme_row, text=t("外观主题："), font=(theme.FONT, 9, "bold"),
+                  style="Card.TLabel").pack(side="left")
+        self._theme_box = ttk.Combobox(
+            theme_row, state="readonly", width=16,
+            values=[theme_label(m) for m in THEME_MODES],
+        )
+        self._theme_box.pack(side="left", padx=(4, 0))
+        self._sync_theme_box()
+        ttk.Button(theme_row, text=t("应用"), command=self._apply_theme_box).pack(
+            side="left", padx=(8, 0)
+        )
+        ttk.Label(
+            settings,
+            text=t("深色/浅色切换立即生效；「跟随系统」会随系统外观自动切换。"),
+            style="SubTitle.TLabel",
+        ).pack(anchor="w", pady=(4, 0))
+
         # 软件更新：版本显示 + 手动检查 + 启动自动检查开关
         upd_row = ttk.Frame(settings)
         upd_row.pack(anchor="w", pady=(10, 0))
-        ttk.Label(upd_row, text=t("软件更新："), font=(FONT, 9, "bold"),
-                  background=CARD_BG).pack(side="left")
+        ttk.Label(upd_row, text=t("软件更新："), font=(theme.FONT, 9, "bold"),
+                  background=theme.CARD_BG).pack(side="left")
         ttk.Label(upd_row, text=t("当前版本 {ver}", ver=f"v{updater.current_version()}"),
-                  background=CARD_BG).pack(side="left", padx=(4, 10))
+                  background=theme.CARD_BG).pack(side="left", padx=(4, 10))
         ttk.Button(upd_row, text=t("检查更新"),
                    command=self.open_update_dialog).pack(side="left")
         ttk.Button(upd_row, text=t("打开下载缓存目录"),
@@ -322,8 +401,8 @@ class MainWindow(tk.Tk):
         # 服务编排：一键启停整套环境
         group_row = ttk.Frame(settings)
         group_row.pack(anchor="w", pady=(10, 0), fill="x")
-        ttk.Label(group_row, text=t("服务编排："), font=(FONT, 9, "bold"),
-                  background=CARD_BG).pack(side="left")
+        ttk.Label(group_row, text=t("服务编排："), font=(theme.FONT, 9, "bold"),
+                  background=theme.CARD_BG).pack(side="left")
         ttk.Button(group_row, text=t("全部启动"), style="Accent.TButton",
                    command=lambda: self._all_services("start")).pack(side="left", padx=(4, 6))
         ttk.Button(group_row, text=t("全部停止"), style="Danger.TButton",
@@ -496,10 +575,10 @@ class MainWindow(tk.Tk):
             return
         name, version = info.get("name"), info.get("version")
         if not name:
-            self.cli_dot.configure(foreground=GRAY)
+            self.cli_dot.configure(foreground=theme.GRAY)
             self.cli_label.configure(text=t("{prefix}：未启用 wnrp 版本", prefix=CLI_PREFIX))
             return
-        running_fg = OK if version != t("未知") else ERR
+        running_fg = theme.OK if version != t("未知") else theme.ERR
         self.cli_dot.configure(foreground=running_fg)
         self.cli_label.configure(
             text=t("{prefix}：{name} · PHP {version}",
@@ -512,6 +591,8 @@ class MainWindow(tk.Tk):
         self._tick_count = getattr(self, "_tick_count", 0) + 1
         if self._tick_count % 4 == 0:
             self._refresh_cli()
+            # 跟随系统外观时，探测系统是否切了浅色/深色
+            self._check_system_theme()
             # MySQL 状态查询涉及服务枚举，同样降频
             if self.mysql_panel is not None:
                 try:
@@ -874,8 +955,8 @@ class MainWindow(tk.Tk):
         dlg.resizable(False, False)
         dlg.transient(self)
         dlg.grab_set()
-        dlg.configure(bg=BG)
-        setup_style(dlg)
+        dlg.configure(bg=theme.BG)
+        theme.setup_style(dlg)
 
         def choose(action: str) -> None:
             dlg.destroy()

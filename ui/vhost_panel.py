@@ -16,7 +16,7 @@ from core import hosts_manager, process_utils as pu
 from core.i18n import t
 from core.vhost_manager import VhostEntry, VhostManager
 from .site_wizard import SiteWizardDialog
-from .theme import CARD_BG, ERR, GRAY, OK, TEXT, WARN
+from . import theme
 
 COLUMNS = [
     ("server_name", t("域名"), 230, "w"),
@@ -64,11 +64,11 @@ class VhostPanel(ttk.Frame):
         ).pack(side="left", padx=(4, 0))
 
         # 生效 nginx.conf 是否 include 站点目录：自动检测状态行
-        self._inc_wrap = tk.Frame(self, bg=CARD_BG)
+        self._inc_wrap = tk.Frame(self, bg=theme.CARD_BG)
         self._inc_wrap.pack(fill="x", pady=(0, 6))
         self._inc_label = tk.Label(
             self._inc_wrap, anchor="w", justify="left", wraplength=760,
-            font=("", 10), bg=CARD_BG, fg=TEXT,
+            font=("", 10), bg=theme.CARD_BG, fg=theme.TEXT,
         )
         self._inc_label.pack(side="left", fill="x", expand=True, padx=6, pady=4)
         self._btn_fix_inc = ttk.Button(
@@ -90,11 +90,11 @@ class VhostPanel(ttk.Frame):
         self.tree.pack(side="left", fill="both", expand=True)
         vsb.pack(side="right", fill="y")
 
-        self.tree.tag_configure("ok", foreground=TEXT)
-        self.tree.tag_configure("warn", foreground=ERR)
-        self.tree.tag_configure("disabled", foreground=GRAY)
-        self.tree.tag_configure("odd", background="#FAFBFC")
-        self.tree.tag_configure("even", background=CARD_BG)
+        self.tree.tag_configure("ok", foreground=theme.TEXT)
+        self.tree.tag_configure("warn", foreground=theme.ERR)
+        self.tree.tag_configure("disabled", foreground=theme.GRAY)
+        self.tree.tag_configure("odd", background=theme.ROW_ALT)
+        self.tree.tag_configure("even", background=theme.CARD_BG)
         self.tree.bind("<Double-1>", lambda e: self._open_config())
         # 右键菜单（Windows/Linux 为 Button-3，macOS 触控板为 Button-2）
         self.tree.bind("<Button-3>", self._show_menu)
@@ -103,6 +103,14 @@ class VhostPanel(ttk.Frame):
         self._php_menu = tk.Menu(self._menu, tearoff=0)
 
     # ------------------------------------------------------------------ #
+    def refresh_theme(self) -> None:
+        """主题切换钩子：重设 Treeview 标记色（ttk 不会自动刷新 tag 配色）。"""
+        self.tree.tag_configure("ok", foreground=theme.TEXT)
+        self.tree.tag_configure("warn", foreground=theme.ERR)
+        self.tree.tag_configure("disabled", foreground=theme.GRAY)
+        self.tree.tag_configure("odd", background=theme.ROW_ALT)
+        self.tree.tag_configure("even", background=theme.CARD_BG)
+
     def refresh(self) -> None:
         if self._busy:
             return
@@ -354,21 +362,21 @@ class VhostPanel(ttk.Frame):
         self._inc_status = st
         self._btn_fix_inc.pack_forget()
         if st is None:
-            self._inc_label.configure(fg=GRAY, text=t("正在检测站点目录加载状态…"))
+            self._inc_label.configure(fg=theme.GRAY, text=t("正在检测站点目录加载状态…"))
             return
         main = st.get("main_conf") or ""
         lines = "、".join(st.get("lines") or []) or t("（无）")
         if st.get("covered"):
             self._inc_label.configure(
-                fg=OK,
+                fg=theme.OK,
                 text=t("{mark} 生效主配置已 include 站点目录 {dir}\n{main}  → include：{lines}",
                        mark=_OK_MARK, dir=st["vhost_dir"], main=main, lines=lines),
             )
         elif not os.path.exists(main):
-            self._inc_label.configure(fg=WARN, text=f"{_WARN_MARK} {st['reason']}")
+            self._inc_label.configure(fg=theme.WARN, text=f"{_WARN_MARK} {st['reason']}")
         else:
             self._inc_label.configure(
-                fg=ERR,
+                fg=theme.ERR,
                 text=t("{mark} 站点目录未被 nginx 加载，新建/修改站点不会生效！\n{reason}",
                        mark=_WARN_MARK, reason=st["reason"]),
             )
