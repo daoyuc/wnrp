@@ -10,6 +10,7 @@ import socket
 import sys
 import tempfile
 import time
+import traceback
 
 # 保证无论从哪个目录启动都能正确导入包
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -28,18 +29,22 @@ _RESTART_RETRY_DELAY = 0.1
 def _start_all_services() -> None:
     """无界面启动整套服务（Nginx + 各 PHP + Redis + MySQL）。
 
-    供「开机自动启动服务」写入的启动脚本调用；结果追加到
-    autostart_services.log，便于排查登录时未起来的服务。
+    供「开机自动启动服务」写入的启动脚本调用；每项的成败由 ServiceGroup
+    写入全局运行日志（core.run_log），结果同时追加到 autostart_services.log，
+    便于排查登录时未起来的服务。
     """
-    from core import app_paths
+    from core import app_paths, run_log
     from core.config import Config
     from core import modules
+    from core.i18n import t
     from core.mysql_manager import MysqlManager
     from core.nginx_manager import NginxManager
     from core.php_manager import PhpManager
     from core.redis_manager import RedisManager
     from core.service_group import ServiceGroup
 
+    run_log.info("app", t("开机自启：开始启动全部服务"))
+    cfg = Config()
     # 按模块开关决定是否实例化：停用的模块不加载其 manager（重启后生效）
     redis_mgr = RedisManager() if modules.is_enabled("redis", cfg) else None
     mysql_mgr = MysqlManager() if modules.is_enabled("mysql", cfg) else None
@@ -48,12 +53,30 @@ def _start_all_services() -> None:
         msg = group.start_all()
     except Exception as e:  # noqa: BLE001
         msg = f"{type(e).__name__}: {e}"
+        run_log.error("app", t("开机自启启动服务失败：{msg}", msg=msg))
     log = app_paths.data_file("autostart_services.log")
     try:
         with open(log, "a", encoding="utf-8") as f:
             f.write(f"\n[{time.strftime('%Y-%m-%d %H:%M:%S')}] --start-all\n{msg}\n")
     except OSError:
         pass
+
+
+def _install_excepthook() -> None:
+    """未捕获异常：写运行日志后仍走默认打印（终端/日志都能看到 traceback）。"""
+
+    def hook(exc_type, exc, tb) -> None:
+        from core import run_log
+        from core.i18n import t
+
+        try:
+            run_log.error("app", t("未捕获异常：{name}：{msg}",
+                                   name=exc_type.__name__, msg=exc))
+        except Exception:  # noqa: BLE001
+            pass
+        traceback.print_exception(exc_type, exc, tb)
+
+    sys.excepthook = hook
 
 
 def _is_restart() -> bool:
@@ -127,7 +150,19 @@ def _release_posix_lock() -> None:
         pass
 
 
+def _log_second_instance() -> None:
+    """已有实例在运行、本次启动直接退出：记一条日志，便于排查「点了没反应」。"""
+    try:
+        from core import run_log
+        from core.i18n import t
+
+        run_log.warn("app", t("phpvm 已在运行，本次启动已退出"))
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def main() -> None:
+    _install_excepthook()
     handle = None
     if sys.platform.startswith("win"):
         import ctypes
@@ -139,6 +174,7 @@ def main() -> None:
                 from core.i18n import set_language, t
 
                 set_language(Config().get_lang())
+                _log_second_instance()
                 ctypes.windll.user32.MessageBoxW(
                     None,
                     t("phpvm 已经在运行中，请查看任务栏或系统托盘。"),
@@ -153,22 +189,26 @@ def main() -> None:
                 if handle is not None:
                     break
             if handle is None:
+                _log_second_instance()
                 return
     else:
         if not _acquire_posix_lock():
             if _is_restart():
                 # 重启拉起：旧实例退出释放 socket 锁有竞态，短暂重试
                 if not _restart_retry(_acquire_posix_lock):
+                    _log_second_instance()
                     return
             else:
+                _log_second_instance()
                 return
 
+    from core import run_log, updater
     from core.config import Config
 
     config = Config()
 
     # 国际化：按配置/系统 locale 设定界面语言（须先于任何界面文本创建/模块级翻译常量）
-    from core.i18n import set_language
+    from core.i18n import set_language, t
 
     set_language(config.get_lang())
 
@@ -181,6 +221,10 @@ def main() -> None:
     from core.nginx_manager import NginxManager
     from core.php_manager import PhpManager
     from ui.main_window import MainWindow
+
+    run_log.info("app", t("phpvm {ver} 启动（{platform} · 语言 {lang}）",
+                          ver=updater.current_version(), platform=sys.platform,
+                          lang=config.get_lang()))
 
     # 停用的模块不实例化、不加载其面板代码（见 core/modules.py）
     redis_mgr = None
@@ -203,6 +247,7 @@ def main() -> None:
 
             ctypes.windll.kernel32.ReleaseMutex(handle)
         _release_posix_lock()
+        run_log.info("app", t("phpvm 已退出"))
 
 
 if __name__ == "__main__":

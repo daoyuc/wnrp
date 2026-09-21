@@ -8,7 +8,7 @@ import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-from core import app_paths, autostart, crash_watchdog, path_manager, updater
+from core import app_paths, autostart, crash_watchdog, path_manager, run_log, updater
 from core import theme as theme_prefs
 from core.config import Config, IS_WIN, WNRP_ROOT
 from core.i18n import LANGS, t
@@ -26,6 +26,7 @@ from .nginx_log_panel import NginxLogPanel
 from .nginx_panel import NginxPanel
 from .php_panel import PhpPanel
 from .redis_panel import RedisPanel
+from .run_log_panel import RunLogPanel
 from .site_wizard import SiteWizardDialog
 from . import theme
 from .update_dialog import UpdateBanner, UpdateDialog
@@ -70,6 +71,7 @@ class MainWindow(tk.Tk):
         self._cli_queue: queue.Queue = queue.Queue()
         self._crash_queue: queue.Queue = queue.Queue()
         self._tray_queue: queue.Queue = queue.Queue()
+        self._tray_draining = False  # 托盘结果队列的唯一消费者是否已启动
         self.health = HealthMonitor()
         self._crash_alert_active = False
         self._crash_tick = 0
@@ -89,6 +91,11 @@ class MainWindow(tk.Tk):
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         # 点最小化按钮 → 直接隐藏到系统托盘（恢复：托盘菜单/双击「显示 phpvm」）
         self.bind("<Unmap>", self._on_unmap)
+        # 运行日志：启动快照 + 托盘/操作结果队列的唯一消费者
+        self._log_startup_snapshot()
+        self._start_tray_drain()
+        # 「启动时自动启动全部服务」开启时延迟调起（结果写入运行日志）
+        self.after(1200, self._maybe_start_services_on_launch)
 
     # ------------------------------------------------------------------ #
     def _build_menubar(self) -> None:
@@ -260,6 +267,9 @@ class MainWindow(tk.Tk):
             nb.add(self.sqlite_panel, text=f"  {t('SQLite 数据库')}  ")
         if self.log_panel is not None:
             nb.add(self.log_panel, text=f"  {t('Nginx 日志')}  ")
+        # 运行日志：全局记录（应用启停 / 服务启停结果 / 异常），不受模块开关影响
+        self.run_panel = RunLogPanel(nb, self.set_log)
+        nb.add(self.run_panel, text=f"  {t('运行日志')}  ")
         nb.add(about, text=f"  {t('关于')}  ")
 
     def _build_about(self, master) -> ttk.Frame:
@@ -337,6 +347,13 @@ class MainWindow(tk.Tk):
                 text=t("该能力当前仅支持 Windows（写入用户「启动」目录）。"),
                 style="SubTitle.TLabel",
             ).pack(anchor="w", pady=(0, 6))
+        # 启动 phpvm 时自动启动整套服务（跨平台；结果写入「运行日志」页签）
+        self._svc_launch_var = tk.BooleanVar(
+            value=bool(self.config.get_setting("start_services_on_launch", False)))
+        ttk.Checkbutton(
+            settings, text=t("启动 phpvm 时自动启动全部服务（PHP / Redis / MySQL / Nginx）"),
+            variable=self._svc_launch_var, command=self._toggle_service_launch,
+        ).pack(anchor="w", pady=(0, 6))
         self._recover_var = tk.BooleanVar(value=bool(self.config.get_setting("auto_recover_crash", False)))
         ttk.Checkbutton(
             settings, text=t("php-cgi 崩溃后自动重启（自愈，默认关闭）"),
@@ -468,8 +485,63 @@ class MainWindow(tk.Tk):
                      else t("启动时自动检查更新已关闭"))
 
     # ------------------------------------------------------------------ #
-    def set_log(self, msg: str) -> None:
+    def set_log(self, msg: str, level: str = "info") -> None:
+        """状态栏消息；同时写入全局运行日志（「运行日志」页签可查历史）。"""
         self._log_var.set(msg)
+        run_log.log(level, "ui", msg)
+
+    def report_callback_exception(self, exc, val, tb) -> None:
+        """Tk 回调内的未捕获异常：写运行日志（默认只打印到 stderr，容易被漏看）。"""
+        run_log.error("ui", t("界面回调异常：{name}：{msg}", name=exc.__name__, msg=val))
+        super().report_callback_exception(exc, val, tb)
+
+    def _log_startup_snapshot(self) -> None:
+        """启动快照写入运行日志，便于事后对照「当时是什么环境、哪些开关开着」。"""
+        mods = [t(str(m["name"])) for m in modules.MODULES
+                if modules.is_enabled(str(m["key"]), self.config)]
+
+        def state(value: bool) -> str:
+            return t("已开启") if value else t("已关闭")
+
+        run_log.info("env", t("数据目录：{dir}", dir=app_paths.data_dir()))
+        run_log.info("env", t("界面语言：{lang} · 外观主题：{theme}",
+                              lang=self.config.get_lang(),
+                              theme=theme_label(theme_prefs.get_mode(self.config))))
+        run_log.info("env", t("已启用模块：{mods}", mods="、".join(mods) or t("无")))
+        run_log.info("env", t(
+            "开机自启 phpvm：{a} · 开机自启服务：{b} · 崩溃自愈：{c} · 启动时自动启动服务：{d}",
+            a=state(autostart.is_enabled()),
+            b=state(autostart.services_enabled()),
+            c=state(bool(self.config.get_setting("auto_recover_crash", False))),
+            d=state(bool(self.config.get_setting("start_services_on_launch", False)))))
+
+    def _toggle_service_launch(self) -> None:
+        """「启动 phpvm 时自动启动全部服务」开关（下次启动生效）。"""
+        enabled = self._svc_launch_var.get()
+        self.config.set_setting("start_services_on_launch", enabled)
+        self.set_log(t("启动时自动启动全部服务已开启（下次启动生效）") if enabled
+                     else t("启动时自动启动全部服务已关闭"))
+
+    def _maybe_start_services_on_launch(self) -> None:
+        """设置里开启「启动时自动启动全部服务」时调起整套服务。
+
+        逐项成败由 ServiceGroup 写入运行日志（core.run_log），此处只记录开始/异常。
+        """
+        if not self.config.get_setting("start_services_on_launch", False):
+            return
+        run_log.info("app", t("启动时自动启动全部服务：开始"))
+        self.set_log(t("正在启动全部服务…"))
+
+        def worker():
+            try:
+                msg = self.services.start_all()
+            except Exception as e:  # noqa: BLE001
+                msg = f"{type(e).__name__}：{e}"
+                run_log.error("app", t("启动时自动启动全部服务失败：{msg}", msg=msg))
+            self._tray_queue.put((msg, "info"))
+
+        threading.Thread(target=worker, daemon=True).start()
+        self._start_tray_drain()
 
     def _all_services(self, action: str) -> None:
         """一键启停整套服务（Nginx + 各 PHP + Redis + MySQL），后台执行。"""
@@ -488,10 +560,13 @@ class MainWindow(tk.Tk):
                        else self.services.stop_all())
             except Exception as e:  # noqa: BLE001
                 msg = f"{type(e).__name__}：{e}"
-            self._tray_queue.put(msg)
+                run_log.error("services", t("{title}失败：{msg}", title=title, msg=msg))
+                self._tray_queue.put((msg, "error"))
+                return
+            self._tray_queue.put((msg, "info"))
 
         threading.Thread(target=worker, daemon=True).start()
-        self._poll_tray_queue()
+        self._start_tray_drain()
 
     def _open_site_wizard(self) -> None:
         """打开「新建站点」向导（Nginx 管理页入口），完成后刷新站点映射列表。"""
@@ -548,6 +623,10 @@ class MainWindow(tk.Tk):
 
             def spawn():
                 ok, msg = crash_watchdog.spawn()
+                if ok:
+                    run_log.ok("recover", msg)
+                else:
+                    run_log.error("recover", t("自愈守护异常：{msg}", msg=msg))
                 self._crash_queue.put(("wd", msg if ok else t("自愈守护异常：{msg}", msg=msg)))
 
             threading.Thread(target=spawn, daemon=True).start()
@@ -679,6 +758,8 @@ class MainWindow(tk.Tk):
         summary = self._crash_summary(events)
         self._alert_label.configure(text=t("⚠ php-cgi 崩溃 {n} 次，点击查看", n=n))
         self.set_log(t("检测到 php-cgi 崩溃（{n} 次），详见状态栏告警", n=n))
+        run_log.error("crash", t("检测到 php-cgi 崩溃（{n} 次）：\n{detail}",
+                                 n=n, detail=summary))
         if self._tray is not None:
             try:
                 self._tray.show_balloon(t("php-cgi 崩溃告警"), summary)
@@ -921,6 +1002,7 @@ class MainWindow(tk.Tk):
             mgr, call_arg = self.php_mgr, target
 
         def worker():
+            level = "info"
             try:
                 if call_arg is None:
                     msg = getattr(mgr, action)()
@@ -928,6 +1010,7 @@ class MainWindow(tk.Tk):
                     msg = getattr(mgr, action)(call_arg)
             except Exception as e:  # noqa: BLE001
                 msg = t("{name}：{text}", name=type(e).__name__, text=str(e))
+                level = "error"
             # 手动停止 → 解除守护看护；启动/重启 → 纳入守护看护
             if not isinstance(target, str):
                 try:
@@ -938,27 +1021,44 @@ class MainWindow(tk.Tk):
                         crash_watchdog.watch_version(target.name)
                 except Exception:  # noqa: BLE001
                     pass
-            self._tray_queue.put(msg)
+            self._tray_queue.put((msg, level))
 
         threading.Thread(target=worker, daemon=True).start()
-        self._poll_tray_queue()
+        self._start_tray_drain()
 
-    def _poll_tray_queue(self) -> None:
+    def _start_tray_drain(self) -> None:
+        """启动托盘/操作结果队列的唯一消费者（幂等）。
+
+        此前每次操作都新起一个 ``_poll_tray_queue`` 循环，多个循环并存会
+        互相吞消息 —— 统一收敛到常驻 drain，与各面板的队列规范一致。
+        """
+        if self._tray_draining:
+            return
+        self._tray_draining = True
+        self.after(100, self._drain_tray)
+
+    def _drain_tray(self) -> None:
         if not self.winfo_exists():  # 窗口已销毁：停止轮询
+            self._tray_draining = False
             return
+        got = False
         try:
-            msg = self._tray_queue.get_nowait()
+            while True:
+                item = self._tray_queue.get_nowait()
+                msg, level = item if isinstance(item, tuple) else (item, "info")
+                self.set_log(msg, level)
+                if self._tray is not None:
+                    try:
+                        self._tray.show_balloon("phpvm", str(msg)[:200])
+                    except Exception:  # noqa: BLE001
+                        pass
+                got = True
         except queue.Empty:
-            self.after(100, self._poll_tray_queue)
-            return
-        self.set_log(msg)
-        if self._tray is not None:
-            try:
-                self._tray.show_balloon("phpvm", msg[:200])
-            except Exception:  # noqa: BLE001
-                pass
-        # 操作完成 → 立即刷新各面板状态
-        self._refresh_panels()
+            pass
+        if got:
+            # 操作完成 → 立即刷新各面板状态
+            self._refresh_panels()
+        self.after(100, self._drain_tray)
 
     def _on_close(self) -> None:
         """点击关闭按钮：弹「重启 / 退出」选择框。
@@ -1037,13 +1137,16 @@ class MainWindow(tk.Tk):
         try:
             subprocess.Popen([exe, script], env=env)
         except OSError as e:
+            run_log.error("app", t("无法启动新进程：{msg}", msg=e))
             messagebox.showerror(
                 t("重启"), t("无法启动新进程：{msg}", msg=e), parent=self
             )
             return
+        run_log.info("app", t("正在重启 phpvm（拉起新进程后退出当前实例）"))
         self._real_quit()
 
     def _real_quit(self) -> None:
+        run_log.info("app", t("用户退出 phpvm"))
         if self._tray:
             self._tray.remove()
             self._tray = None

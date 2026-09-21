@@ -36,7 +36,7 @@ python3 cli.py env --json      # 环境快照：nginx、PHP 版本与端口、Re
 - **写 hosts 必须显式 `--hosts`**（会触发系统授权弹窗，无 TTY 时可能失败）。
 - **不要编辑 `ui/` 下代码来做自动化**；也不要在脚本里 import `ui/*`（会拉起 tkinter）。
 - 所有写入自动备份 `.bak`；`nginx -t` 失败会自动回滚并置 `rolled_back: true`。
-- 不要提交运行期文件：`config.json`、`recover_history.json`、`crash_watchdog.*`、`updates/`、`dist/`。
+- 不要提交运行期文件：`config.json`、`recover_history.json`、`crash_watchdog.*`、`run_log.log*`、`updates/`、`dist/`。
 
 ## 常用流程
 

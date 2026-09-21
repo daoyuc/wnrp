@@ -12,6 +12,7 @@ __pycache__/
 
 # 本地运行时文件
 *.log
+run_log.log*
 recover_history.json
 
 # 崩溃自愈守护进程运行时状态

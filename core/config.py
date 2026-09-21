@@ -60,6 +60,7 @@ DEFAULT_SETTINGS = {
     "check_update_on_start": True,  # 启动时静默检查新版本（发现后仅状态栏提示）
     "skipped_version": "",          # 用户点过「跳过此版本」的版本号，启动检查不再提示
     "theme": "system",              # 界面主题：light / dark / system（跟随系统外观，见 core/theme.py）
+    "start_services_on_launch": False,  # 启动 phpvm 时自动启动全部服务（结果见「运行日志」页签）
 }
 
 
