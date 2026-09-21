@@ -54,6 +54,7 @@ EXCLUDE_NAMES = {
     "__pycache__", ".DS_Store", ".gitignore", ".git", ".codebuddy",
     "_keys.json", "config.json", "crash_watchdog.json", "crash_watchdog.lock",
     "crash_watchdog.log", "recover_history.json", "autostart_services.log",
+    "run_log.log", "run_log.log.1",
     "phpvm.ico", "phpvm.icns", "build", "dist",
 }
 

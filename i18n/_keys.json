@@ -820,13 +820,31 @@
    "ui/main_window.py"
   ]
  },
+ "phpvm {ver} 启动（{platform} · 语言 {lang}）": {
+  "count": 1,
+  "files": [
+   "main.py"
+  ]
+ },
  "phpvm · PHP 版本管理器": {
   "count": 1,
   "files": [
    "ui/main_window.py"
   ]
  },
+ "phpvm 已在运行，本次启动已退出": {
+  "count": 1,
+  "files": [
+   "main.py"
+  ]
+ },
  "phpvm 已经在运行中，请查看任务栏或系统托盘。": {
+  "count": 1,
+  "files": [
+   "main.py"
+  ]
+ },
+ "phpvm 已退出": {
   "count": 1,
   "files": [
    "main.py"
@@ -1003,6 +1021,12 @@
   ]
  },
  "{time} {ver}{app} 异常码 {code}": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "{title}失败：{msg}": {
   "count": 1,
   "files": [
    "ui/main_window.py"
@@ -1328,7 +1352,7 @@
   ]
  },
  "修复失败": {
-  "count": 2,
+  "count": 1,
   "files": [
    "ui/vhost_panel.py"
   ]
@@ -1372,15 +1396,51 @@
   ]
  },
  "停止 Nginx": {
+  "count": 2,
+  "files": [
+   "ui/nginx_panel.py"
+  ]
+ },
+ "停止 Nginx 后本机全部站点将不可访问，确定继续？": {
   "count": 1,
   "files": [
    "ui/nginx_panel.py"
   ]
  },
+ "停止 PHP": {
+  "count": 1,
+  "files": [
+   "ui/php_panel.py"
+  ]
+ },
  "停止 Redis": {
+  "count": 2,
+  "files": [
+   "ui/redis_panel.py"
+  ]
+ },
+ "停止 Redis 后依赖缓存/会话的站点可能异常，确定继续？": {
   "count": 1,
   "files": [
    "ui/redis_panel.py"
+  ]
+ },
+ "停止 [{name}] 后使用该版本的站点会无法访问（502），确定继续？": {
+  "count": 1,
+  "files": [
+   "ui/php_panel.py"
+  ]
+ },
+ "停止失败": {
+  "count": 1,
+  "files": [
+   "core/service_group.py"
+  ]
+ },
+ "停止成功": {
+  "count": 1,
+  "files": [
+   "core/service_group.py"
   ]
  },
  "停止服务 {svc} 未见效：{msg}": {
@@ -1449,6 +1509,12 @@
    "ui/download_dialog.py"
   ]
  },
+ "共 {n} 条": {
+  "count": 1,
+  "files": [
+   "ui/run_log_panel.py"
+  ]
+ },
  "共 {total} 个 key · 最后统计 {ts} · 点击图表可刷新": {
   "count": 1,
   "files": [
@@ -1499,6 +1565,12 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "内容": {
+  "count": 1,
+  "files": [
+   "ui/run_log_panel.py"
   ]
  },
  "内部错误：{err}": {
@@ -1652,11 +1724,12 @@
   ]
  },
  "刷新": {
-  "count": 6,
+  "count": 7,
   "files": [
    "ui/nginx_log_panel.py",
    "ui/php_panel.py",
    "ui/redis_panel.py",
+   "ui/run_log_panel.py",
    "ui/sqlite_panel.py",
    "ui/vhost_panel.py"
   ]
@@ -1952,6 +2025,18 @@
    "core/mysql_manager.py"
   ]
  },
+ "启动 phpvm 时自动启动全部服务（PHP / Redis / MySQL / Nginx）": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "启动失败": {
+  "count": 1,
+  "files": [
+   "core/service_group.py"
+  ]
+ },
  "启动守护进程失败：{err}": {
   "count": 1,
   "files": [
@@ -1962,6 +2047,36 @@
   "count": 1,
   "files": [
    "core/crash_watchdog.py"
+  ]
+ },
+ "启动成功": {
+  "count": 1,
+  "files": [
+   "core/service_group.py"
+  ]
+ },
+ "启动时自动启动全部服务失败：{msg}": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "启动时自动启动全部服务已关闭": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "启动时自动启动全部服务已开启（下次启动生效）": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "启动时自动启动全部服务：开始": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
   ]
  },
  "启动时自动检查更新已关闭": {
@@ -2096,6 +2211,36 @@
   "count": 1,
   "files": [
    "core/vhost_manager.py"
+  ]
+ },
+ "复制": {
+  "count": 1,
+  "files": [
+   "ui/run_log_panel.py"
+  ]
+ },
+ "外观": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "外观主题：": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "外观已切换为{name}": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "外观已跟随系统切换为{name}": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
   ]
  },
  "大小": {
@@ -2241,10 +2386,29 @@
    "ui/sqlite_panel.py"
   ]
  },
- "导出失败": {
+ "导出…": {
   "count": 1,
   "files": [
+   "ui/run_log_panel.py"
+  ]
+ },
+ "导出失败": {
+  "count": 2,
+  "files": [
+   "ui/run_log_panel.py",
    "ui/sqlite_panel.py"
+  ]
+ },
+ "导出失败：{msg}": {
+  "count": 1,
+  "files": [
+   "ui/run_log_panel.py"
+  ]
+ },
+ "导出日志": {
+  "count": 1,
+  "files": [
+   "ui/run_log_panel.py"
   ]
  },
  "将从 hosts 的 phpvm 托管块中移除：{doms}\n（不会改动用户手写的其它映射）确定继续？": {
@@ -2407,6 +2571,12 @@
    "core/mysql_manager.py"
   ]
  },
+ "已关闭": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
  "已关闭开机启动全部服务": {
   "count": 1,
   "files": [
@@ -2498,6 +2668,12 @@
    "ui/dialogs.py"
   ]
  },
+ "已启用模块：{mods}": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
  "已在浏览器打开 {url}": {
   "count": 1,
   "files": [
@@ -2515,6 +2691,12 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "已复制到剪贴板": {
+  "count": 1,
+  "files": [
+   "ui/run_log_panel.py"
   ]
  },
  "已存在证书，直接复用：{path}": {
@@ -2547,10 +2729,22 @@
    "ui/sqlite_panel.py"
   ]
  },
+ "已导出到 {path}": {
+  "count": 1,
+  "files": [
+   "ui/run_log_panel.py"
+  ]
+ },
  "已将 {name} 的 PHP 端口改为 {port}，备份保留于 .bak": {
   "count": 1,
   "files": [
    "core/vhost_manager.py"
+  ]
+ },
+ "已开启": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
   ]
  },
  "已开启开机启动全部服务": {
@@ -2740,7 +2934,7 @@
   ]
  },
  "应用": {
-  "count": 1,
+  "count": 2,
   "files": [
    "ui/main_window.py"
   ]
@@ -2787,6 +2981,18 @@
    "ui/main_window.py"
   ]
  },
+ "开机自启 phpvm：{a} · 开机自启服务：{b} · 崩溃自愈：{c} · 启动时自动启动服务：{d}": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "开机自启启动服务失败：{msg}": {
+  "count": 1,
+  "files": [
+   "main.py"
+  ]
+ },
  "开机自启已关闭": {
   "count": 1,
   "files": [
@@ -2797,6 +3003,12 @@
   "count": 1,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "开机自启：开始启动全部服务": {
+  "count": 1,
+  "files": [
+   "main.py"
   ]
  },
  "异常": {
@@ -2904,8 +3116,9 @@
   ]
  },
  "所有文件": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "ui/run_log_panel.py",
    "ui/sqlite_panel.py"
   ]
  },
@@ -2956,6 +3169,12 @@
   "count": 1,
   "files": [
    "ui/mysql_panel.py"
+  ]
+ },
+ "打开日志文件": {
+  "count": 2,
+  "files": [
+   "ui/run_log_panel.py"
   ]
  },
  "打开目录": {
@@ -3017,9 +3236,8 @@
   ]
  },
  "扫描失败": {
-  "count": 3,
+  "count": 2,
   "files": [
-   "ui/php_panel.py",
    "ui/vhost_panel.py"
   ]
  },
@@ -3075,6 +3293,12 @@
    "ui/sqlite_panel.py"
   ]
  },
+ "搜索：": {
+  "count": 1,
+  "files": [
+   "ui/run_log_panel.py"
+  ]
+ },
  "操作与日志": {
   "count": 1,
   "files": [
@@ -3082,10 +3306,11 @@
   ]
  },
  "操作失败": {
-  "count": 2,
+  "count": 3,
   "files": [
    "ui/php_panel.py",
-   "ui/vhost_panel.py"
+   "ui/vhost_panel.py",
+   "core/service_group.py"
   ]
  },
  "操作完成": {
@@ -3093,6 +3318,12 @@
   "files": [
    "ui/php_panel.py",
    "ui/vhost_panel.py"
+  ]
+ },
+ "操作成功": {
+  "count": 1,
+  "files": [
+   "core/service_group.py"
   ]
  },
  "故障模块": {
@@ -3118,6 +3349,12 @@
   "files": [
    "ui/main_window.py",
    "ui/mysql_panel.py"
+  ]
+ },
+ "数据目录：{dir}": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
   ]
  },
  "文件不存在": {
@@ -3163,6 +3400,12 @@
    "ui/php_panel.py"
   ]
  },
+ "无": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
  "无响应": {
   "count": 1,
   "files": [
@@ -3206,7 +3449,7 @@
   ]
  },
  "无法启动新进程：{msg}": {
-  "count": 1,
+  "count": 2,
   "files": [
    "ui/main_window.py"
   ]
@@ -3267,16 +3510,29 @@
    "ui/vhost_panel.py"
   ]
  },
+ "日志文件": {
+  "count": 1,
+  "files": [
+   "ui/run_log_panel.py"
+  ]
+ },
  "日志文件：": {
   "count": 1,
   "files": [
    "ui/nginx_log_panel.py"
   ]
  },
- "时间": {
+ "日志文件：{path}": {
   "count": 1,
   "files": [
-   "ui/dialogs.py"
+   "ui/run_log_panel.py"
+  ]
+ },
+ "时间": {
+  "count": 2,
+  "files": [
+   "ui/dialogs.py",
+   "ui/run_log_panel.py"
   ]
  },
  "是（指向 127.0.0.1）": {
@@ -3510,6 +3766,12 @@
    "core/hosts_manager.py"
   ]
  },
+ "未捕获异常：{name}：{msg}": {
+  "count": 1,
+  "files": [
+   "main.py"
+  ]
+ },
  "未检测到 Composer": {
   "count": 1,
   "files": [
@@ -3569,6 +3831,12 @@
    "ui/site_wizard.py"
   ]
  },
+ "来源": {
+  "count": 1,
+  "files": [
+   "ui/run_log_panel.py"
+  ]
+ },
  "查看配置": {
   "count": 1,
   "files": [
@@ -3620,6 +3888,12 @@
   ]
  },
  "检测到 php-cgi 崩溃（{n} 次），详见状态栏告警": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "检测到 php-cgi 崩溃（{n} 次）：\n{detail}": {
   "count": 1,
   "files": [
    "ui/main_window.py"
@@ -3701,6 +3975,12 @@
   "count": 1,
   "files": [
    "ui/update_dialog.py"
+  ]
+ },
+ "正在启动全部服务…": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
   ]
  },
  "正在启用站点…": {
@@ -3835,6 +4115,12 @@
    "ui/download_dialog.py"
   ]
  },
+ "正在重启 phpvm（拉起新进程后退出当前实例）": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
  "正常": {
   "count": 1,
   "files": [
@@ -3890,6 +4176,12 @@
    "ui/sqlite_panel.py"
   ]
  },
+ "深色/浅色切换立即生效；「跟随系统」会随系统外观自动切换。": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
  "清屏": {
   "count": 1,
   "files": [
@@ -3897,8 +4189,9 @@
   ]
  },
  "清空": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "ui/run_log_panel.py",
    "ui/sqlite_panel.py"
   ]
  },
@@ -3906,6 +4199,12 @@
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "清空运行日志": {
+  "count": 1,
+  "files": [
+   "ui/run_log_panel.py"
   ]
  },
  "点击「检查更新」开始": {
@@ -4039,10 +4338,22 @@
    "core/vhost_manager.py"
   ]
  },
+ "用户退出 phpvm": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
  "用编辑器打开": {
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "界面回调异常：{name}：{msg}": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
   ]
  },
  "界面语言已保存为 {name}。重启 phpvm 后生效。": {
@@ -4052,6 +4363,12 @@
   ]
  },
  "界面语言：": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "界面语言：{lang} · 外观主题：{theme}": {
   "count": 1,
   "files": [
    "ui/main_window.py"
@@ -4092,6 +4409,12 @@
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "确定清空内存中的运行日志？（落盘文件会保留）": {
+  "count": 1,
+  "files": [
+   "ui/run_log_panel.py"
   ]
  },
  "示例 myapp.test 或 www.example.com；多个域名用空格分隔；\n支持 *.dev 泛解析（通配项不会写入 hosts）。": {
@@ -4277,6 +4600,18 @@
    "ui/sqlite_panel.py"
   ]
  },
+ "级别": {
+  "count": 1,
+  "files": [
+   "ui/run_log_panel.py"
+  ]
+ },
+ "级别：": {
+  "count": 1,
+  "files": [
+   "ui/run_log_panel.py"
+  ]
+ },
  "线程": {
   "count": 1,
   "files": [
@@ -4405,9 +4740,10 @@
   ]
  },
  "自动跟随": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/nginx_log_panel.py"
+   "ui/nginx_log_panel.py",
+   "ui/run_log_panel.py"
   ]
  },
  "自愈历史": {
@@ -4417,7 +4753,7 @@
   ]
  },
  "自愈守护异常：{msg}": {
-  "count": 1,
+  "count": 2,
   "files": [
    "ui/main_window.py"
   ]
@@ -4519,9 +4855,10 @@
   ]
  },
  "警告 {n}": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/nginx_log_panel.py"
+   "ui/nginx_log_panel.py",
+   "ui/run_log_panel.py"
   ]
  },
  "设为当前": {
@@ -4609,9 +4946,10 @@
   ]
  },
  "详情": {
-  "count": 3,
+  "count": 4,
   "files": [
-   "ui/dialogs.py"
+   "ui/dialogs.py",
+   "ui/run_log_panel.py"
   ]
  },
  "语言": {
@@ -4649,6 +4987,12 @@
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "请先选择一条日志": {
+  "count": 1,
+  "files": [
+   "ui/run_log_panel.py"
   ]
  },
  "请输入 SQL 语句后执行": {
@@ -4743,6 +5087,12 @@
    "ui/mysql_panel.py",
    "ui/nginx_panel.py",
    "ui/redis_panel.py"
+  ]
+ },
+ "运行日志": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
   ]
  },
  "运行状态": {
@@ -4997,7 +5347,7 @@
   ]
  },
  "错误": {
-  "count": 5,
+  "count": 4,
   "files": [
    "ui/download_dialog.py",
    "ui/nginx_panel.py",
@@ -5006,9 +5356,10 @@
   ]
  },
  "错误 {n}": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/nginx_log_panel.py"
+   "ui/nginx_log_panel.py",
+   "ui/run_log_panel.py"
   ]
  },
  "错误：{text}": {
