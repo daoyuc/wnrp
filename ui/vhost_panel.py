@@ -58,6 +58,10 @@ class VhostPanel(ttk.Frame):
         self.btn_refresh = ttk.Button(bar, text=t("刷新"), command=self.refresh)
         self.btn_open_dir = ttk.Button(bar, text=t("打开 vhost 目录"), command=self._open_dir)
         self.btn_open_dir.pack(side="left", padx=(0, 6))
+        # hosts 写入前会自动备份（hosts.phpvm.bak），这里提供一键还原入口
+        self.btn_hosts_restore = ttk.Button(
+            bar, text=t("还原 hosts 备份"), command=self._restore_hosts)
+        self.btn_hosts_restore.pack(side="left", padx=(0, 6))
         self.btn_refresh.pack(side="left", padx=(0, 6))
         ttk.Label(
             bar,
@@ -179,6 +183,7 @@ class VhostPanel(ttk.Frame):
 
     def _render(self, entries: list[VhostEntry]) -> None:
         self._entries = entries
+        self._sync_hosts_restore_btn()
         self.tree.delete(*self.tree.get_children())
         # 一次性读取 hosts，避免逐行重读
         all_doms = [d for e in entries for d in e.server_name.split()
@@ -218,6 +223,42 @@ class VhostPanel(ttk.Frame):
             else:
                 parts.append(f"⚠ {ip}")
         return ", ".join(parts) or "—"
+
+    # ------------------------------------------------------------------ #
+    # hosts 备份还原（写入前自动备份，这里提供一键还原入口）
+    # ------------------------------------------------------------------ #
+    def _sync_hosts_restore_btn(self) -> None:
+        """有备份时按钮可用；无备份置灰并给出提示性文本。"""
+        has = hosts_manager.has_backup()
+        self.btn_hosts_restore.configure(state="normal" if has else "disabled")
+
+    def _restore_hosts(self) -> None:
+        """用 phpvm 写入前的备份一键还原 hosts（整文件还原，失败会提示提权）。"""
+        backup = hosts_manager.backup_path()
+        if not hosts_manager.has_backup():
+            messagebox.showinfo(
+                t("还原 hosts 备份"),
+                t("未找到 hosts 备份：{path}", path=backup),
+                parent=self)
+            return
+        if not messagebox.askyesno(
+                t("还原 hosts 备份"),
+                t("将用以下备份覆盖当前 hosts：\n{path}\n\n"
+                  "备份内容是 phpvm 最近一次写入 / 删除 hosts 之前的完整文件，"
+                  "因此这期间手动添加的映射也会一并被覆盖。\n\n确定继续？", path=backup),
+                parent=self):
+            return
+        self._set_busy(True)
+
+        def worker():
+            try:
+                ok, msg = hosts_manager.restore_backup()
+                self._queue.put(("op", {"ok": ok, "message": msg}))
+            except Exception as e:  # noqa: BLE001
+                self._queue.put(("op", {"ok": False, "message": str(e)}))
+
+        threading.Thread(target=worker, daemon=True).start()
+        self._start_drain()
 
     # ------------------------------------------------------------------ #
     def _open_wizard(self) -> None:

@@ -41,5 +41,7 @@
  "hosts 映射（域名 → 本机）": "hosts マッピング（ドメイン → 本機）",
  "hosts 路径：{path}": "hosts パス：{path}",
  "include 已补上": "include を追加しました",
- "logs 目录无 .log 文件": "logs ディレクトリに .log ファイルがありません"
+ "logs 目录无 .log 文件": "logs ディレクトリに .log ファイルがありません",
+ "未找到 hosts 备份：{path}": "hosts のバックアップが見つかりません：{path}",
+ "未找到 hosts 文件：{path}": "hosts ファイルが見つかりません：{path}"
 }

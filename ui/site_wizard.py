@@ -11,43 +11,26 @@
 """
 import os
 import queue
-import re
-import shutil
 import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
-from core import cert_manager, hosts_manager, process_utils as pu
+from core import cert_manager, hosts_manager, site_service
+from core import process_utils as pu
 from core.config import Config, IS_WIN, WNRP_ROOT
 from core.i18n import t
-from core.nginx_manager import NginxManager
 from core.php_manager import PhpManager
 from core.site_templates import TEMPLATES, TEMPLATE_MAP, render_config
-from core.vhost_manager import VhostManager
+from core.vhost_manager import (
+    VhostManager,
+    nginx_path,
+    safe_conf_base,
+    valid_domain,
+)
 from . import theme
 from .window_utils import fit_window
 
 STEP_TITLES = ["基本信息", "应用模板", "hosts 映射", "确认创建"]
-
-# 域名：允许单标签(localhost/foo)、FQDN、以及开头的通配符 *.xxx
-_DOMAIN_RE = re.compile(
-    r"^(?:\*\.)?(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)*"
-    r"[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$"
-)
-
-
-def _valid_domain(name: str) -> bool:
-    return bool(name and _DOMAIN_RE.match(name) and "--" not in name)
-
-
-def _nginx_path(p: str) -> str:
-    return p.replace("\\", "/")
-
-
-def _safe_conf_base(domain: str) -> str:
-    """由域名得到安全文件名主体（*.local → _local.conf）。"""
-    s = re.sub(r"[^A-Za-z0-9._-]", "_", domain).strip("._-")
-    return s or "site"
 
 
 class SiteWizardDialog(tk.Toplevel):
@@ -64,10 +47,9 @@ class SiteWizardDialog(tk.Toplevel):
         self._finished = False
         self._php_map: list[dict] = []   # {label, name, port}
         self._tpl_key = TEMPLATES[0]["key"]
-        self._changed = {"vhost": False, "include": False}
-        self._backups: list[tuple[str, str]] = []   # (path, backup)
-        self._hosts_added: list[str] = []           # 本次写入 hosts 的域名（回滚用）
-        self._cert_created: list[str] = []          # 本次生成的证书域名（回滚用）
+        # 本次创建的改动记录（由 core/site_service 填充，供一键回滚）。
+        # 注意：属性名不能叫 _rollback —— 会遮蔽同名方法 self._rollback()
+        self._rb = site_service.SiteRollback()
         self._https_ok = False                      # 是否具备证书生成能力
         self.conf_path: str = ""
         self._fname: str = ""
@@ -394,7 +376,7 @@ class SiteWizardDialog(tk.Toplevel):
         if not doms:
             messagebox.showwarning(t("缺少域名"), t("请先填写站点域名。"), parent=self)
             return False
-        bad = [d for d in doms if not _valid_domain(d)]
+        bad = [d for d in doms if not valid_domain(d)]
         if bad:
             messagebox.showwarning(
                 t("域名不合法"),
@@ -429,7 +411,7 @@ class SiteWizardDialog(tk.Toplevel):
         return TEMPLATES[0]
 
     def _docroot(self) -> str:
-        root = _nginx_path(self.v_root.get().strip()).rstrip("/")
+        root = nginx_path(self.v_root.get().strip()).rstrip("/")
         return root + self._tpl.get("root_suffix", "")
 
     def _selected_port(self) -> int | None:
@@ -448,7 +430,7 @@ class SiteWizardDialog(tk.Toplevel):
 
     def _fill_default_root(self) -> None:
         doms = self._domains()
-        label = _safe_conf_base(doms[0]) if doms else "site"
+        label = safe_conf_base(doms[0]) if doms else "site"
         d = os.path.join(WNRP_ROOT, "www", label)
         self.v_root.set(d)
         self._refresh_filename()
@@ -466,7 +448,7 @@ class SiteWizardDialog(tk.Toplevel):
         doms = self._domains()
         if not doms:
             return
-        base = _safe_conf_base(doms[0])
+        base = safe_conf_base(doms[0])
         cur = self.v_filename.get().strip()
         if not cur or cur == base + ".conf":
             self.v_filename.set(base + ".conf")
@@ -609,7 +591,7 @@ class SiteWizardDialog(tk.Toplevel):
         doms = self._domains()
         tpl = self._tpl
         sel = self._php_selected
-        base = _safe_conf_base(doms[0]) if doms else "site"
+        base = safe_conf_base(doms[0]) if doms else "site"
         fname = self.v_filename.get().strip() or base + ".conf"
         root = self.v_root.get().strip()
         doc = self._docroot() if root else ""
@@ -656,144 +638,57 @@ class SiteWizardDialog(tk.Toplevel):
             )
             self._show_step(0)
             return
-        fname = self.v_filename.get().strip() or _safe_conf_base(doms[0]) + ".conf"
+        fname = self.v_filename.get().strip() or safe_conf_base(doms[0]) + ".conf"
         if not fname.endswith(".conf"):
             fname += ".conf"
         self._fname = fname
         self.conf_path = os.path.join(self.vhost_mgr.vhost_dir, fname)
 
         # 主线程快照全部入参（后台线程不得触碰 Tk 变量）
-        snapshot = {
-            "tpl_key": self._tpl["key"],
-            "domains": list(doms),
-            "docroot": self._docroot(),
-            "port": self._selected_port(),
-            "hosts_wanted": bool(self.v_hosts.get()),
-            "https": bool(self.v_https.get()) and self._https_ok,
-        }
+        plan = site_service.SitePlan(
+            domains=list(doms),
+            template_key=self._tpl["key"],
+            docroot=self._docroot(),
+            port=self._selected_port(),
+            conf_name=fname,
+            https=bool(self.v_https.get()) and self._https_ok,
+            hosts=bool(self.v_hosts.get()),
+            reload=True,
+            # 向导的宽容口径：工具环境还没有生效主配置时不视为失败，仅提示
+            allow_missing_main_conf=True,
+        )
 
         self._set_busy(True)
         self._append_log(t("== 开始创建站点 =="), "info")
 
         def worker():
-            steps = []
-            cert = {"cert": "", "key": ""}
-            if snapshot["https"]:
-                cert_res = self._step_cert(snapshot["domains"])
-                steps.append(("cert", cert_res))
-                if not cert_res.get("ok"):
-                    self._queue.put(("done", steps))
-                    return
-                cert = {"cert": cert_res.get("cert", ""), "key": cert_res.get("key", "")}
-            # 证书就绪后再渲染配置（HTTPS 变体需要证书路径）
-            content = render_config(
-                snapshot["tpl_key"],
-                server_name=" ".join(snapshot["domains"]),
-                docroot=snapshot["docroot"],
-                port=snapshot["port"],
-                ssl_cert=cert["cert"],
-                ssl_key=cert["key"],
-            )
-            steps.append(("file", self._step_create_file(content)))
-            steps.append(("inc", self._step_ensure_include()))
-            steps.append(("test", self._step_test_config()))
-            # 按名字取结果：启用 HTTPS 时前面多一步 cert，固定下标会取错步骤
-            test_payload = next((s[1] for s in steps if s[0] == "test"), {})
-            if test_payload.get("ok"):
-                if snapshot["hosts_wanted"]:
-                    steps.append(("hosts", self._step_hosts(snapshot["domains"])))
-                steps.append(("reload", self._step_reload()))
-            elif test_payload.get("skip") and snapshot["hosts_wanted"]:
-                # nginx 缺失：配置与 hosts 照常完成，仅跳过校验/重载
-                steps.append(("hosts", self._step_hosts(snapshot["domains"])))
-            self._queue.put(("done", steps))
+            # 建站编排与回滚都在 core/site_service（与 CLI 共用同一实现）
+            result = site_service.create_site(plan, self.config)
+            self._queue.put(("done", result))
 
         threading.Thread(target=worker, daemon=True).start()
         self._poll()
 
-    # ---- 各执行步骤（后台线程）---- #
-    def _step_cert(self, domains: list[str]) -> dict:
-        """生成本地 HTTPS 证书（需要 openssl / mkcert）。"""
-        real = [d for d in domains if d and not d.startswith("*.")]
-        if not real:
-            return {"ok": False,
-                    "message": t("没有可用于签发证书的域名（仅填写了泛解析）")}
-        res = cert_manager.ensure_site_cert(real[0])
-        if res.get("ok") and res.get("created"):
-            self._cert_created.append(real[0])  # 回滚时删除本次新建的证书
-        return res
-
-    def _step_create_file(self, content: str) -> dict:
-        res = self.vhost_mgr.write_vhost(self._fname, content)
-        if res["ok"]:
-            self._changed["vhost"] = True
-            if res["existed"] and res["backup"]:
-                self._backups.append((res["path"], res["backup"]))
-            res["message"] = (t("配置文件已写入：{path}", path=res["path"])
-                              + (t("（覆盖原文件，备份 .bak）") if res["existed"] else ""))
-        return res
-
-    def _step_ensure_include(self) -> dict:
-        res = self.vhost_mgr.ensure_include()
-        if res["changed"]:
-            self._changed["include"] = True
-            self._backups.append((res["backup"].rsplit(".bak", 1)[0], res["backup"]))
-        if not os.path.exists(self.vhost_mgr.main_conf):
-            # 工具环境还没有生效的 nginx 主配置：不视为失败，仅提示
-            res["skip"] = True
-            res["message"] = (res["message"] or t("未找到生效主配置，跳过 include 自动补全"))
-            res["ok"] = False
-        return res
-
-    def _step_test_config(self) -> dict:
-        nginx = NginxManager()
-        if not os.path.exists(nginx.exe):
-            return {"ok": False, "skip": True,
-                    "message": t("未找到 nginx（{path}），已跳过配置校验；"
-                                 "请配置好 nginx 后手动执行「配置检查」。", path=nginx.exe),
-                    "output": ""}
-        output = nginx.test_config()
-        ok = "successful" in output.lower() and "failed" not in output.lower()
-        return {"ok": ok, "output": output,
-                "message": t("配置检查通过") if ok else t("nginx -t 校验失败（详见上方输出）")}
-
-    def _step_hosts(self, domains: list[str]) -> dict:
-        doms = [d for d in domains if not d.startswith("*.")]
-        if not doms:
-            return {"ok": True, "message": t("没有可写入 hosts 的域名（通配项已跳过）")}
-        res = hosts_manager.ensure_entries(doms)
-        # 记录本次实际写入的域名，失败回滚时一并从 hosts 移除
-        if res.get("ok") and res.get("added"):
-            self._hosts_added = list(res["added"])
-        return res
-
-    def _step_reload(self) -> dict:
-        nginx = NginxManager()
-        running, _ = nginx.get_status()
-        if not running:
-            return {"ok": True, "message": t("nginx 未运行，启动后会自动加载新站点")}
-        msg = nginx.reload()
-        return {"ok": True, "message": msg}
-
     # ------------------------------------------------------------------ #
     # 结果回传
     # ------------------------------------------------------------------ #
-    def _on_done(self, steps) -> None:
+    def _on_done(self, result) -> None:
+        """创建流程结束：接收 core/site_service 的 SiteResult 并呈现结果。"""
         self._set_busy(False)
-        hard = []       # file/inc/test：决定成败与回滚
+        self._rb = getattr(result, "rollback", self._rb)
+        if getattr(result, "path", ""):
+            self.conf_path = result.path
         soft_fail = []  # hosts/reload：仅提示，不影响站点配置完成
         skipped = []    # 关键步骤中被跳过的（如未找到 nginx）
-        for tag, res in steps:
+        for tag, res in result.steps:
             self._append_result_log(tag, res)
-            if tag in ("cert", "file", "inc", "test"):
-                hard.append(res)
+            if tag in site_service.HARD_STEPS:
                 if res.get("skip"):
                     skipped.append(res)
             elif tag in ("hosts", "reload") and not res.get("ok"):
                 soft_fail.append(res)
 
-        fatal = [r for r in hard if not r.get("ok") and not r.get("skip")]
-        if fatal:
+        if result.fatal:
             keep = messagebox.askyesno(
                 t("配置校验失败"),
                 t("nginx -t 校验未通过（或写入失败），通常是模板与项目结构不完全匹配。\n\n"
@@ -830,7 +725,7 @@ class SiteWizardDialog(tk.Toplevel):
         self.destroy()
 
     def _append_result_log(self, tag: str, res: dict) -> None:
-        titles = {"file": t("① 写入 vhost 配置"), "inc": t("② nginx.conf include 检查"),
+        titles = {"file": t("① 写入 vhost 配置"), "include": t("② nginx.conf include 检查"),
                   "test": t("③ nginx -t 配置校验"), "hosts": t("④ 写入 hosts 映射"),
                   "reload": t("⑤ 平滑重载 Nginx")}
         self._append_log(titles.get(tag, tag), "info")
@@ -840,46 +735,15 @@ class SiteWizardDialog(tk.Toplevel):
         self._append_log(res.get("message", ""), color)
 
     def _rollback(self) -> None:
-        """还原本次改动：vhost 文件 + nginx.conf + hosts 映射。"""
-        for path, backup in reversed(self._backups):
-            if backup and os.path.exists(backup):
-                try:
-                    shutil.copy2(backup, path)
-                    os.remove(backup)
-                except OSError:
-                    pass
-            elif os.path.exists(path):
-                try:
-                    os.remove(path)
-                except OSError:
-                    pass
-        self._backups.clear()
-        self._changed = {"vhost": False, "include": False}
-        # 证书：删除本次生成的（失败仅提示，不阻断其它还原）
-        for dom in list(getattr(self, "_cert_created", [])):
-            try:
-                cert_manager.remove_cert(dom)
-                self._append_log(t("已删除本次生成的证书：{dom}", dom=dom), "ok")
-            except Exception as e:  # noqa: BLE001
-                self._append_log(t("证书删除失败：{err}", err=e), "err")
-        self._cert_created = []
-        # hosts：移除本次写入的域名（只动 phpvm 托管块；失败仅提示，不阻断其它还原）
-        added = list(getattr(self, "_hosts_added", []))
-        if added:
-            try:
-                res = hosts_manager.remove_entries(added)
-                if res.get("ok") and res.get("removed"):
-                    self._append_log(
-                        t("已同步移除 hosts 映射：{doms}", doms="、".join(res["removed"])), "ok")
-                elif res.get("ok"):
-                    self._append_log(t("hosts 中无本次写入的条目，无需移除。"), "info")
-                else:
-                    self._append_log(
-                        t("hosts 映射移除失败，请手动清理：{msg}",
-                          msg=res.get("message", "")), "err")
-            except Exception as e:  # noqa: BLE001
-                self._append_log(t("hosts 映射移除异常：{err}", err=e), "err")
-            self._hosts_added = []
+        """还原本次改动：vhost 文件 + nginx.conf + hosts 映射 + 本次生成的证书。
+
+        实际还原动作在 core/site_service.rollback_site（与 CLI 共用）。
+        """
+        for item in site_service.rollback_site(self._rb, self.config):
+            msg = item.get("message", "")
+            if msg:
+                self._append_log(msg, "ok" if item.get("ok") else "err")
+        self._rb = site_service.SiteRollback()
         self._append_log(t("已还原本次改动（vhost 文件、nginx.conf 与 hosts 均恢复）。"), "err")
 
     # ------------------------------------------------------------------ #
@@ -905,7 +769,7 @@ class SiteWizardDialog(tk.Toplevel):
         if self._finished:
             self.destroy()
             return
-        changed = bool(self._backups) or self._changed["vhost"] or self._changed["include"]
+        changed = self._rb.changed()
         if not changed:
             self.destroy()
             return

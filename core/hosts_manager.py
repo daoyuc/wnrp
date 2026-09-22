@@ -21,6 +21,7 @@ import shutil
 import sys
 import tempfile
 
+from . import file_backup
 from . import process_utils as pu
 from .config import IS_WIN
 from .i18n import t
@@ -302,12 +303,13 @@ def has_backup() -> bool:
 
 def create_backup() -> tuple[bool, str]:
     """写入 / 删除前备份 hosts。返回 (ok, 备份路径 或 错误信息)。"""
-    src, dst = hosts_path(), backup_path()
     try:
-        shutil.copy2(src, dst)
-        return True, dst
+        dst = file_backup.backup(hosts_path(), BACKUP_SUFFIX)
     except OSError as e:
         return False, t("备份 hosts 失败：{err}", err=e)
+    if not dst:
+        return False, t("未找到 hosts 文件：{path}", path=hosts_path())
+    return True, dst
 
 
 def restore_backup() -> tuple[bool, str]:

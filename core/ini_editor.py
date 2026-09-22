@@ -9,9 +9,9 @@
 """
 import os
 import re
-import shutil
 import zoneinfo
 
+from . import file_backup
 from .i18n import t
 
 # 键名（匹配行首，大小写不敏感）+ 类型 + 中文标签/提示
@@ -128,8 +128,7 @@ def save_values(path: str, changes: dict[str, str]) -> tuple[int, str]:
     写前备份 <path>.bak；写入失败自动还原备份并抛出 OSError。
     """
     lines = _read_lines(path)
-    backup = path + ".bak"
-    shutil.copy2(path, backup)
+    backup = file_backup.backup(path)
 
     new_lines: list[str] = []
     # 逐行替换命中键（键名大小写不敏感但保留原键名）
@@ -159,6 +158,7 @@ def save_values(path: str, changes: dict[str, str]) -> tuple[int, str]:
     try:
         _write_lines(path, new_lines)
     except OSError:
-        shutil.copy2(backup, path)
+        # 写入失败：用备份还原（保留备份文件，便于人工比对），再抛出原始错误
+        file_backup.restore(backup, path, remove_backup=False)
         raise
     return changed, backup

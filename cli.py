@@ -30,7 +30,6 @@
 import argparse
 import json
 import os
-import re
 import sys
 import time
 from dataclasses import dataclass, field
@@ -40,9 +39,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from core import (  # noqa: E402
     app_paths,
-    cert_manager,
+    file_backup,
     hosts_manager,
     modules,
+    site_service,
     site_templates,
     updater,
     version,
@@ -61,7 +61,12 @@ from core.php_manager import PhpManager  # noqa: E402
 from core.redis_manager import RedisManager  # noqa: E402
 from core.service_group import ServiceGroup  # noqa: E402
 from core.sqlite_manager import SqliteManager  # noqa: E402
-from core.vhost_manager import VhostManager  # noqa: E402
+from core.vhost_manager import (  # noqa: E402
+    VhostManager,
+    nginx_path,
+    safe_conf_base,
+    valid_domain,
+)
 
 # --------------------------------------------------------------------------- #
 # 结果封装
@@ -264,26 +269,6 @@ def _pick_site(vm: VhostManager, target: str, r: Result):
         return None
     r.fail("匹配到多个站点，请用配置文件名精确指定", matched=[e.file for e in hits])
     return None
-
-
-# 以下两个校验与 ui/site_wizard.py 的同名实现保持一致（UI 层依赖 tkinter，CLI 不能 import）
-_DOMAIN_RE = re.compile(
-    r"^(?:\*\.)?(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)*"
-    r"[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$"
-)
-
-
-def _valid_domain(name: str) -> bool:
-    return bool(name and _DOMAIN_RE.match(name) and "--" not in name)
-
-
-def _safe_conf_base(domain: str) -> str:
-    s = re.sub(r"[^A-Za-z0-9._-]", "_", domain).strip("._-")
-    return s or "site"
-
-
-def _nginx_path(p: str) -> str:
-    return p.replace("\\", "/")
 
 
 def _tail(path: str, lines: int) -> str:
@@ -864,7 +849,7 @@ def _plan_site(a, r: Result):
     if not doms:
         r.fail("请提供 --domain（可多个，空格分隔）")
         return None
-    bad = [d for d in doms if not _valid_domain(d)]
+    bad = [d for d in doms if not valid_domain(d)]
     if bad:
         r.fail("域名不合法：" + "、".join(bad))
         return None
@@ -880,7 +865,7 @@ def _plan_site(a, r: Result):
     if not os.path.isdir(root):
         r.fail("项目目录不存在或不是文件夹：" + root)
         return None
-    docroot = _nginx_path(root.rstrip("\\/")) + tpl.get("root_suffix", "")
+    docroot = nginx_path(root.rstrip("\\/")) + tpl.get("root_suffix", "")
     if tpl.get("root_suffix") and not os.path.isdir(docroot):
         r.note(f"文档根 {docroot} 不存在；若项目入口就在项目根目录，"
                "请改用 --template php")
@@ -903,31 +888,26 @@ def _plan_site(a, r: Result):
         r.fail("该模板需要 PHP：请用 --php <版本名> 指定，"
                "或加 --no-php 明确创建静态站点")
         return None
-    conf = (a.conf or _safe_conf_base(doms[0]) + ".conf").strip()
+    conf = (a.conf or safe_conf_base(doms[0]) + ".conf").strip()
     if not conf.endswith(".conf"):
         conf += ".conf"
     return doms, tpl, docroot, port, php_name, conf
 
 
-def _render_content(tpl, doms, docroot, port, https):
-    cert = key_ = ""
-    if https:
-        real = [d for d in doms if not d.startswith("*.")]
-        if not real:
-            return None, {"ok": False, "message": "没有可用于签发证书的域名（仅填写了泛解析）"}
-        st = cert_manager.status()
-        if not st["ok"]:
-            return None, {"ok": False, "message": st["message"]}
-        res = cert_manager.ensure_site_cert(real[0])
-        if not res.get("ok"):
-            return None, res
-        cert, key_ = res["cert"], res["key"]
-        res["step"] = "cert"
-    content = site_templates.render_config(
-        tpl["key"], server_name=" ".join(doms), docroot=docroot,
-        port=port, ssl_cert=cert, ssl_key=key_)
-    return content, ({"ok": True, "step": "cert", "cert": cert, "key": key_}
-                     if https else None)
+def _to_site_plan(a, doms, tpl, docroot, port, conf) -> site_service.SitePlan:
+    """CLI 参数 → core 建站计划。
+
+    策略保持 CLI 的严格口径：生效主配置缺失时 include 记为失败
+    （``allow_missing_main_conf=False``），以便尽早暴露环境问题。
+    注意 ``site render`` 只有 ``site create`` 的部分参数（无 --hosts / --no-reload），
+    因此这两个开关用 getattr 取默认值。
+    """
+    return site_service.SitePlan(
+        domains=doms, template_key=tpl["key"], docroot=docroot, port=port,
+        conf_name=conf, https=bool(getattr(a, "https", False)),
+        hosts=bool(getattr(a, "hosts", False)),
+        reload=not getattr(a, "no_reload", False),
+        allow_missing_main_conf=False)
 
 
 def cmd_site_render(a, r: Result) -> Result:
@@ -936,7 +916,8 @@ def cmd_site_render(a, r: Result) -> Result:
     if plan is None:
         return r
     doms, tpl, docroot, port, php_name, conf = plan
-    content, cert_res = _render_content(tpl, doms, docroot, port, a.https)
+    content, cert_res = site_service.render_config_for(
+        _to_site_plan(a, doms, tpl, docroot, port, conf))
     if content is None:
         return r.fail((cert_res or {}).get("message", "配置渲染失败"),
                       cert=cert_res or {})
@@ -953,12 +934,13 @@ def cmd_site_create(a, r: Result) -> Result:
         return r
     doms, tpl, docroot, port, php_name, conf = plan
     vm = VhostManager(Config())
+    site_plan = _to_site_plan(a, doms, tpl, docroot, port, conf)
 
-    content, cert_res = _render_content(tpl, doms, docroot, port, a.https)
-    if content is None:
-        return r.fail((cert_res or {}).get("message", "配置渲染失败"),
-                      cert=cert_res or {})
     if a.dry_run:
+        content, cert_res = site_service.render_config_for(site_plan)
+        if content is None:
+            return r.fail((cert_res or {}).get("message", "配置渲染失败"),
+                          cert=cert_res or {})
         r.data = {"dry_run": True, "template": tpl["key"], "domains": doms,
                   "docroot": docroot, "port": port, "php": php_name,
                   "conf": conf, "path": os.path.join(vm.vhost_dir, conf),
@@ -968,78 +950,38 @@ def cmd_site_create(a, r: Result) -> Result:
         r.say(content)
         return r
 
-    steps = []
-    if cert_res:
-        steps.append(("cert", dict(cert_res)))
-    file_res = vm.write_vhost(conf, content)
-    steps.append(("file", file_res))
-    inc_res = vm.ensure_include()
-    steps.append(("include", inc_res))
+    if a.hosts and not [d for d in doms if not d.startswith("*.")]:
+        r.note("域名均为泛解析，跳过 hosts 写入")
+        site_plan.hosts = False
 
-    ng = _nginx()
-    if os.path.exists(ng.exe):
-        out = ng.test_config()
-        test_ok = _test_output_ok(out)
-        steps.append(("test", {"ok": test_ok, "output": out,
-                               "message": "配置检查通过" if test_ok
-                               else "nginx -t 未通过（详见 output）"}))
-    else:
-        test_ok = False
-        steps.append(("test", {"ok": False, "skip": True, "output": "",
-                               "message": f"未找到 nginx（{ng.exe}），已跳过配置校验"}))
-
+    # 编排与回滚都下沉在 core/site_service，与 GUI 向导共用同一实现
+    res = site_service.create_site(site_plan)
+    steps = res.steps
     rolled_back = False
-    if not test_ok and not steps[-1][1].get("skip"):
-        # 校验失败：还原本次写入的 vhost 与 nginx.conf
-        if file_res.get("backup"):
-            try:
-                import shutil
-                shutil.copy2(file_res["backup"], file_res["path"])
-                rolled_back = True
-            except OSError:
-                pass
-        if inc_res.get("changed") and inc_res.get("backup"):
-            try:
-                import shutil
-                shutil.copy2(inc_res["backup"], vm.main_conf)
-                rolled_back = True
-            except OSError:
-                pass
+    if res.fatal:
+        rolled = site_service.rollback_site(res.rollback)
+        for item in rolled:
+            if item.get("message"):
+                r.note(item["message"])
+        rolled_back = any(item.get("ok") for item in rolled)
         r.note("配置检查未通过，已回滚本次对 vhost / nginx.conf 的修改")
 
-    hosts_res = None
-    real = [d for d in doms if not d.startswith("*.")]
-    if a.hosts and real and (test_ok or steps[-1][1].get("skip")):
-        hosts_res = hosts_manager.ensure_entries(real)
-        steps.append(("hosts", hosts_res))
-    elif a.hosts and not real:
-        r.note("域名均为泛解析，跳过 hosts 写入")
-
-    reload_res = None
-    if test_ok and not a.no_reload:
-        running, _ = ng.get_status()
-        if running:
-            reload_res = {"ok": True, "message": ng.reload()}
-            steps.append(("reload", reload_res))
-        else:
-            r.note("nginx 未运行，启动后会自动加载新站点")
-
-    hard = [s for tag, s in steps if tag in ("cert", "file", "include", "test")]
-    fatal = [s for s in hard if not s.get("ok") and not s.get("skip")]
-    r.ok = not fatal
+    fatal = [s for tag, s in steps
+             if tag in site_service.HARD_STEPS and not s.get("ok") and not s.get("skip")]
+    r.ok = not res.fatal
     r.data = {
         "template": tpl["key"], "domains": doms, "docroot": docroot,
         "port": port, "php": php_name, "conf": conf,
-        "path": file_res.get("path", ""), "https": bool(a.https),
+        "path": res.path, "https": bool(a.https),
         "rolled_back": rolled_back,
-        "steps": [{"step": tag, **res} for tag, res in steps],
+        "steps": [{"step": tag, **s} for tag, s in steps],
     }
     if fatal:
         r.data["error"] = "建站未通过校验：" + fatal[0].get("message", "")
-    for tag, res in steps:
-        mark = "✓" if res.get("ok") else ("-" if res.get("skip") else "✗")
-        r.say(f"{mark} {tag}：{res.get('message', '')}")
-    r.say("站点配置：" + str(file_res.get("path", "")))
+    for tag, s in steps:
+        mark = "✓" if s.get("ok") else ("-" if s.get("skip") else "✗")
+        r.say(f"{mark} {tag}：{s.get('message', '')}")
+    r.say("站点配置：" + str(res.path))
     return r
 
 
@@ -1052,14 +994,13 @@ def cmd_site_remove(a, r: Result) -> Result:
     if not a.yes:
         return r.fail("删除站点需显式确认：加 --yes（会先备份为 .bak）",
                       file=e.file)
-    backup = e.file + ".bak"
+    backup = file_backup.backup_path(e.file)
     if a.dry_run:
         r.data = {"dry_run": True, "file": e.file, "backup": backup}
         r.say(f"[dry-run] 将删除 {e.file}（备份为 {backup}）")
         return r
-    import shutil
     try:
-        shutil.copy2(e.file, backup)
+        backup = file_backup.backup(e.file) or backup
         os.remove(e.file)
     except OSError as err:
         return r.fail(f"删除失败：{err}", file=e.file)
@@ -1069,7 +1010,7 @@ def cmd_site_remove(a, r: Result) -> Result:
         out = ng.test_config()
         test_ok = _test_output_ok(out)
         if not test_ok:
-            shutil.copy2(backup, e.file)
+            file_backup.restore(backup, e.file, remove_backup=False)
             rolled_back = True
             r.note("nginx -t 未通过，已还原站点配置")
     reloaded = False
@@ -1206,6 +1147,28 @@ def cmd_hosts_add(a, r: Result) -> Result:
     if res.get("conflict"):
         r.note("以下域名已指向其它 IP，未改动：" + "、".join(res["conflict"]))
     r.note("无写权限时会触发系统授权弹窗（macOS osascript / Windows UAC）")
+    return r
+
+
+def cmd_hosts_restore(a, r: Result) -> Result:
+    """用写入前的备份整文件还原 hosts（phpvm 每次写入 / 删除前都会备份）。"""
+    backup = hosts_manager.backup_path()
+    if not hosts_manager.has_backup():
+        return r.fail("未找到 hosts 备份：" + backup, backup=backup)
+    if a.dry_run:
+        r.data = {"dry_run": True, "backup": backup, "hosts_path": hosts_manager.hosts_path()}
+        r.say(f"[dry-run] 将用备份覆盖 hosts：{backup}")
+        return r
+    if not a.yes:
+        return r.fail("还原 hosts 需显式确认：加 --yes（会用备份覆盖当前 hosts）",
+                      backup=backup)
+    ok, msg = hosts_manager.restore_backup()
+    r.ok = bool(ok)
+    r.data = {"hosts_path": hosts_manager.hosts_path(), "backup": backup,
+              "message": msg}
+    if not ok:
+        r.data["error"] = msg
+    r.say(msg)
     return r
 
 
@@ -1810,6 +1773,10 @@ def build_parser() -> argparse.ArgumentParser:
     p = _leaf(gs, "remove", cmd_hosts_remove, "hosts.remove", "移除托管块内的映射")
     p.add_argument("domains", nargs="+", help="域名列表")
     p.add_argument("--dry-run", action="store_true", help="只报告将做什么")
+    p = _leaf(gs, "restore", cmd_hosts_restore, "hosts.restore",
+              "用写入前的备份还原 hosts（整文件覆盖）")
+    p.add_argument("--dry-run", action="store_true", help="只报告将做什么")
+    p.add_argument("--yes", action="store_true", help="确认覆盖当前 hosts")
 
     # redis
     g = sub.add_parser("redis", help="Redis 管理", parents=[COMMON])
@@ -1910,26 +1877,52 @@ def _site_create_args(p: argparse.ArgumentParser) -> None:
 # --------------------------------------------------------------------------- #
 # 输出与入口
 # --------------------------------------------------------------------------- #
+#: 步骤标记 → 终端编码放不下时的 ASCII 降级（Windows GBK 控制台下 print 会抛
+#: UnicodeEncodeError，例如 `site create` 输出的 ✓ / ✗）
+_MARK_FALLBACK = {"✓": "[OK]  ", "✗": "[FAIL]", "●": "*", "○": "o"}
+
+
+def _stdout_can_encode(text: str) -> bool:
+    enc = getattr(sys.stdout, "encoding", None) or "utf-8"
+    try:
+        text.encode(enc)
+        return True
+    except (UnicodeEncodeError, LookupError):
+        return False
+
+
+def _out(text: str) -> None:
+    """打印一行；终端编码不支持其中的符号时降级为 ASCII，绝不因编码崩溃。"""
+    if _stdout_can_encode(text):
+        print(text)
+        return
+    safe = text
+    for mark, fallback in _MARK_FALLBACK.items():
+        safe = safe.replace(mark, fallback)
+    enc = getattr(sys.stdout, "encoding", None) or "utf-8"
+    print(safe.encode(enc, "replace").decode(enc, "replace"))
+
+
 def _render(res: Result, command: str, as_json: bool, quiet: bool) -> None:
     if as_json:
         payload = {"ok": res.ok, "command": command, "data": res.data}
         if res.notes:
             payload["warnings"] = res.notes
-        print(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+        _out(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
         return
     if quiet:
         if not res.ok:
             for line in res.lines:
-                print(line)
+                _out(line)
         return
     for note in res.notes:
-        print("提示：" + note)
+        _out("提示：" + note)
     for line in res.lines:
-        print(line)
+        _out(line)
     if not res.lines and res.data:
-        print(json.dumps(res.data, ensure_ascii=False, indent=2, default=str))
+        _out(json.dumps(res.data, ensure_ascii=False, indent=2, default=str))
     if not res.lines and not res.data:
-        print("完成。")
+        _out("完成。")
 
 
 def main(argv: list | None = None) -> int:

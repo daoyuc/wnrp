@@ -1,4 +1,5 @@
 {
+ "将用以下备份覆盖当前 hosts：\n{path}\n\n备份内容是 phpvm 最近一次写入 / 删除 hosts 之前的完整文件，因此这期间手动添加的映射也会一并被覆盖。\n\n确定继续？": "This will overwrite the current hosts file with:\n{path}\n\nThe backup is the complete hosts file from just before phpvm last wrote to / removed from hosts, so mappings added manually in the meantime are overwritten too.\n\nContinue?",
  "管理 {root} 下多个 PHP 版本的启动 / 停止 / 重启 / 状态 / 端口 / 配置，并附带 Nginx 与 Redis 管理。": "Start / stop / restart / status / port / config management for multiple PHP versions under {root}, plus Nginx and Redis management.",
  "线程": "Threads",
  "线程安全模式：": "Thread safety:",
@@ -57,6 +58,7 @@
  "过滤：": "Filter:",
  "运行中": "Running",
  "运行状态": "Run status",
+ "还原 hosts 备份": "Restore hosts backup",
  "进程": "Process",
  "进程失联（端口 {port} 无监听）": "Process unreachable (nothing is listening on port {port})",
  "进程路径：{path}": "Process path: {path}",

@@ -48,7 +48,9 @@ def collect():
                     continue
                 info = keys.setdefault(msgid, {"count": 0, "files": []})
                 info["count"] += 1
-                rel = os.path.relpath(path, ROOT)
+                # 统一用正斜杠：否则 Windows 上生成的 _keys.json 会与
+                # macOS/Linux 生成的产生整文件 diff（仅路径分隔符不同）
+                rel = os.path.relpath(path, ROOT).replace("\\", "/")
                 if rel not in info["files"]:
                     info["files"].append(rel)
     return keys

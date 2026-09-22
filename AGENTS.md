@@ -54,6 +54,10 @@ python3 cli.py site sync-port --old 9082 --new 9083 --reload
 # 只读查库（不会写 settings.sqlite_last_db）
 python3 cli.py sqlite query /path/database.sqlite "select * from users limit 5" --json
 
+# hosts 写入前会自动备份为 <hosts>.phpvm.bak，可整文件还原
+python3 cli.py hosts restore --dry-run
+python3 cli.py hosts restore --yes
+
 # 外观主题（light / dark / system；GUI 切换立即生效，也允许脚本代改）
 python3 cli.py config get settings.theme
 python3 cli.py config set settings.theme dark
@@ -66,6 +70,9 @@ python3 cli.py nginx test                # 任何改配置后都建议先跑
 ## 项目结构速记
 
 - `core/` 服务层（nginx / php / redis / mysql / vhost / hosts / sqlite / updater / modules …），CLI 与 GUI 共用
+  - 建站流程只有一个实现：`core/site_service.py`（证书 → 写 vhost → 补 include → `nginx -t` → hosts → 重载 + 回滚），CLI 与 GUI 向导都调它
+  - 文件备份统一走 `core/file_backup.py`（写配置前必 `.bak`，还原默认删备份）
+- `tests/` 单元测试（标准库 unittest）：`python -m unittest discover -s tests -t .`
 - `ui/` 界面层（tkinter），**不可在 CLI / 脚本中 import**
 - `config.json` 端口映射与设置（运行期生成，不入库）；端口与 vhost 的 `fastcgi_pass` 必须一致，用 `site sync-port` 一键同步
 - `README.md` 有完整功能与端口映射表

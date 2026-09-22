@@ -41,5 +41,7 @@
  "hosts 映射（域名 → 本机）": "hosts mapping (domains → this machine)",
  "hosts 路径：{path}": "hosts path: {path}",
  "include 已补上": "include line added",
- "logs 目录无 .log 文件": "No .log files in the logs directory"
+ "logs 目录无 .log 文件": "No .log files in the logs directory",
+ "未找到 hosts 备份：{path}": "No hosts backup found: {path}",
+ "未找到 hosts 文件：{path}": "hosts file not found: {path}"
 }

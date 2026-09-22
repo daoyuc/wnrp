@@ -14,14 +14,19 @@
 """
 import os
 import re
-import shutil
 
 from dataclasses import dataclass
 
+from . import file_backup
 from .config import Config
 from .i18n import t
 from .nginx_manager import NginxManager
 
+# 域名：允许单标签(localhost/foo)、FQDN、以及开头的通配符 *.xxx
+_RE_DOMAIN = re.compile(
+    r"^(?:\*\.)?(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)*"
+    r"[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$"
+)
 # 匹配行首（可带缩进）fastcgi_pass 指向本机端口，保留行尾注释
 _RE_FCGI_LOCAL = re.compile(r"^(\s*)fastcgi_pass\s+127\.0\.0\.1:(\d+)(\s*;.*)$", re.M)
 # 块内任意位置出现的 fastcgi_pass 目标（用于判断指向 upstream 名称）
@@ -32,6 +37,28 @@ _RE_SERVER_KEYWORD = re.compile(r"\bserver\s*$")
 _RE_LINE_COMMENT = re.compile(r"#[^\n]*")
 # 行首 include 指令（目标到分号前，可带引号）
 _RE_INCLUDE = re.compile(r"^\s*include\s+(\S+)\s*;", re.M)
+
+
+# --------------------------------------------------------------------- #
+# 站点命名与路径（CLI 与 GUI 向导共用；此处实现，避免两处各写一份漂移）
+# --------------------------------------------------------------------- #
+def valid_domain(name: str) -> bool:
+    """域名是否可用作 server_name（允许单标签与开头通配符，拒绝空串与连续短横线）。"""
+    return bool(name and _RE_DOMAIN.match(name) and "--" not in name)
+
+
+def safe_conf_base(domain: str) -> str:
+    """由域名得到安全文件名主体（过滤非法字符，去掉首尾 . _ -；空结果回退 site）。
+
+    例：``*.dev.test`` → ``dev.test``（通配符与点被过滤后仅剩合法字符）。
+    """
+    s = re.sub(r"[^A-Za-z0-9._-]", "_", domain).strip("._-")
+    return s or "site"
+
+
+def nginx_path(p: str) -> str:
+    """把路径转成 nginx 配置里要求的正斜杠写法。"""
+    return p.replace("\\", "/")
 
 
 @dataclass
@@ -182,14 +209,14 @@ class VhostManager:
                     results.append({"file": path, "replaced": replaced, "ok": True,
                                     "message": t("已同步，备份保留于 .bak"), "backup": backup})
                 else:
-                    self._restore_backup(backup, path)
+                    file_backup.restore(backup, path)
                     results.append({"file": path, "replaced": replaced, "ok": False,
                                     "message": t("nginx -t 校验失败，已自动还原：{output}",
                                                  output=output),
                                     "backup": None})
         except Exception as e:  # noqa: BLE001 —— 兜底还原已写文件
             for path, backup, _ in applied:
-                self._restore_backup(backup, path)
+                file_backup.restore(backup, path)
             if not results:
                 results.append({"file": "", "replaced": 0, "ok": False,
                                 "message": t("同步过程异常：{err}", err=e), "backup": None})
@@ -199,29 +226,23 @@ class VhostManager:
         """备份并替换单个文件中引用 old_port 的 fastcgi_pass。返回 (替换数, 备份路径)。"""
         with open(path, "r", encoding="utf-8") as f:
             text = f.read()
-        backup = path + ".bak"
-        shutil.copy2(path, backup)
+        backup = file_backup.backup(path)
+
+        changed = 0
 
         def _sub(m: re.Match) -> str:
+            nonlocal changed
             if int(m.group(2)) == old_port:
+                changed += 1
                 return f"{m.group(1)}fastcgi_pass 127.0.0.1:{new_port}{m.group(3)}"
             return m.group(0)
 
-        new_text, count = _RE_FCGI_LOCAL.subn(_sub, text)
+        new_text = _RE_FCGI_LOCAL.sub(_sub, text)
+        count = changed  # 只统计真正改动的行，而不是命中的 fastcgi 行总数
         if count:
             with open(path, "w", encoding="utf-8", newline="") as f:
                 f.write(new_text)
         return count, backup
-
-    @staticmethod
-    def _restore_backup(backup: str, path: str) -> None:
-        """用备份还原文件并清理备份。"""
-        if backup and os.path.exists(backup):
-            try:
-                shutil.copy2(backup, path)
-                os.remove(backup)
-            except OSError:
-                pass
 
     # ------------------------------------------------------------------ #
     # 新建站点（向导用）
@@ -245,8 +266,7 @@ class VhostManager:
         existed = os.path.exists(path)
         try:
             if existed:
-                backup = path + ".bak"
-                shutil.copy2(path, backup)
+                backup = file_backup.backup(path)
             with open(path, "w", encoding="utf-8", newline="") as f:
                 f.write(content)
             return {"path": path, "existed": existed, "backup": backup,
@@ -330,9 +350,9 @@ class VhostManager:
             return {"ok": False, "backup": None,
                     "message": t("该站点没有指向 127.0.0.1 的 fastcgi_pass"
                                  "（静态 / 纯前端站点无需指定 PHP 版本）")}
-        backup = path + ".bak"
+        backup = ""
         try:
-            shutil.copy2(path, backup)
+            backup = file_backup.backup(path)
             with open(path, "w", encoding="utf-8", newline="") as f:
                 f.write(text[:start] + new_block + text[end:])
         except OSError as e:
@@ -341,7 +361,7 @@ class VhostManager:
         output = self.nginx.test_config()
         ok = "successful" in output.lower() and "failed" not in output.lower()
         if not ok:
-            self._restore_backup(backup, path)
+            file_backup.restore(backup, path)
             return {"ok": False, "backup": None,
                     "message": t("nginx -t 校验失败，已自动还原：{output}", output=output)}
         return {"ok": True, "backup": backup,
@@ -379,8 +399,9 @@ class VhostManager:
         info["lines"] = targets
         vhost = os.path.normpath(self.vhost_dir)
         conf_root = os.path.normpath(self.conf_dir)
-        for t in targets:
-            head = t.split("*")[0].rstrip("/") or t.rstrip("/")
+        for target in targets:
+            # 注意：变量名不要用 t —— 会遮蔽 i18n 的 t() 翻译函数（历史缺陷）
+            head = target.split("*")[0].rstrip("/") or target.rstrip("/")
             if not head:
                 continue
             full = head if os.path.isabs(head) else os.path.join(conf_root, head)
@@ -425,13 +446,12 @@ class VhostManager:
             return {"changed": False, "ok": False,
                     "message": t("未在生效 nginx.conf 中找到 http 块，无法自动补 include"),
                     "backup": None}
-        backup = self.main_conf + ".bak"
         try:
-            shutil.copy2(self.main_conf, backup)
+            backup = file_backup.backup(self.main_conf)
         except OSError as e:
             return {"changed": False, "ok": False,
                     "message": t("备份失败：{err}", err=e), "backup": None}
-        include_dir = self.vhost_dir.replace("\\", "/")
+        include_dir = nginx_path(self.vhost_dir)
         insert = (f"\n    # phpvm: 自动加载站点目录 {include_dir} 下的配置\n"
                   f"    include {include_dir}/*.conf;\n")
         new_text = text[:close_idx] + insert + text[close_idx:]
