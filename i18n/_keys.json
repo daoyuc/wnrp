@@ -661,7 +661,7 @@
  "hosts 中无本次写入的条目，无需移除。": {
   "count": 1,
   "files": [
-   "ui/site_wizard.py"
+   "core/site_service.py"
   ]
  },
  "hosts 中没有 phpvm 托管的这些域名，未做改动：{doms}": {
@@ -697,13 +697,13 @@
  "hosts 映射移除失败，请手动清理：{msg}": {
   "count": 1,
   "files": [
-   "ui/site_wizard.py"
+   "core/site_service.py"
   ]
  },
  "hosts 映射移除异常：{err}": {
   "count": 1,
   "files": [
-   "ui/site_wizard.py"
+   "core/site_service.py"
   ]
  },
  "hosts 映射（域名 → 本机）": {
@@ -751,7 +751,7 @@
  "nginx -t 校验失败（详见上方输出）": {
   "count": 1,
   "files": [
-   "ui/site_wizard.py"
+   "core/site_service.py"
   ]
  },
  "nginx -t 校验失败，已自动还原：{output}": {
@@ -787,7 +787,7 @@
  "nginx 未运行，启动后会自动加载新站点": {
   "count": 1,
   "files": [
-   "ui/site_wizard.py"
+   "core/site_service.py"
   ]
  },
  "php-cgi 崩溃事件": {
@@ -2435,6 +2435,12 @@
    "ui/site_wizard.py"
   ]
  },
+ "将用以下备份覆盖当前 hosts：\n{path}\n\n备份内容是 phpvm 最近一次写入 / 删除 hosts 之前的完整文件，因此这期间手动添加的映射也会一并被覆盖。\n\n确定继续？": {
+  "count": 1,
+  "files": [
+   "ui/vhost_panel.py"
+  ]
+ },
  "将自动完成": {
   "count": 1,
   "files": [
@@ -2616,7 +2622,7 @@
  "已删除本次生成的证书：{dom}": {
   "count": 1,
   "files": [
-   "ui/site_wizard.py"
+   "core/site_service.py"
   ]
  },
  "已发现 {count} 个 PHP 版本": {
@@ -2640,7 +2646,7 @@
  "已同步移除 hosts 映射：{doms}": {
   "count": 1,
   "files": [
-   "ui/site_wizard.py"
+   "core/site_service.py"
   ]
  },
  "已同步，备份保留于 .bak": {
@@ -3665,6 +3671,13 @@
   ]
  },
  "未找到 hosts 备份：{path}": {
+  "count": 2,
+  "files": [
+   "ui/vhost_panel.py",
+   "core/hosts_manager.py"
+  ]
+ },
+ "未找到 hosts 文件：{path}": {
   "count": 1,
   "files": [
    "core/hosts_manager.py"
@@ -3673,7 +3686,7 @@
  "未找到 nginx（{path}），已跳过配置校验；请配置好 nginx 后手动执行「配置检查」。": {
   "count": 1,
   "files": [
-   "ui/site_wizard.py"
+   "core/site_service.py"
   ]
  },
  "未找到 openssl 与 mkcert，无法生成本地 HTTPS 证书。\n可选安装方式：\n  · Windows（推荐）：choco install mkcert  或  scoop install mkcert\n  · macOS：brew install mkcert nss\n  · 或安装 Git for Windows / OpenSSL-Win64 后重启 phpvm 自动探测": {
@@ -3727,7 +3740,7 @@
  "未找到生效主配置，跳过 include 自动补全": {
   "count": 1,
   "files": [
-   "ui/site_wizard.py"
+   "core/site_service.py"
   ]
  },
  "未找到生效主配置：{path}\n站点不会被 nginx 加载": {
@@ -4130,13 +4143,13 @@
  "没有可写入 hosts 的域名（通配项已跳过）": {
   "count": 1,
   "files": [
-   "ui/site_wizard.py"
+   "core/site_service.py"
   ]
  },
  "没有可用于签发证书的域名（仅填写了泛解析）": {
   "count": 1,
   "files": [
-   "ui/site_wizard.py"
+   "core/site_service.py"
   ]
  },
  "没有正在运行的服务": {
@@ -4882,7 +4895,7 @@
  "证书删除失败：{err}": {
   "count": 1,
   "files": [
-   "ui/site_wizard.py"
+   "core/site_service.py"
   ]
  },
  "证书生成失败：{err}": {
@@ -5115,6 +5128,12 @@
    "core/hosts_manager.py"
   ]
  },
+ "还原 hosts 备份": {
+  "count": 3,
+  "files": [
+   "ui/vhost_panel.py"
+  ]
+ },
  "还原 hosts 失败：{err}": {
   "count": 1,
   "files": [
@@ -5125,6 +5144,12 @@
   "count": 1,
   "files": [
    "core/hosts_manager.py"
+  ]
+ },
+ "还原失败：{path}（备份 {backup}）": {
+  "count": 2,
+  "files": [
+   "core/site_service.py"
   ]
  },
  "进程": {
@@ -5227,12 +5252,6 @@
    "ui/site_wizard.py"
   ]
  },
- "配置文件已写入：{path}": {
-  "count": 1,
-  "files": [
-   "ui/site_wizard.py"
-  ]
- },
  "配置文件：{path}": {
   "count": 1,
   "files": [
@@ -5279,9 +5298,9 @@
  "配置检查通过": {
   "count": 3,
   "files": [
-   "ui/site_wizard.py",
    "ui/vhost_panel.py",
-   "core/nginx_manager.py"
+   "core/nginx_manager.py",
+   "core/site_service.py"
   ]
  },
  "配置项": {
@@ -5541,12 +5560,6 @@
   "count": 1,
   "files": [
    "ui/dialogs.py"
-  ]
- },
- "（覆盖原文件，备份 .bak）": {
-  "count": 1,
-  "files": [
-   "ui/site_wizard.py"
   ]
  },
  "（该版本未提供更新说明）": {

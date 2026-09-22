@@ -14,6 +14,8 @@ import urllib.request
 import zipfile
 from dataclasses import dataclass
 
+from . import file_backup
+
 from . import process_utils as pu
 from .i18n import t
 from .php_downloader import (
@@ -141,8 +143,7 @@ def apply_extensions(ini_path: str, enable: set[str], disable: set[str]) -> tupl
     with open(ini_path, "rb") as f:
         raw = f.read()
     lines = raw.decode("latin-1").splitlines(keepends=True)
-    backup = ini_path + ".bak"
-    shutil.copy2(ini_path, backup)
+    backup = file_backup.backup(ini_path)
 
     def _to_dll_name(key: str) -> str:
         return f"php_{key}" if not key.startswith("php_") else key
@@ -171,7 +172,8 @@ def apply_extensions(ini_path: str, enable: set[str], disable: set[str]) -> tupl
         with open(ini_path, "wb") as f:
             f.write("".join(out).encode("latin-1"))
     except OSError:
-        shutil.copy2(backup, ini_path)
+        # 写入失败：还原并保留备份（便于人工比对），再抛出原始错误
+        file_backup.restore(backup, ini_path, remove_backup=False)
         raise
     return len(enable | disable), backup
 
@@ -346,7 +348,7 @@ def install_online(catalog_item: dict, php_dir: str, rt: RuntimeInfo,
         dest = os.path.join(ext_dir, dll_name)
         if os.path.exists(dest):
             try:
-                shutil.copy2(dest, dest + ".bak")
+                file_backup.backup(dest)
             except OSError:
                 pass
         report(t("写入 {file} …", file=dll_name))

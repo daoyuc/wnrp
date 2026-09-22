@@ -41,5 +41,7 @@
  "hosts 映射（域名 → 本机）": "hosts 매핑(도메인 → 로컬)",
  "hosts 路径：{path}": "hosts 경로: {path}",
  "include 已补上": "include를 추가했습니다",
- "logs 目录无 .log 文件": "logs 디렉터리에 .log 파일이 없습니다"
+ "logs 目录无 .log 文件": "logs 디렉터리에 .log 파일이 없습니다",
+ "未找到 hosts 备份：{path}": "hosts 백업을 찾을 수 없습니다: {path}",
+ "未找到 hosts 文件：{path}": "hosts 파일을 찾을 수 없습니다: {path}"
 }

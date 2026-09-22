@@ -41,5 +41,7 @@
  "hosts 映射（域名 → 本机）": "hosts 對應（網域名稱 → 本機）",
  "hosts 路径：{path}": "hosts 路徑：{path}",
  "include 已补上": "include 已補上",
- "logs 目录无 .log 文件": "logs 目錄無 .log 檔案"
+ "logs 目录无 .log 文件": "logs 目錄無 .log 檔案",
+ "未找到 hosts 备份：{path}": "找不到 hosts 備份：{path}",
+ "未找到 hosts 文件：{path}": "找不到 hosts 檔案：{path}"
 }

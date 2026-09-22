@@ -49,7 +49,8 @@
 - **include 检测**：自动检测主配置是否已 `include vhost/*.conf`；未包含时显示提示并提供「自动补 include 并校验」（改前备份 `nginx.conf.bak`，补行后自动 `nginx -t`，通过且 nginx 在跑时询问是否平滑重载）
 - **异常高亮**：server 块的 `fastcgi_pass 127.0.0.1:<端口>` 若在 phpvm 端口表中未映射到任何 PHP 版本，该条目标红并显示原因（指向 upstream 或无 PHP 处理的块不算异常），一眼定位「端口改了但 vhost 没同步」等 502 根源
 - **一键同步 vhost**：修改端口保存后，自动扫描引用旧端口的配置文件 → 备份（`.bak`）→ 替换 `fastcgi_pass` → `nginx -t` 校验（失败自动还原全部备份）→ 一键平滑重载生效；无文件引用旧端口时只弹普通提示
-- 页内按钮为「＋ 新建站点…」「打开 vhost 目录」「刷新」，双击任意行用默认程序打开对应配置文件；**「一键同步」不在本页** —— 它由「编辑端口」保存后自动弹出的同步对话框提供
+- 页内按钮为「＋ 新建站点…」「打开 vhost 目录」「还原 hosts 备份」「刷新」，双击任意行用默认程序打开对应配置文件；**「一键同步」不在本页** —— 它由「编辑端口」保存后自动弹出的同步对话框提供
+- **「还原 hosts 备份」**：phpvm 每次写入 / 删除 hosts 前都会整文件备份为 `<hosts>.phpvm.bak`，此按钮可一键还原（有备份才可点，二次确认后执行；Windows 非管理员时会弹 UAC 提权；命令行等价命令 `cli.py hosts restore --yes`）
 - **右键站点行**可对该站点直接操作（改配置前自动备份、变更后 `nginx -t` 校验，失败自动还原）：
   - 打开站点（浏览器）/ 打开项目根目录 / 打开配置文件
   - **切换 PHP 版本** ▸ 只改该 `server` 块的 `fastcgi_pass` 端口（同文件多站点互不影响；静态站点无 `fastcgi_pass` 时禁用）
@@ -234,7 +235,7 @@ python3 cli.py schema --json              # 输出全部命令 / 参数 / 示例
 | `php` | `list [--no-status|--precise]` · `status <版>` · `start|stop|restart <版|all>` · `port <版> [--set N]` · `ini <版> [--key K|--all]` · `check <版>` · `ext-list <版>` · `ext-set <版> --enable a,b --disable c` |
 | `nginx` | `status` · `start` · `stop` · `reload` · `test`（`nginx -t`）· `logs [--file error.log] [--lines N] [--list]` |
 | `site` | `list [--domain x]` · `show <域名/文件>` · `render`（只渲染配置不落盘）· `create`（写 vhost → 补 include → 校验 → hosts → 重载，失败自动回滚）· `remove --yes` · `enable` · `disable` · `php --php <版>` · `sync-port --old --new [--reload]` |
-| `hosts` | `status` · `add` · `remove`（只动 phpvm 托管块，`--dry-run` 可预览） |
+| `hosts` | `status` · `add` · `remove`（只动 phpvm 托管块，`--dry-run` 可预览）· `restore`（用写入前的备份整文件还原，需 `--yes`） |
 | `redis` / `mysql` | `list` · `status` · `start` · `stop` · `restart` ·（`redis` 另含 `ping`、`cmd --command "GET foo" --db 0 --force`）·（`mysql` 另含 `log --lines N`） |
 | `sqlite` | `tables <path>` · `columns <path> <table>` · `query <path> "<sql>" [--limit N] [--offset N]`（只读：仅 SELECT / WITH / PRAGMA / EXPLAIN / VALUES） |
 | `services` | `start-all` · `stop-all`（按序启动 PHP → Redis → MySQL → Nginx） |
@@ -324,6 +325,8 @@ C:\wnrp\phpvm\
 ├── _e2e.py                # 端到端冒烟：版本扫描 + 状态判定耗时
 ├── _e2e_update.py         # 自动升级链路自测（模拟发布源：检查 → 下载 → SHA-256 校验/取消）
 ├── _i18n_scan.py          # i18n 文案扫描（生成 i18n/_keys.json，--report 看覆盖度）
+├── tests/                 # 单元测试（标准库 unittest：vhost 改写 / hosts / ini / 建站编排）
+│                          # 运行：python -m unittest discover -s tests -t .
 ├── README.md
 ├── ROADMAP.md             # 功能缺口调研与开发路线（规划文档）
 ├── packaging/             # 安装包构建（build.py 跨平台构建 .app/.dmg 与 Windows 包 + phpvm.iss）
@@ -349,7 +352,9 @@ C:\wnrp\phpvm\
 │   ├── tool_manager.py    # 外部工具探测（Composer 路径/版本与按 PHP 版本运行）
 │   ├── modules.py         # 可选模块注册表（开关/持久化，停用后不再加载该模块）
 │   ├── icon.py            # 托盘图标 phpvm.ico 生成（标准库写 ICO，仓库不内置二进制）
-│   ├── vhost_manager.py   # 站点映射解析 + 端口一键同步 + 站点文件写入 / include 自动补全
+│   ├── vhost_manager.py   # 站点映射解析 + 端口一键同步 + 站点文件写入 / include 自动补全 + 站点命名 helper
+│   ├── site_service.py    # 新建站点编排（证书→写 vhost→补 include→nginx -t→hosts→重载）与回滚，CLI/GUI 共用
+│   ├── file_backup.py     # 文件备份 / 还原统一入口（<file>.bak；hosts 用 .phpvm.bak）
 │   ├── site_templates.py  # 6 套站点 nginx 模板（Laravel/WordPress/ThinkPHP/通用/静态/SPA）
 │   ├── hosts_manager.py   # hosts 自动映射（跨平台；PowerShell RunAs / osascript 提权写入）
 │   ├── sqlite_manager.py  # SQLite 只读查询（发现/打开/表结构/查询，URI mode=ro 兜底）
