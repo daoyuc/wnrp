@@ -4,6 +4,7 @@
 所有耗时操作（扫描、php -v 解析、启停、状态刷新）均在后台线程执行，
 通过 queue 回传 UI 线程，避免界面卡死。
 """
+import os
 import queue
 import threading
 import tkinter as tk
@@ -29,6 +30,9 @@ COLUMNS = [
     ("pid", "PID", 90, "center"),
     ("ini", t("配置文件"), 300, "w"),
 ]
+
+#: 配置文件列前缀：该版本还没有生效的 php.ini（需先「初始化 php.ini」）
+_MISSING_MARK = "⚠ "
 
 
 class PhpPanel(ttk.Frame):
@@ -66,6 +70,8 @@ class PhpPanel(ttk.Frame):
         self.btn_check = ttk.Button(bar, text=t("自检"), command=self._self_check)
         self.btn_ext = ttk.Button(bar, text=t("安装扩展"), command=self._manage_ext)
         self.btn_tune = ttk.Button(bar, text=t("推荐设置"), command=self._recommend_settings)
+        # 没有生效 php.ini 的版本：先生成一份，否则「编辑配置 / 推荐设置」无从下手
+        self.btn_init_ini = ttk.Button(bar, text=t("初始化 php.ini"), command=self._init_ini)
         self.btn_download = ttk.Button(bar, text=t("下载新版本"), style="Accent.TButton",
                                        command=self._download_version)
         self.btn_terminal = ttk.Button(bar, text=t("打开终端"), command=self._open_terminal)
@@ -73,8 +79,8 @@ class PhpPanel(ttk.Frame):
         self.btn_refresh = ttk.Button(bar, text=t("刷新"), command=self.refresh_versions)
         for b in (self.btn_start, self.btn_stop, self.btn_restart, self.btn_port,
                   self.btn_ini, self.btn_edit, self.btn_check, self.btn_ext,
-                  self.btn_tune, self.btn_download, self.btn_terminal, self.btn_composer,
-                  self.btn_refresh):
+                  self.btn_tune, self.btn_init_ini, self.btn_download,
+                  self.btn_terminal, self.btn_composer, self.btn_refresh):
             b.pack(side="left", padx=(0, 6))
         ttk.Label(bar, text=t("选中版本后操作 · 双击行查看配置"),
                   style="SubTitle.TLabel").pack(side="left", padx=(4, 0))
@@ -177,23 +183,24 @@ class PhpPanel(ttk.Frame):
         elif kind == "row":
             self._update_rows()
 
+    def _row(self, v: PhpVersion, i: int) -> tuple[tuple, list[str]]:
+        """单行数据 + 标记：配置文件缺失时路径前加 ⚠（该行需先「初始化 php.ini」）。"""
+        dot, tag = ("●", "dot_run") if v.running else ("○", "dot_stop")
+        ini = self.php_mgr.ini_target(v)
+        if not self.php_mgr.ini_ready(v):
+            ini = _MISSING_MARK + ini
+        return (
+            (dot, v.name, v.display, v.port, v.pid if v.pid else "—", ini),
+            [tag, "odd" if i % 2 else "even"],
+        )
+
     def _render(self, versions: list[PhpVersion]) -> None:
         self._versions = versions
         self._name_to_iid.clear()
         self.tree.delete(*self.tree.get_children())
         for i, v in enumerate(versions):
-            running, pid = v.running, v.pid
-            dot, tag = ("●", "dot_run") if running else ("○", "dot_stop")
-            tags = [tag, "odd" if i % 2 else "even"]
-            iid = self.tree.insert(
-                "", "end",
-                values=(
-                    dot, v.name, v.display, v.port,
-                    pid if pid else "—",
-                    v.ini,
-                ),
-                tags=tags,
-            )
+            values, tags = self._row(v, i)
+            iid = self.tree.insert("", "end", values=values, tags=tags)
             self._name_to_iid[v.name] = iid
         self._update_buttons()
 
@@ -300,14 +307,8 @@ class PhpPanel(ttk.Frame):
             iid = self._name_to_iid.get(v.name)
             if not iid:
                 continue
-            running, pid = v.running, v.pid
-            dot, tag = ("●", "dot_run") if running else ("○", "dot_stop")
-            tags = [tag, "odd" if i % 2 else "even"]
-            self.tree.item(
-                iid,
-                values=(dot, v.name, v.display, v.port, pid if pid else "—", v.ini),
-                tags=tags,
-            )
+            values, tags = self._row(v, i)
+            self.tree.item(iid, values=values, tags=tags)
         self._update_buttons()
 
     # ------------------------------------------------------------------ #
@@ -328,6 +329,11 @@ class PhpPanel(ttk.Frame):
                   self.btn_ini, self.btn_edit, self.btn_check, self.btn_ext,
                   self.btn_tune):
             b.configure(state="normal" if has_sel else "disabled")
+        # 「初始化 php.ini」只在选中版本确实没有生效配置时可用
+        v = self._selected()
+        need_ini = v is not None and not self.php_mgr.ini_ready(v)
+        self.btn_init_ini.configure(
+            state="normal" if (need_ini and not self._busy) else "disabled")
 
     def _set_busy(self, busy: bool) -> None:
         self._busy = busy
@@ -353,12 +359,12 @@ class PhpPanel(ttk.Frame):
         v = self._selected()
         if v is None:
             return
-        if not v.ini:
+        if not self.php_mgr.ini_ready(v):
             messagebox.showwarning(
                 t("无独立配置文件"),
-                t("[{name}] 未使用独立 php.ini（读取 PHP 编译默认配置）。\n"
-                  "如需按版本定制配置，请在版本目录中放置 php.ini 后重新刷新。",
-                  name=v.name),
+                t("[{name}] 还没有生效的 php.ini：{path}\n"
+                  "请先点「初始化 php.ini」生成配置，再使用该功能。",
+                  name=v.name, path=self.php_mgr.ini_target(v)),
                 parent=self,
             )
             return
@@ -369,11 +375,12 @@ class PhpPanel(ttk.Frame):
         v = self._selected()
         if v is None:
             return
-        if not v.ini:
+        if not self.php_mgr.ini_ready(v):
             messagebox.showwarning(
                 t("无独立配置文件"),
-                t("[{name}] 未使用独立 php.ini，无法写入推荐值。\n"
-                  "请在版本目录中放置 php.ini 后重新刷新。", name=v.name),
+                t("[{name}] 还没有生效的 php.ini：{path}\n"
+                  "请先点「初始化 php.ini」生成配置，再使用该功能。",
+                  name=v.name, path=self.php_mgr.ini_target(v)),
                 parent=self,
             )
             return
@@ -407,6 +414,38 @@ class PhpPanel(ttk.Frame):
                        "重启 [{name}]（停止后启动）即可生效。",
                        count=res.get("changed", 0), backup=res.get("backup", ""),
                        name=v.name)
+
+    def _init_ini(self) -> None:
+        """为没有生效配置的 PHP 版本生成 php.ini（官方模板优先，其次内置骨架）。"""
+        v = self._selected()
+        if v is None:
+            return
+        target = self.php_mgr.ini_target(v)
+        if os.path.exists(target):
+            messagebox.showinfo(
+                t("初始化 php.ini"),
+                t("[{name}] 已有配置文件：{path}", name=v.name, path=target),
+                parent=self,
+            )
+            self._update_buttons()
+            return
+        src, src_desc = self.php_mgr.ini_template(v)
+        if not messagebox.askyesno(
+                t("初始化 php.ini"),
+                t("[{name}] 当前没有生效的 php.ini，「编辑配置 / 推荐设置」不可用。\n\n"
+                  "将生成：{path}\n来源：{src}\n\n生成后需重启该版本生效。是否继续？",
+                  name=v.name, path=target, src=src_desc),
+                parent=self):
+            return
+        ok, msg = self.php_mgr.init_ini(v)
+        if not ok:
+            self.notify(msg)
+            messagebox.showerror(t("初始化 php.ini"), msg, parent=self)
+            return
+        self.notify(msg)
+        messagebox.showinfo(t("初始化 php.ini"), msg, parent=self)
+        # v.ini 已同步：直接重绘本行，无需重新扫描
+        self._update_rows()
 
     def _self_check(self) -> None:
         v = self._selected()

@@ -556,13 +556,20 @@
    "core/php_manager.py"
   ]
  },
- "[{name}] 未使用独立 php.ini（读取 PHP 编译默认配置）。\n如需按版本定制配置，请在版本目录中放置 php.ini 后重新刷新。": {
-  "count": 1,
+ "[{name}] 已有配置文件：{path}": {
+  "count": 2,
   "files": [
-   "ui/php_panel.py"
+   "ui/php_panel.py",
+   "core/php_manager.py"
   ]
  },
- "[{name}] 未使用独立 php.ini，无法写入推荐值。\n请在版本目录中放置 php.ini 后重新刷新。": {
+ "[{name}] 已生成 {path}（来源：{src}）；重启该版本后生效，之后即可使用「编辑配置 / 推荐设置」。": {
+  "count": 1,
+  "files": [
+   "core/php_manager.py"
+  ]
+ },
+ "[{name}] 当前没有生效的 php.ini，「编辑配置 / 推荐设置」不可用。\n\n将生成：{path}\n来源：{src}\n\n生成后需重启该版本生效。是否继续？": {
   "count": 1,
   "files": [
    "ui/php_panel.py"
@@ -592,6 +599,12 @@
    "core/redis_manager.py"
   ]
  },
+ "[{name}] 生成配置文件失败：{err}": {
+  "count": 1,
+  "files": [
+   "core/php_manager.py"
+  ]
+ },
  "[{name}] 的 php.ini 已经符合开发环境推荐值，无需改动。": {
   "count": 1,
   "files": [
@@ -618,6 +631,12 @@
  },
  "[{name}] 运行于 macOS，扩展不再使用 Windows .dll 安装页：\n\n已随 brew 公式编译的扩展（redis/memcached/imap 等）装好即默认加载；\n其它 PECL 扩展请在终端安装（默认装到当前 brew 默认 PHP，多版本并存时\n建议先切 keg：brew link php@8.1 --force）：\n  pecl install redis\n\n启用/禁用请点上方「编辑配置」改对应 php.ini：\n  extension=redis.so\nbrew 的 ini 一般在 /opt/homebrew/etc/php/<版本>/php.ini（Intel 前缀为 /usr/local）。": {
   "count": 1,
+  "files": [
+   "ui/php_panel.py"
+  ]
+ },
+ "[{name}] 还没有生效的 php.ini：{path}\n请先点「初始化 php.ini」生成配置，再使用该功能。": {
+  "count": 2,
   "files": [
    "ui/php_panel.py"
   ]
@@ -1712,6 +1731,12 @@
    "ui/run_log_panel.py"
   ]
  },
+ "内置最小骨架": {
+  "count": 1,
+  "files": [
+   "core/php_manager.py"
+  ]
+ },
  "内部错误：{err}": {
   "count": 1,
   "files": [
@@ -1872,6 +1897,12 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "初始化 php.ini": {
+  "count": 5,
+  "files": [
+   "ui/php_panel.py"
   ]
  },
  "刷新": {
@@ -2553,6 +2584,12 @@
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "官方模板 {name}": {
+  "count": 1,
+  "files": [
+   "core/php_manager.py"
   ]
  },
  "实例未运行，无法统计键空间": {
@@ -6020,7 +6057,7 @@
    "ui/dialogs.py"
   ]
  },
- "（未使用独立配置文件：将读取 PHP 编译默认配置，如需独立配置请在版本目录放置 php.ini）": {
+ "（未使用独立配置文件：将读取 PHP 编译默认配置，可点「初始化 php.ini」生成一份）": {
   "count": 1,
   "files": [
    "core/php_manager.py"

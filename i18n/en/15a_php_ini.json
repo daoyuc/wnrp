@@ -1,0 +1,11 @@
+{
+  "[{name}] 已有配置文件：{path}": "[{name}] already has a config file: {path}",
+  "[{name}] 已生成 {path}（来源：{src}）；重启该版本后生效，之后即可使用「编辑配置 / 推荐设置」。": "[{name}] created {path} (from: {src}); restart this version to apply it — \"Edit config / Recommended settings\" works afterwards.",
+  "[{name}] 当前没有生效的 php.ini，「编辑配置 / 推荐设置」不可用。\n\n将生成：{path}\n来源：{src}\n\n生成后需重启该版本生效。是否继续？": "[{name}] has no effective php.ini, so \"Edit config / Recommended settings\" is unavailable.\n\nWill create: {path}\nFrom: {src}\n\nRestart this version for it to take effect. Continue?",
+  "[{name}] 生成配置文件失败：{err}": "[{name}] failed to create the config file: {err}",
+  "[{name}] 还没有生效的 php.ini：{path}\n请先点「初始化 php.ini」生成配置，再使用该功能。": "[{name}] has no effective php.ini yet: {path}\nClick \"Initialize php.ini\" to create it, then use this feature.",
+  "内置最小骨架": "built-in minimal skeleton",
+  "初始化 php.ini": "Initialize php.ini",
+  "官方模板 {name}": "official template {name}",
+  "（未使用独立配置文件：将读取 PHP 编译默认配置，可点「初始化 php.ini」生成一份）": "(No standalone config file: PHP's compiled-in defaults apply — click \"Initialize php.ini\" to create one)"
+}
