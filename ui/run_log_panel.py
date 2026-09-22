@@ -33,6 +33,7 @@ class RunLogPanel(ttk.Frame):
         self._queue: queue.Queue = queue.Queue()
         self._entries: list = []
         self._draining = False
+        self._render_key: tuple[str, str] | None = None  # 上次全量重绘的过滤条件
         self._build()
         self._entries = run_log.snapshot(MAX_VIEW)
         self._render()
@@ -141,19 +142,24 @@ class RunLogPanel(ttk.Frame):
         if not self.winfo_exists():  # 面板已销毁：停止轮询
             self._draining = False
             return
-        changed = False
+        added: list = []
         try:
             while True:
                 kind, payload = self._queue.get_nowait()
                 if kind == "entry":
-                    self._entries.append(payload)
-                    changed = True
+                    added.append(payload)
         except queue.Empty:
             pass
-        if changed:
-            if len(self._entries) > MAX_VIEW:
+        if added:
+            self._entries.extend(added)
+            trimmed = len(self._entries) > MAX_VIEW
+            if trimmed:
                 self._entries = self._entries[-MAX_VIEW:]
-            self._render()
+            # 过滤条件未变且未截断 → 只追加新行；否则全量重绘
+            if not trimmed and self._filter_key() == self._render_key:
+                self._append_rows(added)
+            else:
+                self._render()
         # 不可见页签降频：drain 只是空转取消息，不必跟着 80ms 跑
         self.after(80 if self.winfo_ismapped() else 400, self._drain)
 
@@ -190,28 +196,28 @@ class RunLogPanel(ttk.Frame):
             return False
         return True
 
+    def _filter_key(self) -> tuple[str, str]:
+        """当前过滤条件（级别, 关键字）；变化时必须全量重绘。"""
+        return self._level_code(), self.filter_var.get().strip().lower()
+
     def _visible_entries(self) -> list:
-        level = self._level_code()
-        keyword = self.filter_var.get().strip().lower()
+        level, keyword = self._filter_key()
         return [e for e in self._entries if self._matches(e, level, keyword)]
 
-    def _render(self) -> None:
-        """按级别 + 关键字过滤重绘列表与统计信息。"""
-        shown = self._visible_entries()
-        self.tree.delete(*self.tree.get_children())
-        errs = warns = 0
-        for idx, entry in enumerate(shown, start=1):
-            if entry.level == "error":
-                errs += 1
-            elif entry.level == "warn":
-                warns += 1
+    def _insert_rows(self, rows: list, start_index: int) -> None:
+        """按序插入行；奇偶底色从 start_index 起算，增量追加时与全量口径一致。"""
+        for offset, entry in enumerate(rows):
+            idx = start_index + offset
             self.tree.insert(
                 "", "end", iid=str(entry.seq),
                 values=(entry.time_text, t(LEVEL_TEXT[entry.level]), entry.scope,
                         entry.message.replace("\n", " ⏎ ")),
                 tags=(entry.level, "odd" if idx % 2 else "even"))
-        if self.follow_var.get() and shown:
-            self.tree.see(str(shown[-1].seq))
+
+    def _update_info(self, shown: list) -> None:
+        """刷新顶部统计（条数 / 错误 / 警告 / 落盘路径）。"""
+        errs = sum(1 for e in shown if e.level == "error")
+        warns = sum(1 for e in shown if e.level == "warn")
         parts = [t("共 {n} 条", n=len(shown))]
         if errs:
             parts.append(t("错误 {n}", n=errs))
@@ -221,6 +227,27 @@ class RunLogPanel(ttk.Frame):
         self.info_var.set(" · ".join(parts))
         if not shown:
             self._set_detail("")
+
+    def _render(self) -> None:
+        """按级别 + 关键字过滤全量重绘列表与统计信息。"""
+        level, keyword = self._filter_key()
+        self._render_key = (level, keyword)
+        shown = [e for e in self._entries if self._matches(e, level, keyword)]
+        self.tree.delete(*self.tree.get_children())
+        self._insert_rows(shown, 1)
+        if self.follow_var.get() and shown:
+            self.tree.see(str(shown[-1].seq))
+        self._update_info(shown)
+
+    def _append_rows(self, entries: list) -> None:
+        """增量追加新到条目（过滤条件未变时），只插入命中过滤条件的行。"""
+        level, keyword = self._render_key or self._filter_key()
+        new_rows = [e for e in entries if self._matches(e, level, keyword)]
+        if new_rows:
+            self._insert_rows(new_rows, len(self.tree.get_children()) + 1)
+            if self.follow_var.get():
+                self.tree.see(str(new_rows[-1].seq))
+        self._update_info(self._visible_entries())
 
     def _selected_entry(self):
         sel = self.tree.selection()

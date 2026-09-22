@@ -322,6 +322,192 @@ def cmdline_matches_pids(needles, force: bool = False) -> dict[int, str]:
 
 
 # --------------------------------------------------------------------------- #
+# 进程镜像名全量快照（Windows：EnumProcesses + QueryFullProcessImageNameW）
+# --------------------------------------------------------------------------- #
+_win_image_snap: tuple[float, dict[int, str]] | None = None
+_win_image_lock = threading.Lock()
+_WIN_IMAGE_TTL = 2.0  # 秒
+
+# tasklist 全量 {pid: 进程名} 兜底快照（仅 ctypes 取不到时用；一次调用覆盖全部进程）
+_tasklist_images: tuple[float, dict[int, str]] | None = None
+_tasklist_images_lock = threading.Lock()
+_TASKLIST_IMAGE_TTL = 3.0  # 秒
+
+_PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+
+
+def _enum_process_images() -> dict[int, str] | None:
+    """Windows：一次枚举返回 {pid: 可执行文件完整路径}；不可用时返回 None。
+
+    EnumProcesses 取全部 PID，OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION) +
+    QueryFullProcessImageNameW 取映像路径 —— 全程系统调用，不派生任何外部进程
+    （替代 tasklist / PowerShell `Get-Process`）；无权限打开的进程自动跳过。
+    """
+    if not IS_WIN:
+        return None
+    try:
+        import ctypes
+        from ctypes import wintypes
+    except ImportError:  # pragma: no cover - 非 Windows
+        return None
+    try:
+        psapi = ctypes.WinDLL("psapi")
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    except OSError:  # pragma: no cover - 极老系统缺 dll
+        return None
+
+    psapi.EnumProcesses.restype = wintypes.BOOL
+    psapi.EnumProcesses.argtypes = [ctypes.POINTER(wintypes.DWORD), wintypes.DWORD,
+                                    ctypes.POINTER(wintypes.DWORD)]
+    k32.OpenProcess.restype = wintypes.HANDLE
+    k32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    k32.QueryFullProcessImageNameW.restype = wintypes.BOOL
+    k32.QueryFullProcessImageNameW.argtypes = [
+        wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR,
+        ctypes.POINTER(wintypes.DWORD),
+    ]
+    k32.CloseHandle.restype = wintypes.BOOL
+    k32.CloseHandle.argtypes = [wintypes.HANDLE]
+
+    cap = 4096
+    while True:
+        pid_buf = (wintypes.DWORD * cap)()
+        needed = wintypes.DWORD(0)
+        if not psapi.EnumProcesses(pid_buf, ctypes.sizeof(pid_buf), ctypes.byref(needed)):
+            return None
+        count = needed.value // ctypes.sizeof(wintypes.DWORD)
+        if count < cap or cap >= 65536:
+            break
+        cap *= 2
+
+    out: dict[int, str] = {}
+    buf_len = 1024
+    name_buf = ctypes.create_unicode_buffer(buf_len)
+    size = wintypes.DWORD(buf_len)
+    for i in range(min(count, cap)):
+        pid = int(pid_buf[i])
+        if not pid:
+            continue
+        handle = k32.OpenProcess(_PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+        if not handle:
+            continue
+        try:
+            size.value = buf_len
+            if k32.QueryFullProcessImageNameW(handle, 0, name_buf, ctypes.byref(size)):
+                out[pid] = name_buf.value
+        finally:
+            k32.CloseHandle(handle)
+    return out
+
+
+def get_process_image_snapshot(force: bool = False) -> dict[int, str] | None:
+    """全进程 {pid: 可执行文件路径} 快照，带 TTL 缓存。
+
+    Windows：ctypes 系统调用（零子进程）；posix：复用 `ps` 命令行快照的 argv[0]。
+    返回 None 表示底层不可用，调用方应回退 tasklist / ps 逐进程路径。
+    """
+    now = time.monotonic()
+    if not IS_WIN:
+        snap = get_process_cmd_snapshot(force=force)
+        if snap is None:
+            return None
+        return {pid: cmd.split()[0] for pid, cmd in snap.items() if cmd.split()}
+
+    global _win_image_snap
+    with _win_image_lock:
+        cached = _win_image_snap
+        if not force and cached and now - cached[0] < _WIN_IMAGE_TTL:
+            return cached[1]
+    snap = _enum_process_images()
+    if snap is None:
+        return None
+    with _win_image_lock:
+        _win_image_snap = (now, snap)
+    return snap
+
+
+def _tasklist_image_snapshot(force: bool = False) -> dict[int, str] | None:
+    """Windows：一次 `tasklist` 得到全量 {pid: 进程名}（带 TTL 缓存）。
+
+    仅作 ctypes 镜像快照的兜底：受保护/系统进程（如以 Windows 服务方式运行的
+    mysqld.exe、SYSTEM 拥有的进程）无法被 OpenProcess 打开，只有 tasklist 能看到。
+    一次调用覆盖全部进程，远优于逐 PID 查询。
+    """
+    if not IS_WIN:
+        return None
+    global _tasklist_images
+    now = time.monotonic()
+    with _tasklist_images_lock:
+        cached = _tasklist_images
+        if not force and cached and now - cached[0] < _TASKLIST_IMAGE_TTL:
+            return cached[1]
+    code, out, _ = run_cmd(["tasklist", "/FO", "CSV", "/NH"], timeout=15)
+    if code != 0:
+        return None
+    snap: dict[int, str] = {}
+    for line in out.splitlines():
+        parts = line.split('","')
+        if len(parts) >= 2:
+            name = parts[0].strip().lstrip('"')
+            try:
+                snap[int(parts[1].strip('"'))] = name
+            except ValueError:
+                continue
+    with _tasklist_images_lock:
+        _tasklist_images = (now, snap)
+    return snap
+
+
+def pids_by_image(name: str, force: bool = False) -> set[int]:
+    """按可执行文件名（如 nginx.exe / redis-server.exe）查 PID 集合。
+
+    Windows：走 ctypes 镜像名快照（零子进程，覆盖 phpvm 自己启动的进程）；
+    快照整体不可用时回退 tasklist；
+    posix：沿用 ps 命令行子串匹配（与历史行为一致）。
+    """
+    if not IS_WIN:
+        return set(cmdline_matches_pids((name,), force=force))
+    snap = get_process_image_snapshot(force=force)
+    if snap is not None:
+        target = name.lower()
+        return {pid for pid, path in snap.items()
+                if os.path.basename(path).lower() == target}
+    images = _tasklist_image_snapshot(force=force)
+    if images is None:
+        return set()
+    return {pid for pid, img in images.items() if img.lower() == name.lower()}
+
+
+def find_pids_by_image_name(substr: str) -> list[tuple[int, str]]:
+    """进程名（basename，小写）含 substr 的 [(pid, 名称)]，用于按名兜底查找。
+
+    Windows：ctypes 快照 ∪ 一次 tasklist 全量（补全受保护/系统进程，
+    如以服务方式运行、phpvm 无权打开句柄的 mysqld）；
+    两条来源都不可用时才退回逐 PID tasklist（旧行为，较慢）。
+    """
+    needle = substr.lower()
+    hits: dict[int, str] = {}
+    snap = get_process_image_snapshot()
+    if snap is not None:
+        for pid, path in snap.items():
+            name = os.path.basename(path).lower()
+            if needle in name:
+                hits[pid] = name
+    images = _tasklist_image_snapshot()
+    if images is not None:
+        for pid, name in images.items():
+            low = name.lower()
+            if needle in low and pid not in hits:
+                hits[pid] = low
+    if snap is None and images is None:
+        for pid in get_process_snapshot():
+            name = (pid_to_name(pid) or "").lower()
+            if needle in name:
+                hits[pid] = name
+    return sorted(hits.items())
+
+
+# --------------------------------------------------------------------------- #
 # 进程集合 / 存活判断
 # --------------------------------------------------------------------------- #
 def _enum_pids() -> set[int]:
@@ -386,18 +572,22 @@ def get_process_snapshot() -> set[int]:
 
 
 def invalidate_process_cache() -> None:
-    """清空 TCP / 存活 PID / posix 命令行三层快照缓存。
+    """清空 TCP / 存活 PID / 命令行 / 镜像名四层快照缓存。
 
     启停进程后必须调用（立即反映新进程/已退出进程），否则轮询判定会命中
     操作前的旧快照而误报「未监听/仍在运行」。
     """
-    global _tcp_snapshot, _alive_cache, _posix_proc_snap
+    global _tcp_snapshot, _alive_cache, _posix_proc_snap, _win_image_snap, _tasklist_images
     with _tcp_snapshot_lock:
         _tcp_snapshot = None
     with _alive_cache_lock:
         _alive_cache = None
     with _posix_proc_lock:
         _posix_proc_snap = None
+    with _win_image_lock:
+        _win_image_snap = None
+    with _tasklist_images_lock:
+        _tasklist_images = None
 
 
 def is_pid_alive_fast(pid: int) -> bool:
@@ -430,6 +620,15 @@ def is_pid_alive(pid: int) -> bool:
 # --------------------------------------------------------------------------- #
 def pid_to_name(pid: int) -> str:
     if IS_WIN:
+        snap = get_process_image_snapshot()
+        if snap is not None:
+            name = os.path.basename(snap.get(pid, ""))
+            if name:
+                return name
+            # 受保护/系统进程 ctypes 打不开句柄 → 用缓存的全量 tasklist 兜底（仍零新增进程）
+            images = _tasklist_image_snapshot()
+            if images is not None:
+                return images.get(pid) or f"PID {pid}"
         code, out, _ = run_cmd(
             ["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"], timeout=10
         )
@@ -445,10 +644,13 @@ def pid_to_name(pid: int) -> str:
 def pid_to_path(pid: int) -> str:
     """获取进程可执行文件/完整命令行（用于校验进程身份，可能为空）。
 
-    Windows 用 PowerShell 拿可执行文件路径；posix 用 `ps -o command=`，
-    返回完整命令行（argv[0] 通常为完整路径），供上层按进程名匹配。
+    Windows 优先走镜像名快照（零子进程），不可用时才用 PowerShell 兜底；
+    posix 用 `ps -o command=`，返回完整命令行（argv[0] 通常为完整路径）。
     """
     if IS_WIN:
+        snap = get_process_image_snapshot()
+        if snap is not None:
+            return snap.get(pid, "")
         code, out, _ = run_cmd(
             [
                 "powershell", "-NoProfile", "-NonInteractive", "-Command",

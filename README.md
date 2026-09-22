@@ -41,6 +41,7 @@
 - **Composer**：自动探测系统 Composer（`PATH` 与 `C:\ProgramData\ComposerSetup` 等常见位置），点击后在该 PHP 版本的 PATH 下打开终端执行 `composer -V`；未安装时给出安装指引（不内置下载）
 - **cmd php 版本切换**：顶部实时显示当前 `php` 命令行生效版本（如 `CMD php：php82 · PHP 8.2.4`），点击「切换」可选择任意版本置顶
 - 每 **8 秒**自动刷新运行状态（批量快照：一次 TCP 端口快照 + 一次进程快照完成全部版本状态判定）；顶部 cmd php 版本号按「版本目录 + php.exe 修改时间」缓存，并降频为每 4 轮（约 32 秒）刷新一次
+- **零子进程状态判定**：Nginx / Redis / MySQL 的运行状态同样走进程快照（`core/process_utils` 的 ctypes 镜像名快照 + TTL 缓存），不再每轮调用 `tasklist`；受保护/系统进程（如服务方式运行的 mysqld）由一次缓存的全量 `tasklist` 兜底补全
 
 ### 站点映射页
 - **映射矩阵**：解析 `nginx.conf` 与 `vhost/*.conf` 的全部 server 块，展示「域名 / 配置文件 / fastcgi_pass 端口 / 对应 PHP 版本 / 项目 root」
@@ -103,6 +104,7 @@
 - 级别过滤 + 关键字实时过滤；「自动跟随」默认勾选（新日志自动滚到最后一行）；双击行复制；「刷新」重新回填内存缓冲
 - 「清空」只清内存（视图与后续展示），**落盘文件保留**；「导出…」把当前过滤视图写成文本；「打开日志文件」用系统默认程序打开
 - 内存保留最近 2000 条；落盘为 `<数据目录>/run_log.log`（开发态即仓库根），超过 1MB 自动轮转为 `run_log.log.1`
+- **落盘异步化**：写日志只入内存与队列，磁盘写入由后台单线程批量执行（调用方零磁盘 IO，退出时自动冲刷）；面板列表按增量追加渲染，日志突发时不整表重建
 - 写入接口为 `core/run_log.py`（无 tkinter 依赖，与 CLI 共用）：`run_log.info/ok/warn/error(scope, message)`；环境变量 `PHPVM_RUN_LOG=0` 可整体关闭；CLI 运行（如 `services start-all`）同样写入该文件
 - 与「Nginx 日志」的区别：这里是 **phpvm 自身的运行轨迹**，不是 nginx 的访问 / 错误日志
 

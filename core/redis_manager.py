@@ -137,16 +137,12 @@ class RedisManager:
     # 状态
     # ------------------------------------------------------------------ #
     def _redis_server_pids(self) -> set[int]:
-        """全部 redis-server 进程 PID。win：tasklist 一次；posix：ps 快照一次。"""
-        if IS_WIN:
-            code, out, _ = pu.run_cmd(
-                ["tasklist", "/FI", "IMAGENAME eq redis-server.exe", "/FO", "CSV", "/NH"],
-                timeout=10,
-            )
-            if code != 0:
-                return set()
-            return {int(m) for m in re.findall(r'"redis-server\.exe","(\d+)"', out)}
-        return set(pu.cmdline_matches_pids((SERVER_NAME,)))
+        """全部 redis-server 进程 PID。
+
+        Windows：ctypes 镜像名快照（零子进程，一次枚举覆盖全部实例）；
+        posix：ps 命令行快照。二者均带 TTL 缓存。
+        """
+        return pu.pids_by_image(SERVER_NAME)
 
     def _pid_belongs(self, inst: RedisInstance, pid: int) -> bool:
         """进程是否属于本实例（多实例同端口时精确归属）。"""
@@ -158,9 +154,15 @@ class RedisManager:
         # posix：命令行包含实例服务器路径（目录/bin/redis-server）即归属
         return inst.server.lower() in path
 
-    def get_status(self, inst: RedisInstance) -> tuple[bool, list[int]]:
-        """(是否运行, PID 列表)：redis-server 进程 ∩ 实例端口监听。"""
-        all_redis = self._redis_server_pids()
+    def get_status(self, inst: RedisInstance,
+                   all_redis: set[int] | None = None) -> tuple[bool, list[int]]:
+        """(是否运行, PID 列表)：redis-server 进程 ∩ 实例端口监听。
+
+        all_redis 可传入本轮的批量进程快照，避免逐实例重复取快照
+        （面板一轮刷新里 N 个实例只需一次进程/端口查询）。
+        """
+        if all_redis is None:
+            all_redis = self._redis_server_pids()
         if not all_redis:
             inst.running, inst.pids = False, []
             return False, []
@@ -178,9 +180,19 @@ class RedisManager:
         return inst.running, candidates
 
     def get_status_all(self) -> list[RedisInstance]:
+        """一轮内批量判定全部实例（进程快照只取一次）。"""
+        all_redis = self._redis_server_pids()
         for inst in self.instances:
-            self.get_status(inst)
+            self.get_status(inst, all_redis)
         return self.instances
+
+    def status_snapshot(self) -> dict[str, tuple[bool, list[int]]]:
+        """批量状态：{实例名: (是否运行, PID 列表)}，供面板一轮刷新直接渲染。
+
+        与逐个调用 get_status 等价，但进程/端口快照只取一次。
+        """
+        all_redis = self._redis_server_pids()
+        return {inst.name: self.get_status(inst, all_redis) for inst in self.instances}
 
     def get_version(self, inst: RedisInstance) -> str:
         if inst.version:

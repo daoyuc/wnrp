@@ -72,6 +72,7 @@ class RedisPanel(ttk.Frame):
         self._inst_running = False      # 当前选中实例运行中（键空间页空态判定）
         self._ks_stats: list[tuple[int, int]] | None = None  # 键空间数据
         self._ks_ts = ""                # 上次统计时间
+        self._ks_drawn = None           # 上次绘制依据（数据/尺寸/主题未变则跳过重绘）
 
         self._build()
         self.refresh_status()
@@ -389,10 +390,8 @@ class RedisPanel(ttk.Frame):
 
         def worker():
             try:
-                data: dict[str, tuple[bool, list[int]]] = {}
-                for i in self.redis_mgr.instances:
-                    running, pids = self.redis_mgr.get_status(i)
-                    data[i.name] = (running, pids)
+                # 一轮刷新只取一次进程/端口快照，N 个实例本地匹配（避免 N 次子进程）
+                data = self.redis_mgr.status_snapshot()
                 ver = self.redis_mgr.get_version(inst)
                 self._queue.put(("status", (inst.name, data, ver)))
             except Exception as e:  # noqa: BLE001
@@ -426,11 +425,7 @@ class RedisPanel(ttk.Frame):
 
         def worker():
             try:
-                data = {}
-                for i in self.redis_mgr.instances:
-                    running, pids = self.redis_mgr.get_status(i)
-                    data[i.name] = (running, pids)
-                self._queue.put(("auto", data))
+                self._queue.put(("auto", self.redis_mgr.status_snapshot()))
             except Exception:  # noqa: BLE001
                 self._queue.put(("auto", {}))
 
@@ -552,17 +547,33 @@ class RedisPanel(ttk.Frame):
         return str(n)
 
     def refresh_theme(self) -> None:
-        """主题切换钩子：键空间图是 Canvas 自绘，按新配色重画一次。"""
-        self._draw_keyspace()
+        """主题切换钩子：键空间图是 Canvas 自绘，按新配色强制重画一次。"""
+        self._draw_keyspace(force=True)
 
-    def _draw_keyspace(self) -> None:
+    def _draw_keyspace(self, force: bool = False) -> None:
         c = self.ks_canvas
-        c.delete("all")
         w, h = c.winfo_width(), c.winfo_height()
-        if w < 60 or h < 60:
+        if w < 60 or h < 60:  # 尚未布局完成：不画，等 <Configure> 再触发
+            if self._ks_drawn is not None:
+                c.delete("all")
+                self._ks_drawn = None
             return
         stats = self._ks_stats
         inst = self._instance()
+        # 数据 / 尺寸 / 主题 / 语言均未变则跳过重绘（8 秒一轮刷新下避免无谓重画）
+        sig = (
+            w, h,
+            inst.name if inst is not None else None,
+            self._inst_running,
+            tuple(stats) if stats else None,
+            self._ks_ts,
+            theme.current_mode(),
+            current_language(),
+        )
+        if not force and sig == self._ks_drawn:
+            return
+        self._ks_drawn = sig
+        c.delete("all")
         title_top = 10
         c.create_text(
             w // 2, title_top, text=t("键空间分布（DB → key 数）"),
