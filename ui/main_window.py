@@ -183,52 +183,50 @@ class MainWindow(tk.Tk):
         bar = ttk.Frame(self, style="Status.TFrame")
         bar.pack(fill="x", side="bottom")
         ttk.Label(bar, textvariable=self._log_var, style="Status.TLabel").pack(
-            side="left", fill="x", expand=True, padx=10, pady=4
+            side="left", fill="x", expand=True, padx=theme.PAD_MD, pady=theme.PAD_SM
         )
-        self._alert_label = tk.Label(
-            bar, text="", font=(theme.FONT, 9, "bold"), foreground=theme.ERR,
-            background=theme.PRIMARY_LIGHT, cursor="hand2",
+        self._alert_label = ttk.Label(
+            bar, text="", style="Alert.Status.TLabel", cursor="hand2",
         )
-        self._alert_label.pack(side="right", padx=10, pady=4)
+        self._alert_label.pack(side="right", padx=theme.PAD_MD, pady=theme.PAD_SM)
         self._alert_label.bind("<Button-1>", lambda e: self._show_crash_detail())
 
         # 新版本提示（点击打开更新对话框）
-        self._update_label = tk.Label(
-            bar, text="", font=(theme.FONT, 8, "bold"), foreground=theme.PRIMARY,
-            background=theme.PRIMARY_LIGHT, cursor="hand2",
+        self._update_label = ttk.Label(
+            bar, text="", style="Link.Status.TLabel", cursor="hand2",
         )
-        self._update_label.pack(side="right", padx=(0, 4), pady=4)
+        self._update_label.pack(side="right", padx=(0, theme.PAD_SM), pady=theme.PAD_SM)
         self._update_label.bind("<Button-1>", lambda e: self.open_update_dialog())
+        # 状态栏上沿细线：与内容区明确分界
+        theme.divider(self).pack(fill="x", side="bottom")
 
-        # 标题区
-        header = ttk.Frame(self, style="Card.TFrame")
-        header.pack(fill="x", padx=12, pady=(12, 8))
+        # 标题区（卡片 + 左侧强调竖条）
+        header = ttk.Frame(self, style="Panel.TFrame")
+        header.pack(fill="x", padx=theme.PAD_LG, pady=(theme.PAD_LG, theme.PAD_SM))
+        theme.accent_bar(header).pack(side="left", fill="y", padx=(0, theme.PAD_MD))
         ttk.Label(header, text=t("PHP 版本管理器"), style="Title.TLabel").pack(
-            side="left", padx=(16, 8), pady=12
+            side="left", padx=(theme.PAD_MD, theme.PAD_SM), pady=theme.PAD_MD
         )
         ttk.Label(header, text=t("环境根目录 {dir}", dir=WNRP_ROOT_SHOW),
                   style="SubTitle.TLabel").pack(
-            side="left", pady=12
+            side="left", pady=theme.PAD_MD
         )
 
         # 右侧：cmd php 命令版本状态 + 切换
-        cli_box = ttk.Frame(header)
-        cli_box.pack(side="right", padx=16, pady=10)
-        self.cli_dot = tk.Label(
-            cli_box, text="●", font=(theme.FONT, 12), background=theme.CARD_BG, foreground=theme.GRAY
+        cli_box = ttk.Frame(header, style="Card.TFrame")
+        cli_box.pack(side="right", padx=theme.PAD_LG, pady=theme.PAD_MD)
+        self.cli_dot = ttk.Label(cli_box, text="●", style="Dot.TLabel")
+        self.cli_dot.pack(side="left", padx=(0, theme.PAD_SM))
+        self.cli_label = ttk.Label(
+            cli_box, text=t("{prefix}：检测中…", prefix=CLI_PREFIX), style="CardBold.TLabel",
         )
-        self.cli_dot.pack(side="left", padx=(0, 6))
-        self.cli_label = tk.Label(
-            cli_box, text=t("{prefix}：检测中…", prefix=CLI_PREFIX),
-            font=(theme.FONT, 9, "bold"), background=theme.CARD_BG, foreground=theme.TEXT,
-        )
-        self.cli_label.pack(side="left", padx=(0, 10))
+        self.cli_label.pack(side="left", padx=(0, theme.PAD_MD))
         self.btn_cli = ttk.Button(cli_box, text=t("切换"), command=self._open_cli_switch)
         self.btn_cli.pack(side="left")
 
         # 页签：按模块开关构建（停用的模块不实例化、不导入其面板代码）
         nb = ttk.Notebook(self)
-        nb.pack(fill="both", expand=True, padx=12, pady=(0, 6))
+        nb.pack(fill="both", expand=True, padx=theme.PAD_LG, pady=(0, theme.PAD_SM))
         self.notebook = nb
         # 切回某个页签时立即补一次刷新（不可见页签的自动刷新是暂停的）
         nb.bind("<<NotebookTabChanged>>", lambda e: self._refresh_panels())
@@ -256,33 +254,38 @@ class MainWindow(tk.Tk):
         if modules.is_enabled("log", self.config):
             self.log_panel = NginxLogPanel(nb, self.set_log, self.nginx_mgr)
         about = self._build_about(nb)
-        nb.add(self.php_panel, text=f"  {t('PHP 版本管理')}  ")
-        nb.add(self.nginx_panel, text=f"  {t('Nginx 管理')}  ")
+        # 页签文字两侧留白由 TNotebook.Tab 的 padding 控制（不再用空格凑宽度）
+        nb.add(self.php_panel, text=t("PHP 版本管理"))
+        nb.add(self.nginx_panel, text=t("Nginx 管理"))
         if self.redis_panel is not None:
-            nb.add(self.redis_panel, text=f"  {t('Redis 管理')}  ")
+            nb.add(self.redis_panel, text=t("Redis 管理"))
         if self.mysql_panel is not None:
-            nb.add(self.mysql_panel, text=f"  {t('MySQL 管理')}  ")
-        nb.add(self.vhost_panel, text=f"  {t('站点映射')}  ")
+            nb.add(self.mysql_panel, text=t("MySQL 管理"))
+        nb.add(self.vhost_panel, text=t("站点映射"))
         if self.sqlite_panel is not None:
-            nb.add(self.sqlite_panel, text=f"  {t('SQLite 数据库')}  ")
+            nb.add(self.sqlite_panel, text=t("SQLite 数据库"))
         if self.log_panel is not None:
-            nb.add(self.log_panel, text=f"  {t('Nginx 日志')}  ")
+            nb.add(self.log_panel, text=t("Nginx 日志"))
         # 运行日志：全局记录（应用启停 / 服务启停结果 / 异常），不受模块开关影响
         self.run_panel = RunLogPanel(nb, self.set_log)
-        nb.add(self.run_panel, text=f"  {t('运行日志')}  ")
-        nb.add(about, text=f"  {t('关于')}  ")
+        nb.add(self.run_panel, text=t("运行日志"))
+        nb.add(about, text=t("关于"))
 
     def _build_about(self, master) -> ttk.Frame:
-        frame = ttk.Frame(master, padding=18)
-        ttk.Label(frame, text=APP_TITLE, style="Title.TLabel").pack(anchor="w", pady=(0, 6))
+        # 整页为一张卡片：分组框与内部文本统一走 Card.* 样式，避免底色不一致
+        frame = ttk.Frame(master, style="Card.TFrame", padding=theme.PAD_XL)
+        ttk.Label(frame, text=APP_TITLE, style="Title.TLabel").pack(
+            anchor="w", pady=(0, theme.PAD_SM)
+        )
         ttk.Label(
             frame,
             text=t("管理 {root} 下多个 PHP 版本的启动 / 停止 / 重启 / 状态 / 端口 / 配置，"
                     "并附带 Nginx 与 Redis 管理。", root=WNRP_ROOT),
             style="SubTitle.TLabel",
-        ).pack(anchor="w", pady=(0, 14))
+        ).pack(anchor="w", pady=(0, theme.PAD_LG))
 
-        info = ttk.LabelFrame(frame, text=t("环境信息"), padding=12)
+        info = ttk.LabelFrame(frame, text=t("环境信息"), padding=12,
+                              style="Card.TLabelframe")
         info.pack(fill="x")
         rows = [
             (t("phpvm 版本"), f"v{updater.current_version()}"),
@@ -296,16 +299,17 @@ class MainWindow(tk.Tk):
         if IS_WIN:
             rows.insert(5, (t("隐藏启动器"), os.path.join(WNRP_ROOT, "RunHiddenConsole.exe")))
         for i, (k, v) in enumerate(rows):
-            ttk.Label(info, text=f"{k}：", font=(theme.FONT, 9, "bold"), background=theme.CARD_BG).grid(
-                row=i, column=0, sticky="w", padx=(8, 4), pady=3
+            ttk.Label(info, text=f"{k}：", style="CardBold.TLabel").grid(
+                row=i, column=0, sticky="w", padx=(theme.PAD_XS, theme.PAD_XS), pady=3
             )
-            ttk.Label(info, text=v, font=(theme.FONT, 9), background=theme.CARD_BG).grid(
+            ttk.Label(info, text=v, style="CardDim.TLabel").grid(
                 row=i, column=1, sticky="w", pady=3
             )
 
         # 模块开关：取消勾选的可选模块在重启后不再加载
-        mods = ttk.LabelFrame(frame, text=t("功能模块"), padding=12)
-        mods.pack(fill="x", pady=(10, 0))
+        mods = ttk.LabelFrame(frame, text=t("功能模块"), padding=12,
+                              style="Card.TLabelframe")
+        mods.pack(fill="x", pady=(theme.PAD_MD, 0))
         ttk.Label(
             mods,
             text=t("默认全部启用；取消勾选后需重启 phpvm 生效（该模块代码将不再加载）。"),
@@ -319,28 +323,30 @@ class MainWindow(tk.Tk):
             var = tk.BooleanVar(value=(key not in disabled))
             self._module_vars[key] = var
             cb = ttk.Checkbutton(
-                mods, text=modules.label(meta), variable=var,
+                mods, text=modules.label(meta), variable=var, style="Card.TCheckbutton",
                 state="disabled" if required else "normal",
                 command=lambda k=key: self._toggle_module(k),
             )
             cb.pack(anchor="w", pady=1)
 
         # 设置区：开机自启 + 崩溃自愈 + 界面语言
-        settings = ttk.LabelFrame(frame, text=t("设置"), padding=12)
-        settings.pack(fill="x", pady=(10, 0))
+        settings = ttk.LabelFrame(frame, text=t("设置"), padding=12,
+                                  style="Card.TLabelframe")
+        settings.pack(fill="x", pady=(theme.PAD_MD, 0))
         self._autostart_var = tk.BooleanVar(value=autostart.is_enabled())
         ttk.Checkbutton(
-            settings, text=t("开机自动启动 phpvm（当前用户）"),
+            settings, text=t("开机自动启动 phpvm（当前用户）"), style="Card.TCheckbutton",
             variable=self._autostart_var, command=self._toggle_autostart,
-        ).pack(anchor="w", pady=(0, 6))
+        ).pack(anchor="w", pady=(0, theme.PAD_SM))
         # 开机自动启动整套服务（Windows：写入「启动」目录脚本；其它平台暂不支持）
         self._svc_autostart_var = tk.BooleanVar(value=autostart.services_enabled())
         self._cb_svc_autostart = ttk.Checkbutton(
             settings, text=t("开机自动启动全部服务（Nginx + PHP + Redis + MySQL）"),
+            style="Card.TCheckbutton",
             variable=self._svc_autostart_var, command=self._toggle_service_autostart,
             state="normal" if IS_WIN else "disabled",
         )
-        self._cb_svc_autostart.pack(anchor="w", pady=(0, 6))
+        self._cb_svc_autostart.pack(anchor="w", pady=(0, theme.PAD_SM))
         if not IS_WIN:
             ttk.Label(
                 settings,
@@ -352,77 +358,77 @@ class MainWindow(tk.Tk):
             value=bool(self.config.get_setting("start_services_on_launch", False)))
         ttk.Checkbutton(
             settings, text=t("启动 phpvm 时自动启动全部服务（PHP / Redis / MySQL / Nginx）"),
+            style="Card.TCheckbutton",
             variable=self._svc_launch_var, command=self._toggle_service_launch,
-        ).pack(anchor="w", pady=(0, 6))
+        ).pack(anchor="w", pady=(0, theme.PAD_SM))
         self._recover_var = tk.BooleanVar(value=bool(self.config.get_setting("auto_recover_crash", False)))
         ttk.Checkbutton(
             settings, text=t("php-cgi 崩溃后自动重启（自愈，默认关闭）"),
+            style="Card.TCheckbutton",
             variable=self._recover_var, command=self._toggle_recover,
         ).pack(anchor="w")
         ttk.Label(
             settings,
             text=t("自愈防抖 60 秒、每版本每小时最多 3 次，防止崩溃循环刷进程。"),
             style="SubTitle.TLabel",
-        ).pack(anchor="w", pady=(4, 0))
-        lang_row = ttk.Frame(settings)
-        lang_row.pack(anchor="w", pady=(8, 0))
-        ttk.Label(lang_row, text=t("界面语言："), font=(theme.FONT, 9, "bold"),
-                  background=theme.CARD_BG).pack(side="left")
+        ).pack(anchor="w", pady=(theme.PAD_XS, 0))
+        lang_row = ttk.Frame(settings, style="Card.TFrame")
+        lang_row.pack(anchor="w", pady=(theme.PAD_SM, 0))
+        ttk.Label(lang_row, text=t("界面语言："), style="CardBold.TLabel").pack(side="left")
         self._lang_box = ttk.Combobox(
             lang_row, state="readonly", width=16,
             values=[f"{name}（{code}）" for code, name in LANGS.items()],
         )
         self._lang_box.current(list(LANGS).index(self.config.get_lang()))
-        self._lang_box.pack(side="left", padx=(4, 0))
+        self._lang_box.pack(side="left", padx=(theme.PAD_XS, 0))
         ttk.Button(lang_row, text=t("应用"), command=self._apply_lang_box).pack(
-            side="left", padx=(8, 0)
+            side="left", padx=(theme.PAD_SM, 0)
         )
 
         # 外观主题：浅色 / 深色 / 跟随系统（立即生效，无需重启）
-        theme_row = ttk.Frame(settings)
-        theme_row.pack(anchor="w", pady=(8, 0))
-        ttk.Label(theme_row, text=t("外观主题："), font=(theme.FONT, 9, "bold"),
-                  style="Card.TLabel").pack(side="left")
+        theme_row = ttk.Frame(settings, style="Card.TFrame")
+        theme_row.pack(anchor="w", pady=(theme.PAD_SM, 0))
+        ttk.Label(theme_row, text=t("外观主题："), style="CardBold.TLabel").pack(side="left")
         self._theme_box = ttk.Combobox(
             theme_row, state="readonly", width=16,
             values=[theme_label(m) for m in THEME_MODES],
         )
-        self._theme_box.pack(side="left", padx=(4, 0))
+        self._theme_box.pack(side="left", padx=(theme.PAD_XS, 0))
         self._sync_theme_box()
         ttk.Button(theme_row, text=t("应用"), command=self._apply_theme_box).pack(
-            side="left", padx=(8, 0)
+            side="left", padx=(theme.PAD_SM, 0)
         )
         ttk.Label(
             settings,
             text=t("深色/浅色切换立即生效；「跟随系统」会随系统外观自动切换。"),
             style="SubTitle.TLabel",
-        ).pack(anchor="w", pady=(4, 0))
+        ).pack(anchor="w", pady=(theme.PAD_XS, 0))
 
         # 软件更新：版本显示 + 手动检查 + 启动自动检查开关
-        upd_row = ttk.Frame(settings)
-        upd_row.pack(anchor="w", pady=(10, 0))
-        ttk.Label(upd_row, text=t("软件更新："), font=(theme.FONT, 9, "bold"),
-                  background=theme.CARD_BG).pack(side="left")
+        upd_row = ttk.Frame(settings, style="Card.TFrame")
+        upd_row.pack(anchor="w", pady=(theme.PAD_MD, 0))
+        ttk.Label(upd_row, text=t("软件更新："), style="CardBold.TLabel").pack(side="left")
         ttk.Label(upd_row, text=t("当前版本 {ver}", ver=f"v{updater.current_version()}"),
-                  background=theme.CARD_BG).pack(side="left", padx=(4, 10))
+                  style="CardDim.TLabel").pack(side="left",
+                                               padx=(theme.PAD_XS, theme.PAD_MD))
         ttk.Button(upd_row, text=t("检查更新"),
                    command=self.open_update_dialog).pack(side="left")
         ttk.Button(upd_row, text=t("打开下载缓存目录"),
-                   command=self._open_update_dir).pack(side="left", padx=(8, 0))
+                   command=self._open_update_dir).pack(side="left", padx=(theme.PAD_SM, 0))
         self._update_autocheck_var = tk.BooleanVar(
             value=bool(self.config.get_setting("check_update_on_start", True)))
         ttk.Checkbutton(
             settings,
             text=t("启动时自动检查更新（发现新版本时仅状态栏提示）"),
+            style="Card.TCheckbutton",
             variable=self._update_autocheck_var,
             command=self._toggle_update_autocheck,
-        ).pack(anchor="w", pady=(4, 0))
+        ).pack(anchor="w", pady=(theme.PAD_XS, 0))
 
         # 服务编排：一键启停整套环境
-        group_row = ttk.Frame(settings)
-        group_row.pack(anchor="w", pady=(10, 0), fill="x")
-        ttk.Label(group_row, text=t("服务编排："), font=(theme.FONT, 9, "bold"),
-                  background=theme.CARD_BG).pack(side="left")
+        group_row = ttk.Frame(settings, style="Card.TFrame")
+        group_row.pack(anchor="w", pady=(theme.PAD_MD, 0), fill="x")
+        ttk.Label(group_row, text=t("服务编排："), style="CardBold.TLabel").pack(side="left")
         ttk.Button(group_row, text=t("全部启动"), style="Accent.TButton",
                    command=lambda: self._all_services("start")).pack(side="left", padx=(4, 6))
         ttk.Button(group_row, text=t("全部停止"), style="Danger.TButton",
@@ -1101,15 +1107,13 @@ class MainWindow(tk.Tk):
 
         if show_tray:
             ttk.Button(frm, text=t("最小化到托盘"), command=lambda: choose("tray")).pack(
-                side="left", padx=6
+                side="left", padx=theme.PAD_SM
             )
-        ttk.Button(frm, text=t("重启"), command=lambda: choose("restart")).pack(
-            side="left", padx=6
-        )
-        ttk.Button(frm, text=t("退出"), command=lambda: choose("exit")).pack(
-            side="left", padx=6
-        )
-        ttk.Button(frm, text=t("取消"), command=dlg.destroy).pack(side="left", padx=6)
+        ttk.Button(frm, text=t("重启"), style="Accent.TButton",
+                   command=lambda: choose("restart")).pack(side="left", padx=theme.PAD_SM)
+        ttk.Button(frm, text=t("退出"), style="Danger.TButton",
+                   command=lambda: choose("exit")).pack(side="left", padx=theme.PAD_SM)
+        ttk.Button(frm, text=t("取消"), command=dlg.destroy).pack(side="left", padx=theme.PAD_SM)
 
         # 按可用工作区收敛尺寸并定位：按钮栏已固定底部，保证右下角按钮不被遮挡
         fit_window(dlg, self, width=430 if show_tray else 330,

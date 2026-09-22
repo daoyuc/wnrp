@@ -84,6 +84,32 @@ def _is_restart() -> bool:
     return os.environ.get("PHPVM_RESTART") == "1"
 
 
+def _enable_high_dpi() -> None:
+    """Windows：开启高 DPI 感知（须在创建 Tk 根窗口之前调用）。
+
+    未开启时系统对整个窗口做位图拉伸，高分辨率屏上文字发虚；开启后 Tk 按
+    真实 DPI 绘制（字体与控件同步放大）。逐级降级：
+    PER_MONITOR_V2（Win10 1703+）→ 系统级感知 → 放弃（保持系统默认拉伸）。
+    """
+    if not sys.platform.startswith("win"):
+        return
+    try:
+        import ctypes
+
+        # -4 = DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
+        if ctypes.windll.shcore.SetProcessDpiAwarenessContext(-4):
+            return
+    except (AttributeError, OSError):
+        pass
+    try:
+        import ctypes
+
+        # 2 = PROCESS_PER_MONITOR_DPI_AWARE（老版本 Win10 / Win8.1）
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)
+    except (AttributeError, OSError):
+        pass
+
+
 def _restart_retry(acquire) -> bool:
     """重启实例：短暂轮询获取单例锁，避开旧实例退出竞态。"""
     for _ in range(_RESTART_RETRIES):
@@ -220,6 +246,9 @@ def main() -> None:
     from core import modules
     from core.nginx_manager import NginxManager
     from core.php_manager import PhpManager
+
+    # 必须在创建 Tk 根窗口（MainWindow）之前开启，否则不生效
+    _enable_high_dpi()
     from ui.main_window import MainWindow
 
     run_log.info("app", t("phpvm {ver} 启动（{platform} · 语言 {lang}）",
