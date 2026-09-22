@@ -15,6 +15,7 @@
 import glob
 import os
 import re
+import shutil
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -47,6 +48,42 @@ KEY_INI_ITEMS = [
     "default_charset",
     "opcache.enable",
 ]
+
+
+#: 官方模板（Windows 官方包 / 部分发行版自带），按此优先级挑选
+INI_TEMPLATES = ("php.ini-production", "php.ini-development")
+
+#: 找不到官方模板时写入的最小骨架：未列出的指令沿用 PHP 编译默认值
+INI_SKELETON = """\
+; phpvm 生成的最小 php.ini
+;
+; 本版本目录内没有 php.ini-production / php.ini-development 模板，
+; 故生成此骨架：未列出的指令沿用 PHP 编译默认值。
+; 生成后可在 phpvm 的「推荐设置」里按本机硬件补齐开发环境推荐值。
+
+[PHP]
+; 资源与上传
+memory_limit = 128M
+post_max_size = 8M
+upload_max_filesize = 2M
+max_file_uploads = 20
+max_execution_time = 30
+max_input_time = 60
+
+; 开发环境：直接显示错误
+display_errors = On
+error_reporting = E_ALL
+default_charset = "UTF-8"
+
+; 时区（按需取消注释）
+;date.timezone = Asia/Shanghai
+
+; 扩展（按版本实际提供的 .dll / .so 填写）
+;extension_dir = "ext"
+;extension=mysqli
+;extension=pdo_mysql
+;extension=openssl
+"""
 
 
 class PortConflictError(RuntimeError):
@@ -348,13 +385,63 @@ class PhpManager:
         return self.start(v)
 
     # ------------------------------------------------------------------ #
+    # ini 初始化（没有生效配置时生成一份，否则「编辑配置 / 推荐设置」无从下手）
+    # ------------------------------------------------------------------ #
+    def ini_target(self, v: PhpVersion) -> str:
+        """该版本「生效配置」的路径（可能尚未创建）。
+
+        Windows 上 `_resolve_ini` 总会给出 `<版本目录>\\php.ini`（历史行为：
+        假定官方包一定有），posix 上找不到时是 ""；一律在这里兜底成版本目录
+        内的 php.ini，界面才能稳定显示「将要生成到哪里」。
+        """
+        return v.ini or os.path.join(v.dir, INI_NAME)
+
+    def ini_ready(self, v: PhpVersion) -> bool:
+        """生效配置文件是否已存在（存在才谈得上编辑 / 调优）。"""
+        return os.path.exists(self.ini_target(v))
+
+    def ini_template(self, v: PhpVersion) -> tuple[str, str]:
+        """返回 ``(模板路径, 模板说明)``；无模板时路径为 ""（走内置骨架）。"""
+        for name in INI_TEMPLATES:
+            p = os.path.join(v.dir, name)
+            if os.path.exists(p):
+                return p, t("官方模板 {name}", name=name)
+        return "", t("内置最小骨架")
+
+    def init_ini(self, v: PhpVersion) -> tuple[bool, str]:
+        """为没有生效配置的版本生成 php.ini，返回 ``(是否成功, 提示文本)``。
+
+        - 目标已存在 → 不覆盖，返回失败提示；
+        - 优先复制官方模板（production → development），保持官方原样；
+        - 都没有 → 写入内置最小骨架（未列出的指令沿用编译默认值）。
+        成功后同步 ``v.ini``，界面无需重新扫描即可直接编辑 / 调优。
+        """
+        target = self.ini_target(v)
+        if os.path.exists(target):
+            return False, t("[{name}] 已有配置文件：{path}", name=v.name, path=target)
+        src, src_desc = self.ini_template(v)
+        try:
+            os.makedirs(os.path.dirname(target) or ".", exist_ok=True)
+            if src:
+                shutil.copy2(src, target)
+            else:
+                with open(target, "w", encoding="utf-8") as f:
+                    f.write(INI_SKELETON)
+        except OSError as e:
+            return False, t("[{name}] 生成配置文件失败：{err}", name=v.name, err=e)
+        v.ini = target
+        return True, t("[{name}] 已生成 {path}（来源：{src}）；重启该版本后生效，"
+                       "之后即可使用「编辑配置 / 推荐设置」。",
+                       name=v.name, path=target, src=src_desc)
+
+    # ------------------------------------------------------------------ #
     # ini 配置读取
     # ------------------------------------------------------------------ #
     def read_ini(self, v: PhpVersion) -> str:
         """返回 ini 完整内容。"""
-        if not v.ini:
+        if not self.ini_ready(v):
             return t("（未使用独立配置文件：将读取 PHP 编译默认配置，"
-                     "如需独立配置请在版本目录放置 php.ini）")
+                     "可点「初始化 php.ini」生成一份）")
         try:
             with open(v.ini, "r", encoding="utf-8", errors="replace") as f:
                 return f.read()
@@ -365,7 +452,7 @@ class PhpManager:
         """提取关键配置项 + 已启用扩展列表。"""
         result: dict = {}
         enabled_ext: list[str] = []
-        if not v.ini:
+        if not self.ini_ready(v):
             return {"__error__": t("未使用独立配置文件（将读取 PHP 编译默认配置）")}
         try:
             with open(v.ini, "r", encoding="utf-8", errors="replace") as f:
