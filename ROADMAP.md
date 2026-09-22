@@ -33,7 +33,8 @@
 | **模块开关** | 功能模块可勾选（关于页）：停用的模块不创建页签、不实例化 manager、不导入其代码；PHP/Nginx/站点映射 为刚需不可取消 | `core/modules.py`、`main.py`、`ui/main_window.py` |
 | 崩溃防护 | Windows 事件日志 + **macOS `.ips`** 双数据源；详情弹窗（含自愈历史页）与清空；**独立守护进程**自愈（防抖 60s、每 3600s 限 N 次、连续失败 5 次解除、手动停止 300s 宽限、`recover_history.json`） | `core/health_monitor.py`、`crash_watchdog.py`、`recover_history.py` |
 | **分发与自动升级** | `packaging/build.py` 跨平台构建 macOS `.app`/`.dmg`（标准库写 PNG → `iconutil` 转 `.icns`，附 `/Applications` 快捷方式）与 Windows 目录/zip/Inno Setup 安装程序；内置 `core/updater.py` 从 GitHub Releases 检查更新 → 下载（`.part` 原子改名）→ SHA-256 校验 → 一键替换重启（mac `hdiutil`+`ditto`；Win 静默安装）；数据目录自动外置（`~/.phpvm`），升级不丢配置 | `core/updater.py`、`core/version.py`、`core/app_paths.py`、`ui/update_dialog.py`、`packaging/`、`.github/workflows/release.yml` |
-| **国际化** | 5 语言（zh_CN 为源码原文；en / zh_TW / ja / ko 词条表约 760 条）、系统语言自动探测、`settings.lang` 持久化、重启生效 | `core/i18n.py`、`i18n/`、`_i18n_scan.py` |
+| **国际化** | 5 语言（zh_CN 为源码原文；en / zh_TW / ja / ko 词条表）、系统语言自动探测、`settings.lang` 持久化、重启生效 | `core/i18n.py`、`i18n/`、`_i18n_scan.py` |
+| **开发环境配置推荐** | 按本机 CPU/内存/平台分档（low/mid/high）生成 php.ini 与 nginx.conf 的**开发向**建议（opcache / realpath / 上传上限 / worker 与连接数 / fastcgi 超时与缓冲等），逐条「当前值 → 建议值 + 理由」让用户勾选；写入前备份、nginx 写完 `nginx -t` 失败自动还原；CLI `tune suggest/apply` 同源 | `core/tuning.py`、`core/nginx_conf.py`、`ui/tuning_dialog.py` |
 | **跨平台** | 环境根可配置（`WNRP_ROOT`）、lsof/ps 快照、brew 前缀探测、LaunchAgent 自启、单实例 socket 锁、`open` 打开路径、窗口工作区自适应、可写数据目录自动判定（`.app`/只读安装目录 → `~/.phpvm`） | `core/config.py`、`process_utils.py`、`core/app_paths.py`、`ui/window_utils.py` |
 | 系统集成 | 托盘动态菜单（Nginx / Redis / 各 PHP）、开机自启、最小化到托盘、**关闭框「重启」**、状态栏崩溃告警 | `main.py`、`ui/tray.py`、`ui/main_window.py`、`core/autostart.py` |
 

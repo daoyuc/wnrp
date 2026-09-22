@@ -235,3 +235,8 @@ class NginxManager:
         code, out, err_text = pu.run_cmd(self._cmd(["-t"]), timeout=10)
         text = (out or err_text).strip()
         return text or (t("配置检查通过") if code == 0 else t("配置检查失败"))
+
+    def verify_config(self) -> tuple[int, str]:
+        """返回 (退出码, 输出)：供写入配置后校验（区分于只回文本的 test_config）。"""
+        code, out, err_text = pu.run_cmd(self._cmd(["-t"]), timeout=10)
+        return code, (out or err_text).strip()

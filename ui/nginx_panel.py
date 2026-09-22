@@ -8,6 +8,7 @@ from tkinter import messagebox, ttk
 from core.i18n import t
 from core.nginx_manager import NginxManager
 from . import theme
+from .tuning_dialog import TuningDialog
 
 # 左侧信息卡：行 ID -> (显示标签 msgid, 占位)
 _INFO_ROWS = [("pid", "PID"), ("ver", "版本"), ("prefix", "前缀")]
@@ -75,6 +76,8 @@ class NginxPanel(ttk.Frame):
         self.btn_stop = ttk.Button(btns, text=t("停止 Nginx"), style="Danger.TButton",
                                    command=lambda: self._run("stop"))
         self.btn_stop.pack(fill="x", pady=(0, 6))
+        self.btn_tune = ttk.Button(btns, text=t("推荐设置"), command=self._recommend_settings)
+        self.btn_tune.pack(fill="x", pady=(0, 6))
         self.btn_nrefresh = ttk.Button(btns, text=t("刷新状态"), command=self.refresh_status)
         self.btn_nrefresh.pack(fill="x")
 
@@ -237,6 +240,60 @@ class NginxPanel(ttk.Frame):
         self.refresh_status()
 
     # ------------------------------------------------------------------ #
+    def _recommend_settings(self) -> None:
+        """按本机硬件给出 nginx.conf 的开发环境推荐值，由用户勾选后写入。"""
+        import os
+
+        from core import tuning
+
+        conf = self.nginx_mgr.main_conf
+        if not os.path.exists(conf):
+            messagebox.showwarning(
+                t("未找到主配置"),
+                t("未找到 nginx 主配置：{file}\n请先确认 nginx 安装与前缀目录。", file=conf),
+                parent=self,
+            )
+            return
+        try:
+            with open(conf, "r", encoding="utf-8", errors="replace") as f:
+                text = f.read()
+        except OSError as e:
+            messagebox.showerror(t("错误"), t("读取配置失败：{err}", err=e), parent=self)
+            return
+        profile = tuning.detect_machine()
+        items = tuning.nginx_suggestions(text, profile)
+        if not items:
+            messagebox.showinfo(
+                t("推荐设置"),
+                t("nginx.conf 已经符合开发环境推荐值，无需改动。"), parent=self)
+            return
+        TuningDialog(
+            self,
+            t("Nginx 推荐设置"),
+            t("配置文件：{file}", file=conf),
+            profile, items, tuning.nginx_notes(profile),
+            lambda picked: self._apply_tuning(conf, picked),
+        )
+
+    def _apply_tuning(self, conf: str, items) -> tuple[bool, str]:
+        """写入勾选的推荐项（自动备份 + nginx -t 校验，失败回滚）。"""
+        from core import tuning
+
+        res = tuning.apply_nginx(conf, items, verify=True, reload=False)
+        if res.get("rolled_back"):
+            return False, res.get("error") or t("配置写入后校验失败，已还原")
+        if res.get("ok") is False:
+            return False, res.get("error") or t("配置写入失败")
+        msg = t("已更新 {count} 项配置，备份保留于：\n{backup}\n\n"
+                "点左侧「平滑重载」即可生效（未运行时启动后生效）。",
+                count=res.get("changed", 0), backup=res.get("backup", ""))
+        if res.get("test_output"):
+            msg += "\n\n" + t("配置检查") + "：" + str(res["test_output"])
+        self._append_log("── " + t("推荐设置") + " ──", "info")
+        self._append_log(f"已更新 {res.get('changed', 0)} 项：" + "、".join(res.get("keys", [])), "ok")
+        self.notify(t("已写入 {count} 项推荐配置", count=res.get("changed", 0)))
+        return True, msg
+
     def _append_log(self, text: str, tag: str = "") -> None:
         self.log_text.configure(state="normal")
         start = self.log_text.index("end-1c")
@@ -248,5 +305,6 @@ class NginxPanel(ttk.Frame):
 
     def _set_busy(self, busy: bool) -> None:
         self._busy = busy
-        for b in (self.btn_start, self.btn_stop, self.btn_reload, self.btn_test, self.btn_nrefresh):
+        for b in (self.btn_start, self.btn_stop, self.btn_reload, self.btn_test,
+                  self.btn_tune, self.btn_nrefresh):
             b.configure(state="disabled" if busy else "normal")

@@ -144,6 +144,12 @@
    "ui/site_wizard.py"
   ]
  },
+ "Linux 下显式指定 epoll（默认已自动选择，写出来便于确认）": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
  "MySQL": {
   "count": 1,
   "files": [
@@ -282,6 +288,12 @@
    "core/nginx_manager.py"
   ]
  },
+ "Nginx 推荐设置": {
+  "count": 1,
+  "files": [
+   "ui/nginx_panel.py"
+  ]
+ },
  "Nginx 日志": {
   "count": 1,
   "files": [
@@ -340,6 +352,12 @@
   "count": 1,
   "files": [
    "core/php_installer.py"
+  ]
+ },
+ "PHP 推荐设置 · {name}": {
+  "count": 1,
+  "files": [
+   "ui/php_panel.py"
   ]
  },
  "PHP 版本": {
@@ -448,6 +466,24 @@
    "ui/mysql_panel.py"
   ]
  },
+ "Windows 版 nginx 为单 worker + select 事件模型：并发上限约 1024 连接，且不支持 worker_rlimit_nofile / multi_accept / epoll。本地开发够用，压测请换 Linux / WSL2。": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
+ "Windows 版 nginx 只支持单 worker（无 fork），写多进程无效": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
+ "Windows 用 select 事件模型，连接数上限就是 1024，写更大只会告警": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
  "[{name}]  PHP {display}": {
   "count": 1,
   "files": [
@@ -526,6 +562,12 @@
    "ui/php_panel.py"
   ]
  },
+ "[{name}] 未使用独立 php.ini，无法写入推荐值。\n请在版本目录中放置 php.ini 后重新刷新。": {
+  "count": 1,
+  "files": [
+   "ui/php_panel.py"
+  ]
+ },
  "[{name}] 未在运行": {
   "count": 1,
   "files": [
@@ -548,6 +590,12 @@
   "count": 1,
   "files": [
    "core/redis_manager.py"
+  ]
+ },
+ "[{name}] 的 php.ini 已经符合开发环境推荐值，无需改动。": {
+  "count": 1,
+  "files": [
+   "ui/php_panel.py"
   ]
  },
  "[{name}] 端口 {port} 已被占用：{names}\n请先停止占用进程，或修改 {conf} 中的 port 配置。": {
@@ -632,6 +680,12 @@
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "auto 自动按 CPU 核数起 worker，吃满多核": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
   ]
  },
  "auto_recover_crash 已关闭，守护进程退出": {
@@ -790,6 +844,18 @@
    "core/site_service.py"
   ]
  },
+ "nginx.conf 已经符合开发环境推荐值，无需改动。": {
+  "count": 1,
+  "files": [
+   "ui/nginx_panel.py"
+  ]
+ },
+ "opcache 相关项只有在扩展已加载时才起作用；若 php.ini 里没有 opcache 扩展行，这些值会被忽略（不影响启动）。": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
  "php-cgi 崩溃事件": {
   "count": 1,
   "files": [
@@ -903,6 +969,12 @@
   "count": 1,
   "files": [
    "core/health_monitor.py"
+  ]
+ },
+ "{cpu} 核 CPU · {mem} 内存 · {platform}": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
   ]
  },
  "{ext} 扩展已存在于 {dir}\\{dll}，无需重复下载。": {
@@ -1146,6 +1218,12 @@
    "ui/vhost_panel.py"
   ]
  },
+ "一次 accept 全部新连接，减少事件循环往返": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
  "一键同步": {
   "count": 1,
   "files": [
@@ -1242,6 +1320,12 @@
    "ui/site_wizard.py"
   ]
  },
+ "不在响应头暴露 nginx 版本号（顺便少几十字节）": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
  "不是有效的 SQLite 数据库文件：{path}": {
   "count": 1,
   "files": [
@@ -1252,6 +1336,30 @@
   "count": 2,
   "files": [
    "core/ini_editor.py"
+  ]
+ },
+ "与 PHP max_execution_time=300 对齐，否则调试慢脚本时 nginx 先返回 504": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
+ "与 PHP 上传上限（64M）配套，否则大文件在 nginx 层就被 413 拦下": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
+ "与上传上限配套（需 >= upload_max_filesize），调试大表单/接口更省心": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
+ "与执行超时对齐，避免大表单或慢请求解析阶段超时": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
   ]
  },
  "主配置 {path} 中未找到 http 块，无法确认站点加载": {
@@ -1349,6 +1457,12 @@
   "count": 1,
   "files": [
    "ui/extension_dialog.py"
+  ]
+ },
+ "保留注释：框架注解 / 文档解析（Doctrine、PHPUnit）依赖它": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
   ]
  },
  "修复失败": {
@@ -1455,6 +1569,18 @@
    "ui/main_window.py"
   ]
  },
+ "全不选": {
+  "count": 1,
+  "files": [
+   "ui/tuning_dialog.py"
+  ]
+ },
+ "全选": {
+  "count": 1,
+  "files": [
+   "ui/tuning_dialog.py"
+  ]
+ },
  "全部停止": {
   "count": 2,
   "files": [
@@ -1483,6 +1609,12 @@
   "count": 1,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "全部建议都按「本地开发」取的值：生产环境请不要直接套用（尤其 display_errors、access_log off、gzip off）。": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
   ]
  },
  "全部文件": {
@@ -1546,13 +1678,20 @@
   ]
  },
  "关闭": {
-  "count": 7,
+  "count": 8,
   "files": [
    "ui/dialogs.py",
    "ui/download_dialog.py",
    "ui/extension_dialog.py",
    "ui/site_wizard.py",
-   "ui/sqlite_panel.py"
+   "ui/sqlite_panel.py",
+   "ui/tuning_dialog.py"
+  ]
+ },
+ "关闭 JIT：对典型 Web 请求收益有限，却额外占用内存、拖慢首次编译": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
   ]
  },
  "关闭 phpvm": {
@@ -1627,6 +1766,12 @@
    "core/hosts_manager.py"
   ]
  },
+ "写入后需重启对应 PHP 版本（停止再启动）才会生效——php-cgi 不会热加载 ini。": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
  "写入启动项失败：{path}": {
   "count": 1,
   "files": [
@@ -1637,6 +1782,12 @@
   "count": 4,
   "files": [
    "core/vhost_manager.py"
+  ]
+ },
+ "写入配置失败：{err}": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
   ]
  },
  "写入需要系统管理员权限：macOS 会弹出系统授权框，Windows 会弹出 UAC 确认。\n已指向 127.0.0.1 的域名自动跳过；指向其它 IP 的域名不覆盖，仅提示。": {
@@ -1803,6 +1954,12 @@
    "core/updater.py"
   ]
  },
+ "单 worker 可承载的连接数，按本机档位给；太小会排队": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
  "危险命令确认": {
   "count": 1,
   "files": [
@@ -1938,10 +2095,28 @@
    "ui/main_window.py"
   ]
  },
+ "可缓存文件数上限需覆盖 vendor 规模，默认 10000 以下会漏缓存大量依赖文件": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
  "各逻辑库 key 数量统计（忽略空库）": {
   "count": 1,
   "files": [
    "ui/redis_panel.py"
+  ]
+ },
+ "同上：两次 FastCGI 写之间的超时也要放开": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
+ "同时写入错误日志，便于回溯页面上看不到的错误": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
   ]
  },
  "同步 vhost 端口 · {old} → {new}": {
@@ -2156,6 +2331,12 @@
   "count": 1,
   "files": [
    "ui/redis_panel.py"
+  ]
+ },
+ "响应缓冲区按档位放大，避免大响应落临时文件": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
   ]
  },
  "在新窗口测试 php -v": {
@@ -2423,6 +2604,12 @@
    "ui/main_window.py"
   ]
  },
+ "将写入 {count} 项配置（改动前自动备份原文件），确定继续？": {
+  "count": 1,
+  "files": [
+   "ui/tuning_dialog.py"
+  ]
+ },
  "将安装 PHP {ver} {ts} → 目录 {name}，默认端口 {port}，包大小 {size}{status}": {
   "count": 1,
   "files": [
@@ -2445,6 +2632,12 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "小响应立即发出，降低本地请求的等待感": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
   ]
  },
  "就绪": {
@@ -2605,6 +2798,12 @@
   "count": 1,
   "files": [
    "core/hosts_manager.py"
+  ]
+ },
+ "已写入 {count} 项推荐配置": {
+  "count": 1,
+  "files": [
+   "ui/nginx_panel.py"
   ]
  },
  "已切换 cmd php 命令 → [{name}]（PHP {display}）\n\n注意：已打开的 cmd / 终端不会自动感知，请新开窗口执行 php -v 验证。": {
@@ -2795,16 +2994,29 @@
    "ui/vhost_panel.py"
   ]
  },
+ "已按推荐值更新 {count} 项配置（{name}）": {
+  "count": 1,
+  "files": [
+   "ui/php_panel.py"
+  ]
+ },
  "已是最新版本": {
   "count": 1,
   "files": [
    "ui/update_dialog.py"
   ]
  },
- "已更新 {count} 项配置，备份保留于：\n{backup}\n\n重启 [{name}]（停止后启动）即可生效。": {
+ "已更新 {count} 项配置，备份保留于：\n{backup}\n\n点左侧「平滑重载」即可生效（未运行时启动后生效）。": {
   "count": 1,
   "files": [
-   "ui/dialogs.py"
+   "ui/nginx_panel.py"
+  ]
+ },
+ "已更新 {count} 项配置，备份保留于：\n{backup}\n\n重启 [{name}]（停止后启动）即可生效。": {
+  "count": 2,
+  "files": [
+   "ui/dialogs.py",
+   "ui/php_panel.py"
   ]
  },
  "已替换 {count} 处": {
@@ -2885,6 +3097,12 @@
    "ui/site_wizard.py"
   ]
  },
+ "已选 {picked} / {total} 项": {
+  "count": 1,
+  "files": [
+   "ui/tuning_dialog.py"
+  ]
+ },
  "已选择实例 [{name}]（端口 {port}）": {
   "count": 1,
   "files": [
@@ -2945,6 +3163,24 @@
    "ui/main_window.py"
   ]
  },
+ "应用失败": {
+  "count": 1,
+  "files": [
+   "ui/tuning_dialog.py"
+  ]
+ },
+ "应用完成": {
+  "count": 1,
+  "files": [
+   "ui/tuning_dialog.py"
+  ]
+ },
+ "应用推荐设置": {
+  "count": 1,
+  "files": [
+   "ui/tuning_dialog.py"
+  ]
+ },
  "应用模板：": {
   "count": 1,
   "files": [
@@ -2955,6 +3191,60 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "应用选中": {
+  "count": 1,
+  "files": [
+   "ui/tuning_dialog.py"
+  ]
+ },
+ "延长路径缓存有效期，减少重复磁盘查询": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
+ "建议值": {
+  "count": 1,
+  "files": [
+   "ui/tuning_dialog.py"
+  ]
+ },
+ "开发必须开启：检查文件修改时间，改了代码自动失效，不用手动清缓存": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
+ "开发期文件频繁变更，文件描述符缓存会导致改完不生效，建议关闭": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
+ "开发期直接把错误显示在页面上（生产应 Off）": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
+ "开发期访问日志写入量很大（尤其前端热更新），关掉能明显减少磁盘 IO": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
+ "开发模式开启断言（生产应为 -1）": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
+ "开启字节码缓存：省掉每个请求重复编译 PHP 的开销，本地开发同样受益": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
   ]
  },
  "开始下载": {
@@ -3039,6 +3329,12 @@
   "count": 1,
   "files": [
    "core/updater.py"
+  ]
+ },
+ "当前值": {
+  "count": 1,
+  "files": [
+   "ui/tuning_dialog.py"
   ]
  },
  "当前已是最新版本（{ver}）": {
@@ -3253,10 +3549,34 @@
    "ui/php_panel.py"
   ]
  },
+ "报告全部错误等级，提前暴露废弃与隐患写法": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
  "报告：{file}": {
   "count": 1,
   "files": [
    "core/health_monitor.py"
+  ]
+ },
+ "抬高单进程可打开文件数上限，配合上面的连接数（Windows 无此指令）": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
+ "按本机内存给的共享内存大小；不够时 opcache 会频繁重启缓存，命中率骤降": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
+ "按本机内存给的单请求上限：太小会白屏（Allowed memory size exhausted）": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
   ]
  },
  "按步骤填写信息并选择应用模板，向导将自动生成 vhost 配置、写入 hosts 映射并执行 nginx -t 校验。": {
@@ -3271,14 +3591,22 @@
    "ui/site_wizard.py"
   ]
  },
+ "推荐设置": {
+  "count": 5,
+  "files": [
+   "ui/nginx_panel.py",
+   "ui/php_panel.py"
+  ]
+ },
  "提示": {
-  "count": 8,
+  "count": 9,
   "files": [
    "ui/dialogs.py",
    "ui/download_dialog.py",
    "ui/extension_dialog.py",
    "ui/php_panel.py",
-   "ui/redis_panel.py"
+   "ui/redis_panel.py",
+   "ui/tuning_dialog.py"
   ]
  },
  "提示：Redis 监听端口在各自配置文件中\n（port 项），修改后重启 Redis 生效。": {
@@ -3388,6 +3716,12 @@
    "ui/site_wizard.py"
   ]
  },
+ "断言失败抛异常而不是静默警告": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
  "新建 Nginx 站点": {
   "count": 1,
   "files": [
@@ -3492,7 +3826,7 @@
   ]
  },
  "无独立配置文件": {
-  "count": 1,
+  "count": 2,
   "files": [
    "ui/php_panel.py"
   ]
@@ -3658,6 +3992,12 @@
    "core/redis_manager.py"
   ]
  },
+ "未声明默认字符集时，响应头可能不带 charset，页面易出现乱码": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
  "未扫描到可用 PHP 版本（可先到「PHP 版本管理」页确认）。\nLaravel / WordPress / ThinkPHP 等模板需要 PHP，可先选「静态站点 / SPA」模板。": {
   "count": 1,
   "files": [
@@ -3681,6 +4021,18 @@
   "count": 1,
   "files": [
    "core/hosts_manager.py"
+  ]
+ },
+ "未找到 nginx 主配置：{file}\n请先确认 nginx 安装与前缀目录。": {
+  "count": 1,
+  "files": [
+   "ui/nginx_panel.py"
+  ]
+ },
+ "未找到 nginx 可执行文件，跳过配置检查": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
   ]
  },
  "未找到 nginx（{path}），已跳过配置校验；请配置好 nginx 后手动执行「配置检查」。": {
@@ -3717,6 +4069,12 @@
   "count": 1,
   "files": [
    "core/nginx_manager.py"
+  ]
+ },
+ "未找到主配置": {
+  "count": 1,
+  "files": [
+   "ui/nginx_panel.py"
   ]
  },
  "未找到可用的终端程序。可手动执行：\n  set PATH={dir};%PATH%": {
@@ -3804,19 +4162,32 @@
   ]
  },
  "未知": {
-  "count": 7,
+  "count": 8,
   "files": [
    "ui/main_window.py",
    "core/health_monitor.py",
    "core/nginx_manager.py",
    "core/php_manager.py",
-   "core/redis_manager.py"
+   "core/redis_manager.py",
+   "core/tuning.py"
   ]
  },
  "未知错误": {
   "count": 2,
   "files": [
    "core/nginx_manager.py"
+  ]
+ },
+ "未设置": {
+  "count": 1,
+  "files": [
+   "ui/tuning_dialog.py"
+  ]
+ },
+ "未设置时区会触发 PHP 警告，且 date() 结果可能与预期不符": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
   ]
  },
  "未选择数据库文件。": {
@@ -3830,6 +4201,18 @@
   "count": 1,
   "files": [
    "ui/extension_dialog.py"
+  ]
+ },
+ "本地没有带宽瓶颈，压缩反而多花 CPU、拉长首字节时间；抓包看明文也更方便": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
+ "本地调试上传（含 nginx client_max_body_size 需同步调大）": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
   ]
  },
  "本机 {arch}": {
@@ -4140,6 +4523,12 @@
    "ui/dialogs.py"
   ]
  },
+ "每次请求都检查文件时间戳（默认 2 秒），改完代码刷新即生效": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
  "没有可写入 hosts 的域名（通配项已跳过）": {
   "count": 1,
   "files": [
@@ -4339,6 +4728,12 @@
    "ui/main_window.py"
   ]
  },
+ "理由": {
+  "count": 1,
+  "files": [
+   "ui/tuning_dialog.py"
+  ]
+ },
  "生效 nginx.conf 已 include 站点目录，无需修改": {
   "count": 1,
   "files": [
@@ -4488,6 +4883,12 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "站点多了 MIME 哈希表容易撞默认 1024，日志里会出现 types_hash 告警": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
   ]
  },
  "站点已处于启用状态": {
@@ -4874,6 +5275,12 @@
    "ui/run_log_panel.py"
   ]
  },
+ "让 composer / artisan / phpunit 等命令行也走缓存，明显加快依赖脚本": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
  "设为当前": {
   "count": 1,
   "files": [
@@ -4984,6 +5391,12 @@
    "ui/vhost_panel.py"
   ]
  },
+ "请先勾选要采用的建议项。": {
+  "count": 1,
+  "files": [
+   "ui/tuning_dialog.py"
+  ]
+ },
  "请先在列表中选择一个 PHP 版本。": {
   "count": 1,
   "files": [
@@ -5006,6 +5419,12 @@
   "count": 1,
   "files": [
    "ui/run_log_panel.py"
+  ]
+ },
+ "请求体先在内存缓冲，减少写临时文件带来的磁盘 IO": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
   ]
  },
  "请输入 SQL 语句后执行": {
@@ -5051,6 +5470,13 @@
    "core/vhost_manager.py"
   ]
  },
+ "读取配置失败：{err}": {
+  "count": 2,
+  "files": [
+   "ui/nginx_panel.py",
+   "core/tuning.py"
+  ]
+ },
  "读取错误日志失败：{err}": {
   "count": 1,
   "files": [
@@ -5061,6 +5487,18 @@
   "count": 1,
   "files": [
    "core/health_monitor.py"
+  ]
+ },
+ "调试/断点/慢脚本不至于 30 秒被掐断": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
+ "路径解析缓存：框架每次请求上千次 stat()，默认 16K 太小": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
   ]
  },
  "跳过此版本": {
@@ -5213,6 +5651,24 @@
    "ui/site_wizard.py"
   ]
  },
+ "配合 sendfile，等包攒满再发出，减少小包数量": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
+ "配置写入后校验失败，已还原": {
+  "count": 1,
+  "files": [
+   "ui/nginx_panel.py"
+  ]
+ },
+ "配置写入失败": {
+  "count": 1,
+  "files": [
+   "ui/nginx_panel.py"
+  ]
+ },
  "配置加载 ({ini})": {
   "count": 1,
   "files": [
@@ -5252,6 +5708,13 @@
    "ui/site_wizard.py"
   ]
  },
+ "配置文件：{file}": {
+  "count": 2,
+  "files": [
+   "ui/nginx_panel.py",
+   "ui/php_panel.py"
+  ]
+ },
  "配置文件：{path}": {
   "count": 1,
   "files": [
@@ -5277,7 +5740,7 @@
   ]
  },
  "配置检查": {
-  "count": 2,
+  "count": 3,
   "files": [
    "ui/main_window.py",
    "ui/nginx_panel.py"
@@ -5295,6 +5758,12 @@
    "core/nginx_manager.py"
   ]
  },
+ "配置检查未通过，已用备份还原：{out}": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
  "配置检查通过": {
   "count": 3,
   "files": [
@@ -5304,15 +5773,22 @@
   ]
  },
  "配置项": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/dialogs.py"
+   "ui/dialogs.py",
+   "ui/tuning_dialog.py"
   ]
  },
  "配置预览（只读，可稍后手动微调文件）": {
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "采用": {
+  "count": 1,
+  "files": [
+   "ui/tuning_dialog.py"
   ]
  },
  "重启": {
@@ -5366,7 +5842,7 @@
   ]
  },
  "错误": {
-  "count": 4,
+  "count": 5,
   "files": [
    "ui/download_dialog.py",
    "ui/nginx_panel.py",
@@ -5423,6 +5899,12 @@
    "ui/mysql_panel.py"
   ]
  },
+ "静态文件走内核零拷贝发送，省一次用户态拷贝": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
  "非法版本系列：{series}": {
   "count": 1,
   "files": [
@@ -5463,6 +5945,24 @@
   "count": 1,
   "files": [
    "core/crash_watchdog.py"
+  ]
+ },
+ "驻留字符串池：框架类名/数组键复用，默认 8M 对 Laravel 一类项目偏小": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
+ "默认 20 在批量上传调试时容易撞到": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
+  ]
+ },
+ "默认 75 秒过长：空闲连接长时间占着 worker，本地多站点调试时更明显": {
+  "count": 1,
+  "files": [
+   "core/tuning.py"
   ]
  },
  "默认值": {
