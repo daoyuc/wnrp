@@ -270,8 +270,9 @@ class PhpPanel(ttk.Frame):
 
     def _apply_status(self, results: dict) -> None:
         changed = False
+        by_name = {x.name: x for x in self._versions}  # 一次建表，避免逐条线性查找
         for name, (running, pid) in results.items():
-            v = next((x for x in self._versions if x.name == name), None)
+            v = by_name.get(name)
             if v and (v.running != running or v.pid != pid):
                 v.running, v.pid = running, pid
                 changed = True

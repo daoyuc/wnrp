@@ -133,13 +133,8 @@ class NginxManager:
         避免把用户其它用途的 nginx（argv 仅为裸名 nginx 等）纳入管理范围。
         """
         if IS_WIN:
-            code, out, _ = pu.run_cmd(
-                ["tasklist", "/FI", "IMAGENAME eq nginx.exe", "/FO", "CSV", "/NH"],
-                timeout=10,
-            )
-            if code != 0:
-                return False, []
-            pids = [int(m) for m in re.findall(r'"nginx\.exe","(\d+)"', out)]
+            # 镜像名快照（零子进程，带 TTL 缓存）——面板每 8 秒刷新一次也不派生进程
+            pids = sorted(pu.pids_by_image("nginx.exe"))
             return len(pids) > 0, pids
         hits = pu.cmdline_matches_pids(("nginx",))
         alive = pu.get_process_snapshot()

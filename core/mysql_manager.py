@@ -13,6 +13,7 @@ import ctypes
 import glob
 import os
 import re
+import threading
 import time
 from dataclasses import dataclass, field
 
@@ -149,9 +150,9 @@ class MysqlManager:
         pids: list[int] = []
         # port_to_pid 返回 PID 列表（同端口可能有多个监听者）
         port_pids = pu.port_to_pid_fast(inst.port) or pu.port_to_pid(inst.port) or []
+        # 端口被非 MySQL 程序占用时也列出（便于排查冲突）；
+        # 此处不查进程名：每次刷新都查会让非系统进程多付一次子进程开销
         for pid in port_pids:
-            name = (pu.pid_to_name(pid) or "").lower()
-            # 端口被非 MySQL 程序占用时也展示出来，便于排查冲突
             if pid not in pids:
                 pids.append(pid)
         if not pids:
@@ -192,6 +193,7 @@ class MysqlManager:
                          "或在系统服务中手动启动。", svc=inst.service)
             code, out, err = pu.run_cmd(["net", "start", inst.service], timeout=60)
             text = (out or err or "").strip()
+            _svc_cache_clear()  # 服务状态已变，丢弃缓存立即复查
             self.get_status(inst)
             if code == 0 or inst.running:
                 return t("已启动服务 {svc}：{msg}", svc=inst.service, msg=text or t("完成"))
@@ -223,6 +225,7 @@ class MysqlManager:
                          "请以「管理员身份运行」phpvm 后再停止 {svc} 服务。", svc=inst.service)
             code, out, err = pu.run_cmd(["net", "stop", inst.service], timeout=90)
             text = (out or err or "").strip()
+            _svc_cache_clear()  # 服务状态已变，丢弃缓存立即复查
             for _ in range(15):  # 等待端口释放
                 time.sleep(0.4)
                 running, _ = self.get_status(inst)
@@ -299,27 +302,49 @@ def _first_existing(d: str, *names: str) -> str:
 
 
 def _mysqld_pids() -> list[tuple[int, str]]:
-    """返回 [(pid, 进程名), ...]：进程名含 mysqld 的进程。"""
-    out: list[tuple[int, str]] = []
+    """返回 [(pid, 进程名), ...]：进程名含 mysqld 的进程。
+
+    走进程镜像名快照（Windows ctypes 一次枚举，零子进程）；快照不可用时
+    才退回逐 PID tasklist 的旧路径 —— 避免一次状态刷新派生上百个子进程。
+    """
     try:
-        alive = pu.get_process_snapshot()
+        return pu.find_pids_by_image_name("mysqld")
     except Exception:  # noqa: BLE001
-        return out
-    for pid in alive:
-        name = (pu.pid_to_name(pid) or "").lower()
-        if "mysqld" in name:
-            out.append((pid, name))
-    return out
+        return []
 
 
-def _svc_query(name: str) -> dict | None:
-    """`sc query <name>`：返回 {state}；服务不存在返回 None。"""
+_svc_cache: dict[str, tuple[float, dict | None]] = {}
+_svc_cache_lock = threading.Lock()
+_SVC_CACHE_TTL = 3.0  # 秒
+
+
+def _svc_cache_clear() -> None:
+    """清空服务状态缓存（启停服务后调用，立即读到新状态）。"""
+    with _svc_cache_lock:
+        _svc_cache.clear()
+
+
+def _svc_query(name: str, force: bool = False) -> dict | None:
+    """`sc query <name>`：返回 {state}；服务不存在返回 None。
+
+    带 3 秒 TTL 缓存：面板轮询与 start/stop 内的多次复查不会反复派生 `sc`；
+    启停服务后由调用方 `_svc_cache_clear()` 强制失效。
+    """
+    now = time.monotonic()
+    with _svc_cache_lock:
+        cached = _svc_cache.get(name)
+        if not force and cached and now - cached[0] < _SVC_CACHE_TTL:
+            return cached[1]
     code, out, err = pu.run_cmd(["sc", "query", name], timeout=10)
     text = f"{out}\n{err}"
     if code != 0 or "1060" in text:
-        return None
-    m = re.search(r"STATE\s*:\s*\d+\s+(\w+)", text)
-    return {"state": m.group(1) if m else "", "raw": text}
+        result = None
+    else:
+        m = re.search(r"STATE\s*:\s*\d+\s+(\w+)", text)
+        result = {"state": m.group(1) if m else "", "raw": text}
+    with _svc_cache_lock:
+        _svc_cache[name] = (now, result)
+    return result
 
 
 def _svc_config(name: str) -> dict | None:
