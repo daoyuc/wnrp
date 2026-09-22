@@ -34,6 +34,7 @@
   - 类型校验：size（数字可带 K/M/G）、int（≥ -1 的整数）、onoff（On/Off）、enum（error_reporting 四个预设级别下拉）、timezone（须为合法时区）、str（非空）
   - 保存前自动备份为 `<ini>.bak`（成功也保留），二进制 latin-1 无损逐行替换，未找到的键追加到文件尾
   - 编辑对象是该版本实际使用的配置文件：**目录内存在 `php-web.ini` 时优先编辑它（php82 / php83 / php84 / php85 等由安装器生成的版本均是），否则编辑 `php.ini`**
+- **推荐设置**：按本机 CPU / 内存 / 平台算出的一套 php.ini 开发值（opcache、realpath 缓存、内存与上传上限、错误显示与断言等），列出「当前值 → 建议值 + 理由」供逐条勾选，写入前自动备份 `.bak`，需重启该版本生效
 - **版本自检**：对选中版本一键执行三项检查并分级展示（正常/异常）——① `php -v` 版本解析；② `php -m` 核对 **9 项关键扩展**（redis、pdo_mysql、mysqli、openssl、curl、mbstring、gd、fileinfo、zip）；③ `php -c <该版本 ini>` 校验配置能否正常加载
 - **扩展管理**：扫描 `ext/*.dll` 对照 ini 启停扩展（`.bak` 备份、二进制安全写回）；在线安装 redis / xdebug / imagick / swoole / memcached —— 按「PHP 主版本 + NTS/TS + 编译器 + 架构」从 PECL 与 xdebug.org 自动匹配（macOS 提供 brew/pecl 引导）
 - **下载新版本**：从 php.net 下载安装任意 PHP 系列新版本（SHA-256 校验、防穿越解压、生成 `php.ini` + `php-web.ini`、默认启用 20 个扩展、按规则规划端口、VC 运行库缺失检测）
@@ -131,6 +132,7 @@
 ### Nginx 管理页
 - 启动 / 平滑重载（`-s reload`）/ 配置检查（`-t`）/ 停止 / 刷新状态，并有「＋ 新建站点向导…」入口
 - 实时显示运行状态、进程 PID、版本号、前缀目录
+- **推荐设置**：同 PHP 页，按本机硬件给出 nginx.conf 开发值（`worker_processes` / `worker_connections`、`sendfile`、`keepalive_timeout`、`fastcgi_*`、开发期关 `gzip` 与 `access_log` 等），逐条勾选后写入：改前备份 `.bak`、写完 `nginx -t` 校验、失败自动还原
 - 命令输出写入右侧日志区（不同类型着色），配置检查结果直观可见
 - 说明：Nginx 通过 `nginx.exe -p <prefix>` 直接调用（不创建控制台窗口），**不使用** `RunHiddenConsole.exe`；该隐藏启动器仅用于 php-cgi 与 redis-server 的后台启动
 
@@ -260,6 +262,11 @@ python3 cli.py site sync-port --old 9082 --new 9083 --reload
 
 # 4) 只读查库（不会写入 settings.sqlite_last_db）
 python3 cli.py sqlite query /path/database.sqlite "select * from users limit 5" --json
+
+# 5) 开发环境配置推荐（只读建议 → 勾选写入，自动备份）
+python3 cli.py tune suggest --target nginx --json        # 也可 --target php --name php82
+python3 cli.py tune apply --target nginx --dry-run       # 预览
+python3 cli.py tune apply --target php --name php82 --items display_errors,error_reporting
 ```
 
 > 提示：CLI 与 GUI 共用同一份 `config.json` 与同一批 `core/*` 管理器，两者可同时工作；
@@ -362,6 +369,8 @@ C:\wnrp\phpvm\
 │   ├── crash_watchdog.py  # 崩溃自愈独立守护进程（事件 + 失联探测 + 防抖限次）
 │   ├── recover_history.py # 自愈决策历史读写（recover_history.json）
 │   ├── ini_editor.py      # ini 关键配置项表单编辑（校验/备份/精确行替换）
+│   ├── tuning.py          # 开发环境配置推荐（硬件分档 + 建议生成 + 备份写入 / 校验回滚）
+│   ├── nginx_conf.py      # nginx.conf 按上下文读写指令（main/events/http；命中替换/缺失插入）
 │   ├── autostart.py       # 开机自启（Win HKCU Run / mac LaunchAgent）
 │   └── updater.py         # 自动升级：检查 GitHub Releases / 下载 / SHA-256 校验 / 替换安装
 └── ui/                    # 界面层
@@ -378,6 +387,7 @@ C:\wnrp\phpvm\
     ├── dialogs.py         # 端口同步/配置查看编辑/自检/崩溃详情/CLI 切换对话框
     ├── download_dialog.py # 新版本下载安装对话框
     ├── update_dialog.py   # 软件更新窗口（检查/更新说明/下载进度/一键升级重启 + 启动静默检查）
+    ├── tuning_dialog.py    # 「推荐设置」对话框（本机硬件摘要 + 建议勾选 + 应用）
     ├── extension_dialog.py# 扩展管理对话框（启停 + 在线安装）
     ├── tray.py            # 系统托盘（动态右键菜单/气泡告警/最小化到托盘，仅 Windows）
     ├── window_utils.py    # 窗口尺寸与位置自适应（工作区收敛/居中/夹紧）

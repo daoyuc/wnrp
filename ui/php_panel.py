@@ -18,6 +18,7 @@ from core.php_manager import PhpManager, PhpVersion, PortConflictError
 from .dialogs import IniDialog, IniEditDialog, PortDialog, SelfCheckDialog
 from .download_dialog import DownloadDialog
 from .extension_dialog import ExtensionDialog
+from .tuning_dialog import TuningDialog
 from . import theme
 
 COLUMNS = [
@@ -64,6 +65,7 @@ class PhpPanel(ttk.Frame):
         self.btn_edit = ttk.Button(bar, text=t("编辑配置"), command=self._edit_ini)
         self.btn_check = ttk.Button(bar, text=t("自检"), command=self._self_check)
         self.btn_ext = ttk.Button(bar, text=t("安装扩展"), command=self._manage_ext)
+        self.btn_tune = ttk.Button(bar, text=t("推荐设置"), command=self._recommend_settings)
         self.btn_download = ttk.Button(bar, text=t("下载新版本"), style="Accent.TButton",
                                        command=self._download_version)
         self.btn_terminal = ttk.Button(bar, text=t("打开终端"), command=self._open_terminal)
@@ -71,7 +73,7 @@ class PhpPanel(ttk.Frame):
         self.btn_refresh = ttk.Button(bar, text=t("刷新"), command=self.refresh_versions)
         for b in (self.btn_start, self.btn_stop, self.btn_restart, self.btn_port,
                   self.btn_ini, self.btn_edit, self.btn_check, self.btn_ext,
-                  self.btn_download, self.btn_terminal, self.btn_composer,
+                  self.btn_tune, self.btn_download, self.btn_terminal, self.btn_composer,
                   self.btn_refresh):
             b.pack(side="left", padx=(0, 6))
         ttk.Label(bar, text=t("选中版本后操作 · 双击行查看配置"),
@@ -323,7 +325,8 @@ class PhpPanel(ttk.Frame):
     def _update_buttons(self) -> None:
         has_sel = self._selected() is not None and not self._busy
         for b in (self.btn_start, self.btn_stop, self.btn_restart, self.btn_port,
-                  self.btn_ini, self.btn_edit, self.btn_check, self.btn_ext):
+                  self.btn_ini, self.btn_edit, self.btn_check, self.btn_ext,
+                  self.btn_tune):
             b.configure(state="normal" if has_sel else "disabled")
 
     def _set_busy(self, busy: bool) -> None:
@@ -360,6 +363,50 @@ class PhpPanel(ttk.Frame):
             )
             return
         IniEditDialog(self, v, self.php_mgr)
+
+    def _recommend_settings(self) -> None:
+        """按本机硬件给出 php.ini 的开发环境推荐值，由用户勾选后写入。"""
+        v = self._selected()
+        if v is None:
+            return
+        if not v.ini:
+            messagebox.showwarning(
+                t("无独立配置文件"),
+                t("[{name}] 未使用独立 php.ini，无法写入推荐值。\n"
+                  "请在版本目录中放置 php.ini 后重新刷新。", name=v.name),
+                parent=self,
+            )
+            return
+        from core import tuning
+
+        profile = tuning.detect_machine()
+        items = tuning.php_suggestions(v.ini, profile, v.display)
+        if not items:
+            messagebox.showinfo(
+                t("推荐设置"),
+                t("[{name}] 的 php.ini 已经符合开发环境推荐值，无需改动。", name=v.name),
+                parent=self,
+            )
+            return
+        TuningDialog(
+            self,
+            t("PHP 推荐设置 · {name}", name=v.name),
+            t("配置文件：{file}", file=v.ini),
+            profile, items, tuning.php_notes(),
+            lambda picked: self._apply_tuning(v, picked),
+        )
+
+    def _apply_tuning(self, v, items) -> tuple[bool, str]:
+        """写入勾选的推荐项；返回 (是否成功, 提示文本)。"""
+        from core import tuning
+
+        res = tuning.apply_php(v.ini, items)
+        self.notify(t("已按推荐值更新 {count} 项配置（{name}）",
+                      count=res.get("changed", 0), name=v.name))
+        return True, t("已更新 {count} 项配置，备份保留于：\n{backup}\n\n"
+                       "重启 [{name}]（停止后启动）即可生效。",
+                       count=res.get("changed", 0), backup=res.get("backup", ""),
+                       name=v.name)
 
     def _self_check(self) -> None:
         v = self._selected()

@@ -1540,6 +1540,102 @@ def cmd_update_download(a, r: Result) -> Result:
     return r
 
 
+# --------------------------------------------------------------------------- #
+# tune（开发环境配置推荐）
+# --------------------------------------------------------------------------- #
+def _tune_target(a, r: Result):
+    """解析 tune 命令的目标文件与建议项；失败返回 None（r 已带错误信息）。"""
+    from core import tuning
+
+    profile = tuning.detect_machine()
+    r.data["machine"] = {"cpu": profile.cpu, "mem_gb": profile.mem_gb,
+                         "platform": profile.platform, "tier": profile.tier}
+    if a.target == "php":
+        cfg = Config()
+        pm = _php_manager(cfg, refresh=False)
+        name = getattr(a, "name", "") or ""
+        v = pm.versions[0] if (not name and len(pm.versions) == 1) else _pick_php(pm, name, r)
+        if v is None:
+            return None
+        if not v.ini:
+            r.fail(f"{v.name} 未使用独立配置文件，无法给出建议")
+            return None
+        items = tuning.php_suggestions(v.ini, profile, v.display)
+        r.data.update(target="php", name=v.name, file=v.ini, notes=tuning.php_notes())
+        return v.ini, items
+    ng = _nginx()
+    if not os.path.exists(ng.main_conf):
+        r.fail("未找到 nginx 主配置：" + ng.main_conf, main_conf=ng.main_conf)
+        return None
+    with open(ng.main_conf, "r", encoding="utf-8", errors="replace") as f:
+        text = f.read()
+    items = tuning.nginx_suggestions(text, profile)
+    r.data.update(target="nginx", file=ng.main_conf, notes=tuning.nginx_notes(profile))
+    return ng.main_conf, items
+
+
+def cmd_tune_suggest(a, r: Result) -> Result:
+    got = _tune_target(a, r)
+    if got is None:
+        return r
+    path, items = got
+    only = {s.strip() for s in (getattr(a, "only", "") or "").split(",") if s.strip()}
+    if only:
+        items = [i for i in items if i.key in only]
+    r.data["items"] = [i.to_dict() for i in items]
+    r.say(f"{path}：{len(items)} 项建议"
+          + (f"（按 --only 过滤：{', '.join(sorted(only))}）" if only else ""))
+    for i in items:
+        r.say(f"  {i.key}: {i.current or '（未设置）'} → {i.value}")
+    if not items:
+        r.note("当前配置已符合开发环境推荐值")
+    return r
+
+
+def cmd_tune_apply(a, r: Result) -> Result:
+    from core import tuning
+
+    got = _tune_target(a, r)
+    if got is None:
+        return r
+    path, items = got
+    wanted = {s.strip() for s in (getattr(a, "items", "") or "").split(",") if s.strip()}
+    if wanted:
+        unknown = sorted(wanted - {i.key for i in items})
+        if unknown:
+            return r.fail("以下配置项不在建议列表中：" + "、".join(unknown),
+                          available=[i.key for i in items])
+        chosen = [i for i in items if i.key in wanted]
+    else:
+        chosen = list(items)
+    if not chosen:
+        r.data["applied"] = []
+        r.say("没有需要应用的建议项（当前配置已符合推荐值）")
+        return r
+    if a.dry_run:
+        r.data.update(dry_run=True, file=path,
+                      items=[{"key": i.key, "from": i.current, "to": i.value} for i in chosen])
+        r.say(f"[dry-run] 将在 {path} 写入 {len(chosen)} 项：")
+        for i in chosen:
+            r.say(f"  {i.key}: {i.current or '（未设置）'} → {i.value}")
+        return r
+    if a.target == "php":
+        res = tuning.apply_php(path, chosen)
+    else:
+        res = tuning.apply_nginx(path, chosen, verify=True, reload=a.reload)
+    r.data.update({k: v for k, v in res.items() if k != "items"})
+    r.data["applied"] = res.get("items", [])
+    if res.get("rolled_back") or res.get("ok") is False:
+        return r.fail(res.get("error") or "写入失败", file=path)
+    r.say(f"已写入 {res.get('changed', 0)} 项：{path}")
+    r.say("备份：" + str(res.get("backup", "")))
+    if a.target == "php":
+        r.note("需重启该 PHP 版本后生效：php restart " + str(r.data.get("name", "")))
+    elif not a.reload:
+        r.note("配置已写入，执行 nginx reload 生效")
+    return r
+
+
 def cmd_module_list(a, r: Result) -> Result:
     cfg = Config()
     disabled = modules.disabled_modules(cfg)
@@ -1844,6 +1940,25 @@ def build_parser() -> argparse.ArgumentParser:
     _leaf(gs, "check", cmd_update_check, "update.check", "检查 GitHub Releases 最新版本")
     p = _leaf(gs, "download", cmd_update_download, "update.download",
               "下载本平台安装包（SHA-256 校验）")
+    p.add_argument("--dry-run", action="store_true", help="只报告将做什么")
+
+    # tune
+    g = sub.add_parser("tune", help="开发环境配置推荐（PHP / Nginx）", parents=[COMMON])
+    gs = g.add_subparsers(dest="action", metavar="<action>")
+    p = _leaf(gs, "suggest", cmd_tune_suggest, "tune.suggest",
+              "按本机硬件列出开发环境推荐值（只读，不写文件）")
+    p.add_argument("--target", choices=["php", "nginx"], required=True,
+                   help="目标：php / nginx")
+    p.add_argument("--name", help="PHP 版本名（--target php；省略时若只有一个版本则用它）")
+    p.add_argument("--only", help="只看指定项（逗号分隔键名）")
+    p = _leaf(gs, "apply", cmd_tune_apply, "tune.apply",
+              "写入建议项（自动备份 .bak；nginx 写入后跑 nginx -t，失败自动还原）")
+    p.add_argument("--target", choices=["php", "nginx"], required=True,
+                   help="目标：php / nginx")
+    p.add_argument("--name", help="PHP 版本名（--target php）")
+    p.add_argument("--items", help="要写入的键名（逗号分隔）；省略表示全部建议")
+    p.add_argument("--reload", action="store_true",
+                   help="（--target nginx）写入成功后平滑重载")
     p.add_argument("--dry-run", action="store_true", help="只报告将做什么")
 
     # module

@@ -99,14 +99,13 @@ def _write_lines(path: str, lines: list[str]) -> None:
             f.write(ln.encode("latin-1"))
 
 
-def load_values(path: str) -> dict[str, str]:
-    """读取 ini 中各项当前值（仅非注释行，首个命中）；文件不可读返回空 dict。"""
+def _scan_values(path: str, keys: list[str]) -> dict[str, str]:
+    """读取 ini 中指定键的当前值（仅非注释行，首个命中）。"""
     values: dict[str, str] = {}
     try:
         lines = _read_lines(path)
     except OSError:
         return {}
-    keys = [m["key"] for m in INI_ITEMS_META]
     for line in lines:
         if line.lstrip().startswith(";"):
             continue
@@ -119,6 +118,16 @@ def load_values(path: str) -> dict[str, str]:
                 values[key] = stripped.split("=", 1)[1].strip()
                 break
     return values
+
+
+def load_values(path: str) -> dict[str, str]:
+    """读取表单支持项（INI_ITEMS_META）的当前值；文件不可读返回空 dict。"""
+    return _scan_values(path, [m["key"] for m in INI_ITEMS_META])
+
+
+def load_any(path: str, keys: list[str]) -> dict[str, str]:
+    """读取任意键的当前值（不受 INI_ITEMS_META 限制，供调优推荐等只读场景）。"""
+    return _scan_values(path, list(keys))
 
 
 def save_values(path: str, changes: dict[str, str]) -> tuple[int, str]:
