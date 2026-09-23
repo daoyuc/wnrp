@@ -28,7 +28,7 @@ from .i18n import t
 CGI_NAME = "php-cgi.exe" if IS_WIN else "php-cgi"
 CLI_NAME = "php.exe" if IS_WIN else "php"
 INI_NAME = "php.ini"
-WEB_INI_NAME = "php-web.ini"  # php82/php85 的 Web/FastCGI 配置
+WEB_INI_NAME = "php-web.ini"  # 老安装产物（CLI/Web 分离时代的 FastCGI 配置），现已不读取
 
 # 需要跳过的目录
 SKIP_DIRS = {"phpvm", "phpcbf"}
@@ -124,22 +124,20 @@ def _brew_name(base: str) -> str:
 
 
 def _resolve_ini(d: str, name: str, is_brew: bool, brew_conf: str = "") -> str:
-    """解析版本实际使用的 FastCGI 配置；无则返回 ""（走 PHP 编译默认配置）。
+    """解析版本实际使用的配置（CLI 与 FastCGI 统一为 `php.ini`）。
 
-    优先取目录内的 `php-web.ini`（FastCGI 专用配置），其次 `php.ini`。
-    早前仅在 php82 / php85 两个目录名上优先 php-web.ini，导致在线安装的
-    php83 / php84（安装器同样生成 php-web.ini）的 FastCGI 实际仍加载 php.ini，
-    改 php-web.ini 不生效；改为「存在即用」后对旧版本行为不变。
+    历史上曾为 php82 / php85（后扩展到「目录内存在即用」）优先使用
+    `php-web.ini`，把 CLI 与 Web 拆成两份配置；现统一回 `php.ini`，避免
+    「改了 php.ini 不生效」的困惑。老安装留下的 `php-web.ini` 不再被读取，
+    也不参与下面的散落 `*.ini` 兜底（否则等于又把它选回来）。
     """
-    prefer_web = os.path.exists(os.path.join(d, WEB_INI_NAME))
-    cands = [WEB_INI_NAME, INI_NAME] if prefer_web else [INI_NAME]
-    for fname in cands:
-        p = os.path.join(d, fname)
-        if os.path.exists(p):
-            return p
-    # 任意 *.conf 不适用 PHP；容忍目录中散落的 *.ini（取首个）
+    p = os.path.join(d, INI_NAME)
+    if os.path.exists(p):
+        return p
+    # 任意 *.conf 不适用 PHP；容忍目录中散落的 *.ini（取首个，跳过 php-web.ini）
     for f in sorted(glob.glob(os.path.join(d, "*.ini"))):
-        return f
+        if os.path.basename(f).lower() != WEB_INI_NAME.lower():
+            return f
     if brew_conf and os.path.exists(brew_conf):
         return brew_conf
     return "" if not IS_WIN else os.path.join(d, INI_NAME)

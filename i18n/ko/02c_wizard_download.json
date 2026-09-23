@@ -12,7 +12,6 @@
  "php-cgi 崩溃事件（{src}）": "php-cgi 크래시 이벤트({src})",
  "php-cgi 崩溃后自动重启（自愈，默认关闭）": "php-cgi 크래시 후 자동 재시작(자동 복구, 기본 꺼짐)",
  "php-cgi 崩溃告警": "php-cgi 크래시 경고",
- "php82/php85 → php-web.ini，其余 → php.ini": "php82/php85 → php-web.ini, 그 외 → php.ini",
  "phpvm · PHP 版本管理器": "phpvm · PHP 버전 관리자",
  "phpvm 已经在运行中，请查看任务栏或系统托盘。": "phpvm이 이미 실행 중입니다. 작업 표시줄이나 시스템 트레이를 확인하세요.",
  "releases.json 内容无法解析": "releases.json 내용을 해석할 수 없습니다",
@@ -43,5 +42,6 @@
  "{reason}：已达上限（{limit} 次/小时），暂停自动重启": "{reason}: 상한 도달({limit}회/시간), 자동 재시작 일시 중지",
  "{reason}：距上次自愈不足 {sec}s，跳过": "{reason}: 마지막 자동 복구로부터 {sec}초 미만이므로 건너뜀",
  "{time} {ver}{app} 异常码 {code}": "{time} {ver}{app} 오류 코드 {code}",
- "{total} · 关键扩展核对 {count} 项": "{total} · 주요 확장 대조 {count}개"
+ "{total} · 关键扩展核对 {count} 项": "{total} · 주요 확장 대조 {count}개",
+ "各版本目录内的 php.ini（CLI 与 FastCGI 共用）": "각 버전 디렉터리의 php.ini (CLI와 FastCGI 공용)"
 }

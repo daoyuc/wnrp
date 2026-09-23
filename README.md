@@ -33,11 +33,11 @@
 - **编辑配置**：提供 **11 项**常用配置表单（memory_limit、post_max_size、upload_max_filesize、max_file_uploads、max_execution_time、max_input_time、display_errors、error_reporting、date.timezone、default_charset、opcache.enable）：
   - 类型校验：size（数字可带 K/M/G）、int（≥ -1 的整数）、onoff（On/Off）、enum（error_reporting 四个预设级别下拉）、timezone（须为合法时区）、str（非空）
   - 保存前自动备份为 `<ini>.bak`（成功也保留），二进制 latin-1 无损逐行替换，未找到的键追加到文件尾
-  - 编辑对象是该版本实际使用的配置文件：**目录内存在 `php-web.ini` 时优先编辑它（php82 / php83 / php84 / php85 等由安装器生成的版本均是），否则编辑 `php.ini`**
+  - 编辑对象是该版本实际使用的配置文件：**版本目录内的 `php.ini`**（CLI 与 FastCGI 统一使用同一份配置；早期安装产生的 `php-web.ini` 已不再读取）
 - **推荐设置**：按本机 CPU / 内存 / 平台算出的一套 php.ini 开发值（opcache、realpath 缓存、内存与上传上限、错误显示与断言等），列出「当前值 → 建议值 + 理由」供逐条勾选，写入前自动备份 `.bak`，需重启该版本生效
 - **版本自检**：对选中版本一键执行三项检查并分级展示（正常/异常）——① `php -v` 版本解析；② `php -m` 核对 **9 项关键扩展**（redis、pdo_mysql、mysqli、openssl、curl、mbstring、gd、fileinfo、zip）；③ `php -c <该版本 ini>` 校验配置能否正常加载
 - **扩展管理**：扫描 `ext/*.dll` 对照 ini 启停扩展（`.bak` 备份、二进制安全写回）；在线安装 redis / xdebug / imagick / swoole / memcached —— 按「PHP 主版本 + NTS/TS + 编译器 + 架构」从 PECL 与 xdebug.org 自动匹配（macOS 提供 brew/pecl 引导）
-- **下载新版本**：从 php.net 下载安装任意 PHP 系列新版本（SHA-256 校验、防穿越解压、生成 `php.ini` + `php-web.ini`、默认启用 20 个扩展、按规则规划端口、VC 运行库缺失检测）
+- **下载新版本**：从 php.net 下载安装任意 PHP 系列新版本（SHA-256 校验、防穿越解压、生成一份 `php.ini`（末尾附加 php-cgi 直连所需的 FastCGI 关键项，CLI 与 Web 共用）、默认启用 20 个扩展、按规则规划端口、VC 运行库缺失检测）
 - **打开终端**：新开终端窗口并把所选版本目录前置到 PATH（新窗口生效），便于直接以该版本运行 php / composer
 - **Composer**：自动探测系统 Composer（`PATH` 与 `C:\ProgramData\ComposerSetup` 等常见位置），点击后在该 PHP 版本的 PATH 下打开终端执行 `composer -V`；未安装时给出安装指引（不内置下载）
 - **cmd php 版本切换**：顶部实时显示当前 `php` 命令行生效版本（如 `CMD php：php82 · PHP 8.2.4`），点击「切换」可选择任意版本置顶
@@ -150,7 +150,7 @@
 - 托盘菜单提供各实例快捷启停
 
 ### 关于页
-- **环境信息**：phpvm 版本、环境根目录、PHP FastCGI 配置（php82 / php85 → php-web.ini，其余 → php.ini）、FastCGI 监听、Nginx 前缀、隐藏启动器（Windows）、配置持久化路径、数据目录
+- **环境信息**：phpvm 版本、环境根目录、PHP FastCGI 配置（各版本目录内的 `php.ini`，CLI 与 FastCGI 共用）、FastCGI 监听、Nginx 前缀、隐藏启动器（Windows）、配置持久化路径、数据目录
 - **功能模块**：勾选需要加载的模块（默认全部启用），取消勾选后**重启 phpvm 生效**，该模块的代码将不再加载（例如取消「SQLite 数据库」后不会创建该页签，也不会导入其管理器）
   - 可停用：Redis 管理 / MySQL 管理 / SQLite 数据库 / Nginx 日志
   - 刚需（不可取消）：PHP 版本管理 / Nginx 管理 / 站点映射
@@ -348,7 +348,7 @@ C:\wnrp\phpvm\
 │   ├── process_utils.py   # 批量快照 API（Win: GetExtendedTcpTable/EnumProcesses；posix: lsof/ps）+ 启停/命令执行
 │   ├── php_manager.py     # 版本扫描/解析/启停/状态（三重校验）+ 批量状态刷新（含 brew keg）
 │   ├── php_downloader.py  # php.net / PECL 下载与安全解压（架构/编译器探测、SHA-256）
-│   ├── php_installer.py   # 新版本在线安装（生成 php.ini + php-web.ini、端口规划、VC 检测）
+│   ├── php_installer.py   # 新版本在线安装（生成 php.ini、端口规划、VC 检测）
 │   ├── php_extension.py   # 扩展管理（ext 扫描 + ini 写回 + PECL/xdebug 在线安装）
 │   ├── path_manager.py    # 终端 php 版本切换（Win 用户 PATH 置顶 / posix 写 .zshrc 块）
 │   ├── nginx_manager.py   # nginx 启停/重载/配置检查（Win -p / brew 模式；派生 vhost 与日志目录）
@@ -407,9 +407,9 @@ C:\wnrp\phpvm\
 
 - **端口被占用启动失败**：界面会提示占用进程（名称+PID）。请先停止占用进程，或在「编辑端口」中更换端口并用「一键同步」同步 vhost。
 - **修改端口后站点 502/404**：编辑端口保存后务必在弹出的一键同步对话框中执行替换并「重载 Nginx」；或在「站点映射」页检查异常高亮条目。
-- **php-cgi 反复崩溃（站点 502）**：状态栏会弹出崩溃告警，点击查看事件详情（故障模块/异常码/偏移）。异常码 0xc0000005 常见于 opcache JIT 或扩展冲突，可检查 `php-web.ini` 中 `opcache.jit` 设置。
-- **php82 / php85 特殊**：FastCGI 使用 `php-web.ini`（与 CLI 的 `php.ini` 区分），工具已自动处理。
-- **FastCGI 用哪个 ini**：目录内存在 `php-web.ini` 时 FastCGI 就使用它（安装器为 php82 / php83 / php84 / php85 等均生成了该文件），否则用 `php.ini`。早期版本仅对 `php82`、`php85` 两个目录名生效，导致 php83 / php84 改 `php-web.ini` 不起作用，现已修正。
+- **php-cgi 反复崩溃（站点 502）**：状态栏会弹出崩溃告警，点击查看事件详情（故障模块/异常码/偏移）。异常码 0xc0000005 常见于 opcache JIT 或扩展冲突，可在「PHP 版本管理 → 编辑配置」里把 `opcache.jit` 改为 `off`（同时 `opcache.jit_buffer_size=0`）关闭 JIT。
+- **FastCGI 用哪个 ini**：一律使用版本目录内的 `php.ini`，**CLI 与 FastCGI 共用同一份配置**（不再拆分）。历史上曾优先使用 `php-web.ini`（并在 php83 / php84 上出现过「改了不生效」的缺陷），现已统一回 `php.ini`。
+- **遗留的 `php-web.ini`**：早期版本为本机 php82 / php83 / php84 / php85 生成过该文件；切换后它**不再被读取**（也参与不到 `*.ini` 兜底选择），可保留不管，需要清理时删掉即可。若原本只在 `php-web.ini` 里调过项（如 `opcache.jit=off`），请把对应项补到 `php.ini`。
 
 ## macOS / Linux 支持
 
