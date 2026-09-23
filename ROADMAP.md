@@ -15,9 +15,9 @@
 | 分组 | 已实现能力 | 主要落点 |
 |---|---|---|
 | PHP 版本管理 | 自动发现（Windows `C:\wnrp\php*` + Homebrew keg）、按端口精确启停/重启/状态、批量双快照刷新、端口编辑与校验 | `core/php_manager.py`、`core/process_utils.py`、`ui/php_panel.py` |
-| php.ini | 查看三页（12 项关键配置 / 已启用扩展 / 全文）；11 项表单编辑（类型校验、`.bak`、latin-1 无损替换）；php82/85 编辑 `php-web.ini` | `core/ini_editor.py`、`ui/dialogs.py` |
+| php.ini | 查看三页（12 项关键配置 / 已启用扩展 / 全文）；11 项表单编辑（类型校验、`.bak`、latin-1 无损替换）；**各版本统一编辑 `php.ini`（CLI 与 FastCGI 共用）**；缺配置时「初始化 php.ini」 | `core/ini_editor.py`、`ui/dialogs.py`、`ui/php_panel.py` |
 | 版本自检 | 3 项检查（版本 / 9 项关键扩展 / 配置加载） | `core/health_monitor.py` |
-| 扩展与版本安装 | ext 扫描启停 + PECL/xdebug.org 在线安装（redis/xdebug/imagick/swoole/memcached）；php.net 下载安装新版本（SHA-256、生成双 ini、端口推导、VC 检测） | `core/php_extension.py`、`php_downloader.py`、`php_installer.py` |
+| 扩展与版本安装 | ext 扫描启停 + PECL/xdebug.org 在线安装（redis/xdebug/imagick/swoole/memcached）；php.net 下载安装新版本（SHA-256、生成单份 `php.ini`（含 FastCGI 关键项）、端口推导、VC 检测） | `core/php_extension.py`、`php_downloader.py`、`php_installer.py` |
 | cmd / 终端 php 切换 | Windows 改用户 PATH 置顶；posix 维护 `.zshrc` / `.bash_profile` 的 phpvm 块 | `core/path_manager.py` |
 | Nginx | 启停 / 平滑重载 / 配置检查；Win `-p` 模式与 brew 模式；日志目录按生效配置推导 | `core/nginx_manager.py` |
 | **新建站点向导** | 4 步向导（域名+目录+PHP 版本 → 6 套模板 + 实时预览 → hosts 映射 → 落盘）；自动补 include、`nginx -t`、平滑重载、失败回滚 | `ui/site_wizard.py`、`core/site_templates.py`、`core/vhost_manager.py` |
@@ -88,9 +88,8 @@
 
 #### P0-2 ✅ 已修复 php83 / php84 的 FastCGI ini 选择
 - 事实：`php_manager._resolve_ini` 的白名单仅 `("php82","php85")`，但安装器为 php83/php84 也生成了 `php-web.ini` → 这两个版本 FastCGI 实际加载 `php.ini`，改 `php-web.ini` 不生效（尤其 `opcache.jit` 等排障项）。`[已确认]`
-- 建议：改为「目录内存在 `php-web.ini` 即优先」（或按安装器产物标记），并同步 README 与自检提示。
-- 落点：`core/php_manager._resolve_ini`。
-- 验收：php83/php84 面板显示的配置文件为 `php-web.ini`，修改后 FastCGI 行为随之变化。
+- 当年修法：改为「目录内存在 `php-web.ini` 即优先」（或按安装器产物标记），并同步 README 与自检提示。落点 `core/php_manager._resolve_ini`。
+- **后续收口（第十二轮）**：双 ini 机制本身带来「改哪份才生效」的持续困惑，已整体回退为**统一使用 `php.ini`**（CLI 与 FastCGI 共用），`php-web.ini` 不再被读取 —— 本条修复随机制退场而失效。
 
 #### P0-3 ✅ 已实现站点行级操作（把「建站」延伸到「日常运维」）
 - 目标（vhost 面板加右键菜单/列按钮）：
@@ -180,7 +179,8 @@
 - **第九轮（2026-09-22，结构性整顿：去重 + 回滚统一 + 测试）**：① 新增 `core/site_service.py`，把「证书 → 写 vhost → 补 include → `nginx -t` → hosts → 平滑重载 + 回滚」下沉为唯一实现，CLI 与 GUI 向导都改为调用它（`SitePlan` 入参 + `SiteResult` 步骤明细 + `SiteRollback` 回滚记录）；两处差异用显式开关表达（`allow_missing_main_conf`：GUI 宽容 / CLI 严格）。② 新增 `core/file_backup.py` 统一备份/还原（`<file>.bak`，hosts 用 `.phpvm.bak`），替换 vhost / ini / 扩展 dll / hosts / CLI 中散落的 `shutil.copy2` 样板。③ `valid_domain` / `safe_conf_base` / `nginx_path` 三个重复 helper 收敛到 `core/vhost_manager.py`，CLI 与向导共用。④ 补上 hosts「一键还原」入口（站点映射页按钮 + `cli.py hosts restore --yes`），此前 `restore_backup()` 是无入口的死代码、与 README 描述不符。⑤ 新增 `tests/`（标准库 unittest，35 个用例）覆盖 vhost 改写 / hosts 写入移除 / ini 写回 / 建站编排与回滚 / file_backup，全部用临时目录与假 nginx，不触碰真实 nginx 配置与系统 hosts。⑥ 过程中修掉 4 个既有缺陷：`include_status()` 循环变量遮蔽 `t()` 导致「未 include 站点目录」路径必崩（该路径正是自动补 include 的入口）、CLI 在 GBK 控制台打印 ✓/✗ 抛 UnicodeEncodeError、`sync_port` 的「替换数」把命中数当改动数、`_i18n_scan.py` 输出路径分隔符随平台变化导致 `_keys.json` 整文件 churn。
 - **第十轮（2026-09-23，外观优化，无功能变更）**：① 调色板现代化并重排对比层级 —— `primary` 换用更亮的蓝、文本/边框/斑马纹改用中性灰阶，新增 `border_strong` / `header_bg` / `hover` 三个角色（两套主题键一致，由 `tests/test_theme.py` 断言）。② `ui/theme.py` 新增设计令牌：字号层级 `FS_TITLE/SECTION/BODY/SMALL` + 间距层级 `PAD_XS~XL` + `font()` / `divider()` / `accent_bar()`，替换各面板散落的 6/10/14 硬编码与 `(FONT, 9)` 字面量。③ 结构感：主窗口标题区改为「描边卡片 + 左侧强调竖条」，状态栏加上沿细线并改用 `panel_alt` 底色，崩溃/更新徽标改为 `Alert/Link.Status.TLabel`（随主题自动换色，不再硬编码前景色）。④ 控件重做：常规按钮细描边 + 聚焦强调色（主/危按钮保持实心），输入框/下拉聚焦变强调色，表头独立底色且去掉描边，滚动条改细条（10px）无描边，页签选中态为「卡片底 + 强调色描边 + 强调色文字」并把文字留白从空格改为 `padding`（避免 i18n 文案长度变化时错位）。⑤ 关于页整页改为卡片（`Card.TFrame` + `Card.TLabelframe` + `Card.TCheckbutton`），消除此前「灰底控件压在白卡片上」的色块。⑥ Windows 高 DPI：`main.py` 在创建 Tk 根窗口前开启感知（PER_MONITOR_V2 → 系统级 → 放弃），解决高分辨率屏文字发虚。⑦ 新增 `tests/test_theme.py`（6 例），全量 68 例通过；新增样式经「建窗口 + 双主题热切换」冒烟验证可实例化。
 - **第十一轮（2026-09-23，php.ini 初始化入口）**：`_resolve_ini` 在 Windows 上恒返回 `<版本目录>\php.ini`（历史假设官方包一定有），posix 上找不到才返回 ""，于是「有没有生效配置」只能按文件是否存在判定 —— 此前 `read_ini` / `read_key_ini` / 编辑配置 / 推荐设置都用 `if not v.ini` 判断，Windows 上永不成立，缺 ini 的版本点「编辑配置」只会看到读取失败，推荐设置也无从下手。现新增 `PhpManager.ini_target()` / `ini_ready()` / `ini_template()` / `init_ini()`：目标路径兜底为版本目录内 php.ini，优先复制官方模板 `php.ini-production` → `php.ini-development`，都没有则写入内置最小骨架（`INI_SKELETON`，未列出的指令沿用编译默认值）；已存在不覆盖，成功后同步 `v.ini`。界面侧：PHP 面板新增「初始化 php.ini」按钮（仅在选中版本确实缺配置时可用），配置文件列缺配置时加 ⚠ 前缀，编辑/推荐设置的告警改为指向该按钮。新增 `tests/test_php_ini.py`（8 例），全量 76 例通过；新增文案已补齐 en / zh_TW / ja / ko。
-- **已知存量问题（未处理）**：i18n 尚缺约 150 条译文（多为此前几轮新增界面文案未补，集中在站点行级操作 / vhost 面板）；P3 远期候选（资源监控、多 server 块逐块编辑、hosts 分节 UI、服务化 `sc create`、SQLite SQL 导出、配置迁移 / 备份导出）仍未动工。
+- **第十二轮（2026-09-23，ini 机制回退：统一使用 php.ini）**：① `core/php_manager._resolve_ini` 取消 `php-web.ini` 优先（含散落 `*.ini` 兜底里显式跳过它），CLI 与 FastCGI 回到同一份 `php.ini`；FastCGI 启动本来就是 `php-cgi -b <port> -c <解析结果>`，因此只需改解析即可整体生效。② `core/php_installer.generate_ini` 只产出唯一 `php.ini`，把原先写在 php-web.ini 末尾的 FastCGI 关键项（`cgi.fix_pathinfo=1` / `cgi.force_redirect=0` / `cgi.fastcgi=1` / `opcache.enable=1` / `opcache.enable_cli=0`）改为追加到 php.ini 末尾（后出现的值覆盖先前值），新装版本不再产生 php-web.ini。③ 界面文案：关于页「PHP FastCGI 配置」改为「各版本目录内的 php.ini（CLI 与 FastCGI 共用）」，下载进度「正在生成 php.ini / php-web.ini」改为「正在生成 php.ini」；README / ROADMAP / 本机 AGENTS.md 同步，废弃词条从 4 语言表移除并补新词条。④ **本机环境对齐（必要）**：切回 php.ini 前实测 php85 的 php.ini 是 `opcache.enable=1 + opcache.jit=tracing + jit_buffer_size=128M`（正是 2026-08-26 记录的 php-cgi 段错误配方）、php82 的 php.ini 是 `opcache.enable=0`；已按原 php-web.ini 的可用状态用 `core/ini_editor.save_values` 写回（php82：opcache 开 + JIT 关；php85：JIT 关 + 补 `date.timezone`），自动留 `.bak`。⑤ 新增 `tests/test_php_installer_ini.py`（4 例）与 `ResolveIniTest`（3 例），全量 83 例通过。⑥ 端到端验证：重启 php85 后命令行确认为 `php-cgi.exe -b 127.0.0.1:9085 -c C:\wnrp\php85\php.ini`；经 nginx 请求 `http://gmlbm.test/` 连续 10 次 200（另用绕过系统代理的直连 3 次复核），php-cgi PID 未变化、事件日志无新增崩溃。
+- **已知存量问题（未处理）**：i18n 尚缺约 150 条译文（多为此前几轮新增界面文案未补，集中在站点行级操作 / vhost 面板）；P3 远期候选（资源监控、多 server 块逐块编辑、hosts 分节 UI、服务化 `sc create`、SQLite SQL 导出、配置迁移 / 备份导出）仍未动工；本机 php82 / php83 / php84 / php85 目录下的历史 `php-web.ini` 仍在（已不被读取，可手动删除）。
 - **第七轮（2026-09-10，安装包与自动升级）**：新增 `core/version.py`（版本号/发布源/资产命名单一来源）、`core/app_paths.py`（可写数据目录判定，包目录只读时自动改用 `~/.phpvm`）、`core/updater.py`（检查 → 下载 → SHA-256 校验 → 替换安装）与 `ui/update_dialog.py`（更新窗口 + 启动静默检查）；关于页新增版本/数据目录信息与「检查更新 / 打开下载缓存目录 / 启动时自动检查更新」，菜单栏新增「帮助」，状态栏新增新版本提示；新增 `packaging/build.py`（macOS `.app`/`.dmg`、Windows 包、`SHA256SUMS.txt`）与 `packaging/phpvm.iss`（AppId 固定故识别为升级、`config.json` 以 `onlyifdoesntexist` 保护）；新增 `.github/workflows/release.yml`（打 tag 自动构建双平台并发布 Release）。实测 macOS 出包成功（`phpvm-1.0.0-macos.dmg`，575 KB，含图标与排除项校验），升级链路自测通过（检查解析 / 下载校验 / 校验和不匹配拒绝并清理 / 取消下载）。新增 63 条文案已补齐 en / zh_TW / ja / ko 四语言。
 
 ---
@@ -197,6 +197,7 @@
 | nginx vhost | 30 个 conf，形态统一（listen 80 + `*.test` + Laravel root + fastcgi_pass 9000/9085），已 include `C:/wnrp/nginx/conf/vhost/*.conf`；无 443 | [已确认] |
 | 站点行级操作 | vhost_panel 仅 3 按钮（新建 / 打开目录 / 刷新）+ 双击打开 conf；无启禁用、无站点级换 PHP、无浏览器/目录直达 | [已确认] |
 | 编辑配置保存 | `ui/dialogs.py` 保存处 `UnboundLocalError` —— **已修复**（拆分元组解包赋值） | [已修复] |
-| php83 / php84 ini | 两目录均有 `php-web.ini` 但未被采用 —— **已修复**（改为「存在即用」，php82/85 行为不变，php74 仍用 `php.ini`） | [已修复] |
+| php83 / php84 ini | 两目录均有 `php-web.ini` 但未被采用 —— 当年**已修复**（改为「存在即用」）；第十二轮起统一使用 `php.ini`，`php-web.ini` 整体退场 | [已修复→已统一] |
+| php82 / php85 php.ini | 切回统一 `php.ini` 前实测：php85 的 `php.ini` 是 `opcache.enable=1 + opcache.jit=tracing + jit_buffer_size=128M`（即 2026-08-26 记录的 php-cgi 段错误配方），php82 的 `php.ini` 是 `opcache.enable=0` —— 已按原 `php-web.ini` 的可用状态对齐（JIT 关、php82 恢复 opcache、php85 补时区），写入前自动生成 `.bak` | [已确认·已对齐] |
 | 托盘图标 | `<phpvm>\phpvm.ico` 不存在，回退系统默认图标 | [已确认] |
 | README 状态（重做前） | 仍写 4 秒刷新、五页签、缺 Redis / 扩展 / 下载 / i18n / 单实例章节、目录树与端口表不全、macOS 进度过时 | [已确认·本轮已修复] |

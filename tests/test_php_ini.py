@@ -4,7 +4,8 @@ import os
 import tempfile
 import unittest
 
-from core.php_manager import INI_SKELETON, PhpManager, PhpVersion
+from core.config import IS_WIN
+from core.php_manager import (INI_SKELETON, PhpManager, PhpVersion, _resolve_ini)
 
 from .fakes import FakeConfig
 
@@ -32,8 +33,8 @@ class InitIniTest(unittest.TestCase):
         self.assertEqual(self.mgr.ini_target(v), os.path.join(self.root, "php.ini"))
 
     def test_target_keeps_resolved_path(self):
-        v = _version(self.root, os.path.join(self.root, "php-web.ini"))
-        self.assertEqual(self.mgr.ini_target(v), os.path.join(self.root, "php-web.ini"))
+        v = _version(self.root, os.path.join(self.root, "php.ini"))
+        self.assertEqual(self.mgr.ini_target(v), os.path.join(self.root, "php.ini"))
 
     def test_ready_reflects_file_existence(self):
         """Windows 上 v.ini 恒为「应有路径」，故必须按文件是否存在判定。"""
@@ -90,6 +91,37 @@ class InitIniTest(unittest.TestCase):
     def _read(self, path: str) -> str:
         with open(path, "r", encoding="utf-8") as f:
             return f.read()
+
+
+class ResolveIniTest(unittest.TestCase):
+    """FastCGI 与 CLI 统一使用 php.ini：老安装留下的 php-web.ini 不再被选中。"""
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp()
+
+    def _touch(self, name: str) -> str:
+        p = os.path.join(self.root, name)
+        with open(p, "w", encoding="utf-8") as f:
+            f.write("; %s\n" % name)
+        return p
+
+    def test_prefers_php_ini_even_when_web_ini_exists(self):
+        php_ini = self._touch("php.ini")
+        self._touch("php-web.ini")
+        self.assertEqual(_resolve_ini(self.root, "php85", False), php_ini)
+
+    def test_ignores_web_ini_in_loose_fallback(self):
+        """只有 php-web.ini 时不能把它选回来（Windows 回落到应有路径 php.ini）。"""
+        self._touch("php-web.ini")
+        got = _resolve_ini(self.root, "php85", False)
+        self.assertNotIn("php-web", got)
+        self.assertTrue(got == "" or got.endswith("php.ini"), got)
+        if IS_WIN:
+            self.assertEqual(got, os.path.join(self.root, "php.ini"))
+
+    def test_loose_ini_fallback_accepts_other_names(self):
+        other = self._touch("custom.ini")
+        self.assertEqual(_resolve_ini(self.root, "php85", False), other)
 
 
 if __name__ == "__main__":

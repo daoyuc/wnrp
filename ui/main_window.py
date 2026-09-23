@@ -290,7 +290,7 @@ class MainWindow(tk.Tk):
         rows = [
             (t("phpvm 版本"), f"v{updater.current_version()}"),
             (t("环境根目录"), WNRP_ROOT_SHOW),
-            (t("PHP FastCGI 配置"), t("php82/php85 → php-web.ini，其余 → php.ini")),
+            (t("PHP FastCGI 配置"), t("各版本目录内的 php.ini（CLI 与 FastCGI 共用）")),
             (t("FastCGI 监听"), t("127.0.0.1:端口（按版本配置，见 PHP 版本管理页）")),
             (t("Nginx 前缀"), os.path.join(WNRP_ROOT, "nginx")),
             (t("配置持久化"), self.config.config_path),

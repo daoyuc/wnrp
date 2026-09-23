@@ -4,7 +4,8 @@
 设计原则：
 - 安装原子性：下载到 phpvm/.tmp 临时区，校验通过后再落盘，任何一步失败均清理
 - 目录/端口命名与现有扫描规则完全一致（php83 / 9083 …），落盘即被 scan_versions 识别
-- ini 生成基于包内 php.ini-development，输出 php.ini（CLI）与 php-web.ini（FastCGI）
+- ini 生成基于包内 php.ini-development，输出唯一的 php.ini（CLI 与 FastCGI 共用，
+  末尾追加 php-cgi 直连所需的关键项）
 """
 import os
 import re
@@ -23,7 +24,6 @@ from .php_downloader import (
 
 CLI_NAME = "php.exe"
 INI_NAME = "php.ini"
-WEB_INI_NAME = "php-web.ini"
 TMP_ROOT = os.path.join(WNRP_ROOT, "phpvm", ".tmp")
 
 # 启用扩展清单（从 php.ini-development 取消注释）
@@ -33,7 +33,7 @@ ENABLE_EXTENSIONS = {
     "pdo_sqlite", "sodium", "soap", "sockets", "sqlite3", "zip",
 }
 
-# FastCGI 附加配置（追加到 php-web.ini 末尾，覆盖旧值）
+# FastCGI 附加配置（追加到 php.ini 末尾，覆盖旧值；CLI 与 Web 共用一份配置）
 FASTCGI_EXTRA = [
     "cgi.fix_pathinfo=1",
     "cgi.force_redirect=0",
@@ -113,7 +113,11 @@ def _process_ini_lines(lines: list[str]) -> list[str]:
 
 
 def generate_ini(php_dir: str) -> None:
-    """基于 php.ini-development 生成 php.ini（CLI）与 php-web.ini（FastCGI）。"""
+    """基于 php.ini-development 生成唯一的 `php.ini`（CLI 与 FastCGI 共用）。
+
+    末尾追加 FASTCGI_EXTRA：这些是 php-cgi 直连所需的关键项（PHP 解析后
+    后出现的值覆盖先前的值），合并进同一份 php.ini 后无需再生成 php-web.ini。
+    """
     dev = os.path.join(php_dir, "php.ini-development")
     prod = os.path.join(php_dir, "php.ini-production")
     src = dev if os.path.exists(dev) else (prod if os.path.exists(prod) else None)
@@ -123,14 +127,10 @@ def generate_ini(php_dir: str) -> None:
     else:
         lines = MINIMAL_INI.splitlines()
 
-    ini_text = "\n".join(_process_ini_lines(lines)) + "\n"
+    ini_text = "\n".join(_process_ini_lines(lines)).rstrip() + \
+        "\n\n; ---------- phpvm FastCGI ----------\n" + "\n".join(FASTCGI_EXTRA) + "\n"
     with open(os.path.join(php_dir, INI_NAME), "w", encoding="utf-8", newline="\n") as f:
         f.write(ini_text)
-
-    # FastCGI 版本：额外追加关键项（出现在末尾，PHP 解析后值覆盖先前值）
-    web_text = ini_text.rstrip() + "\n\n; ---------- phpvm FastCGI ----------\n" + "\n".join(FASTCGI_EXTRA) + "\n"
-    with open(os.path.join(php_dir, WEB_INI_NAME), "w", encoding="utf-8", newline="\n") as f:
-        f.write(web_text)
 
 
 def _find_real_root(extract_dir: str) -> str:
@@ -220,7 +220,7 @@ def install(pkg: PhpPackage, config: Config, progress=None) -> InstallResult:
             shutil.move(os.path.join(root, item), os.path.join(target_dir, item))
         target_ready = True
 
-        # 5. 生成 php.ini / php-web.ini
+        # 5. 生成 php.ini（CLI 与 FastCGI 共用）
         report("生成配置", None)
         generate_ini(target_dir)
 

@@ -12,7 +12,6 @@
  "php-cgi 崩溃事件（{src}）": "php-cgi 崩潰事件（{src}）",
  "php-cgi 崩溃后自动重启（自愈，默认关闭）": "php-cgi 崩潰後自動重新啟動（自癒，預設關閉）",
  "php-cgi 崩溃告警": "php-cgi 崩潰告警",
- "php82/php85 → php-web.ini，其余 → php.ini": "php82/php85 → php-web.ini，其餘 → php.ini",
  "phpvm · PHP 版本管理器": "phpvm · PHP 版本管理器",
  "phpvm 已经在运行中，请查看任务栏或系统托盘。": "phpvm 已在執行中，請查看工作列或系統匣。",
  "releases.json 内容无法解析": "無法解析 releases.json 內容",
@@ -43,5 +42,6 @@
  "{reason}：已达上限（{limit} 次/小时），暂停自动重启": "{reason}：已達上限（{limit} 次/小時），暫停自動重新啟動",
  "{reason}：距上次自愈不足 {sec}s，跳过": "{reason}：距離上次自癒不足 {sec}s，略過",
  "{time} {ver}{app} 异常码 {code}": "{time} {ver}{app} 異常碼 {code}",
- "{total} · 关键扩展核对 {count} 项": "{total} · 關鍵擴充套件核對 {count} 項"
+ "{total} · 关键扩展核对 {count} 项": "{total} · 關鍵擴充套件核對 {count} 項",
+ "各版本目录内的 php.ini（CLI 与 FastCGI 共用）": "各版本目錄內的 php.ini（CLI 與 FastCGI 共用）"
 }
