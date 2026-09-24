@@ -20,6 +20,7 @@ from .dialogs import IniDialog, IniEditDialog, PortDialog, SelfCheckDialog
 from .download_dialog import DownloadDialog
 from .extension_dialog import ExtensionDialog
 from .tuning_dialog import TuningDialog
+from .xdebug_dialog import XdebugDialog
 from . import theme
 
 COLUMNS = [
@@ -72,6 +73,7 @@ class PhpPanel(ttk.Frame):
         self.btn_tune = ttk.Button(bar, text=t("推荐设置"), command=self._recommend_settings)
         # 没有生效 php.ini 的版本：先生成一份，否则「编辑配置 / 推荐设置」无从下手
         self.btn_init_ini = ttk.Button(bar, text=t("初始化 php.ini"), command=self._init_ini)
+        self.btn_debug = ttk.Button(bar, text=t("调试"), command=self._open_xdebug)
         self.btn_download = ttk.Button(bar, text=t("下载新版本"), style="Accent.TButton",
                                        command=self._download_version)
         self.btn_terminal = ttk.Button(bar, text=t("打开终端"), command=self._open_terminal)
@@ -79,7 +81,7 @@ class PhpPanel(ttk.Frame):
         self.btn_refresh = ttk.Button(bar, text=t("刷新"), command=self.refresh_versions)
         for b in (self.btn_start, self.btn_stop, self.btn_restart, self.btn_port,
                   self.btn_ini, self.btn_edit, self.btn_check, self.btn_ext,
-                  self.btn_tune, self.btn_init_ini, self.btn_download,
+                  self.btn_tune, self.btn_init_ini, self.btn_debug, self.btn_download,
                   self.btn_terminal, self.btn_composer, self.btn_refresh):
             b.pack(side="left", padx=(0, 6))
         ttk.Label(bar, text=t("选中版本后操作 · 双击行查看配置"),
@@ -327,7 +329,7 @@ class PhpPanel(ttk.Frame):
         has_sel = self._selected() is not None and not self._busy
         for b in (self.btn_start, self.btn_stop, self.btn_restart, self.btn_port,
                   self.btn_ini, self.btn_edit, self.btn_check, self.btn_ext,
-                  self.btn_tune):
+                  self.btn_tune, self.btn_debug):
             b.configure(state="normal" if has_sel else "disabled")
         # 「初始化 php.ini」只在选中版本确实没有生效配置时可用
         v = self._selected()
@@ -446,6 +448,14 @@ class PhpPanel(ttk.Frame):
         messagebox.showinfo(t("初始化 php.ini"), msg, parent=self)
         # v.ini 已同步：直接重绘本行，无需重新扫描
         self._update_rows()
+
+    def _open_xdebug(self) -> None:
+        """Xdebug 调试开关（写 php.ini，自动备份 + 自检，失败还原）。"""
+        v = self._selected()
+        if v is None:
+            return
+        XdebugDialog(self, v, on_restart=lambda: self._operate("restart"),
+                     notify=lambda msg: self.notify(msg))
 
     def _self_check(self) -> None:
         v = self._selected()

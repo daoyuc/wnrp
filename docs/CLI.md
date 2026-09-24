@@ -36,7 +36,7 @@
 | `module` | 功能模块开关 | `disable` · `enable` · `list` |
 | `mysql` | MySQL 管理 | `list` · `log` · `restart` · `start` · `status` · `stop` |
 | `nginx` | Nginx 管理 | `logs` · `reload` · `start` · `status` · `stop` · `test` |
-| `php` | PHP 版本管理 | `check` · `ext-list` · `ext-set` · `ini` · `list` · `port` · `restart` · `start` · `status` · `stop` |
+| `php` | PHP 版本管理 | `check` · `ext-list` · `ext-set` · `ini` · `list` · `port` · `restart` · `start` · `status` · `stop` · `xdebug-disable` · `xdebug-enable` · `xdebug-status` |
 | `redis` | Redis 管理 | `cmd` · `list` · `ping` · `restart` · `start` · `status` · `stop` |
 | `schema` | 输出全部命令的自描述契约（供 AI 读取） | — |
 | `services` | 整套服务编排 | `start-all` · `stop-all` |
@@ -256,6 +256,27 @@
 | 参数 | 必填 | 默认 | 说明 |
 |---|---|---|---|
 | `<name>` | 是 |  | 版本名，或 all 表示全部版本 |
+
+### `php xdebug-disable` — 关闭 Xdebug 调试（注释加载行，调试指令保留）
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `<name>` | 是 |  | 版本名 |
+| `--dry-run` |  |  | 只报告将做什么 |
+
+### `php xdebug-enable` — 开启 Xdebug 调试（写 ini：加载行 + 调试指令，自动备份并自检）
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `<name>` | 是 |  | 版本名 |
+| `--port` |  | 9003 | 调试端口（默认 9003） |
+| `--dry-run` |  |  | 只报告将做什么 |
+
+### `php xdebug-status` — 查看 Xdebug 调试状态（是否已装 / 已开启 / 端口）
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `<name>` | 是 |  | 版本名 |
 
 ## `redis` — Redis 管理
 
