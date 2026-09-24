@@ -70,6 +70,7 @@ python3 cli.py nginx test                # 任何改配置后都建议先跑
 
 ## 项目结构速记
 
+- `docs/` 开发者文档体系（`docs/README.md` 导航、`ARCHITECTURE.md` 架构与横切铁律、`MODULES.md` 能力→落点对照、`FLOWS.md` 关键流程）——改代码后按 `docs/README.md` 的维护规则同步文档
 - `core/` 服务层（nginx / php / redis / mysql / vhost / hosts / sqlite / updater / modules …），CLI 与 GUI 共用
   - 建站流程只有一个实现：`core/site_service.py`（证书 → 写 vhost → 补 include → `nginx -t` → hosts → 重载 + 回滚），CLI 与 GUI 向导都调它
   - 文件备份统一走 `core/file_backup.py`（写配置前必 `.bak`，还原默认删备份）

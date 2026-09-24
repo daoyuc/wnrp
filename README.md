@@ -5,6 +5,10 @@
 仅本机使用，无需登录。按端口精确启停各 PHP 版本，互不干扰 —— 不再像旧版 `start_phpXX.bat` 那样 `taskkill /IM php-cgi.exe` 一刀切误杀其它版本进程。
 
 > **功能路线规划见 [ROADMAP.md](ROADMAP.md)**：现状能力矩阵、同类工具对标、P0-P3 缺口路线。本文档只描述**已实现**的功能。
+>
+> **开发者文档体系见 [docs/](docs/README.md)**：[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)（分层 / 并发模型 / 数据落点 / 写操作铁律）、
+> [`docs/MODULES.md`](docs/MODULES.md)（能力 → UI 入口 → core 落点对照表）、[`docs/FLOWS.md`](docs/FLOWS.md)（启动 / 建站 / 同步端口 / 自动启动 / 自愈 / 升级流程）。
+> AI 与自动化脚本的命令契约见 [AGENTS.md](AGENTS.md)。
 
 ## 启动方式
 
@@ -345,6 +349,7 @@ C:\wnrp\phpvm\
 ├── packaging/             # 安装包构建（build.py 跨平台构建 .app/.dmg 与 Windows 包 + phpvm.iss）
 ├── .github/workflows/     # release.yml：打 tag 自动构建双平台安装包并发布 Release
 ├── i18n/                  # 词条表：<语言>/00a_core_install … 11a_update（en / ja / ko / zh_TW）
+├── docs/                  # 文档体系：README(导航) / ARCHITECTURE(架构) / MODULES(模块地图) / FLOWS(关键流程)
 ├── core/                  # 服务层
 │   ├── version.py         # 版本号 / 发布源 / 安装包命名约定（自动升级的单一事实来源）
 │   ├── app_paths.py       # 可写数据目录判定（包目录只读时自动改用 ~/.phpvm）
