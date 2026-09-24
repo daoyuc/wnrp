@@ -31,6 +31,7 @@
 | 分组 | 说明 | 动作 |
 |---|---|---|
 | `config` | 配置读写（config.json） | `get` · `list` · `set` |
+| `diag` | 一键体检 / 502 诊断（只读） | `all` · `site` |
 | `env` | 输出全部服务快照（nginx / PHP / Redis / MySQL） | — |
 | `hosts` | hosts 映射管理 | `add` · `remove` · `restore` · `status` |
 | `module` | 功能模块开关 | `disable` · `enable` · `list` |
@@ -67,6 +68,18 @@
 | `<key>` | 是 |  | 配置键，如 ports.php82 / settings.check_update_on_start |
 | `<value>` | 是 |  | 新值（true/false/null/整数/JSON 数组/字符串） |
 | `--dry-run` |  |  | 只报告将做什么 |
+
+## `diag` — 一键体检 / 502 诊断（只读）
+
+### `diag all` — 对全部站点做只读体检
+
+（无参数）
+
+### `diag site` — 诊断单个站点的 502 原因
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `<target>` | 是 |  | 域名 / 配置文件名 / 配置文件路径 |
 
 ## `env` — 输出全部服务快照（nginx / PHP / Redis / MySQL）
 

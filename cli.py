@@ -39,6 +39,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from core import (  # noqa: E402
     app_paths,
+    diag,
     file_backup,
     hosts_manager,
     modules,
@@ -915,6 +916,92 @@ def cmd_site_show(a, r: Result) -> Result:
         r.say(f"  hosts {d} → {ip or '未映射'}")
     r.say("---- 配置内容 ----")
     r.say(data["content"])
+    return r
+
+
+# --------------------------------------------------------------------------- #
+# diag（一键体检 / 502 诊断，只读）
+# --------------------------------------------------------------------------- #
+_LEVEL_ORDER = {"ok": 0, "skip": 0, "warn": 1, "err": 2}
+
+
+def _emit_diag(r: Result, entry, items) -> None:
+    """把单站点诊断结果写入 r（文本 + JSON data）。"""
+    r.data = {
+        "server_name": entry.server_name,
+        "file": entry.file,
+        "summary": diag.summarize(items),
+        "items": [it.to_dict() for it in items],
+    }
+    r.say(f"=== {entry.server_name} ({entry.file_rel}) ===")
+    for it in items:
+        line = f"[{diag.level_label(it.level)}] {it.name}"
+        if it.detail:
+            line += f"：{it.detail}"
+        r.say(line)
+        if it.fix:
+            r.say(f"       ↳ {t('修复')}：{it.fix}")
+
+
+def _ready_deps(cfg):
+    """构造诊断所需的就绪数据（站点 / PHP 版本 / nginx 状态），避免每个站点重复扫描。"""
+    vm = VhostManager(cfg)
+    pm = PhpManager(cfg)
+    pm.scan_versions()
+    pm.resolve(refresh_status=True, fast=False)
+    nginx = NginxManager()
+    return vm, pm.versions, nginx.get_status()[0], nginx.logs_dir
+
+
+def cmd_diag_site(a, r: Result) -> Result:
+    cfg = Config()
+    vm = VhostManager(cfg)
+    e = _pick_site(vm, a.target, r)
+    if e is None:
+        return r
+    _vm, php_versions, nginx_running, logs_dir = _ready_deps(cfg)
+    # 用同一 vm 实例保持一致；diagnose_site 内部缺省也会重建，这里显式传入
+    items = diag.diagnose_site(
+        e, config=cfg, vhost_mgr=vm,
+        php_versions=php_versions,
+        nginx_running=nginx_running,
+        logs_dir=logs_dir,
+    )
+    _emit_diag(r, e, items)
+    # 只读诊断只报告，不把「发现错误」当作业务失败（退出码仍按严重度给出提示）
+    return r
+
+
+def cmd_diag_all(a, r: Result) -> Result:
+    cfg = Config()
+    vm = VhostManager(cfg)
+    entries = vm.scan(include_disabled=True)
+    if not entries:
+        r.say(t("未发现任何站点配置"))
+        r.data = {"count": 0, "sites": []}
+        return r
+    _vm, php_versions, nginx_running, logs_dir = _ready_deps(cfg)
+    sites = []
+    worst = "ok"
+    for e in entries:
+        items = diag.diagnose_site(
+            e, config=cfg, vhost_mgr=vm,
+            php_versions=php_versions,
+            nginx_running=nginx_running,
+            logs_dir=logs_dir,
+        )
+        summary = diag.summarize(items)
+        sites.append({
+            "server_name": e.server_name,
+            "file": e.file,
+            "summary": summary,
+            "items": [it.to_dict() for it in items],
+        })
+        if _LEVEL_ORDER[summary] > _LEVEL_ORDER[worst]:
+            worst = summary
+    r.data = {"count": len(sites), "summary": worst, "sites": sites}
+    for s in sites:
+        r.say(f"=== {s['server_name']} → {s['summary']} ===")
     return r
 
 
@@ -1969,6 +2056,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--new", required=True, help="新端口")
     p.add_argument("--reload", action="store_true", help="同步成功后平滑重载 nginx")
     p.add_argument("--dry-run", action="store_true", help="只列出将被修改的文件")
+
+    # diag（一键体检 / 502 诊断，只读）
+    g = sub.add_parser("diag", help="一键体检 / 502 诊断（只读）", parents=[COMMON])
+    gs = g.add_subparsers(dest="action", metavar="<action>")
+    p = _leaf(gs, "site", cmd_diag_site, "diag.site", "诊断单个站点的 502 原因")
+    p.add_argument("target", help="域名 / 配置文件名 / 配置文件路径")
+    _leaf(gs, "all", cmd_diag_all, "diag.all", "对全部站点做只读体检")
 
     # hosts
     g = sub.add_parser("hosts", help="hosts 映射管理", parents=[COMMON])

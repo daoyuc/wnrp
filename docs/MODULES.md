@@ -29,6 +29,7 @@ PHP 版本管理(php,刚需) │ Nginx 管理(nginx,刚需) │ Redis 管理(red
 | 版本自检 | `ui/dialogs.py` | `health_monitor.py` | — | 3 项：版本解析 / 关键扩展 / 配置加载 |
 | Nginx 启停 / 重载 / 配置检查 | `ui/nginx_panel.py` | `nginx_manager.py`、`nginx_conf.py` | nginx 进程；改 `nginx.conf` 前 `.bak` | 改配置后必须 `nginx -t` 通过才 reload，失败回滚 |
 | 站点映射 / 端口同步 / include 检测 | `ui/vhost_panel.py` | `vhost_manager.py` | `vhost/*.conf` + `.bak` | 只改目标 `server` 块；端口与 `config.ports` 强耦合 |
+| 一键体检 / 502 诊断 | `ui/vhost_panel.py` 的「一键体检」按钮 / `diag` | `diag.py` | 只读（必要时调用 start / ensure_include，均自带备份 + nginx -t 回滚） | 串联 vhost/php/nginx/hosts 只读检查；修复动作复用既有 manager |
 | 新建站点向导 / HTTPS 证书 | `ui/site_wizard.py` | `site_service.py`、`site_templates.py`、`cert_manager.py` | vhost + hosts + 证书文件 | 5 步编排，任一步失败可整体回滚 |
 | hosts 写入 / 移除 / 还原 | `ui/vhost_panel.py` 按钮、向导 | `hosts_manager.py` | 系统 hosts + `hosts.phpvm.bak` | 只动 `# >>> phpvm-managed >>>` 块；写入需提权 |
 | Redis 多实例管理 | `ui/redis_panel.py` | `redis_manager.py` | redis 进程 / 日志 | 危险命令需二次确认 |

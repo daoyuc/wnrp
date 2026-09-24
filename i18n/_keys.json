@@ -23,6 +23,12 @@
    "core/health_monitor.py"
   ]
  },
+ " · 全部站点": {
+  "count": 1,
+  "files": [
+   "ui/diag_dialog.py"
+  ]
+ },
  " 泛解析": {
   "count": 1,
   "files": [
@@ -130,6 +136,12 @@
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "HTTPS 证书": {
+  "count": 7,
+  "files": [
+   "core/diag.py"
   ]
  },
  "HTTPS（可选）": {
@@ -318,10 +330,28 @@
    "core/nginx_manager.py"
   ]
  },
+ "Nginx 未运行，所有站点都无法访问（502/无法连接）": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
+  ]
+ },
+ "Nginx 正在运行": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
+  ]
+ },
  "Nginx 管理": {
   "count": 1,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "Nginx 运行": {
+  "count": 2,
+  "files": [
+   "core/diag.py"
   ]
  },
  "Nginx 重载失败：{text}": {
@@ -358,6 +388,18 @@
   "count": 1,
   "files": [
    "core/php_installer.py"
+  ]
+ },
+ "PHP {ver} 未运行（端口 {port} 无监听），访问该站点会 502": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
+  ]
+ },
+ "PHP {ver} 正在运行（PID {pid}）": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
   ]
  },
  "PHP 启动策略：{scope}（{names}）": {
@@ -398,6 +440,12 @@
   "count": 1,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "PHP 版本运行": {
+  "count": 4,
+  "files": [
+   "core/diag.py"
   ]
  },
  "PHP 版本：": {
@@ -810,6 +858,12 @@
    "ui/extension_dialog.py"
   ]
  },
+ "fastcgi 端口映射": {
+  "count": 3,
+  "files": [
+   "core/diag.py"
+  ]
+ },
  "hosts 中无本次写入的条目，无需移除。": {
   "count": 1,
   "files": [
@@ -1030,6 +1084,12 @@
   "count": 1,
   "files": [
    "core/php_downloader.py"
+  ]
+ },
+ "ssl_certificate 指令为空": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
   ]
  },
  "vhost 配置已全部同步到新端口，并已通过 nginx -t 校验。\n\n请点击「重载 Nginx」使新配置立即生效。": {
@@ -1328,6 +1388,13 @@
    "core/tuning.py"
   ]
  },
+ "一键体检": {
+  "count": 3,
+  "files": [
+   "ui/diag_dialog.py",
+   "ui/vhost_panel.py"
+  ]
+ },
  "一键同步": {
   "count": 1,
   "files": [
@@ -1338,6 +1405,12 @@
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "一键补 include（在 http 块内加入站点目录）": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
   ]
  },
  "上一步": {
@@ -1442,6 +1515,12 @@
    "core/ini_editor.py"
   ]
  },
+ "不适用": {
+  "count": 1,
+  "files": [
+   "ui/diag_dialog.py"
+  ]
+ },
  "与 PHP max_execution_time=300 对齐，否则调试慢脚本时 nginx 先返回 504": {
   "count": 1,
   "files": [
@@ -1466,10 +1545,28 @@
    "core/tuning.py"
   ]
  },
+ "为该站点指定 PHP 版本（站点 → 切换 PHP 版本）": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
+  ]
+ },
  "主配置 {path} 中未找到 http 块，无法确认站点加载": {
   "count": 1,
   "files": [
    "core/vhost_manager.py"
+  ]
+ },
+ "主配置已 include 站点目录，所有 vhost 会被读取": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
+  ]
+ },
+ "主配置未 include 站点目录（{dir}），站点配置不会生效": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
   ]
  },
  "事件日志 Application/1000": {
@@ -1496,6 +1593,12 @@
    "core/hosts_manager.py"
   ]
  },
+ "以下域名未指向本机（hosts 中缺失或非回环）：{doms}": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
+  ]
+ },
  "以下域名格式不正确：\n{names}\n\n请使用 字母/数字/中划线/点 组成的合法域名。": {
   "count": 1,
   "files": [
@@ -1518,6 +1621,18 @@
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "体检失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/diag_dialog.py"
+  ]
+ },
+ "体检完成：{n} 个站点，总体 {level}": {
+  "count": 1,
+  "files": [
+   "ui/diag_dialog.py"
   ]
  },
  "保存": {
@@ -1569,10 +1684,28 @@
    "core/tuning.py"
   ]
  },
+ "修复": {
+  "count": 1,
+  "files": [
+   "ui/diag_dialog.py"
+  ]
+ },
  "修复失败": {
   "count": 1,
   "files": [
    "ui/vhost_panel.py"
+  ]
+ },
+ "修复失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/diag_dialog.py"
+  ]
+ },
+ "修复：{fix}": {
+  "count": 1,
+  "files": [
+   "ui/diag_dialog.py"
   ]
  },
  "修改后需同步修改 nginx vhost 中的 fastcgi_pass 才会生效": {
@@ -1585,6 +1718,12 @@
   "count": 1,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "修正站点 root 路径或部署项目文件": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
   ]
  },
  "值": {
@@ -1715,6 +1854,12 @@
    "ui/main_window.py"
   ]
  },
+ "全部域名已在 hosts 指向本机：{doms}": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
+  ]
+ },
  "全部建议都按「本地开发」取的值：生产环境请不要直接套用（尤其 display_errors、access_log off、gzip off）。": {
   "count": 1,
   "files": [
@@ -1782,8 +1927,9 @@
   ]
  },
  "关闭": {
-  "count": 9,
+  "count": 10,
   "files": [
+   "ui/diag_dialog.py",
    "ui/dialogs.py",
    "ui/download_dialog.py",
    "ui/extension_dialog.py",
@@ -2323,6 +2469,12 @@
    "ui/nginx_panel.py"
   ]
  },
+ "启动 Nginx（服务编排 → 启动全部，或 nginx start）": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
+  ]
+ },
  "启动 Redis": {
   "count": 1,
   "files": [
@@ -2411,6 +2563,12 @@
   "count": 1,
   "files": [
    "core/mysql_manager.py"
+  ]
+ },
+ "启动该 PHP 版本": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
   ]
  },
  "启动顺序 PHP → Redis → MySQL → Nginx，停止反之；已运行的服务自动跳过。": {
@@ -2503,6 +2661,12 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "域名解析": {
+  "count": 3,
+  "files": [
+   "core/diag.py"
   ]
  },
  "域名：": {
@@ -2664,6 +2828,12 @@
   "count": 1,
   "files": [
    "core/updater.py"
+  ]
+ },
+ "安装该 PHP 版本或改用已安装版本": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
   ]
  },
  "安装配置": {
@@ -2939,6 +3109,12 @@
   "count": 1,
   "files": [
    "core/vhost_manager.py"
+  ]
+ },
+ "已写入 hosts": {
+  "count": 1,
+  "files": [
+   "ui/diag_dialog.py"
   ]
  },
  "已写入 hosts：{ip} {doms}": {
@@ -3238,6 +3414,12 @@
    "ui/download_dialog.py"
   ]
  },
+ "已补 include": {
+  "count": 1,
+  "files": [
+   "ui/diag_dialog.py"
+  ]
+ },
  "已还原本次改动（vhost 文件、nginx.conf 与 hosts 均恢复）。": {
   "count": 1,
   "files": [
@@ -3290,6 +3472,12 @@
   "count": 1,
   "files": [
    "core/hosts_manager.py"
+  ]
+ },
+ "已重新启用站点": {
+  "count": 1,
+  "files": [
+   "ui/diag_dialog.py"
   ]
  },
  "帮助": {
@@ -3589,6 +3777,12 @@
    "ui/sqlite_panel.py"
   ]
  },
+ "打开 Nginx 日志查看完整错误上下文": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
+  ]
+ },
  "打开 hosts 文件": {
   "count": 1,
   "files": [
@@ -3700,6 +3894,12 @@
   "count": 1,
   "files": [
    "ui/php_panel.py"
+  ]
+ },
+ "把缺失域名写入 hosts 指向 127.0.0.1": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
   ]
  },
  "报告全部错误等级，提前暴露废弃与隐患写法": {
@@ -3899,10 +4099,22 @@
    "ui/main_window.py"
   ]
  },
+ "无 PHP 版本关联，跳过运行检查": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
+  ]
+ },
  "无响应": {
   "count": 1,
   "files": [
    "core/redis_manager.py"
+  ]
+ },
+ "无域名（仅 listen 端口的 server 块）": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
   ]
  },
  "无效时区（如 Asia/Shanghai）": {
@@ -3915,6 +4127,12 @@
   "count": 1,
   "files": [
    "ui/redis_panel.py"
+  ]
+ },
+ "无日志目录，跳过": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
   ]
  },
  "无法创建下载目录：{err}": {
@@ -3972,6 +4190,18 @@
    "core/health_monitor.py"
   ]
  },
+ "无法读取 error.log，跳过": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
+  ]
+ },
+ "无法读取配置文件以确认证书路径": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
+  ]
+ },
  "无法连接发布源：{reason}": {
   "count": 1,
   "files": [
@@ -3982,6 +4212,12 @@
   "count": 2,
   "files": [
    "ui/php_panel.py"
+  ]
+ },
+ "无站点": {
+  "count": 1,
+  "files": [
+   "ui/diag_dialog.py"
   ]
  },
  "无结果": {
@@ -4046,6 +4282,12 @@
    "ui/nginx_log_panel.py"
   ]
  },
+ "暂不支持自动修复该项": {
+  "count": 1,
+  "files": [
+   "ui/diag_dialog.py"
+  ]
+ },
  "暂无可安装的版本": {
   "count": 1,
   "files": [
@@ -4074,6 +4316,24 @@
   "count": 1,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "最近 {n} 行错误日志中未发现与该域名相关的 5xx": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
+  ]
+ },
+ "有警告": {
+  "count": 1,
+  "files": [
+   "ui/diag_dialog.py"
+  ]
+ },
+ "有错误": {
+  "count": 1,
+  "files": [
+   "ui/diag_dialog.py"
   ]
  },
  "服务编排：": {
@@ -4110,6 +4370,12 @@
   "count": 2,
   "files": [
    "ui/redis_panel.py"
+  ]
+ },
+ "未发现任何站点配置": {
+  "count": 1,
+  "files": [
+   "ui/diag_dialog.py"
   ]
  },
  "未发现数据库文件（点击「浏览…」选择其它文件）": {
@@ -4163,10 +4429,22 @@
    "core/nginx_manager.py"
   ]
  },
+ "未找到 PHP 版本 {ver}，无法启动": {
+  "count": 1,
+  "files": [
+   "ui/diag_dialog.py"
+  ]
+ },
  "未找到 PHP 版本：{names}": {
   "count": 1,
   "files": [
    "core/service_group.py"
+  ]
+ },
+ "未找到 error.log，跳过": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
   ]
  },
  "未找到 hosts 备份：{path}": {
@@ -4222,6 +4500,12 @@
   "count": 1,
   "files": [
    "ui/redis_panel.py"
+  ]
+ },
+ "未找到 ssl_certificate 指令（证书可能由上层配置提供）": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
   ]
  },
  "未找到 {path}": {
@@ -4326,6 +4610,12 @@
    "core/tool_manager.py"
   ]
  },
+ "未检测到 PHP 版本 {ver}（可能未安装或未扫描到）": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
+  ]
+ },
  "未检测到 Xdebug 扩展：请先点 PHP 页的「安装扩展」安装 Xdebug。": {
   "count": 1,
   "files": [
@@ -4333,9 +4623,10 @@
   ]
  },
  "未知": {
-  "count": 9,
+  "count": 10,
   "files": [
    "ui/main_window.py",
+   "core/diag.py",
    "core/health_monitor.py",
    "core/nginx_manager.py",
    "core/php_manager.py",
@@ -4372,6 +4663,12 @@
   "files": [
    "ui/sqlite_panel.py",
    "core/sqlite_manager.py"
+  ]
+ },
+ "未配置 root（站点无文档根）": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
   ]
  },
  "本地扩展": {
@@ -4434,6 +4731,18 @@
    "ui/dialogs.py"
   ]
  },
+ "根目录下未找到入口文件（index.php / public/index.php 等）：{root}": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
+  ]
+ },
+ "根目录存在且含入口文件：{root}": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
+  ]
+ },
  "检查更新": {
   "count": 2,
   "files": [
@@ -4444,6 +4753,12 @@
   "count": 1,
   "files": [
    "ui/update_dialog.py"
+  ]
+ },
+ "检查站点配置中的 root 指令": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
   ]
  },
  "检查项": {
@@ -4530,6 +4845,18 @@
   "count": 1,
   "files": [
    "ui/update_dialog.py"
+  ]
+ },
+ "正在体检…": {
+  "count": 2,
+  "files": [
+   "ui/diag_dialog.py"
+  ]
+ },
+ "正在修复…": {
+  "count": 1,
+  "files": [
+   "ui/diag_dialog.py"
   ]
  },
  "正在切换 {name} 的 PHP 版本…": {
@@ -4695,8 +5022,9 @@
   ]
  },
  "正常": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "ui/diag_dialog.py",
    "ui/dialogs.py"
   ]
  },
@@ -5026,6 +5354,12 @@
    "ui/run_log_panel.py"
   ]
  },
+ "确认项目已部署到该目录": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
+  ]
+ },
  "示例 myapp.test 或 www.example.com；多个域名用空格分隔；\n支持 *.dev 泛解析（通配项不会写入 hosts）。": {
   "count": 1,
   "files": [
@@ -5110,16 +5444,34 @@
    "ui/main_window.py"
   ]
  },
+ "站点未被禁用": {
+  "count": 2,
+  "files": [
+   "core/diag.py"
+  ]
+ },
  "站点目录已被主配置 include，无需修复": {
   "count": 1,
   "files": [
    "ui/vhost_panel.py"
   ]
  },
+ "站点目录被加载": {
+  "count": 2,
+  "files": [
+   "core/diag.py"
+  ]
+ },
  "站点配置已就绪：\n{path}": {
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "站点配置已被禁用（.conf.disabled），Nginx 不会加载它": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
   ]
  },
  "端口": {
@@ -5136,10 +5488,22 @@
    "core/config.py"
   ]
  },
+ "端口 {port} 映射到 PHP 版本 {ver}": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
+  ]
+ },
  "端口 {port} 未映射到任何 PHP 版本": {
   "count": 1,
   "files": [
    "core/vhost_manager.py"
+  ]
+ },
+ "端口 {port} 未映射到任何 PHP 版本。当前映射：{mapping}": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
   ]
  },
  "端口不合法": {
@@ -5524,10 +5888,28 @@
    "core/site_service.py"
   ]
  },
+ "证书文件不存在：{p}（访问 HTTPS 会报 SSL 错误）": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
+  ]
+ },
+ "证书文件存在：{p}": {
+  "count": 2,
+  "files": [
+   "core/diag.py"
+  ]
+ },
  "证书生成失败：{err}": {
   "count": 1,
   "files": [
    "core/cert_manager.py"
+  ]
+ },
+ "该 server 块没有 fastcgi_pass（静态站点 / 反代），不涉及 PHP，无需 PHP 诊断": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
   ]
  },
  "该实例为 Windows 服务，启停需要管理员权限。\n请以「管理员身份运行」phpvm 后再操作（当前仅可查看状态）。": {
@@ -5975,6 +6357,12 @@
    "ui/site_wizard.py"
   ]
  },
+ "配置文件正常参与加载（{f}）": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
+  ]
+ },
  "配置文件：{file}": {
   "count": 2,
   "files": [
@@ -6078,16 +6466,34 @@
    "core/vhost_manager.py"
   ]
  },
+ "重新体检": {
+  "count": 1,
+  "files": [
+   "ui/diag_dialog.py"
+  ]
+ },
  "重新创建": {
   "count": 1,
   "files": [
    "ui/site_wizard.py"
   ]
  },
+ "重新启用该站点": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
+  ]
+ },
  "重新检测": {
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "重新生成 / 配置证书（站点 → 启用 HTTPS）": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
   ]
  },
  "重试": {
@@ -6122,6 +6528,18 @@
   "files": [
    "ui/nginx_log_panel.py",
    "ui/run_log_panel.py"
+  ]
+ },
+ "错误日志": {
+  "count": 5,
+  "files": [
+   "core/diag.py"
+  ]
+ },
+ "错误日志中发现 {count} 条与该域名相关的 5xx：\n{sample}": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
   ]
  },
  "错误：{text}": {
@@ -6172,6 +6590,12 @@
    "core/tuning.py"
   ]
  },
+ "非 HTTPS 站点，跳过证书检查": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
+  ]
+ },
  "非法版本系列：{series}": {
   "count": 1,
   "files": [
@@ -6179,15 +6603,22 @@
   ]
  },
  "项目根目录": {
-  "count": 1,
+  "count": 5,
   "files": [
-   "ui/vhost_panel.py"
+   "ui/vhost_panel.py",
+   "core/diag.py"
   ]
  },
  "项目根目录不存在或未配置：{path}": {
   "count": 1,
   "files": [
    "ui/vhost_panel.py"
+  ]
+ },
+ "项目根目录不存在：{root}": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
   ]
  },
  "项目目录不存在或不是文件夹：\n{root}": {
@@ -6333,6 +6764,12 @@
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "（空）": {
+  "count": 1,
+  "files": [
+   "core/diag.py"
   ]
  },
  "（该版本未提供更新说明）": {
