@@ -16,6 +16,7 @@ from core import hosts_manager, process_utils as pu
 from core.i18n import t
 from core.vhost_manager import VhostEntry, VhostManager
 from .site_wizard import SiteWizardDialog
+from .diag_dialog import DiagDialog
 from . import theme
 
 COLUMNS = [
@@ -63,6 +64,8 @@ class VhostPanel(ttk.Frame):
             bar, text=t("还原 hosts 备份"), command=self._restore_hosts)
         self.btn_hosts_restore.pack(side="left", padx=(0, 6))
         self.btn_refresh.pack(side="left", padx=(0, 6))
+        self.btn_diag = ttk.Button(bar, text=t("一键体检"), command=self._run_diag)
+        self.btn_diag.pack(side="left", padx=(0, 6))
         ttk.Label(
             bar,
             text=t("「新建站点」按向导生成 Laravel/WordPress/ThinkPHP 等配置，并自动写 hosts；"
@@ -288,6 +291,11 @@ class VhostPanel(ttk.Frame):
         if not os.path.isdir(target):
             target = self.vhost_mgr.nginx.prefix
         pu.open_path(target)
+
+    def _run_diag(self) -> None:
+        """一键体检：选中行 = 单站点诊断；未选中 = 全部站点批量体检。"""
+        entry = self._selected()
+        DiagDialog(self, entry, self.vhost_mgr, self.notify)
 
     # ------------------------------------------------------------------ #
     # 右键菜单：站点级操作（打开 / 启用禁用 / 切换 PHP / hosts 清理）
