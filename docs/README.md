@@ -10,24 +10,31 @@ phpvm 的文档按「**读者意图**」分层，每份文档只解决一类问�
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | **它是怎么做出来的**：分层、依赖方向、并发模型、数据落点、横切铁律 | 二次开发者 / 接手人 | 新增层、改变线程或进程模型、新增运行期文件 |
 | [`MODULES.md`](MODULES.md) | **功能落在哪些文件**：能力 → UI 入口 → core 落点 → 持久化 | 改需求前先定位代码 | 新增/拆分模块、面板改名、模块开关调整 |
 | [`FLOWS.md`](FLOWS.md) | **关键动作的完整链路**：启动、建站、同步端口、自动启动、崩溃自愈、升级 | 排查线上现象 / 做影响面评估 | 流程步骤或回滚策略变化 |
+| [`CLI.md`](CLI.md) | **命令行全部命令与参数**（由 `_docs_cli.py` 生成，勿手改） | AI / 脚本 / 写自动化时查参数 | 不手改：改命令后跑 `python3 _docs_cli.py` |
+| [`DECISIONS.md`](DECISIONS.md) | **关键取舍与理由**：为什么按端口启停、为什么只用一份 php.ini、为什么自启只拉最新 PHP | 想推翻某条约定 / 新增同类能力 | 决策变更或新增重大取舍 |
 | [`../ROADMAP.md`](../ROADMAP.md) | **还没做什么、为什么**：现状基线 → 对标差距 → 优先级路线 | 规划者 | 功能立项/落地后 |
 | [`../AGENTS.md`](../AGENTS.md) | **AI / 脚本怎么调用**：CLI 唯一入口、响应契约、安全约束 | AI 编码助手 / 自动化脚本 | 命令行契约变化（同时跑 `cli.py schema` 核对） |
 
 ## 推荐阅读路径
 
 - **第一次接触本项目**：`README.md` 的「功能说明」→ `ARCHITECTURE.md` 全文 → 需要动手时查 `MODULES.md`
-- **定位「某功能在哪」**：`MODULES.md` 表格 → 直接跳 core 文件；CLI 侧补看 `AGENTS.md`
+- **定位「某功能在哪」**：`MODULES.md` 表格 → 直接跳 core 文件；CLI 侧补看 `AGENTS.md` / `CLI.md`
 - **评估一次改动的影响面**：`ARCHITECTURE.md` 的「横切铁律」+ `FLOWS.md` 对应流程
+- **查命令参数**：`CLI.md`（自动生成的完整参考）；**问「为什么这样设计」**：`DECISIONS.md`
 - **让 AI 干活**：`AGENTS.md`（命令契约）→ `MODULES.md`（落点）→ 相关代码
 
 ## 维护规则（轻量但强制）
 
 1. **改代码同轮同步文档**：按上表「何时必须改」执行；文档与代码不一致时，以代码为准并当轮修文档。
 2. **一份事实只写一遍**：功能怎么用写在 `README.md`，架构约束写在 `ARCHITECTURE.md`，其余文档用链接引用，不复制正文。
-3. **命令行契约以 `python cli.py schema --json` 为准**，文档只写「典型用法」。
+3. **命令行契约以 `python cli.py schema --json` 为准**：`docs/CLI.md` 是它的渲染产物，
+   改完命令跑 `python3 _docs_cli.py` 重新生成（`python3 _docs_cli.py --check` 可单独校验）。
 4. **新增界面文案**：用 `t()` 包裹后跑 `python _i18n_scan.py --report`，补 `i18n/<lang>/*.json` 词条。
 5. **不提交运行期文件**：`config.json`、`run_log.log*`、`recover_history.json`、`crash_watchdog.*`、`updates/`、`dist/`。
-6. **文档事实基线**：本文档体系初次建立并核对代码于 `1d5c5e9`（2026-09-24）；此后按第 1 条滚动维护，不单独维护「基线」，因为每轮改动都必须同步。
+6. **正确性靠 `tests/test_docs.py` 兜底**：链接可达、引用的代码路径存在、`docs/CLI.md` 与代码同步、
+   Markdown 表格列数一致（单元格里出现裸 `|` 会撑坏表格，需写成 `\|`）。改完文档跑一次：
+   `python -m unittest tests.test_docs`。
+7. **文档事实基线**：本文档体系初次建立并核对代码于 `1d5c5e9`（2026-09-24）；此后按第 1 条滚动维护，不单独维护「基线」，因为每轮改动都必须同步。
 
 ## 现有实现基调（写文档时请守住这些前提）
 

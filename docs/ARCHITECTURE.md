@@ -123,7 +123,7 @@ phpvm 是一个**本机开发环境管理器**（PHP 多版本 + Nginx + Redis +
 | 要做的事 | 落点 |
 |---|---|
 | 新增一个服务管理器（如 Memcached） | `core/<name>_manager.py`（纯逻辑）+ `ui/<name>_panel.py`（页签）+ 在 `core/modules.py` 注册可选模块 + `main.py` 按开关实例化 |
-| 新增一个 CLI 命令 | `cli.py` 内加 `cmd_*` + `build_parser()` 里 `_leaf(...)`；文档只写典型用法，契约以 `schema --json` 为准 |
+| 新增一个 CLI 命令 | `cli.py` 内加 `cmd_*` + `build_parser()` 里 `_leaf(...)`；随后跑 `python3 _docs_cli.py` 重新生成 `docs/CLI.md`（`tests/test_docs.py` 会校验一致性），契约以 `schema --json` 为准 |
 | 新增一个设置项 | `core/config.py` 的 `DEFAULT_SETTINGS`（否则 `config set` 会拒绝）+ 界面/自启路径读取 |
 | 新增一个桌面集成/写系统文件的能力 | 守 §5 铁律；备份走 `core/file_backup.py` |
 | 新增界面文案 | `t()` 包裹 → `python _i18n_scan.py --report` → 补 4 语言词条 |

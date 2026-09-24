@@ -230,7 +230,7 @@ python3 cli.py schema --json              # 输出全部命令 / 参数 / 示例
 | 退出码 | `0` 成功 / `1` 业务失败（`ok=false`，含 `data.error`）/ `2` 参数用法错误 |
 | 非交互 | 永不弹窗、不等待输入；写 hosts 需显式 `--hosts`（无权限时会触发系统授权弹窗） |
 | 安全默认 | 写操作支持 `--dry-run`（只报告将做什么）；删除需 `--yes`；Redis 的 `FLUSHALL/FLUSHDB/SHUTDOWN` 等需 `--force`；改动前自动备份 `.bak` |
-| 语言 | `--lang en|zh_CN|zh_TW|ja|ko`（默认取 `config.json` 的 `settings.lang`） |
+| 语言 | `--lang en\|zh_CN\|zh_TW\|ja\|ko`（默认取 `config.json` 的 `settings.lang`） |
 | 自描述 | `phpvm schema --json` 输出命令树（含每个参数的 flags / 默认值 / 说明），AI 可先读契约再调用 |
 
 **命令一览**
@@ -238,8 +238,8 @@ python3 cli.py schema --json              # 输出全部命令 / 参数 / 示例
 | 分组 | 动作 |
 |---|---|
 | `version` / `env` / `schema` | 版本与环境路径；全部服务快照（nginx / PHP / Redis / MySQL / 模块开关）；命令自描述契约 |
-| `config` | `list` 列出全部配置 · `get <ports.php83|settings.lang>` · `set <key> <value> [--dry-run]` |
-| `php` | `list [--no-status|--precise]` · `status <版>` · `start|stop|restart <版|all>` · `port <版> [--set N]` · `ini <版> [--key K|--all]` · `check <版>` · `ext-list <版>` · `ext-set <版> --enable a,b --disable c` |
+| `config` | `list` 列出全部配置 · `get <ports.php83\|settings.lang>` · `set <key> <value> [--dry-run]` |
+| `php` | `list [--no-status\|--precise]` · `status <版>` · `start\|stop\|restart <版\|all>` · `port <版> [--set N]` · `ini <版> [--key K\|--all]` · `check <版>` · `ext-list <版>` · `ext-set <版> --enable a,b --disable c` |
 | `nginx` | `status` · `start` · `stop` · `reload` · `test`（`nginx -t`）· `logs [--file error.log] [--lines N] [--list]` |
 | `site` | `list [--domain x]` · `show <域名/文件>` · `render`（只渲染配置不落盘）· `create`（写 vhost → 补 include → 校验 → hosts → 重载，失败自动回滚）· `remove --yes` · `enable` · `disable` · `php --php <版>` · `sync-port --old --new [--reload]` |
 | `hosts` | `status` · `add` · `remove`（只动 phpvm 托管块，`--dry-run` 可预览）· `restore`（用写入前的备份整文件还原，需 `--yes`） |
@@ -349,7 +349,9 @@ C:\wnrp\phpvm\
 ├── packaging/             # 安装包构建（build.py 跨平台构建 .app/.dmg 与 Windows 包 + phpvm.iss）
 ├── .github/workflows/     # release.yml：打 tag 自动构建双平台安装包并发布 Release
 ├── i18n/                  # 词条表：<语言>/00a_core_install … 11a_update（en / ja / ko / zh_TW）
-├── docs/                  # 文档体系：README(导航) / ARCHITECTURE(架构) / MODULES(模块地图) / FLOWS(关键流程)
+├── docs/                  # 文档体系：README(导航) / ARCHITECTURE(架构) / MODULES(模块地图)
+│                          #           FLOWS(关键流程) / CLI(命令参考，脚本生成) / DECISIONS(关键取舍)
+├── _docs_cli.py           # 依据 cli.py 的 argparse 结构生成 docs/CLI.md（--check 校验一致性）
 ├── core/                  # 服务层
 │   ├── version.py         # 版本号 / 发布源 / 安装包命名约定（自动升级的单一事实来源）
 │   ├── app_paths.py       # 可写数据目录判定（包目录只读时自动改用 ~/.phpvm）
