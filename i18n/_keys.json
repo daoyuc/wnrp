@@ -354,6 +354,12 @@
    "core/php_installer.py"
   ]
  },
+ "PHP 启动策略：{scope}（{names}）": {
+  "count": 1,
+  "files": [
+   "core/service_group.py"
+  ]
+ },
  "PHP 推荐设置 · {name}": {
   "count": 1,
   "files": [
@@ -2279,7 +2285,7 @@
    "ui/main_window.py"
   ]
  },
- "启动时自动启动全部服务：开始": {
+ "启动时自动启动全部服务：开始（PHP：{scope}）": {
   "count": 1,
   "files": [
    "ui/main_window.py"
@@ -3195,7 +3201,7 @@
   ]
  },
  "应用": {
-  "count": 2,
+  "count": 3,
   "files": [
    "ui/main_window.py"
   ]
@@ -3338,7 +3344,7 @@
    "ui/main_window.py"
   ]
  },
- "开机自启：开始启动全部服务": {
+ "开机自启：开始启动服务": {
   "count": 1,
   "files": [
    "main.py"
@@ -4047,6 +4053,12 @@
    "core/nginx_manager.py"
   ]
  },
+ "未找到 PHP 版本：{names}": {
+  "count": 1,
+  "files": [
+   "core/service_group.py"
+  ]
+ },
  "未找到 hosts 备份：{path}": {
   "count": 2,
   "files": [
@@ -4199,7 +4211,7 @@
   ]
  },
  "未知": {
-  "count": 8,
+  "count": 9,
   "files": [
    "ui/main_window.py",
    "core/health_monitor.py",
@@ -4207,6 +4219,12 @@
    "core/php_manager.py",
    "core/redis_manager.py",
    "core/tuning.py"
+  ]
+ },
+ "未知的 PHP 启动策略：{scope}，已按「仅最新版本」处理": {
+  "count": 1,
+  "files": [
+   "core/service_group.py"
   ]
  },
  "未知错误": {
@@ -5184,6 +5202,24 @@
    "ui/site_wizard.py"
   ]
  },
+ "自动启动服务的 PHP 版本已设为：{scope}": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "自动启动服务的 PHP 版本：": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "自动启动服务的 PHP 版本：{scope}": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
  "自动补 include 并校验": {
   "count": 1,
   "files": [
@@ -5536,6 +5572,12 @@
   "count": 1,
   "files": [
    "core/tuning.py"
+  ]
+ },
+ "跳过 PHP 版本：{names}（策略：{scope}）": {
+  "count": 1,
+  "files": [
+   "core/service_group.py"
   ]
  },
  "跳过此版本": {
@@ -6000,6 +6042,12 @@
   "count": 1,
   "files": [
    "core/tuning.py"
+  ]
+ },
+ "默认「仅最新版本」：开机自启/启动时不会一次拉起全部 PHP 版本，其它版本可在 PHP 页手动启动。": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
   ]
  },
  "默认值": {

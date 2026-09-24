@@ -102,6 +102,31 @@ class PhpVersion:
     pid: int | None = None
 
 
+# 版本号：display（8.2.4）优先，目录名（php85）只在 display 不可用时兜底
+_RE_VER = re.compile(r"(\d+)(?:\.(\d+))?(?:\.(\d+))?")
+
+
+def version_key(v: PhpVersion) -> tuple[int, int, int]:
+    """版本排序键（升序，最大者即最新版）。
+
+    display（由 `php -v` 解析，见 PhpManager.resolve）优先；解析不出时用目录名
+    兜底：php85 → (8, 5, 0)、php56 → (5, 6, 0)、php → (0, 0, 0)（无版本号的老目录
+    排最前）。注意不能直接比较目录名字符串（php8 > php85 在字符串序里成立）。
+    """
+    disp = (getattr(v, "display", "") or "").strip()
+    if disp and disp != t("未知"):
+        m = _RE_VER.match(disp)
+        if m:
+            return (int(m.group(1)), int(m.group(2) or 0), int(m.group(3) or 0))
+    m = re.search(r"(\d+)", getattr(v, "name", "") or "")
+    if m:
+        digits = m.group(1)
+        if len(digits) >= 2:
+            return (int(digits[:-1]), int(digits[-1]), 0)
+        return (int(digits), 0, 0)
+    return (0, 0, 0)
+
+
 # --------------------------------------------------------------------------- #
 # 目录发现辅助
 # --------------------------------------------------------------------------- #
