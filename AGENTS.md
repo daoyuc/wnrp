@@ -74,7 +74,8 @@ python3 cli.py nginx test                # 任何改配置后都建议先跑
 - `core/` 服务层（nginx / php / redis / mysql / vhost / hosts / sqlite / updater / modules …），CLI 与 GUI 共用
   - 建站流程只有一个实现：`core/site_service.py`（证书 → 写 vhost → 补 include → `nginx -t` → hosts → 重载 + 回滚），CLI 与 GUI 向导都调它
   - 文件备份统一走 `core/file_backup.py`（写配置前必 `.bak`，还原默认删备份）
-- `tests/` 单元测试（标准库 unittest）：`python -m unittest discover -s tests -t .`
+- `tests/` 单元测试（标准库 unittest）：`python -m unittest discover -s tests -t .`；其中 `tests/test_docs.py` 守护文档（链接 / 引用的代码路径 / `docs/CLI.md` 与代码一致性 / Markdown 表格列数）
+- `docs/` 的 `CLI.md` 由 `_docs_cli.py` 从 `cli.py` 的 argparse 结构生成（**勿手改**）：改完命令跑 `python3 _docs_cli.py`，或用 `python3 _docs_cli.py --check` 单独校验
 - `ui/` 界面层（tkinter），**不可在 CLI / 脚本中 import**
 - `config.json` 端口映射与设置（运行期生成，不入库）；端口与 vhost 的 `fastcgi_pass` 必须一致，用 `site sync-port` 一键同步
 - `README.md` 有完整功能与端口映射表
