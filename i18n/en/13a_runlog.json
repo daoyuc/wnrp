@@ -47,7 +47,20 @@
  "phpvm 已退出": "phpvm exited",
  "phpvm {ver} 启动（{platform} · 语言 {lang}）": "phpvm {ver} starting ({platform} · language {lang})",
  "phpvm 已在运行，本次启动已退出": "phpvm is already running; this launch exited",
- "开机自启：开始启动全部服务": "Autostart: starting all services",
+ "开机自启：开始启动服务": "Autostart: starting services",
  "开机自启启动服务失败：{msg}": "Autostart failed to start services: {msg}",
- "正在重启 phpvm（拉起新进程后退出当前实例）": "Restarting phpvm (launching a new process, then exiting)"
+ "正在重启 phpvm（拉起新进程后退出当前实例）": "Restarting phpvm (launching a new process, then exiting)",
+ "仅最新版本": "Newest version only",
+ "站点实际引用 + 最新版": "Versions used by sites + newest",
+ "跟随 cmd 中生效的版本": "Follow the version active in cmd",
+ "全部版本": "All versions",
+ "未找到 PHP 版本：{names}": "PHP version(s) not found: {names}",
+ "未知的 PHP 启动策略：{scope}，已按「仅最新版本」处理": "Unknown PHP start scope: {scope}; treated as \"newest version only\"",
+ "PHP 启动策略：{scope}（{names}）": "PHP start scope: {scope} ({names})",
+ "跳过 PHP 版本：{names}（策略：{scope}）": "Skipped PHP version(s): {names} (scope: {scope})",
+ "自动启动服务的 PHP 版本：": "PHP version(s) for auto-start:",
+ "自动启动服务的 PHP 版本：{scope}": "PHP version(s) for auto-start: {scope}",
+ "默认「仅最新版本」：开机自启/启动时不会一次拉起全部 PHP 版本，其它版本可在 PHP 页手动启动。": "Default \"newest version only\": autostart/launch will not bring up every PHP version; start the others manually on the PHP tab.",
+ "自动启动服务的 PHP 版本已设为：{scope}": "Auto-start PHP version scope set to: {scope}",
+ "启动时自动启动全部服务：开始（PHP：{scope}）": "Auto-start all services on launch: starting (PHP: {scope})"
 }

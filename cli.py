@@ -59,7 +59,7 @@ from core.php_extension import (  # noqa: E402
 )
 from core.php_manager import PhpManager  # noqa: E402
 from core.redis_manager import RedisManager  # noqa: E402
-from core.service_group import ServiceGroup  # noqa: E402
+from core.service_group import PHP_SCOPES, ServiceGroup, scope_label  # noqa: E402
 from core.sqlite_manager import SqliteManager  # noqa: E402
 from core.vhost_manager import (  # noqa: E402
     VhostManager,
@@ -1454,14 +1454,39 @@ def cmd_sqlite_query(a, r: Result) -> Result:
 # --------------------------------------------------------------------------- #
 # services / update / module / schema
 # --------------------------------------------------------------------------- #
+def _php_scope_arg(raw: str | None) -> tuple[str, list[str] | None]:
+    """解析 services start-all 的 --php：策略名或逗号分隔的版本名。
+
+    返回 (php_scope, php_names)：命中策略名时 names 为 None；给出的是版本名
+    （如 php82,php85）时 scope 回落 "all"、由 names 精确指定（未知版本名只告警）。
+    """
+    text = (raw or "").strip()
+    if not text:
+        return "all", None
+    low = text.lower()
+    if low in PHP_SCOPES:
+        return low, None
+    names = [p.strip() for p in text.split(",") if p.strip()]
+    return ("all", names) if names else ("all", None)
+
+
 def cmd_services_start(a, r: Result) -> Result:
     cfg = Config()
+    scope, names = _php_scope_arg(getattr(a, "php", None))
+    group = _service_group(cfg)
     if a.dry_run:
-        r.data = {"dry_run": True, "action": "start_all"}
+        targets, skipped = group.php_targets(scope, names)
+        r.data = {"dry_run": True, "action": "start_all", "php_scope": scope,
+                  "php_names": [v.name for v in targets],
+                  "php_skipped": [v.name for v in skipped]}
         r.say("[dry-run] 将按顺序启动 PHP → Redis → MySQL → Nginx")
+        r.say(f"PHP（{scope_label(scope)}）："
+              + ("、".join(v.name for v in targets) or "（无）"))
+        if skipped:
+            r.say("跳过： " + "、".join(v.name for v in skipped))
         return r
-    msg = _service_group(cfg).start_all()
-    r.data = {"action": "start_all", "message": msg}
+    msg = group.start_all(php_scope=scope, php_names=names)
+    r.data = {"action": "start_all", "php_scope": scope, "message": msg}
     r.say(msg)
     return r
 
@@ -1931,6 +1956,10 @@ def build_parser() -> argparse.ArgumentParser:
     p = _leaf(gs, "start-all", cmd_services_start, "services.start-all",
               "按序启动 PHP → Redis → MySQL → Nginx")
     p.add_argument("--dry-run", action="store_true", help="只报告将做什么")
+    p.add_argument("--php", metavar="SCOPE|NAMES", default=None,
+                   help="PHP 启动范围：newest（仅最新）/ used（站点引用+最新）"
+                        "/ active（跟随 cmd 生效版本）/ all（全部，默认），"
+                        "或逗号分隔的版本名（如 php82,php85）")
     p = _leaf(gs, "stop-all", cmd_services_stop, "services.stop-all", "停止全部服务")
     p.add_argument("--dry-run", action="store_true", help="只报告将做什么")
 

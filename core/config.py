@@ -61,6 +61,10 @@ DEFAULT_SETTINGS = {
     "skipped_version": "",          # 用户点过「跳过此版本」的版本号，启动检查不再提示
     "theme": "system",              # 界面主题：light / dark / system（跟随系统外观，见 core/theme.py）
     "start_services_on_launch": False,  # 启动 phpvm 时自动启动全部服务（结果见「运行日志」页签）
+    # 自动启动服务时启动哪些 PHP 版本（见 core/service_group.py PHP_SCOPES）：
+    # newest=仅版本号最新（默认，避免一次拉起全部版本）/ used=站点实际引用+最新
+    # / active=跟随 cmd 中生效的版本 / all=全部版本
+    "autostart_php_scope": "newest",
 }
 
 

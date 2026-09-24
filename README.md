@@ -19,7 +19,7 @@
 - Windows：双击 `phpvm.bat`（使用 `pythonw.exe` 后台运行，无控制台窗口）
 - macOS / Linux：双击 `phpvm.command`（自动挑选带 tkinter 的 Python）或执行 `python3 main.py`
 - 或命令行执行：`C:\Python312\python.exe C:\wnrp\phpvm\main.py`
-- 无界面启动整套服务（供开机自启脚本调用）：`pythonw main.py --start-all`，结果追加到 `autostart_services.log`
+- 无界面启动整套服务（供开机自启脚本调用）：`pythonw main.py --start-all`，结果追加到 `autostart_services.log`；PHP 启动范围取设置 `autostart_php_scope`（**默认仅最新版本**），也可临时覆盖：`pythonw main.py --start-all --php-scope=all`
 - 依赖：Python 3.x（Windows 优先 `C:\Python312\pythonw.exe`，其次 PATH 中的 `pythonw`；mac 若缺 tkinter 会提示 `brew install python-tk@3.13`），tkinter 标准库，无需第三方包
 
 ## 功能说明
@@ -154,15 +154,16 @@
 - **功能模块**：勾选需要加载的模块（默认全部启用），取消勾选后**重启 phpvm 生效**，该模块的代码将不再加载（例如取消「SQLite 数据库」后不会创建该页签，也不会导入其管理器）
   - 可停用：Redis 管理 / MySQL 管理 / SQLite 数据库 / Nginx 日志
   - 刚需（不可取消）：PHP 版本管理 / Nginx 管理 / 站点映射
-- **设置区**（8 项）：
+- **设置区**（9 项）：
   - 开机自动启动 phpvm（Windows 写 `HKCU\...\Run` 的 `phpvm` 值；macOS 写 LaunchAgent `com.phpvm.app`）
   - php-cgi 崩溃自愈开关（默认关闭），注明「防抖 60 秒、每版本每小时最多 3 次」
   - 界面语言下拉（简体中文 / 繁體中文 / English / 日本語 / 한국어），点「应用」后**重启 phpvm 生效**
   - 外观主题下拉（浅色 / 深色 / 跟随系统），点「应用」**立即生效**，无需重启
   - 软件更新：显示当前版本，「检查更新」打开更新窗口，「打开下载缓存目录」，以及**启动时自动检查更新**勾选（默认开启；发现新版本仅状态栏提示，不弹窗打扰）
   - 服务编排：「全部启动」「全部停止」两个按钮（关于页与托盘菜单均可操作，后台执行并逐项汇总结果）
-  - 开机自动启动全部服务（登录时静默启动 Nginx + 各 PHP + Redis + MySQL，写入用户「启动」目录；**仅 Windows**，无需管理员）
+  - 开机自动启动全部服务（登录时静默启动 Nginx + Redis + MySQL + PHP，写入用户「启动」目录；**仅 Windows**，无需管理员）
   - 启动 phpvm 时自动启动全部服务（**跨平台**；开启后每次打开 phpvm 会静默拉起整套服务，逐项成败写入「运行日志」页，默认关闭）
+  - **自动启动服务的 PHP 版本**下拉（`settings.autostart_php_scope`，默认「仅最新版本」）：仅最新版本 / 站点实际引用 + 最新版 / 跟随 cmd 中生效的版本 / 全部版本。两条自动启动路径都按它挑选 PHP，**不会一次拉起全部版本**（本机 11 个版本 → 默认只启 php85）；被跳过的版本会写进「运行日志」与汇总结果，其余版本可在 PHP 页手动启动。手动「全部启动」按钮不受此设置影响（始终全部）
 
 ### 外观主题（浅色 / 深色 / 跟随系统）
 - 两种内置调色板：`light`（`#F5F5F5` 底 + `#2B579A` 主色）与 `dark`（`#1E1F22` 底 + `#4C8DFF` 主色），外加 `system` = 跟随系统外观
@@ -240,7 +241,7 @@ python3 cli.py schema --json              # 输出全部命令 / 参数 / 示例
 | `hosts` | `status` · `add` · `remove`（只动 phpvm 托管块，`--dry-run` 可预览）· `restore`（用写入前的备份整文件还原，需 `--yes`） |
 | `redis` / `mysql` | `list` · `status` · `start` · `stop` · `restart` ·（`redis` 另含 `ping`、`cmd --command "GET foo" --db 0 --force`）·（`mysql` 另含 `log --lines N`） |
 | `sqlite` | `tables <path>` · `columns <path> <table>` · `query <path> "<sql>" [--limit N] [--offset N]`（只读：仅 SELECT / WITH / PRAGMA / EXPLAIN / VALUES） |
-| `services` | `start-all` · `stop-all`（按序启动 PHP → Redis → MySQL → Nginx） |
+| `services` | `start-all [--php SCOPE\|NAMES]` · `stop-all`（按序启动 PHP → Redis → MySQL → Nginx；`--php newest\|used\|active\|all` 或版本名列表，默认 `all`） |
 | `update` | `check` · `download`（GitHub Releases，SHA-256 校验） |
 | `module` | `list` · `enable <key…>` · `disable <key…>`（redis / mysql / sqlite / log） |
 
@@ -306,7 +307,10 @@ python3 cli.py tune apply --target php --name php82 --items display_errors,error
     "lang": null,
     "sqlite_last_db": "",
     "check_update_on_start": true,
-    "skipped_version": ""
+    "skipped_version": "",
+    "theme": "system",
+    "start_services_on_launch": false,
+    "autostart_php_scope": "newest"
   }
 }
 ```
@@ -317,6 +321,8 @@ python3 cli.py tune apply --target php --name php82 --items display_errors,error
 - `settings.lang`：界面语言（空=跟随系统），`settings.sqlite_last_db`：上次打开的 SQLite 库，`settings.disabled_modules`：已停用的可选模块
 - `settings.check_update_on_start`：启动时静默检查新版本（默认 true），`settings.skipped_version`：被「跳过此版本」的版本号
 - `settings.theme`：外观主题 `light` / `dark` / `system`（默认 `system`，跟随系统外观；GUI 切换立即生效）
+- `settings.start_services_on_launch`：启动 phpvm 时自动启动整套服务（默认 false）
+- `settings.autostart_php_scope`：自动启动服务时的 PHP 启动范围，`newest`（默认，仅最新版本）/ `used`（站点实际引用 + 最新）/ `active`（跟随 cmd 生效版本）/ `all`（全部版本）
 - 文件损坏或 JSON 解析失败时回退内置默认值并覆盖保存（未知键会被丢弃）
 
 ## 目录结构

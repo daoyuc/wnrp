@@ -18,7 +18,7 @@ from core.mysql_manager import MysqlManager
 from core.nginx_manager import NginxManager
 from core.php_manager import PhpManager
 from core.redis_manager import RedisManager
-from core.service_group import ServiceGroup
+from core.service_group import PHP_SCOPE_NEWEST, PHP_SCOPES, ServiceGroup, scope_label
 from core.vhost_manager import VhostManager
 from .dialogs import CliSwitchDialog, CrashDialog
 from .mysql_panel import MysqlPanel
@@ -361,6 +361,26 @@ class MainWindow(tk.Tk):
             style="Card.TCheckbutton",
             variable=self._svc_launch_var, command=self._toggle_service_launch,
         ).pack(anchor="w", pady=(0, theme.PAD_SM))
+        # 「自动启动服务」时启动哪些 PHP 版本（默认仅最新，避免一次拉起全部版本）
+        scope_row = ttk.Frame(settings, style="Card.TFrame")
+        scope_row.pack(anchor="w", pady=(0, theme.PAD_SM))
+        ttk.Label(scope_row, text=t("自动启动服务的 PHP 版本："),
+                  style="CardBold.TLabel").pack(side="left")
+        self._svc_scope_box = ttk.Combobox(
+            scope_row, state="readonly", width=22,
+            values=[scope_label(s) for s in PHP_SCOPES],
+        )
+        self._sync_service_scope_box()
+        self._svc_scope_box.pack(side="left", padx=(theme.PAD_XS, 0))
+        ttk.Button(scope_row, text=t("应用"), command=self._apply_service_scope_box).pack(
+            side="left", padx=(theme.PAD_SM, 0)
+        )
+        ttk.Label(
+            settings,
+            text=t("默认「仅最新版本」：开机自启/启动时不会一次拉起全部 PHP 版本，"
+                   "其它版本可在 PHP 页手动启动。"),
+            style="SubTitle.TLabel",
+        ).pack(anchor="w", pady=(0, theme.PAD_XS))
         self._recover_var = tk.BooleanVar(value=bool(self.config.get_setting("auto_recover_crash", False)))
         ttk.Checkbutton(
             settings, text=t("php-cgi 崩溃后自动重启（自愈，默认关闭）"),
@@ -520,6 +540,8 @@ class MainWindow(tk.Tk):
             b=state(autostart.services_enabled()),
             c=state(bool(self.config.get_setting("auto_recover_crash", False))),
             d=state(bool(self.config.get_setting("start_services_on_launch", False)))))
+        run_log.info("env", t("自动启动服务的 PHP 版本：{scope}",
+                              scope=scope_label(self._autostart_php_scope())))
 
     def _toggle_service_launch(self) -> None:
         """「启动 phpvm 时自动启动全部服务」开关（下次启动生效）。"""
@@ -528,19 +550,40 @@ class MainWindow(tk.Tk):
         self.set_log(t("启动时自动启动全部服务已开启（下次启动生效）") if enabled
                      else t("启动时自动启动全部服务已关闭"))
 
+    def _autostart_php_scope(self) -> str:
+        """自动启动服务时使用的 PHP 启动范围（取值非法/缺失时回落「仅最新版本」）。"""
+        scope = self.config.get_setting("autostart_php_scope", PHP_SCOPE_NEWEST)
+        return scope if scope in PHP_SCOPES else PHP_SCOPE_NEWEST
+
+    def _sync_service_scope_box(self) -> None:
+        """下拉框跟随配置（取值非法时按默认项显示）。"""
+        self._svc_scope_box.current(PHP_SCOPES.index(self._autostart_php_scope()))
+
+    def _apply_service_scope_box(self) -> None:
+        """应用「自动启动服务的 PHP 版本」选择（写入 settings.autostart_php_scope）。"""
+        idx = self._svc_scope_box.current()
+        if idx < 0 or idx >= len(PHP_SCOPES):
+            return
+        scope = PHP_SCOPES[idx]
+        self.config.set_setting("autostart_php_scope", scope)
+        self.set_log(t("自动启动服务的 PHP 版本已设为：{scope}", scope=scope_label(scope)))
+
     def _maybe_start_services_on_launch(self) -> None:
         """设置里开启「启动时自动启动全部服务」时调起整套服务。
 
+        PHP 只按 `autostart_php_scope`（默认仅最新版本）启动，不会一次拉起全部版本；
         逐项成败由 ServiceGroup 写入运行日志（core.run_log），此处只记录开始/异常。
         """
         if not self.config.get_setting("start_services_on_launch", False):
             return
-        run_log.info("app", t("启动时自动启动全部服务：开始"))
+        scope = self._autostart_php_scope()
+        run_log.info("app", t("启动时自动启动全部服务：开始（PHP：{scope}）",
+                              scope=scope_label(scope)))
         self.set_log(t("正在启动全部服务…"))
 
         def worker():
             try:
-                msg = self.services.start_all()
+                msg = self.services.start_all(php_scope=scope)
             except Exception as e:  # noqa: BLE001
                 msg = f"{type(e).__name__}：{e}"
                 run_log.error("app", t("启动时自动启动全部服务失败：{msg}", msg=msg))

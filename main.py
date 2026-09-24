@@ -26,12 +26,22 @@ _RESTART_RETRIES = 50
 _RESTART_RETRY_DELAY = 0.1
 
 
-def _start_all_services() -> None:
-    """无界面启动整套服务（Nginx + 各 PHP + Redis + MySQL）。
+def _php_scope_override() -> str | None:
+    """命令行 `--php-scope=<scope>` 覆盖（开机自启脚本可不改配置临时指定）。"""
+    for arg in sys.argv[1:]:
+        if arg.startswith("--php-scope="):
+            return arg.split("=", 1)[1].strip() or None
+    return None
 
-    供「开机自动启动服务」写入的启动脚本调用；每项的成败由 ServiceGroup
-    写入全局运行日志（core.run_log），结果同时追加到 autostart_services.log，
-    便于排查登录时未起来的服务。
+
+def _start_all_services() -> None:
+    """无界面启动整套服务（Nginx + 若干 PHP + Redis + MySQL）。
+
+    供「开机自动启动服务」写入的启动脚本调用；PHP 启动范围取设置
+    `autostart_php_scope`（默认仅最新版本，避免登录时拉起全部版本），
+    可用 `--php-scope=newest|used|active|all` 临时覆盖。每项的成败由
+    ServiceGroup 写入全局运行日志（core.run_log），结果同时追加到
+    autostart_services.log，便于排查登录时未起来的服务。
     """
     from core import app_paths, run_log
     from core.config import Config
@@ -41,23 +51,27 @@ def _start_all_services() -> None:
     from core.nginx_manager import NginxManager
     from core.php_manager import PhpManager
     from core.redis_manager import RedisManager
-    from core.service_group import ServiceGroup
+    from core.service_group import PHP_SCOPE_NEWEST, ServiceGroup
 
-    run_log.info("app", t("开机自启：开始启动全部服务"))
+    run_log.info("app", t("开机自启：开始启动服务"))
     cfg = Config()
+    # PHP 启动范围：默认仅最新版本（all 才拉起全部版本）
+    scope = _php_scope_override() or cfg.get_setting(
+        "autostart_php_scope", PHP_SCOPE_NEWEST)
     # 按模块开关决定是否实例化：停用的模块不加载其 manager（重启后生效）
     redis_mgr = RedisManager() if modules.is_enabled("redis", cfg) else None
     mysql_mgr = MysqlManager() if modules.is_enabled("mysql", cfg) else None
     group = ServiceGroup(PhpManager(cfg), NginxManager(), redis_mgr, mysql_mgr)
     try:
-        msg = group.start_all()
+        msg = group.start_all(php_scope=scope)
     except Exception as e:  # noqa: BLE001
         msg = f"{type(e).__name__}: {e}"
         run_log.error("app", t("开机自启启动服务失败：{msg}", msg=msg))
     log = app_paths.data_file("autostart_services.log")
     try:
         with open(log, "a", encoding="utf-8") as f:
-            f.write(f"\n[{time.strftime('%Y-%m-%d %H:%M:%S')}] --start-all\n{msg}\n")
+            f.write(f"\n[{time.strftime('%Y-%m-%d %H:%M:%S')}] --start-all "
+                    f"(php_scope={scope})\n{msg}\n")
     except OSError:
         pass
 
