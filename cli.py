@@ -46,6 +46,7 @@ from core import (  # noqa: E402
     site_templates,
     updater,
     version,
+    xdebug,
 )
 from core import config as config_mod  # noqa: E402
 from core.config import Config, WNRP_ROOT  # noqa: E402
@@ -697,6 +698,80 @@ def cmd_php_ext_set(a, r: Result) -> Result:
     r.data = {"ini": v.ini, "changed": count, "message": msg,
               "enable": sorted(enable), "disable": sorted(disable)}
     r.say(f"已修改 {v.ini}（{count} 处）：{msg}")
+    r.note("需重启该 PHP 版本后生效：php restart " + v.name)
+    return r
+
+
+# --------------------------------------------------------------------------- #
+# Xdebug 调试开关
+# --------------------------------------------------------------------------- #
+def cmd_php_xdebug_status(a, r: Result) -> Result:
+    cfg = Config()
+    pm = _php_manager(cfg, refresh=False)
+    v = _pick_php(pm, a.name, r)
+    if v is None:
+        return r
+    info = xdebug.status(v)
+    r.data = {"name": v.name, **info}
+    r.say(f"{v.name} Xdebug：{'已开启' if info['enabled'] else '未开启'}"
+          f"（扩展{'已安装' if info['installed'] else '未安装'}）")
+    r.say(f"  配置文件：{info['ini'] or '（无）'}")
+    if info["enabled"]:
+        r.say(f"  端口 {info['port']} · mode={info['mode'] or '-'} · "
+              f"host={info['client_host'] or '-'} · idekey={info['idekey'] or '-'}")
+    return r
+
+
+def cmd_php_xdebug_enable(a, r: Result) -> Result:
+    cfg = Config()
+    pm = _php_manager(cfg, refresh=False)
+    v = _pick_php(pm, a.name, r)
+    if v is None:
+        return r
+    port = int(a.port or xdebug.DEFAULT_PORT)
+    if not 1 <= port <= 65535:
+        return r.fail("调试端口必须在 1-65535 之间", port=port)
+    changes = {
+        "zend_extension": xdebug._ext_value(v),
+        "xdebug.mode": "debug",
+        "xdebug.start_with_request": "yes",
+        "xdebug.client_port": str(port),
+        "xdebug.client_host": xdebug.DEFAULT_HOST,
+        "xdebug.idekey": xdebug.DEFAULT_IDEKEY,
+    }
+    if a.dry_run:
+        r.data = {"dry_run": True, "name": v.name, "ini": v.ini, "port": port,
+                  "changes": changes}
+        r.say(f"[dry-run] 将在 {v.ini} 写入 Xdebug 加载行与调试指令：")
+        for k, val in changes.items():
+            r.say(f"  {k} = {val}")
+        return r
+    ok, msg, backup = xdebug.enable(v, port=port)
+    if not ok:
+        return r.fail(msg, name=v.name, ini=v.ini)
+    r.data = {"name": v.name, "ini": v.ini, "port": port, "backup": backup,
+              "message": msg}
+    r.say(msg)
+    r.note("需重启该 PHP 版本后生效：php restart " + v.name)
+    return r
+
+
+def cmd_php_xdebug_disable(a, r: Result) -> Result:
+    cfg = Config()
+    pm = _php_manager(cfg, refresh=False)
+    v = _pick_php(pm, a.name, r)
+    if v is None:
+        return r
+    if a.dry_run:
+        r.data = {"dry_run": True, "name": v.name, "ini": v.ini,
+                  "action": "注释 Xdebug 加载行"}
+        r.say(f"[dry-run] 将注释 {v.ini} 中的 Xdebug 加载行")
+        return r
+    ok, msg, backup = xdebug.disable(v)
+    if not ok:
+        return r.fail(msg, name=v.name, ini=v.ini)
+    r.data = {"name": v.name, "ini": v.ini, "backup": backup, "message": msg}
+    r.say(msg)
     r.note("需重启该 PHP 版本后生效：php restart " + v.name)
     return r
 
@@ -1832,6 +1907,19 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("name", help="版本名")
     p.add_argument("--enable", metavar="A,B", help="要启用的扩展（逗号分隔）")
     p.add_argument("--disable", metavar="A,B", help="要禁用的扩展（逗号分隔）")
+    p.add_argument("--dry-run", action="store_true", help="只报告将做什么")
+    p = _leaf(gs, "xdebug-status", cmd_php_xdebug_status, "php.xdebug-status",
+              "查看 Xdebug 调试状态（是否已装 / 已开启 / 端口）")
+    p.add_argument("name", help="版本名")
+    p = _leaf(gs, "xdebug-enable", cmd_php_xdebug_enable, "php.xdebug-enable",
+              "开启 Xdebug 调试（写 ini：加载行 + 调试指令，自动备份并自检）")
+    p.add_argument("name", help="版本名")
+    p.add_argument("--port", type=int, default=xdebug.DEFAULT_PORT,
+                   help=f"调试端口（默认 {xdebug.DEFAULT_PORT}）")
+    p.add_argument("--dry-run", action="store_true", help="只报告将做什么")
+    p = _leaf(gs, "xdebug-disable", cmd_php_xdebug_disable, "php.xdebug-disable",
+              "关闭 Xdebug 调试（注释加载行，调试指令保留）")
+    p.add_argument("name", help="版本名")
     p.add_argument("--dry-run", action="store_true", help="只报告将做什么")
 
     # nginx
