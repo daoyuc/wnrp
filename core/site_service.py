@@ -25,6 +25,7 @@
 nginx.conf），本次**新建**的配置文件不删除，避免误删用户刚生成的配置。
 """
 import os
+import re
 from dataclasses import dataclass, field
 
 from . import cert_manager, file_backup, hosts_manager
@@ -121,6 +122,177 @@ def render_config_for(plan: SitePlan,
         plan.template_key, server_name=" ".join(plan.domains), docroot=plan.docroot,
         port=plan.port, ssl_cert=ssl_cert, ssl_key=ssl_key)
     return content, cert_step
+
+
+# --------------------------------------------------------------------------- #
+# F4 · 既有站点一键 HTTPS（在既有 vhost 上启用 / 关闭 443）
+# --------------------------------------------------------------------------- #
+_RE_SERVER_OPEN = re.compile(r"(?m)^[ \t]*server[ \t]*\{")
+
+
+def server_block_spans(text: str) -> list[tuple[int, int]]:
+    """返回文本中每个顶层 ``server { ... }`` 块的下标区间 ``[(start, end)]``。
+
+    用花括号配对定位（不依赖缩进 / 单行写法），足以覆盖 phpvm 生成的配置与常见手写。
+    """
+    spans: list[tuple[int, int]] = []
+    for m in _RE_SERVER_OPEN.finditer(text):
+        i = text.index("{", m.start())
+        depth = 0
+        for j in range(i, len(text)):
+            ch = text[j]
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    spans.append((m.start(), j + 1))
+                    break
+    return spans
+
+
+def _block_for_domains(text: str, domains: list[str]) -> tuple[int, int] | None:
+    """定位包含指定域名（任一）的 server 块；找不到时回落第一个 server 块。"""
+    want = [d.lower() for d in domains if d]
+    spans = server_block_spans(text)
+    for start, end in spans:
+        low = text[start:end].lower()
+        if any(d in low for d in want):
+            return start, end
+    return spans[0] if spans else None
+
+
+def secure_site(entry, config: Config | None = None, reload: bool = True) -> dict:
+    """为**既有**站点启用 HTTPS：生成证书 → 备份并追加 443 server 块 → ``nginx -t``。
+
+    追加的 443 块由该站点原 server 块变换而来（保留用户改过的 location / 规则），
+    因此原 80 块保持不变，站点同时支持 http 与 https。
+    校验失败自动回滚到修改前；返回 ``{ok, path, cert, backup, output, message}``。
+    """
+    path = getattr(entry, "file", "") or ""
+    if not path or not os.path.isfile(path):
+        return {"ok": False, "message": t("配置文件不存在：{path}", path=path or "—")}
+    if path.endswith(".disabled"):
+        return {"ok": False, "message": t("站点已禁用，请先启用站点再启用 HTTPS。")}
+    vm = VhostManager(config)
+    if os.path.normcase(os.path.abspath(path)) == os.path.normcase(
+            os.path.abspath(vm.main_conf)):
+        return {"ok": False,
+                "message": t("该 server 块位于主配置（nginx.conf）中，无法自动启用 HTTPS；"
+                             "请先为它单独建立站点配置。")}
+    domains = [d for d in (getattr(entry, "server_name", "") or "").split()
+               if d and not d.startswith("*.")]
+    if not domains:
+        return {"ok": False, "message": t("该站点没有可直接签发证书的域名（仅泛解析）。")}
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            content = f.read()
+    except OSError as e:
+        return {"ok": False, "message": t("读取配置失败：{err}", err=e)}
+    if "listen 443" in content:
+        return {"ok": True, "already": True, "path": path,
+                "message": t("该站点已启用 HTTPS，无需重复操作。")}
+
+    cert = cert_manager.ensure_site_cert(domains[0])
+    if not cert.get("ok"):
+        return {"ok": False, "cert": cert, "message": cert.get("message", "")}
+    span = _block_for_domains(content, domains)
+    if span is None:
+        return {"ok": False, "message": t("未在配置文件中找到 server 块。")}
+    block = content[span[0]:span[1]]
+    https_block = site_templates.apply_https(block, cert.get("cert", ""), cert.get("key", ""))
+    new_content = content.rstrip() + "\n\n" + https_block.strip() + "\n"
+
+    try:
+        backup = file_backup.backup(path)
+    except OSError as e:
+        return {"ok": False, "message": t("备份失败，未做修改：{err}", err=e)}
+    try:
+        with open(path, "w", encoding="utf-8", newline="") as f:
+            f.write(new_content)
+    except OSError as e:
+        return {"ok": False, "message": t("写入失败：{err}", err=e)}
+
+    if not os.path.exists(vm.nginx.exe):
+        return {"ok": True, "path": path, "cert": cert, "backup": backup,
+                "test": {"ok": False, "skip": True},
+                "message": t("已追加 443 server 块（未找到 nginx，已跳过校验）。")}
+    output = vm.nginx.test_config()
+    if not test_output_ok(output):
+        file_backup.restore(backup, path)
+        return {"ok": False, "rolled_back": True, "output": output,
+                "message": t("nginx -t 校验失败，已回滚到修改前。\n{out}", out=output)}
+    res = {"ok": True, "path": path, "cert": cert, "backup": backup, "output": output,
+           "message": t("已启用 HTTPS：{dom}", dom=domains[0])}
+    if reload:
+        running, _ = vm.nginx.get_status()
+        if running:
+            res["reload"] = vm.nginx.reload()
+    return res
+
+
+def unsecure_site(entry, config: Config | None = None, reload: bool = True) -> dict:
+    """关闭既有站点的 HTTPS：移除全部 443 server 块（改前备份，校验失败回滚）。
+
+    证书文件保留（可能被其它站点 / 用户复用），仅去掉 443 配置。
+    """
+    path = getattr(entry, "file", "") or ""
+    if not path or not os.path.isfile(path):
+        return {"ok": False, "message": t("配置文件不存在：{path}", path=path or "—")}
+    vm = VhostManager(config)
+    if os.path.normcase(os.path.abspath(path)) == os.path.normcase(
+            os.path.abspath(vm.main_conf)):
+        return {"ok": False,
+                "message": t("该 server 块位于主配置（nginx.conf）中，请手动关闭其 HTTPS。")}
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            content = f.read()
+    except OSError as e:
+        return {"ok": False, "message": t("读取配置失败：{err}", err=e)}
+    if "listen 443" not in content:
+        return {"ok": True, "unchanged": True, "path": path,
+                "message": t("该站点未启用 HTTPS，无需操作。")}
+
+    kept: list[str] = []
+    prev = 0
+    removed = 0
+    for start, end in server_block_spans(content):
+        kept.append(content[prev:start])
+        if "listen 443" in content[start:end]:
+            removed += 1
+        else:
+            kept.append(content[start:end])
+        prev = end
+    kept.append(content[prev:])
+    new_content = re.sub(r"\n{3,}", "\n\n", "".join(kept)).rstrip() + "\n"
+
+    try:
+        backup = file_backup.backup(path)
+    except OSError as e:
+        return {"ok": False, "message": t("备份失败，未做修改：{err}", err=e)}
+    try:
+        with open(path, "w", encoding="utf-8", newline="") as f:
+            f.write(new_content)
+    except OSError as e:
+        return {"ok": False, "message": t("写入失败：{err}", err=e)}
+
+    if not os.path.exists(vm.nginx.exe):
+        return {"ok": True, "path": path, "removed": removed, "backup": backup,
+                "test": {"ok": False, "skip": True},
+                "message": t("已移除 {n} 个 443 server 块（未找到 nginx，已跳过校验）。",
+                             n=removed)}
+    output = vm.nginx.test_config()
+    if not test_output_ok(output):
+        file_backup.restore(backup, path)
+        return {"ok": False, "rolled_back": True, "output": output,
+                "message": t("nginx -t 校验失败，已回滚到修改前。\n{out}", out=output)}
+    res = {"ok": True, "path": path, "removed": removed, "backup": backup, "output": output,
+           "message": t("已关闭 HTTPS（移除 {n} 个 443 server 块）。", n=removed)}
+    if reload:
+        running, _ = vm.nginx.get_status()
+        if running:
+            res["reload"] = vm.nginx.reload()
+    return res
 
 
 def create_site(plan: SitePlan, config: Config | None = None) -> SiteResult:

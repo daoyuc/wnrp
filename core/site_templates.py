@@ -269,6 +269,31 @@ TEMPLATES = [
 TEMPLATE_MAP: dict[str, dict] = {t["key"]: t for t in TEMPLATES}
 
 
+def https_listen_block(ssl_cert: str, ssl_key: str) -> str:
+    """HTTPS 的 listen 指令块（与模板默认的 ``listen 80`` 互换）。"""
+    return (
+        "    listen 443 ssl;\n"
+        "    http2 on;\n"
+        f"    ssl_certificate     {ssl_cert};\n"
+        f"    ssl_certificate_key {ssl_key};\n"
+    )
+
+
+def apply_https(body: str, ssl_cert: str, ssl_key: str) -> str:
+    """把 ``body`` 中第一处 ``listen 80`` 换成 HTTPS 指令块（其余结构原样保留）。
+
+    供「新建站点」（渲染 HTTPS 变体）与「既有站点启用 HTTPS」共用：后者直接对
+    已存在的 server 块调用，因此用户手改过的 location / 规则都会被保留。
+    """
+    if not (ssl_cert and ssl_key):
+        return body
+    out = _RE_LISTEN80.sub(https_listen_block(ssl_cert, ssl_key).rstrip("\n"),
+                           body, count=1)
+    if "listen 443" not in out:
+        out = https_listen_block(ssl_cert, ssl_key) + out
+    return out
+
+
 def render_config(key: str, *, server_name: str, docroot: str,
                   port: int | None, ssl_cert: str = "", ssl_key: str = "") -> str:
     """渲染完整 vhost 配置文件文本。
@@ -284,16 +309,8 @@ def render_config(key: str, *, server_name: str, docroot: str,
         body = body.replace("{{php_block}}", _PHP_LOCATION)
 
     if ssl_cert and ssl_key:
-        listen_block = (
-            "    listen 443 ssl;\n"
-            "    http2 on;\n"
-            f"    ssl_certificate     {ssl_cert};\n"
-            f"    ssl_certificate_key {ssl_key};\n"
-        )
         # 模板默认 listen 80 → 换成 443 ssl（保留模板其余结构）
-        body = _RE_LISTEN80.sub(listen_block.rstrip("\n"), body, count=1)
-        if "listen 443" not in body:
-            body = listen_block + body
+        body = apply_https(body, ssl_cert, ssl_key)
 
     replacements = {
         "server_name": server_name.strip(),

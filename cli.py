@@ -39,6 +39,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from core import (  # noqa: E402
     app_paths,
+    backup_bundle,
+    cert_manager,
     diag,
     file_backup,
     hosts_manager,
@@ -935,6 +937,38 @@ def cmd_overview_summary(a, r: Result) -> Result:
 
 
 # --------------------------------------------------------------------------- #
+# backup（环境备份与迁移，F6）
+# --------------------------------------------------------------------------- #
+def cmd_backup_export(a, r: Result) -> Result:
+    cfg = Config()
+    res = backup_bundle.export_bundle(a.zip, cfg)
+    r.ok = bool(res.get("ok"))
+    r.data = res
+    if not res.get("ok"):
+        r.data["error"] = res.get("message", "")
+    r.say(res.get("message", ""))
+    if res.get("ok"):
+        r.say(t("清单：{counts}", counts=json.dumps(res.get("counts", {}), ensure_ascii=False)))
+    return r
+
+
+def cmd_backup_restore(a, r: Result) -> Result:
+    if not a.yes and not a.dry_run:
+        r.fail(t("恢复会覆盖当前配置，需加 --yes 确认（可先 --dry-run 预览）"))
+        return r
+    cfg = Config()
+    res = backup_bundle.restore_bundle(a.zip, cfg, dry_run=a.dry_run)
+    r.ok = bool(res.get("ok"))
+    r.data = res
+    if not res.get("ok"):
+        r.data["error"] = res.get("message", "")
+    r.say(res.get("message", ""))
+    for it in res.get("items", []) or []:
+        r.say(f"  [{it['kind']}] {it['target']}")
+    return r
+
+
+# --------------------------------------------------------------------------- #
 # site
 # --------------------------------------------------------------------------- #
 def cmd_site_list(a, r: Result) -> Result:
@@ -1300,6 +1334,60 @@ def cmd_site_php(a, r: Result) -> Result:
     if not res.get("ok"):
         r.data["error"] = res.get("message", "")
     r.say(res.get("message", ""))
+    return r
+
+
+def cmd_site_secure(a, r: Result) -> Result:
+    cfg = Config()
+    vm = VhostManager(cfg)
+    e = _pick_site(vm, a.target, r)
+    if e is None:
+        return r
+    real = [d for d in e.server_name.split() if d and not d.startswith("*.")]
+    if a.dry_run:
+        st = cert_manager.status()
+        r.data = {"dry_run": True, "site": e.file, "server_name": e.server_name,
+                  "domains": real, "cert": st, "action": "append-443"}
+        r.say(t("将文件：{path}", path=e.file))
+        r.say(t("将域名：{doms}", doms="、".join(real) or "—"))
+        r.say(t("证书能力：{msg}", msg=st["message"]))
+        return r
+    res = site_service.secure_site(e, cfg)
+    r.ok = bool(res.get("ok"))
+    r.data = {"site": e.file, "server_name": e.server_name, **res}
+    if not res.get("ok"):
+        r.data["error"] = res.get("message", "")
+    r.say(res.get("message", ""))
+    if res.get("output"):
+        r.say(res["output"])
+    return r
+
+
+def cmd_site_unsecure(a, r: Result) -> Result:
+    cfg = Config()
+    vm = VhostManager(cfg)
+    e = _pick_site(vm, a.target, r)
+    if e is None:
+        return r
+    if a.dry_run:
+        try:
+            with open(e.file, "r", encoding="utf-8", errors="replace") as f:
+                has = "listen 443" in f.read()
+        except OSError as err:
+            return r.fail(t("读取配置失败：{err}", err=err))
+        r.data = {"dry_run": True, "site": e.file, "server_name": e.server_name,
+                  "has_https": has, "action": "remove-443"}
+        r.say(t("将文件：{path}", path=e.file))
+        r.say(t("当前 HTTPS：{state}", state=t("已启用") if has else t("未启用")))
+        return r
+    res = site_service.unsecure_site(e, cfg)
+    r.ok = bool(res.get("ok"))
+    r.data = {"site": e.file, "server_name": e.server_name, **res}
+    if not res.get("ok"):
+        r.data["error"] = res.get("message", "")
+    r.say(res.get("message", ""))
+    if res.get("output"):
+        r.say(res["output"])
     return r
 
 
@@ -2102,6 +2190,19 @@ def build_parser() -> argparse.ArgumentParser:
     _leaf(gs, "summary", cmd_overview_summary, "overview.summary",
           "输出环境总览快照（服务状态 / 站点告警 / 健康级别）")
 
+    # backup（环境备份与迁移，仅配置）
+    g = sub.add_parser("backup", help="环境备份与迁移（仅配置，不含数据库数据）",
+                       parents=[COMMON])
+    gs = g.add_subparsers(dest="action", metavar="<action>")
+    p = _leaf(gs, "export", cmd_backup_export, "backup.export",
+              "导出环境配置（config.json / vhost / nginx.conf / php.ini）为 zip")
+    p.add_argument("zip", help="导出目标 zip 路径")
+    p = _leaf(gs, "restore", cmd_backup_restore, "backup.restore",
+              "从 zip 恢复环境配置（改前备份，nginx -t 失败整体回滚）")
+    p.add_argument("zip", help="备份 zip 路径")
+    p.add_argument("--dry-run", action="store_true", help="只报告将恢复哪些文件")
+    p.add_argument("--yes", action="store_true", help="确认恢复（覆盖当前配置）")
+
     # site
     g = sub.add_parser("site", help="站点（vhost）管理", parents=[COMMON])
     gs = g.add_subparsers(dest="action", metavar="<action>")
@@ -2127,6 +2228,12 @@ def build_parser() -> argparse.ArgumentParser:
                          ("disable", cmd_site_disable, "禁用站点（改名 .conf.disabled）")):
         p = _leaf(gs, act, fn, f"site.{act}", hlp)
         p.add_argument("target", help="域名 / 配置文件名 / 配置文件路径")
+    for act, fn, hlp in (
+            ("secure", cmd_site_secure, "为既有站点启用 HTTPS（生成证书 + 追加 443 server 块）"),
+            ("unsecure", cmd_site_unsecure, "关闭既有站点的 HTTPS（移除 443 server 块）")):
+        p = _leaf(gs, act, fn, f"site.{act}", hlp)
+        p.add_argument("target", help="域名 / 配置文件名 / 配置文件路径")
+        p.add_argument("--dry-run", action="store_true", help="只报告将做什么")
     p = _leaf(gs, "php", cmd_site_php, "site.php", "切换站点使用的 PHP 版本（改 fastcgi_pass）")
     p.add_argument("target", help="域名 / 配置文件名 / 配置文件路径")
     p.add_argument("--php", required=True, help="目标 PHP 版本名")

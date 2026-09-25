@@ -12,7 +12,7 @@ import tkinter as tk
 import webbrowser
 from tkinter import messagebox, ttk
 
-from core import hosts_manager, process_utils as pu
+from core import hosts_manager, process_utils as pu, site_service
 from core.i18n import t
 from core.vhost_manager import VhostEntry, VhostManager
 from .site_wizard import SiteWizardDialog
@@ -42,6 +42,7 @@ class VhostPanel(ttk.Frame):
         self._queue: queue.Queue = queue.Queue()
         self._busy = False
         self._entries: list[VhostEntry] = []
+        self._view: list[VhostEntry] = []  # 过滤后实际展示的行（选中索引以它为准）
         self._draining = False  # 队列 drain 是否已启动（唯一消费者）
         self._fixing = False    # include 一键修复进行中
 
@@ -72,6 +73,18 @@ class VhostPanel(ttk.Frame):
                    "双击行打开配置文件"),
             style="SubTitle.TLabel",
         ).pack(side="left", padx=(4, 0))
+
+        # 搜索过滤：域名 / root / 配置文件 / PHP 版本 / 端口 / 说明 实时过滤
+        frow = ttk.Frame(self)
+        frow.pack(fill="x", pady=(0, 6))
+        ttk.Label(frow, text=t("搜索")).pack(side="left")
+        self._filter_var = tk.StringVar()
+        ent = ttk.Entry(frow, textvariable=self._filter_var)
+        ent.pack(side="left", fill="x", expand=True, padx=(6, 6))
+        ent.bind("<Escape>", lambda e: self._filter_var.set(""))
+        self._filter_var.trace_add("write", lambda *_: self._apply_filter())
+        self._filter_count = ttk.Label(frow, text="", style="SubTitle.TLabel")
+        self._filter_count.pack(side="right")
 
         # 生效 nginx.conf 是否 include 站点目录：自动检测状态行
         self._inc_wrap = tk.Frame(self, bg=theme.CARD_BG)
@@ -187,12 +200,34 @@ class VhostPanel(ttk.Frame):
     def _render(self, entries: list[VhostEntry]) -> None:
         self._entries = entries
         self._sync_hosts_restore_btn()
+        self._apply_filter()
+
+    def _apply_filter(self) -> None:
+        """按搜索框内容过滤后重绘；过滤条件在刷新后保留。"""
+        q = self._filter_var.get().strip().lower()
+        if q:
+            self._view = [e for e in self._entries if self._match(e, q)]
+        else:
+            self._view = list(self._entries)
+        self._populate()
+        self._filter_count.configure(
+            text=t("显示 {n} / {total}", n=len(self._view), total=len(self._entries))
+            if q else "")
+
+    @staticmethod
+    def _match(e: VhostEntry, q: str) -> bool:
+        hay = " ".join(str(x) for x in (
+            e.server_name, e.file_rel, e.php_version or "", e.port if e.port is not None else "",
+            e.root or "", e.note or ""))
+        return q in hay.lower()
+
+    def _populate(self) -> None:
         self.tree.delete(*self.tree.get_children())
         # 一次性读取 hosts，避免逐行重读
-        all_doms = [d for e in entries for d in e.server_name.split()
+        all_doms = [d for e in self._view for d in e.server_name.split()
                     if not d.startswith("*.")]
         mapping = hosts_manager.mapping_for_domains(all_doms)
-        for i, e in enumerate(entries):
+        for i, e in enumerate(self._view):
             is_warn = bool(e.note) or (e.port is not None and not e.php_version)
             state_tag = "disabled" if e.disabled else ("warn" if is_warn else "ok")
             tags = [state_tag, "odd" if i % 2 else "even"]
@@ -275,9 +310,9 @@ class VhostPanel(ttk.Frame):
         if not sel:
             return
         idx = self.tree.index(sel[0])
-        if idx >= len(self._entries):
+        if idx >= len(self._view):
             return
-        path = self._entries[idx].file
+        path = self._view[idx].file
         if os.path.exists(path):
             pu.open_path(path)
         else:
@@ -306,7 +341,7 @@ class VhostPanel(ttk.Frame):
         if not sel:
             return None
         idx = self.tree.index(sel[0])
-        return self._entries[idx] if idx < len(self._entries) else None
+        return self._view[idx] if idx < len(self._view) else None
 
     def _show_menu(self, event) -> None:
         """右键：先选中所在行，再按该站点状态重建菜单。"""
@@ -319,7 +354,12 @@ class VhostPanel(ttk.Frame):
         self._menu.delete(0, "end")
         self._menu.add_command(label=t("打开站点（浏览器）"), command=self._open_site)
         self._menu.add_command(label=t("打开项目根目录"), command=self._open_root)
+        self._menu.add_command(label=t("在终端打开"), command=self._open_terminal)
         self._menu.add_command(label=t("打开配置文件"), command=self._open_config)
+        self._menu.add_separator()
+        self._menu.add_command(label=t("复制域名"), command=self._copy_domain)
+        self._menu.add_command(label=t("复制 URL"), command=self._copy_url)
+        self._menu.add_command(label=t("体检此站点"), command=self._run_diag)
         self._menu.add_separator()
 
         self._php_menu.delete(0, "end")
@@ -338,6 +378,10 @@ class VhostPanel(ttk.Frame):
         self._menu.add_command(
             label=t("启用站点") if entry.disabled else t("禁用站点"),
             command=self._toggle_enabled)
+        has_https = self._has_https(entry)
+        self._menu.add_command(
+            label=t("关闭 HTTPS") if has_https else t("启用 HTTPS"),
+            command=lambda en=not has_https: self._secure(en))
         self._menu.add_separator()
         self._menu.add_command(label=t("从 hosts 移除映射"), command=self._remove_hosts)
         self._menu.add_separator()
@@ -371,6 +415,77 @@ class VhostPanel(ttk.Frame):
             messagebox.showinfo(t("目录不存在"),
                                 t("项目根目录不存在或未配置：{path}", path=root or "—"),
                                 parent=self)
+
+    def _open_terminal(self) -> None:
+        """在站点 root 目录新开终端（root 不存在时用终端默认目录）。"""
+        entry = self._selected()
+        if not entry:
+            return
+        root = entry.root if entry.root and os.path.isdir(entry.root) else ""
+        if pu.open_terminal(cwd=root, command="php -v"):
+            self.notify(t("已在终端打开 {path}", path=root or "—"))
+        else:
+            messagebox.showinfo(t("无法打开终端"), t("未能启动终端程序"), parent=self)
+
+    def _copy_domain(self) -> None:
+        entry = self._selected()
+        if not entry:
+            return
+        doms = [d for d in entry.server_name.split() if d and not d.startswith("*.")]
+        if not doms:
+            messagebox.showinfo(t("无法复制"),
+                                t("该站点没有可直接访问的域名（仅泛解析）"), parent=self)
+            return
+        self._copy_text(doms[0])
+        self.notify(t("已复制：{text}", text=doms[0]))
+
+    def _copy_url(self) -> None:
+        entry = self._selected()
+        if not entry:
+            return
+        url = VhostManager.site_url(entry)
+        if not url:
+            messagebox.showinfo(t("无法复制"),
+                                t("该站点没有可直接访问的域名（仅泛解析）"), parent=self)
+            return
+        self._copy_text(url)
+        self.notify(t("已复制：{text}", text=url))
+
+    def _copy_text(self, text: str) -> None:
+        self.clipboard_clear()
+        self.clipboard_append(text)
+
+    @staticmethod
+    def _has_https(entry: VhostEntry) -> bool:
+        try:
+            with open(entry.file, "r", encoding="utf-8", errors="replace") as f:
+                return "listen 443" in f.read()
+        except OSError:
+            return False
+
+    def _secure(self, enable: bool) -> None:
+        """启用 / 关闭站点 HTTPS（core.site_service 落地：改前备份、校验失败回滚）。"""
+        entry = self._selected()
+        if not entry:
+            return
+        if enable:
+            if not messagebox.askyesno(
+                    t("启用 HTTPS"),
+                    t("将为 {name} 生成证书并追加 443 server 块；"
+                      "改前自动备份，校验失败会回滚。\n确定继续？", name=entry.server_name),
+                    parent=self):
+                return
+        elif not messagebox.askyesno(
+                t("关闭 HTTPS"),
+                t("将移除 {name} 的 443 server 块；改前自动备份，校验失败会回滚。\n"
+                  "确定继续？", name=entry.server_name),
+                parent=self):
+            return
+        cfg = self.vhost_mgr.config
+        self._run_op(
+            lambda: (site_service.secure_site(entry, cfg) if enable
+                     else site_service.unsecure_site(entry, cfg)),
+            t("正在启用 HTTPS…") if enable else t("正在关闭 HTTPS…"))
 
     def _toggle_enabled(self) -> None:
         entry = self._selected()
