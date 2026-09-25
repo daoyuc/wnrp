@@ -20,6 +20,7 @@ MODULES: list[dict] = [
     {"key": "mysql", "name": "MySQL 管理", "required": False},
     {"key": "sqlite", "name": "SQLite 数据库", "required": False},
     {"key": "log", "name": "Nginx 日志", "required": False},
+    {"key": "overview", "name": "总览仪表盘", "required": False},
 ]
 
 _KEYS = {m["key"] for m in MODULES}

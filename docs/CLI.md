@@ -38,6 +38,7 @@
 | `module` | 功能模块开关 | `disable` · `enable` · `list` |
 | `mysql` | MySQL 管理 | `list` · `log` · `restart` · `start` · `status` · `stop` |
 | `nginx` | Nginx 管理 | `logs` · `reload` · `start` · `status` · `stop` · `test` |
+| `overview` | 首页总览仪表盘（只读快照） | `summary` |
 | `php` | PHP 版本管理 | `check` · `ext-list` · `ext-set` · `ini` · `list` · `port` · `restart` · `start` · `status` · `stop` · `xdebug-disable` · `xdebug-enable` · `xdebug-status` |
 | `redis` | Redis 管理 | `cmd` · `list` · `ping` · `restart` · `start` · `status` · `stop` |
 | `schema` | 输出全部命令的自描述契约（供 AI 读取） | — |
@@ -211,6 +212,12 @@
 （无参数）
 
 ### `nginx test` — 配置检查（nginx -t）
+
+（无参数）
+
+## `overview` — 首页总览仪表盘（只读快照）
+
+### `overview summary` — 输出环境总览快照（服务状态 / 站点告警 / 健康级别）
 
 （无参数）
 

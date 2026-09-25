@@ -254,6 +254,15 @@ class MainWindow(tk.Tk):
         if modules.is_enabled("log", self.config):
             self.log_panel = LogPanel(nb, self.set_log, self.nginx_mgr,
                                       self.config, self.vhost_mgr)
+        # 总览仪表盘（可选模块，置顶第一个页签）
+        self.overview_panel = None
+        if modules.is_enabled("overview", self.config):
+            from .overview_panel import OverviewPanel
+            self.overview_panel = OverviewPanel(
+                nb, self.set_log, self.php_mgr, self.nginx_mgr,
+                self.redis_mgr, self.mysql_mgr, self.vhost_mgr,
+                self.config, self.services)
+            nb.insert(0, self.overview_panel, text=t("总览"))
         about = self._build_about(nb)
         # 页签文字两侧留白由 TNotebook.Tab 的 padding 控制（不再用空格凑宽度）
         nb.add(self.php_panel, text=t("PHP 版本管理"))
@@ -891,7 +900,7 @@ class MainWindow(tk.Tk):
         只刷新当前可见的页签：不可见面板的状态扫描纯属白跑子进程/线程，
         切回时由 <<NotebookTabChanged>> 立即补一次，不会看到陈旧数据。
         """
-        for panel in (self.php_panel, self.nginx_panel,
+        for panel in (self.overview_panel, self.php_panel, self.nginx_panel,
                       self.redis_panel, self.log_panel):
             if panel is None or not self._panel_visible(panel):
                 continue
