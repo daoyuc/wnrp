@@ -22,7 +22,7 @@ from core.service_group import PHP_SCOPE_NEWEST, PHP_SCOPES, ServiceGroup, scope
 from core.vhost_manager import VhostManager
 from .dialogs import CliSwitchDialog, CrashDialog
 from .mysql_panel import MysqlPanel
-from .nginx_log_panel import NginxLogPanel
+from .nginx_log_panel import LogPanel
 from .nginx_panel import NginxPanel
 from .php_panel import PhpPanel
 from .redis_panel import RedisPanel
@@ -252,7 +252,8 @@ class MainWindow(tk.Tk):
                                             self.vhost_mgr, self.set_log)
         self.log_panel = None
         if modules.is_enabled("log", self.config):
-            self.log_panel = NginxLogPanel(nb, self.set_log, self.nginx_mgr)
+            self.log_panel = LogPanel(nb, self.set_log, self.nginx_mgr,
+                                      self.config, self.vhost_mgr)
         about = self._build_about(nb)
         # 页签文字两侧留白由 TNotebook.Tab 的 padding 控制（不再用空格凑宽度）
         nb.add(self.php_panel, text=t("PHP 版本管理"))
@@ -265,7 +266,7 @@ class MainWindow(tk.Tk):
         if self.sqlite_panel is not None:
             nb.add(self.sqlite_panel, text=t("SQLite 数据库"))
         if self.log_panel is not None:
-            nb.add(self.log_panel, text=t("Nginx 日志"))
+            nb.add(self.log_panel, text=t("日志"))
         # 运行日志：全局记录（应用启停 / 服务启停结果 / 异常），不受模块开关影响
         self.run_panel = RunLogPanel(nb, self.set_log)
         nb.add(self.run_panel, text=t("运行日志"))

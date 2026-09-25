@@ -42,6 +42,7 @@ from core import (  # noqa: E402
     diag,
     file_backup,
     hosts_manager,
+    log_sources,
     modules,
     site_service,
     site_templates,
@@ -865,6 +866,39 @@ def cmd_nginx_logs(a, r: Result) -> Result:
         return r.fail("日志文件不存在：" + path)
     text = _tail(path, a.lines)
     r.data = {"logs_dir": logs_dir, "file": path, "lines": a.lines, "content": text}
+    r.say(text)
+    return r
+
+
+# --------------------------------------------------------------------------- #
+# logs（站点与应用日志聚合，只读）
+# --------------------------------------------------------------------------- #
+def cmd_logs_sources(a, r: Result) -> Result:
+    cfg = Config()
+    groups = log_sources.collect(cfg)
+    r.data = {
+        "groups": {
+            g: [{"label": s.label, "path": s.path, "kind": s.kind} for s in srcs]
+            for g, srcs in groups.items()
+        }
+    }
+    if not groups:
+        r.say(t("未找到任何日志源"))
+        return r
+    r.say(t("可查看的日志源："))
+    for g, srcs in groups.items():
+        r.say(f"[{g}]")
+        for s in srcs:
+            r.say(f"  {s.label}  ({s.kind})  ->  {s.path}")
+    return r
+
+
+def cmd_logs_tail(a, r: Result) -> Result:
+    path = a.path
+    if not os.path.isfile(path):
+        return r.fail(t("日志文件不存在：{path}", path=path))
+    text = _tail(path, a.lines)
+    r.data = {"file": path, "lines": a.lines, "content": text}
     r.say(text)
     return r
 
@@ -2021,6 +2055,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--file", help="日志文件名（默认优先 error.log）")
     p.add_argument("--lines", type=int, default=100, help="尾部行数（默认 100）")
     p.add_argument("--list", action="store_true", help="只列出日志文件")
+
+    # logs（站点与应用日志聚合，只读）
+    g = sub.add_parser("logs", help="站点与应用日志聚合（只读）", parents=[COMMON])
+    gs = g.add_subparsers(dest="action", metavar="<action>")
+    _leaf(gs, "sources", cmd_logs_sources, "logs.sources",
+          "列出可查看的日志文件（Nginx / PHP / 站点应用）")
+    _p = _leaf(gs, "tail", cmd_logs_tail, "logs.tail", "查看任意日志文件尾部（只读）")
+    _p.add_argument("path", help="日志文件绝对路径")
+    _p.add_argument("--lines", type=int, default=200, help="尾部行数（默认 200）")
 
     # site
     g = sub.add_parser("site", help="站点（vhost）管理", parents=[COMMON])

@@ -34,6 +34,7 @@
 | `diag` | 一键体检 / 502 诊断（只读） | `all` · `site` |
 | `env` | 输出全部服务快照（nginx / PHP / Redis / MySQL） | — |
 | `hosts` | hosts 映射管理 | `add` · `remove` · `restore` · `status` |
+| `logs` | 站点与应用日志聚合（只读） | `sources` · `tail` |
 | `module` | 功能模块开关 | `disable` · `enable` · `list` |
 | `mysql` | MySQL 管理 | `list` · `log` · `restart` · `start` · `status` · `stop` |
 | `nginx` | Nginx 管理 | `logs` · `reload` · `start` · `status` · `stop` · `test` |
@@ -112,6 +113,19 @@
 | 参数 | 必填 | 默认 | 说明 |
 |---|---|---|---|
 | `<domains>` | 是 |  | 域名列表 |
+
+## `logs` — 站点与应用日志聚合（只读）
+
+### `logs sources` — 列出可查看的日志文件（Nginx / PHP / 站点应用）
+
+（无参数）
+
+### `logs tail` — 查看任意日志文件尾部（只读）
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `<path>` | 是 |  | 日志文件绝对路径 |
+| `--lines` |  | 200 | 尾部行数（默认 200） |
 
 ## `module` — 功能模块开关
 
