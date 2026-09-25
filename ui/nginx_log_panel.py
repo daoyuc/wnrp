@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""Nginx 日志面板：查看 logs 目录下的 access/error 日志。
+"""日志面板（原 Nginx 日志面板升级版）：聚合「Nginx / PHP / 站点应用」三类日志源。
 
-- 文件下拉选择 logs 目录内 *.log*
+- 顶部「来源」下拉先选分组（Nginx / PHP / 某站点），再在「日志文件」下拉选具体文件
 - 首次加载读取文件尾部（最多 256KB / 2000 行），之后增量追加
 - 文件轮转（大小变小）自动重置为尾部读取
 - 「自动跟随」勾选时随主窗口 tick 增量刷新
@@ -16,6 +16,7 @@ import threading
 import tkinter as tk
 from tkinter import ttk
 
+from core import log_sources as logsrc
 from core import process_utils as pu
 from core.i18n import t
 from core.nginx_manager import NginxManager
@@ -31,35 +32,43 @@ _ERR_WORDS = ("[error]", "[crit]", "[alert]", "[emerg]")
 _WARN_WORDS = ("[warn]", "[notice]")
 
 
-class NginxLogPanel(ttk.Frame):
-    def __init__(self, master, notify, nginx_mgr: NginxManager | None = None):
+class LogPanel(ttk.Frame):
+    def __init__(self, master, notify, nginx_mgr: NginxManager | None = None,
+                 config=None, vhost_mgr=None):
         super().__init__(master, padding=8)
         self.notify = notify
-        # 日志目录跟随实际生效的 nginx 布局（brew / WNRP-root / Windows），
-        # 不再写死 <WNRP_ROOT>/nginx/logs（macOS brew 下该目录不存在 → 面板为空）。
+        self.config = config
+        self.vhost_mgr = vhost_mgr
         nginx_mgr = nginx_mgr or NginxManager()
-        self._logs_dir = nginx_mgr.logs_dir
+        self._nginx_mgr = nginx_mgr
         self._queue: queue.Queue[tuple] = queue.Queue()
         self._busy = False
-        self._offset = 0  # 已读到的文件偏移
-        self._files: list[str] = []
-        self._lines: list[str] = []  # 已读行缓存（用于过滤重绘）
+        self._offset = 0
+        self._groups: dict[str, list[logsrc.LogSource]] = {}
+        self._sources: list[logsrc.LogSource] = []
+        self._lines: list[str] = []
         self._stats = {"err": 0, "warn": 0, "other": 0}
         self._size = 0
         self._mtime = 0.0
         self._build()
-        self.refresh_file_list()
+        self._schedule_source_load()
 
     # ------------------------------------------------------------------ #
     def _build(self) -> None:
         top = ttk.Frame(self)
         top.pack(fill="x", pady=(0, 6))
 
+        ttk.Label(top, text=t("来源："), style="Section.TLabel").pack(side="left")
+        self.group_var = tk.StringVar()
+        self.group_cb = ttk.Combobox(top, textvariable=self.group_var, state="readonly", width=16)
+        self.group_cb.pack(side="left", padx=(0, 8))
+        self.group_cb.bind("<<ComboboxSelected>>", lambda e: self._on_group_selected())
+
         ttk.Label(top, text=t("日志文件："), style="Section.TLabel").pack(side="left")
         self.file_var = tk.StringVar()
         self.file_cb = ttk.Combobox(top, textvariable=self.file_var, state="readonly", width=22)
         self.file_cb.pack(side="left", padx=(0, 8))
-        self.file_cb.bind("<<ComboboxSelected>>", lambda e: self._reset_and_reload())
+        self.file_cb.bind("<<ComboboxSelected>>", lambda e: self._on_file_selected())
 
         self.follow_var = tk.BooleanVar(value=True)
         ttk.Checkbutton(top, text=t("自动跟随"), variable=self.follow_var).pack(
@@ -98,27 +107,74 @@ class NginxLogPanel(ttk.Frame):
         self.text.tag_configure("hl", background=theme.HL_BG)
 
     # ------------------------------------------------------------------ #
-    def refresh_file_list(self) -> None:
-        try:
-            files = sorted(
-                f for f in os.listdir(self._logs_dir)
-                if f.endswith(".log") or f.endswith((".log.1", ".log.2"))
-            )
-        except OSError:
-            files = []
-        self._files = files
-        self.file_cb.configure(values=files)
-        if files:
-            if self.file_var.get() not in files:
-                prefer = next((f for f in _DEFAULT_PREFER if f in files), files[0])
-                self.file_var.set(prefer)
-            self._reset_and_reload()
+    def _schedule_source_load(self) -> None:
+        self.info_var.set(t("正在枚举日志源…"))
+
+        def worker():
+            try:
+                groups = logsrc.collect(self.config, self.vhost_mgr)
+            except Exception as e:  # noqa: BLE001
+                groups = {}
+                self.after(0, lambda: self.info_var.set(
+                    t("枚举日志源失败：{err}", err=e)))
+            self.after(0, lambda: self._apply_groups(groups))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _apply_groups(self, groups: dict) -> None:
+        self._groups = groups
+        if not groups:
+            self.group_cb.configure(values=[])
+            self.file_cb.configure(values=[])
+            self.info_var.set(t("暂无可用日志源，请确认 nginx / PHP / 站点已存在"))
+            return
+        # 优先恢复上次选择，否则默认 Nginx 组（再退化为首个组）
+        last = (self.config.get_setting("log_last_source", "") if self.config else "")
+        last_group, last_label = (last.split("::", 1) if "::" in last else ("", ""))
+        if last_group in groups:
+            group = last_group
         else:
-            self.info_var.set(t("logs 目录无 .log 文件"))
+            group = t("Nginx") if t("Nginx") in groups else next(iter(groups))
+        self.group_cb.configure(values=list(groups.keys()))
+        self.group_var.set(group)
+        self._populate_files(group, restore_label=last_label if group == last_group else "")
+
+    def _on_group_selected(self) -> None:
+        self._populate_files(self.group_var.get())
+
+    def _populate_files(self, group: str, restore_label: str = "") -> None:
+        self._sources = self._groups.get(group, [])
+        labels = [s.label for s in self._sources]
+        self.file_cb.configure(values=labels)
+        if not labels:
+            self.file_var.set("")
+            self._reset_and_reload()
+            return
+        if restore_label and restore_label in labels:
+            self.file_var.set(restore_label)
+        elif self.file_var.get() not in labels:
+            prefer = next((f for f in _DEFAULT_PREFER if f in labels), labels[0])
+            self.file_var.set(prefer)
+        self._reset_and_reload()
+
+    def _on_file_selected(self) -> None:
+        if self.config and self._sources:
+            idx = self.file_cb.current()
+            label = self._sources[idx].label if 0 <= idx < len(self._sources) else ""
+            if label:
+                self.config.set_setting(
+                    "log_last_source", f"{self.group_var.get()}::{label}")
+        self._reset_and_reload()
+
+    def _current_source(self) -> logsrc.LogSource | None:
+        idx = self.file_cb.current()
+        if 0 <= idx < len(self._sources):
+            return self._sources[idx]
+        return None
 
     def _current_path(self) -> str | None:
-        name = self.file_var.get()
-        return os.path.join(self._logs_dir, name) if name else None
+        src = self._current_source()
+        return src.path if src else None
 
     def _reset_and_reload(self) -> None:
         """切换文件：清空显示/缓存并重置偏移后重新加载。"""
@@ -138,7 +194,9 @@ class NginxLogPanel(ttk.Frame):
         self.text.configure(state="disabled")
 
     def _open_dir(self) -> None:
-        pu.open_path(self._logs_dir)
+        path = self._current_path()
+        target = os.path.dirname(path) if path else self._nginx_mgr.logs_dir
+        pu.open_path(target)
 
     # ------------------------------------------------------------------ #
     def reload(self) -> None:

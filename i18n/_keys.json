@@ -246,6 +246,13 @@
    "ui/download_dialog.py"
   ]
  },
+ "Nginx": {
+  "count": 3,
+  "files": [
+   "ui/nginx_log_panel.py",
+   "core/log_sources.py"
+  ]
+ },
  "Nginx 停止失败，请手动检查进程": {
   "count": 1,
   "files": [
@@ -312,12 +319,6 @@
    "ui/nginx_panel.py"
   ]
  },
- "Nginx 日志": {
-  "count": 1,
-  "files": [
-   "ui/main_window.py"
-  ]
- },
  "Nginx 未在运行": {
   "count": 1,
   "files": [
@@ -370,6 +371,12 @@
   "count": 1,
   "files": [
    "core/php_extension.py"
+  ]
+ },
+ "PHP": {
+  "count": 1,
+  "files": [
+   "core/log_sources.py"
   ]
  },
  "PHP FastCGI 配置": {
@@ -934,12 +941,6 @@
   "count": 1,
   "files": [
    "core/xdebug.py"
-  ]
- },
- "logs 目录无 .log 文件": {
-  "count": 1,
-  "files": [
-   "ui/nginx_log_panel.py"
   ]
  },
  "macOS 下请用 Homebrew 安装，phpvm 会自动发现已安装的 keg：\n\n  brew install php@8.1        # 示例：PHP 8.1\n  brew install php@7.4 php@5.6\n\n安装完成回到本页点「刷新」即出现新版本。\n也可以自行放置官方二进制到 ~/wnrp/phpNN/（含 bin/php-cgi）后刷新。": {
@@ -4239,6 +4240,12 @@
    "ui/vhost_panel.py"
   ]
  },
+ "日志": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
  "日志文件": {
   "count": 1,
   "files": [
@@ -4292,6 +4299,12 @@
   "count": 1,
   "files": [
    "ui/download_dialog.py"
+  ]
+ },
+ "暂无可用日志源，请确认 nginx / PHP / 站点已存在": {
+  "count": 1,
+  "files": [
+   "ui/nginx_log_panel.py"
   ]
  },
  "更新 /etc/hosts 需要管理员授权（已取消或失败：{err}）": {
@@ -4707,6 +4720,18 @@
    "ui/run_log_panel.py"
   ]
  },
+ "来源：": {
+  "count": 1,
+  "files": [
+   "ui/nginx_log_panel.py"
+  ]
+ },
+ "枚举日志源失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/nginx_log_panel.py"
+  ]
+ },
  "查看配置": {
   "count": 1,
   "files": [
@@ -4935,6 +4960,12 @@
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "正在枚举日志源…": {
+  "count": 1,
+  "files": [
+   "ui/nginx_log_panel.py"
   ]
  },
  "正在校验 SHA-256": {

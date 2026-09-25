@@ -1,0 +1,12 @@
+{
+  "Nginx": "Nginx",
+  "PHP": "PHP",
+  "来源：": "Source:",
+  "正在枚举日志源…": "Enumerating log sources…",
+  "枚举日志源失败：{err}": "Failed to enumerate log sources: {err}",
+  "暂无可用日志源，请确认 nginx / PHP / 站点已存在": "No log sources available; make sure nginx / PHP / sites exist",
+  "日志": "Logs",
+  "可查看的日志源：": "Viewable log sources:",
+  "未找到任何日志源": "No log sources found",
+  "日志文件不存在：{path}": "Log file does not exist: {path}"
+}
