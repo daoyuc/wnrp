@@ -156,7 +156,7 @@
 ### 关于页
 - **环境信息**：phpvm 版本、环境根目录、PHP FastCGI 配置（各版本目录内的 `php.ini`，CLI 与 FastCGI 共用）、FastCGI 监听、Nginx 前缀、隐藏启动器（Windows）、配置持久化路径、数据目录
 - **功能模块**：勾选需要加载的模块（默认全部启用），取消勾选后**重启 phpvm 生效**，该模块的代码将不再加载（例如取消「SQLite 数据库」后不会创建该页签，也不会导入其管理器）
-  - 可停用：Redis 管理 / MySQL 管理 / SQLite 数据库 / Nginx 日志
+  - 可停用：Redis 管理 / MySQL 管理 / SQLite 数据库 / Nginx 日志 / 总览仪表盘
   - 刚需（不可取消）：PHP 版本管理 / Nginx 管理 / 站点映射
 - **设置区**（9 项）：
   - 开机自动启动 phpvm（Windows 写 `HKCU\...\Run` 的 `phpvm` 值；macOS 写 LaunchAgent `com.phpvm.app`）

@@ -289,6 +289,12 @@
    "core/nginx_manager.py"
   ]
  },
+ "Nginx 已在运行": {
+  "count": 1,
+  "files": [
+   "core/project_config.py"
+  ]
+ },
  "Nginx 已在运行（PID {pids}）": {
   "count": 1,
   "files": [
@@ -389,6 +395,12 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "PHP {name} 已在运行": {
+  "count": 1,
+  "files": [
+   "core/project_config.py"
   ]
  },
  "PHP {version} 安装成功（{name}，默认端口 {port}）": {
@@ -1178,6 +1190,12 @@
    "ui/dialogs.py"
   ]
  },
+ "{kind} {name} 已在运行": {
+  "count": 1,
+  "files": [
+   "core/project_config.py"
+  ]
+ },
  "{mark} 生效主配置已 include 站点目录 {dir}\n{main}  → include：{lines}": {
   "count": 1,
   "files": [
@@ -1200,6 +1218,12 @@
   "count": 1,
   "files": [
    "ui/xdebug_dialog.py"
+  ]
+ },
+ "{name} 已在使用 {php}（端口 {port}）": {
+  "count": 1,
+  "files": [
+   "core/project_config.py"
   ]
  },
  "{name} 已安装，但 php -v 验证失败：\n{detail}": {
@@ -1456,6 +1480,18 @@
    "ui/sqlite_panel.py"
   ]
  },
+ "下载 Adminer 单文件并托管为 http://{domain}（零驱动依赖）。Adminer 具备写库能力，仅供本地开发使用。": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "下载 Adminer 失败：{err}\n可手动下载 {url} 并保存为 {path}": {
+  "count": 1,
+  "files": [
+   "core/adminer.py"
+  ]
+ },
  "下载 PHP 版本": {
   "count": 2,
   "files": [
@@ -1472,6 +1508,12 @@
   "count": 1,
   "files": [
    "core/php_extension.py"
+  ]
+ },
+ "下载内容不是有效的 PHP 文件：{path}\n可手动下载 {url} 替换该文件。": {
+  "count": 1,
+  "files": [
+   "core/adminer.py"
   ]
  },
  "下载失败：{err}": {
@@ -2187,6 +2229,12 @@
    "core/modules.py"
   ]
  },
+ "创建 Adminer 站点失败（{steps}）": {
+  "count": 1,
+  "files": [
+   "core/adminer.py"
+  ]
+ },
  "创建前确认": {
   "count": 1,
   "files": [
@@ -2842,6 +2890,18 @@
    "ui/redis_panel.py"
   ]
  },
+ "套用项目配置": {
+  "count": 4,
+  "files": [
+   "ui/vhost_panel.py"
+  ]
+ },
+ "套用项目配置（.phpvm.json）": {
+  "count": 1,
+  "files": [
+   "ui/vhost_panel.py"
+  ]
+ },
  "存在失败的同步（已自动还原备份），请检查上方详情。": {
   "count": 1,
   "files": [
@@ -2864,6 +2924,18 @@
   "count": 1,
   "files": [
    "core/crash_watchdog.py"
+  ]
+ },
+ "安装 / 更新 Adminer": {
+  "count": 2,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "安装 / 更新 Adminer…": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
   ]
  },
  "安装包已下载完成，是否立即重启 phpvm 完成升级？": {
@@ -3031,6 +3103,18 @@
    "ui/main_window.py"
   ]
  },
+ "将下载 Adminer 单文件并创建站点 http://{domain}，同时写入 hosts（可能请求系统授权）。\n\n确定继续？": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "将下载 Adminer 并创建站点 http://{domain}（PHP {php} :{port}）": {
+  "count": 1,
+  "files": [
+   "core/adminer.py"
+  ]
+ },
  "将为 {name} 生成证书并追加 443 server 块；改前自动备份，校验失败会回滚。\n确定继续？": {
   "count": 1,
   "files": [
@@ -3049,10 +3133,34 @@
    "ui/main_window.py"
   ]
  },
+ "将写入 hosts：{doms}": {
+  "count": 1,
+  "files": [
+   "core/project_config.py"
+  ]
+ },
  "将写入 {count} 项配置（改动前自动备份原文件），确定继续？": {
   "count": 1,
   "files": [
    "ui/tuning_dialog.py"
+  ]
+ },
+ "将启动 Nginx": {
+  "count": 1,
+  "files": [
+   "core/project_config.py"
+  ]
+ },
+ "将启动 PHP {name}": {
+  "count": 1,
+  "files": [
+   "core/project_config.py"
+  ]
+ },
+ "将启动 {kind} {name}": {
+  "count": 1,
+  "files": [
+   "core/project_config.py"
   ]
  },
  "将安装 PHP {ver} {ts} → 目录 {name}，默认端口 {port}，包大小 {size}{status}": {
@@ -3065,6 +3173,18 @@
   "count": 1,
   "files": [
    "core/backup_bundle.py"
+  ]
+ },
+ "将把 {name} 切到 {php}（端口 {port}）": {
+  "count": 1,
+  "files": [
+   "core/project_config.py"
+  ]
+ },
+ "将按 {path} 对齐：\n  PHP 版本：{php}\n  域名：{doms}\n\n会把匹配站点的 fastcgi_pass 切到该 PHP 端口（改前自动备份）。\n确定继续？": {
+  "count": 1,
+  "files": [
+   "ui/vhost_panel.py"
   ]
  },
  "将注释 [{name}] 的 php.ini 中的 Xdebug 加载行（原文件自动备份为 .bak）。\n确定继续？": {
@@ -3107,6 +3227,12 @@
   "count": 1,
   "files": [
    "core/tuning.py"
+  ]
+ },
+ "尚未安装 Adminer，是否现在安装？": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
   ]
  },
  "就绪": {
@@ -3179,6 +3305,12 @@
   "count": 1,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "已下载 Adminer：{path}": {
+  "count": 1,
+  "files": [
+   "core/adminer.py"
   ]
  },
  "已下载（未启用）": {
@@ -3367,8 +3499,9 @@
   ]
  },
  "已在浏览器打开 {url}": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "ui/main_window.py",
    "ui/vhost_panel.py"
   ]
  },
@@ -3413,6 +3546,12 @@
   "count": 1,
   "files": [
    "ui/download_dialog.py"
+  ]
+ },
+ "已安装 Adminer 并托管为 http://{domain}（PHP {php} :{port}）": {
+  "count": 1,
+  "files": [
+   "core/adminer.py"
   ]
  },
  "已安装 {dll}（可通过「本地扩展」页启用）。": {
@@ -3983,6 +4122,12 @@
    "ui/sqlite_panel.py"
   ]
  },
+ "打开 Adminer": {
+  "count": 2,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
  "打开 Nginx 日志查看完整错误上下文": {
   "count": 1,
   "files": [
@@ -4205,7 +4350,7 @@
   ]
  },
  "操作失败": {
-  "count": 4,
+  "count": 5,
   "files": [
    "ui/main_window.py",
    "ui/php_panel.py",
@@ -4230,6 +4375,12 @@
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "数据库 GUI：": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
   ]
  },
  "数据库文件：": {
@@ -4361,8 +4512,9 @@
   ]
  },
  "无法创建目录：{err}": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "core/adminer.py",
    "core/backup_bundle.py"
   ]
  },
@@ -4598,6 +4750,12 @@
    "core/php_manager.py"
   ]
  },
+ "未匹配到站点（域名：{doms}），跳过 PHP 切换": {
+  "count": 1,
+  "files": [
+   "core/project_config.py"
+  ]
+ },
  "未发现 MySQL 实例": {
   "count": 1,
   "files": [
@@ -4622,6 +4780,12 @@
    "ui/redis_panel.py"
   ]
  },
+ "未发现 {kind} 实例": {
+  "count": 1,
+  "files": [
+   "core/project_config.py"
+  ]
+ },
  "未发现任何站点配置": {
   "count": 1,
   "files": [
@@ -4644,6 +4808,12 @@
   "count": 1,
   "files": [
    "core/vhost_manager.py"
+  ]
+ },
+ "未在 {root} 及上层找到 {name}。\n请在项目根放置该文件后重试。": {
+  "count": 1,
+  "files": [
+   "ui/vhost_panel.py"
   ]
  },
  "未在生效 nginx.conf 中找到 http 块，无法自动补 include": {
@@ -4683,6 +4853,18 @@
   "count": 1,
   "files": [
    "core/nginx_manager.py"
+  ]
+ },
+ "未找到 PHP 版本 {name}": {
+  "count": 1,
+  "files": [
+   "core/project_config.py"
+  ]
+ },
+ "未找到 PHP 版本 {name}（请检查 config.json 的 ports）": {
+  "count": 1,
+  "files": [
+   "core/project_config.py"
   ]
  },
  "未找到 PHP 版本 {ver}，无法启动": {
@@ -4788,6 +4970,12 @@
    "core/xdebug.py"
   ]
  },
+ "未找到可用的 PHP 版本，请先在「PHP 版本管理」页启动一个版本。": {
+  "count": 1,
+  "files": [
+   "core/adminer.py"
+  ]
+ },
  "未找到可用的终端程序。可手动执行：\n  set PATH={dir};%PATH%": {
   "count": 1,
   "files": [
@@ -4852,6 +5040,24 @@
   "count": 1,
   "files": [
    "main.py"
+  ]
+ },
+ "未提供 Nginx 管理器，跳过启动 Nginx": {
+  "count": 1,
+  "files": [
+   "core/project_config.py"
+  ]
+ },
+ "未提供 PHP 管理器，跳过启动 PHP": {
+  "count": 1,
+  "files": [
+   "core/project_config.py"
+  ]
+ },
+ "未提供 {kind} 管理器，跳过": {
+  "count": 1,
+  "files": [
+   "core/project_config.py"
   ]
  },
  "未映射 hosts：{domain}": {
@@ -5187,6 +5393,18 @@
    "ui/vhost_panel.py"
   ]
  },
+ "正在套用项目配置…": {
+  "count": 1,
+  "files": [
+   "ui/vhost_panel.py"
+  ]
+ },
+ "正在安装 Adminer…": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
  "正在安装 {name} …": {
   "count": 1,
   "files": [
@@ -5348,6 +5566,12 @@
   "count": 1,
   "files": [
    "core/tuning.py"
+  ]
+ },
+ "没有可写入 hosts 的域名。": {
+  "count": 1,
+  "files": [
+   "core/project_config.py"
   ]
  },
  "没有可写入 hosts 的域名（通配项已跳过）": {
@@ -6306,6 +6530,12 @@
    "core/site_service.py"
   ]
  },
+ "该站点没有可用的项目根目录：{path}": {
+  "count": 1,
+  "files": [
+   "ui/vhost_panel.py"
+  ]
+ },
  "该站点没有可直接映射的域名（仅泛解析）": {
   "count": 1,
   "files": [
@@ -6459,6 +6689,12 @@
   "count": 1,
   "files": [
    "core/mysql_manager.py"
+  ]
+ },
+ "读取项目配置失败：{err}": {
+  "count": 1,
+  "files": [
+   "core/project_config.py"
   ]
  },
  "调用栈：": {
@@ -7014,6 +7250,42 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "项目配置不是合法 JSON：{err}": {
+  "count": 1,
+  "files": [
+   "core/project_config.py"
+  ]
+ },
+ "项目配置已应用": {
+  "count": 1,
+  "files": [
+   "core/project_config.py"
+  ]
+ },
+ "项目配置应用存在问题，请查看步骤明细": {
+  "count": 1,
+  "files": [
+   "core/project_config.py"
+  ]
+ },
+ "项目配置必须是 JSON 对象。": {
+  "count": 1,
+  "files": [
+   "core/project_config.py"
+  ]
+ },
+ "项目配置未声明 domains，跳过 PHP 切换。": {
+  "count": 1,
+  "files": [
+   "core/project_config.py"
+  ]
+ },
+ "项目配置缺少必填项 php（如 \"php\": \"php82\"）。": {
+  "count": 1,
+  "files": [
+   "core/project_config.py"
   ]
  },
  "首轮就绪：事件游标已推进，{count} 条历史事件进入看护待复核": {

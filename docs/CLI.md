@@ -30,6 +30,7 @@
 
 | 分组 | 说明 | 动作 |
 |---|---|---|
+| `adminer` | Adminer 数据库 GUI（单文件托管） | `install` · `open` · `status` |
 | `backup` | 环境备份与迁移（仅配置，不含数据库数据） | `export` · `restore` |
 | `config` | 配置读写（config.json） | `get` · `list` · `set` |
 | `diag` | 一键体检 / 502 诊断（只读） | `all` · `site` |
@@ -41,6 +42,7 @@
 | `nginx` | Nginx 管理 | `logs` · `reload` · `start` · `status` · `stop` · `test` |
 | `overview` | 首页总览仪表盘（只读快照） | `summary` |
 | `php` | PHP 版本管理 | `check` · `ext-list` · `ext-set` · `ini` · `list` · `port` · `restart` · `start` · `status` · `stop` · `xdebug-disable` · `xdebug-enable` · `xdebug-status` |
+| `project` | 项目级配置（.phpvm.json） | `apply` · `show` |
 | `redis` | Redis 管理 | `cmd` · `list` · `ping` · `restart` · `start` · `status` · `stop` |
 | `schema` | 输出全部命令的自描述契约（供 AI 读取） | — |
 | `services` | 整套服务编排 | `start-all` · `stop-all` |
@@ -51,6 +53,25 @@
 | `version` | 输出版本与环境路径信息 | — |
 
 ## 分组与动作
+
+## `adminer` — Adminer 数据库 GUI（单文件托管）
+
+### `adminer install` — 下载 Adminer 并托管为站点（默认 adminer.test）
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--domain` |  | adminer.test | 站点域名（默认 adminer.test） |
+| `--php` |  |  | 用于托管站点的 PHP 版本名（默认最新 / 在跑的） |
+| `--hosts` |  |  | 同时写入 hosts（可能需要系统授权） |
+| `--dry-run` |  |  | 只报告将做什么 |
+
+### `adminer open` — 在浏览器打开 Adminer
+
+（无参数）
+
+### `adminer status` — 查看 Adminer 安装 / 托管状态
+
+（无参数）
 
 ## `backup` — 环境备份与迁移（仅配置，不含数据库数据）
 
@@ -328,6 +349,23 @@
 | 参数 | 必填 | 默认 | 说明 |
 |---|---|---|---|
 | `<name>` | 是 |  | 版本名 |
+
+## `project` — 项目级配置（.phpvm.json）
+
+### `project apply` — 按项目配置对齐：切站点 PHP / 写 hosts / 启服务
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--path` |  |  | 项目配置路径或所在目录 |
+| `--dry-run` |  |  | 只报告将做什么 |
+| `--hosts` |  |  | 写入 hosts（可能需要系统授权） |
+| `--start` |  |  | 启动配置中列出的服务 |
+
+### `project show` — 显示项目配置（--path 或从当前目录向上查找 .phpvm.json）
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--path` |  |  | 项目配置路径或所在目录 |
 
 ## `redis` — Redis 管理
 
