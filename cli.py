@@ -38,6 +38,7 @@ from dataclasses import dataclass, field
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from core import (  # noqa: E402
+    adminer,
     app_paths,
     backup_bundle,
     cert_manager,
@@ -47,6 +48,7 @@ from core import (  # noqa: E402
     log_sources,
     modules,
     overview,
+    project_config,
     site_service,
     site_templates,
     updater,
@@ -965,6 +967,119 @@ def cmd_backup_restore(a, r: Result) -> Result:
     r.say(res.get("message", ""))
     for it in res.get("items", []) or []:
         r.say(f"  [{it['kind']}] {it['target']}")
+    return r
+
+
+# --------------------------------------------------------------------------- #
+# project（项目级配置 .phpvm.json，F8）
+# --------------------------------------------------------------------------- #
+def _project_path(a, r: Result):
+    """定位项目配置：--path（文件或目录）优先，否则从当前目录向上查找。"""
+    given = getattr(a, "path", None)
+    if given:
+        p = os.path.abspath(os.path.expanduser(given))
+        if os.path.isdir(p):
+            p = os.path.join(p, project_config.PROJECT_FILE)
+        if not os.path.isfile(p):
+            r.fail(t("未找到项目配置：{path}", path=p))
+            return None
+        return p
+    p = project_config.find_project_config(os.getcwd())
+    if not p:
+        r.fail(t("当前目录及上层未找到 {name}", name=project_config.PROJECT_FILE))
+        return None
+    return p
+
+
+def cmd_project_show(a, r: Result) -> Result:
+    path = _project_path(a, r)
+    if not path:
+        return r
+    try:
+        project = project_config.load_project(path)
+    except project_config.ProjectConfigError as e:
+        return r.fail(str(e))
+    r.data = {"path": path, **project}
+    r.say(t("项目配置：{path}", path=path))
+    r.say(f"  php      = {project['php']}")
+    r.say(f"  domains  = {'、'.join(project['domains']) or '—'}")
+    r.say(f"  services = {'、'.join(project['services']) or '—'}")
+    r.say(f"  hosts    = {project['hosts']}    start = {project['start']}")
+    if project["env"]:
+        r.say("  env      = " + json.dumps(project["env"], ensure_ascii=False))
+    return r
+
+
+def cmd_project_apply(a, r: Result) -> Result:
+    path = _project_path(a, r)
+    if not path:
+        return r
+    try:
+        project = project_config.load_project(path)
+    except project_config.ProjectConfigError as e:
+        return r.fail(str(e))
+    cfg = Config()
+    res = project_config.apply_project(
+        project, cfg, VhostManager(cfg), PhpManager(cfg),
+        nginx_mgr=NginxManager(),
+        redis_mgr=RedisManager() if modules.is_enabled("redis", cfg) else None,
+        mysql_mgr=MysqlManager() if modules.is_enabled("mysql", cfg) else None,
+        start=a.start, hosts=a.hosts, dry_run=a.dry_run)
+    r.ok = bool(res.get("ok"))
+    r.data = {"path": path, **res}
+    if not res.get("ok"):
+        r.data["error"] = res.get("error") or res.get("message", "")
+    r.say(res.get("message", ""))
+    for s in res.get("steps", []):
+        mark = "·" if s.get("skip") else ("✓" if s.get("ok") else "✗")
+        r.say(f"  {mark} [{s.get('tag')}] {s.get('message', '')}")
+    for w in res.get("warnings", []):
+        r.note(w)
+    return r
+
+
+# --------------------------------------------------------------------------- #
+# adminer（数据库 GUI，F9）
+# --------------------------------------------------------------------------- #
+def cmd_adminer_status(a, r: Result) -> Result:
+    st = adminer.status(Config())
+    r.data = st
+    r.say(t("Adminer 文件：{path}（{state}）", path=st["file"],
+            state=t("已安装") if st["installed"] else t("未安装")))
+    r.say(t("托管站点：{site}", site=st["server_name"] or t("（未托管）")))
+    r.say(t("访问地址：{url}", url=st["url"]))
+    return r
+
+
+def cmd_adminer_install(a, r: Result) -> Result:
+    cfg = Config()
+    res = adminer.install(cfg, domain=a.domain, php=getattr(a, "php", None),
+                          hosts=a.hosts, dry_run=a.dry_run)
+    r.ok = bool(res.get("ok"))
+    r.data = res
+    if not res.get("ok"):
+        r.data["error"] = res.get("message", "")
+    r.say(res.get("message", ""))
+    for s in res.get("steps", []):
+        mark = "·" if s.get("skip") else ("✓" if s.get("ok") else "✗")
+        r.say(f"  {mark} [{s.get('tag')}] {s.get('message', '')}")
+    r.note(t("Adminer 具备写库能力，仅供本地开发使用。"))
+    return r
+
+
+def cmd_adminer_open(a, r: Result) -> Result:
+    import webbrowser
+    st = adminer.status(Config())
+    r.data = st
+    if not st["installed"] or not st["hosted"]:
+        r.note(t("Adminer 尚未安装或未托管站点，可先执行 adminer install。"))
+    url = st["url"]
+    try:
+        opened = webbrowser.open(url)
+    except Exception:  # noqa: BLE001
+        opened = False
+    r.say(t("访问地址：{url}", url=url))
+    r.data["opened"] = bool(opened)
     return r
 
 
@@ -2202,6 +2317,31 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("zip", help="备份 zip 路径")
     p.add_argument("--dry-run", action="store_true", help="只报告将恢复哪些文件")
     p.add_argument("--yes", action="store_true", help="确认恢复（覆盖当前配置）")
+
+    # project（项目级配置 .phpvm.json，F8）
+    g = sub.add_parser("project", help="项目级配置（.phpvm.json）", parents=[COMMON])
+    gs = g.add_subparsers(dest="action", metavar="<action>")
+    p = _leaf(gs, "show", cmd_project_show, "project.show",
+              "显示项目配置（--path 或从当前目录向上查找 .phpvm.json）")
+    p.add_argument("--path", help="项目配置路径或所在目录")
+    p = _leaf(gs, "apply", cmd_project_apply, "project.apply",
+              "按项目配置对齐：切站点 PHP / 写 hosts / 启服务")
+    p.add_argument("--path", help="项目配置路径或所在目录")
+    p.add_argument("--dry-run", action="store_true", help="只报告将做什么")
+    p.add_argument("--hosts", action="store_true", help="写入 hosts（可能需要系统授权）")
+    p.add_argument("--start", action="store_true", help="启动配置中列出的服务")
+
+    # adminer（数据库 GUI，F9）
+    g = sub.add_parser("adminer", help="Adminer 数据库 GUI（单文件托管）", parents=[COMMON])
+    gs = g.add_subparsers(dest="action", metavar="<action>")
+    _leaf(gs, "status", cmd_adminer_status, "adminer.status", "查看 Adminer 安装 / 托管状态")
+    p = _leaf(gs, "install", cmd_adminer_install, "adminer.install",
+              "下载 Adminer 并托管为站点（默认 adminer.test）")
+    p.add_argument("--domain", default=adminer.DEFAULT_DOMAIN, help="站点域名（默认 adminer.test）")
+    p.add_argument("--php", help="用于托管站点的 PHP 版本名（默认最新 / 在跑的）")
+    p.add_argument("--hosts", action="store_true", help="同时写入 hosts（可能需要系统授权）")
+    p.add_argument("--dry-run", action="store_true", help="只报告将做什么")
+    _leaf(gs, "open", cmd_adminer_open, "adminer.open", "在浏览器打开 Adminer")
 
     # site
     g = sub.add_parser("site", help="站点（vhost）管理", parents=[COMMON])

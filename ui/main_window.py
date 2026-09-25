@@ -6,9 +6,10 @@ import subprocess
 import sys
 import threading
 import tkinter as tk
+import webbrowser
 from tkinter import filedialog, messagebox, ttk
 
-from core import (app_paths, autostart, backup_bundle, crash_watchdog,
+from core import (adminer, app_paths, autostart, backup_bundle, crash_watchdog,
                   path_manager, run_log, updater)
 from core import theme as theme_prefs
 from core.config import Config, IS_WIN, WNRP_ROOT
@@ -241,7 +242,7 @@ class MainWindow(tk.Tk):
         if self.mysql_mgr is not None:
             self.mysql_panel = MysqlPanel(nb, self.mysql_mgr, self.set_log)
         self.vhost_mgr = VhostManager(self.config)
-        self.vhost_panel = VhostPanel(nb, self.vhost_mgr, self.set_log)
+        self.vhost_panel = VhostPanel(nb, self.vhost_mgr, self.set_log, php_mgr=self.php_mgr)
         self.sqlite_panel = None
         if modules.is_enabled("sqlite", self.config):
             # 延迟导入：停用时不加载 sqlite 面板与管理器
@@ -484,6 +485,21 @@ class MainWindow(tk.Tk):
             style="SubTitle.TLabel",
         ).pack(anchor="w", pady=(4, 0))
 
+        # 数据库 GUI（Adminer，F9）：单文件托管为本地站点
+        adm_row = ttk.Frame(settings, style="Card.TFrame")
+        adm_row.pack(anchor="w", pady=(theme.PAD_MD, 0), fill="x")
+        ttk.Label(adm_row, text=t("数据库 GUI："), style="CardBold.TLabel").pack(side="left")
+        ttk.Button(adm_row, text=t("安装 / 更新 Adminer…"),
+                   command=self._install_adminer).pack(side="left", padx=(4, 6))
+        ttk.Button(adm_row, text=t("打开 Adminer"),
+                   command=self._open_adminer).pack(side="left")
+        ttk.Label(
+            settings,
+            text=t("下载 Adminer 单文件并托管为 http://{domain}（零驱动依赖）。"
+                   "Adminer 具备写库能力，仅供本地开发使用。", domain=adminer.DEFAULT_DOMAIN),
+            style="SubTitle.TLabel",
+        ).pack(anchor="w", pady=(4, 0))
+
         ttk.Label(
             frame,
             text=t("\n提示：修改端口后需同步修改对应 nginx vhost 的 fastcgi_pass 才会生效。\n"
@@ -586,6 +602,47 @@ class MainWindow(tk.Tk):
         else:
             self.set_log(msg, "error")
             messagebox.showerror(t("操作失败"), msg, parent=self)
+
+    # ------------------------------------------------------------------ #
+    # 数据库 GUI（Adminer，F9）
+    # ------------------------------------------------------------------ #
+    def _install_adminer(self) -> None:
+        """下载 Adminer 并托管为本地站点（会写 hosts，可能请求系统授权）。"""
+        if not messagebox.askyesno(
+                t("安装 / 更新 Adminer"),
+                t("将下载 Adminer 单文件并创建站点 http://{domain}，"
+                  "同时写入 hosts（可能请求系统授权）。\n\n确定继续？",
+                  domain=adminer.DEFAULT_DOMAIN),
+                parent=self):
+            return
+        self.set_log(t("正在安装 Adminer…"))
+
+        def worker():
+            res = adminer.install(self.config, hosts=True, reload=True)
+            self.after(0, lambda: self._adminer_done(res))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _adminer_done(self, res: dict) -> None:
+        msg = res.get("message", "")
+        if res.get("ok"):
+            self.set_log(msg, "ok")
+            messagebox.showinfo(t("安装 / 更新 Adminer"), msg, parent=self)
+            self._refresh_panels()
+        else:
+            self.set_log(msg, "error")
+            messagebox.showerror(t("操作失败"), msg, parent=self)
+
+    def _open_adminer(self) -> None:
+        """在浏览器打开 Adminer；未安装时询问是否现在安装。"""
+        st = adminer.status(self.config)
+        if not st.get("installed"):
+            if messagebox.askyesno(t("打开 Adminer"),
+                                   t("尚未安装 Adminer，是否现在安装？"), parent=self):
+                self._install_adminer()
+            return
+        webbrowser.open(st["url"])
+        self.set_log(t("已在浏览器打开 {url}", url=st["url"]))
 
     # ------------------------------------------------------------------ #
     def set_log(self, msg: str, level: str = "info") -> None:

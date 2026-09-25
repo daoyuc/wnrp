@@ -12,7 +12,7 @@ import tkinter as tk
 import webbrowser
 from tkinter import messagebox, ttk
 
-from core import hosts_manager, process_utils as pu, site_service
+from core import hosts_manager, process_utils as pu, project_config, site_service
 from core.i18n import t
 from core.vhost_manager import VhostEntry, VhostManager
 from .site_wizard import SiteWizardDialog
@@ -35,10 +35,11 @@ _WARN_MARK = "⚠"
 class VhostPanel(ttk.Frame):
     """站点映射页签。"""
 
-    def __init__(self, master, vhost_mgr: VhostManager, notify):
+    def __init__(self, master, vhost_mgr: VhostManager, notify, php_mgr=None):
         super().__init__(master, padding=8)
         self.vhost_mgr = vhost_mgr
         self.notify = notify
+        self.php_mgr = php_mgr  # 供「套用项目配置」切换 PHP 端口（可为 None）
         self._queue: queue.Queue = queue.Queue()
         self._busy = False
         self._entries: list[VhostEntry] = []
@@ -382,6 +383,7 @@ class VhostPanel(ttk.Frame):
         self._menu.add_command(
             label=t("关闭 HTTPS") if has_https else t("启用 HTTPS"),
             command=lambda en=not has_https: self._secure(en))
+        self._menu.add_command(label=t("套用项目配置（.phpvm.json）"), command=self._apply_project)
         self._menu.add_separator()
         self._menu.add_command(label=t("从 hosts 移除映射"), command=self._remove_hosts)
         self._menu.add_separator()
@@ -486,6 +488,43 @@ class VhostPanel(ttk.Frame):
             lambda: (site_service.secure_site(entry, cfg) if enable
                      else site_service.unsecure_site(entry, cfg)),
             t("正在启用 HTTPS…") if enable else t("正在关闭 HTTPS…"))
+
+    def _apply_project(self) -> None:
+        """套用站点根目录（向上查找）的 .phpvm.json：切 fastcgi_pass 到目标 PHP。"""
+        entry = self._selected()
+        if not entry:
+            return
+        root = entry.root if entry.root and os.path.isdir(entry.root) else ""
+        if not root:
+            messagebox.showinfo(t("套用项目配置"),
+                                t("该站点没有可用的项目根目录：{path}", path=entry.root or "—"),
+                                parent=self)
+            return
+        path = project_config.find_project_config(root)
+        if not path:
+            messagebox.showinfo(
+                t("套用项目配置"),
+                t("未在 {root} 及上层找到 {name}。\n请在项目根放置该文件后重试。",
+                  root=root, name=project_config.PROJECT_FILE),
+                parent=self)
+            return
+        try:
+            project = project_config.load_project(path)
+        except project_config.ProjectConfigError as e:
+            messagebox.showerror(t("套用项目配置"), str(e), parent=self)
+            return
+        if not messagebox.askyesno(
+                t("套用项目配置"),
+                t("将按 {path} 对齐：\n  PHP 版本：{php}\n  域名：{doms}\n\n"
+                  "会把匹配站点的 fastcgi_pass 切到该 PHP 端口（改前自动备份）。\n确定继续？",
+                  path=path, php=project["php"],
+                  doms="、".join(project["domains"]) or "—"),
+                parent=self):
+            return
+        cfg = self.vhost_mgr.config
+        self._run_op(
+            lambda: project_config.apply_project(project, cfg, self.vhost_mgr, self.php_mgr),
+            t("正在套用项目配置…"))
 
     def _toggle_enabled(self) -> None:
         entry = self._selected()

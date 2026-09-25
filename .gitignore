@@ -31,3 +31,6 @@ updates/
 
 # 本地文档
 local/
+
+# Adminer 单文件（F9，运行时下载到数据目录）
+adminer/
