@@ -10,6 +10,7 @@ import unittest
 from unittest import mock
 
 from core.php_manager import version_key
+from core import i18n as _i18n
 from core.service_group import (
     PHP_SCOPE_ACTIVE,
     PHP_SCOPE_ALL,
@@ -125,9 +126,14 @@ class VersionKeyTest(unittest.TestCase):
 
 class PhpScopeTest(unittest.TestCase):
     def setUp(self):
+        self._lang = _i18n.current_language()
+        _i18n.set_language("zh_CN")
         self.v74 = FakePhpVersion("php74", display="7.4.33", port=9074)
         self.v82 = FakePhpVersion("php82", display="8.2.4", port=9000)
         self.v85 = FakePhpVersion("php85", display="8.5.9", port=9085)
+
+    def tearDown(self):
+        _i18n.set_language(self._lang)
 
     def test_all_scope_keeps_old_behaviour(self):
         php, group = make_group([self.v74, self.v82, self.v85])

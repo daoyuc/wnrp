@@ -44,6 +44,7 @@ from core import (  # noqa: E402
     hosts_manager,
     log_sources,
     modules,
+    overview,
     site_service,
     site_templates,
     updater,
@@ -52,6 +53,7 @@ from core import (  # noqa: E402
 )
 from core import config as config_mod  # noqa: E402
 from core.config import Config, WNRP_ROOT  # noqa: E402
+from core.i18n import t  # noqa: E402  (统一文案入口；此前缺失导致 t() 调用崩溃)
 from core.health_monitor import HealthMonitor  # noqa: E402
 from core.mysql_manager import MysqlManager  # noqa: E402
 from core.nginx_manager import NginxManager  # noqa: E402
@@ -900,6 +902,35 @@ def cmd_logs_tail(a, r: Result) -> Result:
     text = _tail(path, a.lines)
     r.data = {"file": path, "lines": a.lines, "content": text}
     r.say(text)
+    return r
+
+
+# --------------------------------------------------------------------------- #
+# overview（首页总览仪表盘，只读快照）
+# --------------------------------------------------------------------------- #
+def cmd_overview_summary(a, r: Result) -> Result:
+    cfg = Config()
+    nginx = NginxManager()
+    php = PhpManager(cfg)
+    redis = RedisManager() if modules.is_enabled("redis", cfg) else None
+    mysql = MysqlManager() if modules.is_enabled("mysql", cfg) else None
+    vhost = VhostManager(cfg)
+    ov = overview.build_overview(cfg, php, nginx, redis, mysql, vhost)
+    r.data = ov.to_dict()
+    r.say(t("总览摘要："))
+    r.say("  Nginx: " + (t("运行") if ov.nginx.running else t("停止")))
+    for s in ov.php:
+        r.say("  PHP " + s.name + ": " + (t("运行") if s.running else t("停止")) +
+              (f" ({s.detail})" if s.detail else ""))
+    for s in ov.redis:
+        r.say("  Redis " + s.name + ": " + (t("运行") if s.running else t("停止")))
+    for s in ov.mysql:
+        r.say("  MySQL " + s.name + ": " + (t("运行") if s.running else t("停止")))
+    r.say(t("共 {n} 个站点", n=ov.site_count))
+    r.say(t("告警 {n} 项", n=len(ov.alerts)))
+    for al in ov.alerts:
+        r.say("  - " + al)
+    r.say(t("健康：{h}", h=ov.health))
     return r
 
 
@@ -2064,6 +2095,12 @@ def build_parser() -> argparse.ArgumentParser:
     _p = _leaf(gs, "tail", cmd_logs_tail, "logs.tail", "查看任意日志文件尾部（只读）")
     _p.add_argument("path", help="日志文件绝对路径")
     _p.add_argument("--lines", type=int, default=200, help="尾部行数（默认 200）")
+
+    # overview（首页总览仪表盘，只读快照）
+    g = sub.add_parser("overview", help="首页总览仪表盘（只读快照）", parents=[COMMON])
+    gs = g.add_subparsers(dest="action", metavar="<action>")
+    _leaf(gs, "summary", cmd_overview_summary, "overview.summary",
+          "输出环境总览快照（服务状态 / 站点告警 / 健康级别）")
 
     # site
     g = sub.add_parser("site", help="站点（vhost）管理", parents=[COMMON])

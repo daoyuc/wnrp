@@ -473,6 +473,12 @@
    "ui/dialogs.py"
   ]
  },
+ "PID {p}": {
+  "count": 1,
+  "files": [
+   "core/overview.py"
+  ]
+ },
  "PhpStorm 在「设置 → PHP → Debug → Xdebug」把调试端口改为上面的端口；VS Code 在 launch.json 的 \"Listen for Xdebug\" 里填同一端口。": {
   "count": 1,
   "files": [
@@ -3752,6 +3758,12 @@
    "core/ini_editor.py"
   ]
  },
+ "总览": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
  "成功": {
   "count": 2,
   "files": [
@@ -4603,6 +4615,12 @@
   "count": 1,
   "files": [
    "main.py"
+  ]
+ },
+ "未映射 hosts：{domain}": {
+  "count": 1,
+  "files": [
+   "core/overview.py"
   ]
  },
  "未检测到 Composer": {
@@ -5580,6 +5598,12 @@
    "core/vhost_manager.py"
   ]
  },
+ "端口未映射：{port}（{ver}）": {
+  "count": 1,
+  "files": [
+   "core/overview.py"
+  ]
+ },
  "第 {page} 页 · 共 {n} 行 · 耗时 {ms} ms{more}": {
   "count": 1,
   "files": [
@@ -5935,6 +5959,12 @@
   "count": 1,
   "files": [
    "core/cert_manager.py"
+  ]
+ },
+ "证书缺失：{file}": {
+  "count": 1,
+  "files": [
+   "core/overview.py"
   ]
  },
  "该 server 块没有 fastcgi_pass（静态站点 / 反代），不涉及 PHP，无需 PHP 诊断": {
