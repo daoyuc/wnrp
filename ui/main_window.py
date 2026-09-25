@@ -6,9 +6,10 @@ import subprocess
 import sys
 import threading
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import filedialog, messagebox, ttk
 
-from core import app_paths, autostart, crash_watchdog, path_manager, run_log, updater
+from core import (app_paths, autostart, backup_bundle, crash_watchdog,
+                  path_manager, run_log, updater)
 from core import theme as theme_prefs
 from core.config import Config, IS_WIN, WNRP_ROOT
 from core.i18n import LANGS, t
@@ -469,6 +470,20 @@ class MainWindow(tk.Tk):
             style="SubTitle.TLabel",
         ).pack(anchor="w", pady=(4, 0))
 
+        # 环境备份与迁移（F6）：导出 / 恢复「整套配置」（不含数据库数据）
+        bak_row = ttk.Frame(settings, style="Card.TFrame")
+        bak_row.pack(anchor="w", pady=(theme.PAD_MD, 0), fill="x")
+        ttk.Label(bak_row, text=t("环境备份："), style="CardBold.TLabel").pack(side="left")
+        ttk.Button(bak_row, text=t("导出配置…"), command=self._export_backup).pack(
+            side="left", padx=(4, 6))
+        ttk.Button(bak_row, text=t("从备份恢复…"), command=self._restore_backup).pack(side="left")
+        ttk.Label(
+            settings,
+            text=t("导出 config.json / 站点配置 / nginx.conf / 各版本 php.ini 为 zip；"
+                   "恢复会先备份现有文件，nginx -t 失败整体回滚。不含数据库数据。"),
+            style="SubTitle.TLabel",
+        ).pack(anchor="w", pady=(4, 0))
+
         ttk.Label(
             frame,
             text=t("\n提示：修改端口后需同步修改对应 nginx vhost 的 fastcgi_pass 才会生效。\n"
@@ -519,6 +534,58 @@ class MainWindow(tk.Tk):
         self.config.set_setting("check_update_on_start", enabled)
         self.set_log(t("启动时自动检查更新已开启") if enabled
                      else t("启动时自动检查更新已关闭"))
+
+    # ------------------------------------------------------------------ #
+    # 环境备份与迁移（F6）
+    # ------------------------------------------------------------------ #
+    def _export_backup(self) -> None:
+        """导出环境配置为 zip（后台执行，仅配置，不含数据库数据）。"""
+        dest = filedialog.asksaveasfilename(
+            parent=self, title=t("导出环境配置"),
+            defaultextension=".zip", initialfile="phpvm-env.zip",
+            filetypes=[(t("Zip 压缩包"), "*.zip")])
+        if not dest:
+            return
+        self.set_log(t("正在导出环境配置…"))
+
+        def worker():
+            res = backup_bundle.export_bundle(dest, self.config)
+            self.after(0, lambda: self._backup_done(res, True))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _restore_backup(self) -> None:
+        """从 zip 恢复环境配置（改前备份；nginx -t 失败整体回滚）。"""
+        src = filedialog.askopenfilename(
+            parent=self, title=t("从备份恢复"),
+            filetypes=[(t("Zip 压缩包"), "*.zip")])
+        if not src:
+            return
+        if not messagebox.askyesno(
+                t("从备份恢复"),
+                t("将用备份覆盖当前环境配置（config.json / 站点配置 / nginx.conf / php.ini）。\n"
+                  "恢复前会备份现有文件，nginx -t 失败会整体回滚。\n\n确定继续？"),
+                parent=self):
+            return
+        self.set_log(t("正在恢复环境配置…"))
+
+        def worker():
+            res = backup_bundle.restore_bundle(src, self.config)
+            self.after(0, lambda: self._backup_done(res, False))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _backup_done(self, res: dict, exporting: bool) -> None:
+        msg = res.get("message", "")
+        if res.get("ok"):
+            self.set_log(msg, "ok")
+            messagebox.showinfo(
+                t("导出环境配置") if exporting else t("从备份恢复"), msg, parent=self)
+            if not exporting:
+                self._refresh_panels()
+        else:
+            self.set_log(msg, "error")
+            messagebox.showerror(t("操作失败"), msg, parent=self)
 
     # ------------------------------------------------------------------ #
     def set_log(self, msg: str, level: str = "info") -> None:

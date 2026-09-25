@@ -30,6 +30,7 @@
 
 | 分组 | 说明 | 动作 |
 |---|---|---|
+| `backup` | 环境备份与迁移（仅配置，不含数据库数据） | `export` · `restore` |
 | `config` | 配置读写（config.json） | `get` · `list` · `set` |
 | `diag` | 一键体检 / 502 诊断（只读） | `all` · `site` |
 | `env` | 输出全部服务快照（nginx / PHP / Redis / MySQL） | — |
@@ -43,13 +44,29 @@
 | `redis` | Redis 管理 | `cmd` · `list` · `ping` · `restart` · `start` · `status` · `stop` |
 | `schema` | 输出全部命令的自描述契约（供 AI 读取） | — |
 | `services` | 整套服务编排 | `start-all` · `stop-all` |
-| `site` | 站点（vhost）管理 | `create` · `disable` · `enable` · `list` · `php` · `remove` · `render` · `show` · `sync-port` |
+| `site` | 站点（vhost）管理 | `create` · `disable` · `enable` · `list` · `php` · `remove` · `render` · `secure` · `show` · `sync-port` · `unsecure` |
 | `sqlite` | SQLite 只读查询 | `columns` · `query` · `tables` |
 | `tune` | 开发环境配置推荐（PHP / Nginx） | `apply` · `suggest` |
 | `update` | 软件更新 | `check` · `download` |
 | `version` | 输出版本与环境路径信息 | — |
 
 ## 分组与动作
+
+## `backup` — 环境备份与迁移（仅配置，不含数据库数据）
+
+### `backup export` — 导出环境配置（config.json / vhost / nginx.conf / php.ini）为 zip
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `<zip>` | 是 |  | 导出目标 zip 路径 |
+
+### `backup restore` — 从 zip 恢复环境配置（改前备份，nginx -t 失败整体回滚）
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `<zip>` | 是 |  | 备份 zip 路径 |
+| `--dry-run` |  |  | 只报告将恢复哪些文件 |
+| `--yes` |  |  | 确认恢复（覆盖当前配置） |
 
 ## `config` — 配置读写（config.json）
 
@@ -441,6 +458,13 @@
 | `--https` |  |  | 生成 443 变体（需 openssl / mkcert） |
 | `--dry-run` |  |  | 只输出将要写入的配置，不落盘 |
 
+### `site secure` — 为既有站点启用 HTTPS（生成证书 + 追加 443 server 块）
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `<target>` | 是 |  | 域名 / 配置文件名 / 配置文件路径 |
+| `--dry-run` |  |  | 只报告将做什么 |
+
 ### `site show` — 查看单个站点详情与配置内容
 
 | 参数 | 必填 | 默认 | 说明 |
@@ -455,6 +479,13 @@
 | `--new` | 是 |  | 新端口 |
 | `--reload` |  |  | 同步成功后平滑重载 nginx |
 | `--dry-run` |  |  | 只列出将被修改的文件 |
+
+### `site unsecure` — 关闭既有站点的 HTTPS（移除 443 server 块）
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `<target>` | 是 |  | 域名 / 配置文件名 / 配置文件路径 |
+| `--dry-run` |  |  | 只报告将做什么 |
 
 ## `sqlite` — SQLite 只读查询
 

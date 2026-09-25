@@ -575,6 +575,12 @@
    "ui/xdebug_dialog.py"
   ]
  },
+ "Zip 压缩包": {
+  "count": 2,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
  "[{name}]  PHP {display}": {
   "count": 2,
   "files": [
@@ -971,6 +977,18 @@
   "count": 1,
   "files": [
    "core/site_service.py"
+  ]
+ },
+ "nginx -t 校验失败，已回滚到修改前。\n{out}": {
+  "count": 2,
+  "files": [
+   "core/site_service.py"
+  ]
+ },
+ "nginx -t 校验失败，已整体回滚。\n{out}": {
+  "count": 1,
+  "files": [
+   "core/backup_bundle.py"
   ]
  },
  "nginx -t 校验失败，已自动还原：{output}": {
@@ -1516,6 +1534,12 @@
    "core/sqlite_manager.py"
   ]
  },
+ "不是有效的 phpvm 备份（缺少 manifest.json）。": {
+  "count": 1,
+  "files": [
+   "core/backup_bundle.py"
+  ]
+ },
  "不能为空": {
   "count": 2,
   "files": [
@@ -1594,6 +1618,18 @@
    "ui/vhost_panel.py"
   ]
  },
+ "从备份恢复": {
+  "count": 3,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "从备份恢复…": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
  "以下域名不在 phpvm 托管块内（未改动，可能为用户手写或其它映射）：{doms}": {
   "count": 1,
   "files": [
@@ -1640,6 +1676,12 @@
   "count": 1,
   "files": [
    "ui/diag_dialog.py"
+  ]
+ },
+ "体检此站点": {
+  "count": 1,
+  "files": [
+   "ui/vhost_panel.py"
   ]
  },
  "保存": {
@@ -1946,6 +1988,12 @@
    "ui/xdebug_dialog.py"
   ]
  },
+ "关闭 HTTPS": {
+  "count": 2,
+  "files": [
+   "ui/vhost_panel.py"
+  ]
+ },
  "关闭 JIT：对典型 Web 请求收益有限，却额外占用内存、拖慢首次编译": {
   "count": 1,
   "files": [
@@ -2048,9 +2096,16 @@
    "ui/main_window.py"
   ]
  },
- "写入失败：{err}": {
-  "count": 4,
+ "写入失败，已回滚：{err}": {
+  "count": 1,
   "files": [
+   "core/backup_bundle.py"
+  ]
+ },
+ "写入失败：{err}": {
+  "count": 6,
+  "files": [
+   "core/site_service.py",
    "core/vhost_manager.py"
   ]
  },
@@ -2590,6 +2645,12 @@
    "ui/main_window.py"
   ]
  },
+ "启用 HTTPS": {
+  "count": 2,
+  "files": [
+   "ui/vhost_panel.py"
+  ]
+ },
  "启用 HTTPS（443，自动生成本地证书）": {
   "count": 1,
   "files": [
@@ -2657,6 +2718,12 @@
    "ui/extension_dialog.py"
   ]
  },
+ "在终端打开": {
+  "count": 1,
+  "files": [
+   "ui/vhost_panel.py"
+  ]
+ },
  "域名": {
   "count": 2,
   "files": [
@@ -2694,16 +2761,46 @@
    "core/hosts_manager.py"
   ]
  },
+ "备份失败，未做修改：{err}": {
+  "count": 2,
+  "files": [
+   "core/site_service.py"
+  ]
+ },
  "备份失败：{err}": {
   "count": 1,
   "files": [
    "core/vhost_manager.py"
   ]
  },
+ "备份文件不存在：{path}": {
+  "count": 1,
+  "files": [
+   "core/backup_bundle.py"
+  ]
+ },
+ "备份清单损坏：{err}": {
+  "count": 1,
+  "files": [
+   "core/backup_bundle.py"
+  ]
+ },
  "复制": {
   "count": 1,
   "files": [
    "ui/run_log_panel.py"
+  ]
+ },
+ "复制 URL": {
+  "count": 1,
+  "files": [
+   "ui/vhost_panel.py"
+  ]
+ },
+ "复制域名": {
+  "count": 1,
+  "files": [
+   "ui/vhost_panel.py"
   ]
  },
  "外观": {
@@ -2885,6 +2982,12 @@
    "ui/sqlite_panel.py"
   ]
  },
+ "导出 config.json / 站点配置 / nginx.conf / 各版本 php.ini 为 zip；恢复会先备份现有文件，nginx -t 失败整体回滚。不含数据库数据。": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
  "导出…": {
   "count": 1,
   "files": [
@@ -2898,6 +3001,12 @@
    "ui/sqlite_panel.py"
   ]
  },
+ "导出失败：{err}": {
+  "count": 1,
+  "files": [
+   "core/backup_bundle.py"
+  ]
+ },
  "导出失败：{msg}": {
   "count": 1,
   "files": [
@@ -2908,6 +3017,24 @@
   "count": 1,
   "files": [
    "ui/run_log_panel.py"
+  ]
+ },
+ "导出环境配置": {
+  "count": 2,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "导出配置…": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "将为 {name} 生成证书并追加 443 server 块；改前自动备份，校验失败会回滚。\n确定继续？": {
+  "count": 1,
+  "files": [
+   "ui/vhost_panel.py"
   ]
  },
  "将从 hosts 的 phpvm 托管块中移除：{doms}\n（不会改动用户手写的其它映射）确定继续？": {
@@ -2934,6 +3061,12 @@
    "ui/download_dialog.py"
   ]
  },
+ "将恢复 {n} 个配置文件，并执行 nginx -t 校验。": {
+  "count": 1,
+  "files": [
+   "core/backup_bundle.py"
+  ]
+ },
  "将注释 [{name}] 的 php.ini 中的 Xdebug 加载行（原文件自动备份为 .bak）。\n确定继续？": {
   "count": 1,
   "files": [
@@ -2947,6 +3080,18 @@
   ]
  },
  "将用以下备份覆盖当前 hosts：\n{path}\n\n备份内容是 phpvm 最近一次写入 / 删除 hosts 之前的完整文件，因此这期间手动添加的映射也会一并被覆盖。\n\n确定继续？": {
+  "count": 1,
+  "files": [
+   "ui/vhost_panel.py"
+  ]
+ },
+ "将用备份覆盖当前环境配置（config.json / 站点配置 / nginx.conf / php.ini）。\n恢复前会备份现有文件，nginx -t 失败会整体回滚。\n\n确定继续？": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "将移除 {name} 的 443 server 块；改前自动备份，校验失败会回滚。\n确定继续？": {
   "count": 1,
   "files": [
    "ui/vhost_panel.py"
@@ -3100,6 +3245,12 @@
    "ui/main_window.py"
   ]
  },
+ "已关闭 HTTPS（移除 {n} 个 443 server 块）。": {
+  "count": 1,
+  "files": [
+   "core/site_service.py"
+  ]
+ },
  "已关闭开机启动全部服务": {
   "count": 1,
   "files": [
@@ -3197,6 +3348,12 @@
    "core/vhost_manager.py"
   ]
  },
+ "已启用 HTTPS：{dom}": {
+  "count": 1,
+  "files": [
+   "core/site_service.py"
+  ]
+ },
  "已启用扩展": {
   "count": 1,
   "files": [
@@ -3210,6 +3367,12 @@
   ]
  },
  "已在浏览器打开 {url}": {
+  "count": 1,
+  "files": [
+   "ui/vhost_panel.py"
+  ]
+ },
+ "已在终端打开 {path}": {
   "count": 1,
   "files": [
    "ui/vhost_panel.py"
@@ -3234,6 +3397,12 @@
    "ui/run_log_panel.py"
   ]
  },
+ "已复制：{text}": {
+  "count": 2,
+  "files": [
+   "ui/vhost_panel.py"
+  ]
+ },
  "已存在证书，直接复用：{path}": {
   "count": 1,
   "files": [
@@ -3256,6 +3425,12 @@
   "count": 1,
   "files": [
    "ui/sqlite_panel.py"
+  ]
+ },
+ "已导出 {n} 个配置文件到 {path}": {
+  "count": 1,
+  "files": [
+   "core/backup_bundle.py"
   ]
  },
  "已导出 {n} 行到 {path}": {
@@ -3286,6 +3461,12 @@
   "count": 1,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "已恢复 {n} 个配置文件。": {
+  "count": 1,
+  "files": [
+   "core/backup_bundle.py"
   ]
  },
  "已打开的 cmd 不会自动切换，需重开窗口": {
@@ -3409,6 +3590,12 @@
    "core/vhost_manager.py"
   ]
  },
+ "已移除 {n} 个 443 server 块（未找到 nginx，已跳过校验）。": {
+  "count": 1,
+  "files": [
+   "core/site_service.py"
+  ]
+ },
  "已自动在 http 块补上 include {path}/*.conf": {
   "count": 1,
   "files": [
@@ -3431,6 +3618,12 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "已追加 443 server 块（未找到 nginx，已跳过校验）。": {
+  "count": 1,
+  "files": [
+   "core/site_service.py"
   ]
  },
  "已选 {picked} / {total} 项": {
@@ -3993,6 +4186,12 @@
    "ui/sqlite_panel.py"
   ]
  },
+ "搜索": {
+  "count": 1,
+  "files": [
+   "ui/vhost_panel.py"
+  ]
+ },
  "搜索：": {
   "count": 1,
   "files": [
@@ -4006,8 +4205,9 @@
   ]
  },
  "操作失败": {
-  "count": 3,
+  "count": 4,
   "files": [
+   "ui/main_window.py",
    "ui/php_panel.py",
    "ui/vhost_panel.py",
    "core/service_group.py"
@@ -4160,6 +4360,12 @@
    "core/updater.py"
   ]
  },
+ "无法创建目录：{err}": {
+  "count": 1,
+  "files": [
+   "core/backup_bundle.py"
+  ]
+ },
  "无法启动升级脚本：{err}": {
   "count": 1,
   "files": [
@@ -4178,17 +4384,30 @@
    "ui/main_window.py"
   ]
  },
+ "无法复制": {
+  "count": 2,
+  "files": [
+   "ui/vhost_panel.py"
+  ]
+ },
  "无法打开": {
   "count": 1,
   "files": [
    "ui/vhost_panel.py"
   ]
  },
+ "无法打开备份：{err}": {
+  "count": 1,
+  "files": [
+   "core/backup_bundle.py"
+  ]
+ },
  "无法打开终端": {
-  "count": 2,
+  "count": 3,
   "files": [
    "ui/dialogs.py",
-   "ui/php_panel.py"
+   "ui/php_panel.py",
+   "ui/vhost_panel.py"
   ]
  },
  "无法探测 PHP 版本信息，在线安装不可用。": {
@@ -4299,6 +4518,12 @@
   "count": 1,
   "files": [
    "ui/nginx_log_panel.py"
+  ]
+ },
+ "显示 {n} / {total}": {
+  "count": 1,
+  "files": [
+   "ui/vhost_panel.py"
   ]
  },
  "暂不支持自动修复该项": {
@@ -4436,6 +4661,12 @@
    "core/redis_manager.py"
   ]
  },
+ "未在配置文件中找到 server 块。": {
+  "count": 1,
+  "files": [
+   "core/site_service.py"
+  ]
+ },
  "未声明默认字符集时，响应头可能不带 charset，页面易出现乱码": {
   "count": 1,
   "files": [
@@ -4501,6 +4732,12 @@
   "count": 1,
   "files": [
    "core/site_service.py"
+  ]
+ },
+ "未找到 nginx，已跳过配置校验。": {
+  "count": 1,
+  "files": [
+   "core/backup_bundle.py"
   ]
  },
  "未找到 openssl 与 mkcert，无法生成本地 HTTPS 证书。\n可选安装方式：\n  · Windows（推荐）：choco install mkcert  或  scoop install mkcert\n  · macOS：brew install mkcert nss\n  · 或安装 Git for Windows / OpenSSL-Win64 后重启 phpvm 自动探测": {
@@ -4675,6 +4912,12 @@
   "count": 2,
   "files": [
    "core/nginx_manager.py"
+  ]
+ },
+ "未能启动终端程序": {
+  "count": 1,
+  "files": [
+   "ui/vhost_panel.py"
   ]
  },
  "未设置": {
@@ -4902,6 +5145,12 @@
    "ui/diag_dialog.py"
   ]
  },
+ "正在关闭 HTTPS…": {
+  "count": 1,
+  "files": [
+   "ui/vhost_panel.py"
+  ]
+ },
  "正在切换 {name} 的 PHP 版本…": {
   "count": 1,
   "files": [
@@ -4926,6 +5175,12 @@
    "ui/main_window.py"
   ]
  },
+ "正在启用 HTTPS…": {
+  "count": 1,
+  "files": [
+   "ui/vhost_panel.py"
+  ]
+ },
  "正在启用站点…": {
   "count": 1,
   "files": [
@@ -4936,6 +5191,18 @@
   "count": 1,
   "files": [
    "ui/extension_dialog.py"
+  ]
+ },
+ "正在导出环境配置…": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "正在恢复环境配置…": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
   ]
  },
  "正在打开…": {
@@ -5294,6 +5561,12 @@
    "ui/main_window.py"
   ]
  },
+ "环境备份：": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
  "环境根目录": {
   "count": 1,
   "files": [
@@ -5485,6 +5758,12 @@
   "count": 1,
   "files": [
    "core/vhost_manager.py"
+  ]
+ },
+ "站点已禁用，请先启用站点再启用 HTTPS。": {
+  "count": 1,
+  "files": [
+   "core/site_service.py"
   ]
  },
  "站点映射": {
@@ -5967,6 +6246,18 @@
    "core/overview.py"
   ]
  },
+ "该 server 块位于主配置（nginx.conf）中，无法自动启用 HTTPS；请先为它单独建立站点配置。": {
+  "count": 1,
+  "files": [
+   "core/site_service.py"
+  ]
+ },
+ "该 server 块位于主配置（nginx.conf）中，请手动关闭其 HTTPS。": {
+  "count": 1,
+  "files": [
+   "core/site_service.py"
+  ]
+ },
  "该 server 块没有 fastcgi_pass（静态站点 / 反代），不涉及 PHP，无需 PHP 诊断": {
   "count": 1,
   "files": [
@@ -6003,14 +6294,32 @@
    "ui/update_dialog.py"
   ]
  },
+ "该站点已启用 HTTPS，无需重复操作。": {
+  "count": 1,
+  "files": [
+   "core/site_service.py"
+  ]
+ },
+ "该站点未启用 HTTPS，无需操作。": {
+  "count": 1,
+  "files": [
+   "core/site_service.py"
+  ]
+ },
  "该站点没有可直接映射的域名（仅泛解析）": {
   "count": 1,
   "files": [
    "ui/vhost_panel.py"
   ]
  },
- "该站点没有可直接访问的域名（仅泛解析）": {
+ "该站点没有可直接签发证书的域名（仅泛解析）。": {
   "count": 1,
+  "files": [
+   "core/site_service.py"
+  ]
+ },
+ "该站点没有可直接访问的域名（仅泛解析）": {
+  "count": 3,
   "files": [
    "ui/vhost_panel.py"
   ]
@@ -6139,9 +6448,10 @@
   ]
  },
  "读取配置失败：{err}": {
-  "count": 2,
+  "count": 4,
   "files": [
    "ui/nginx_panel.py",
+   "core/site_service.py",
    "core/tuning.py"
   ]
  },
@@ -6404,6 +6714,12 @@
   "count": 1,
   "files": [
    "ui/vhost_panel.py"
+  ]
+ },
+ "配置文件不存在：{path}": {
+  "count": 2,
+  "files": [
+   "core/site_service.py"
   ]
  },
  "配置文件名：": {
