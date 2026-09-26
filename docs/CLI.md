@@ -37,6 +37,7 @@
 | `env` | 输出全部服务快照（nginx / PHP / Redis / MySQL） | — |
 | `hosts` | hosts 映射管理 | `add` · `remove` · `restore` · `status` |
 | `logs` | 站点与应用日志聚合（只读） | `sources` · `tail` |
+| `mail` | 邮件捕获（.eml 落盘，sendmail_path 仅 Unix） | `clear` · `disable` · `enable` · `list` · `show` · `status` |
 | `module` | 功能模块开关 | `disable` · `enable` · `list` |
 | `mysql` | MySQL 管理 | `list` · `log` · `restart` · `start` · `status` · `stop` |
 | `nginx` | Nginx 管理 | `logs` · `reload` · `start` · `status` · `stop` · `test` |
@@ -165,6 +166,44 @@
 |---|---|---|---|
 | `<path>` | 是 |  | 日志文件绝对路径 |
 | `--lines` |  | 200 | 尾部行数（默认 200） |
+
+## `mail` — 邮件捕获（.eml 落盘，sendmail_path 仅 Unix）
+
+### `mail clear` — 清空捕获到的邮件（需 --yes）
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--yes` |  |  | 确认清空 |
+
+### `mail disable` — 关闭邮件捕获并还原原有 sendmail_path
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `<name>` | 是 |  | 版本名 |
+
+### `mail enable` — 为该版本开启邮件捕获（写 sendmail_path）
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `<name>` | 是 |  | 版本名 |
+
+### `mail list` — 列出捕获到的邮件
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--limit` |  | 50 | 最多列出多少封（默认 50） |
+
+### `mail show` — 查看邮件原文（默认最新一封）
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `<target>` | 是 | latest | 邮件文件名 / 路径，或 latest |
+
+### `mail status` — 查看某版本的邮件捕获状态
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `<name>` | 是 |  | 版本名，如 php82 / 8.2 / 82 |
 
 ## `module` — 功能模块开关
 

@@ -42,6 +42,7 @@
 
 - **环境备份与迁移**：config.json / vhost / nginx.conf / php.ini 一键导出为 zip、一键恢复（改前备份，`nginx -t` 失败整体回滚；不含数据库数据）
 - **Adminer 数据库 GUI**：下载单文件并托管为 `adminer.test`（零驱动依赖，仅供本地开发）
+- **邮件捕获**：PHP `mail()` 邮件落盘为 `.eml` 并在「邮件」页查看（`sendmail_path` 垫片，零外部依赖；仅 Unix）
 - **崩溃检测与自愈**：识别 php-cgi 崩溃并告警，可选独立守护进程自动拉起（防抖 + 限次）
 - **自动升级**（安装版）、**开机自启**、**系统托盘**（Windows）
 

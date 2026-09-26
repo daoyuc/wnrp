@@ -46,6 +46,7 @@ from core import (  # noqa: E402
     file_backup,
     hosts_manager,
     log_sources,
+    mail_catcher,
     modules,
     overview,
     project_config,
@@ -1088,6 +1089,97 @@ def cmd_adminer_open(a, r: Result) -> Result:
     r.say(t("访问地址：{url}", url=url))
     r.data["opened"] = bool(opened)
     return r
+
+
+# --------------------------------------------------------------------------- #
+# mail（邮件捕获，F11；sendmail_path 仅 Unix）
+# --------------------------------------------------------------------------- #
+def _human_size(n: int) -> str:
+    """文件体积的可读形式（列表展示用）。"""
+    if n < 1024:
+        return f"{n} B"
+    if n < 1024 * 1024:
+        return f"{n / 1024:.1f} KB"
+    return f"{n / 1024 / 1024:.1f} MB"
+
+
+def cmd_mail_list(a, r: Result) -> Result:
+    mails = mail_catcher.list_mails(limit=a.limit)
+    r.data = {"count": len(mails), "mail_dir": mail_catcher.mail_dir(), "mails": mails}
+    if not mails:
+        r.note(t("暂无捕获到的邮件（邮件目录：{dir}）", dir=mail_catcher.mail_dir()))
+        return r
+    for m in mails:
+        r.say(f"{_human_size(m['size'])}  {m['subject'] or t('（无主题）')}")
+        r.say(f"    from {m['from'] or '—'}  →  {m['to'] or '—'}")
+        r.say(f"    {m['name']}")
+    return r
+
+
+def cmd_mail_show(a, r: Result) -> Result:
+    mails = mail_catcher.list_mails(limit=100000)
+    if not mails:
+        return r.fail(t("暂无捕获到的邮件"))
+    target = (a.target or "latest").strip()
+    if target.lower() in ("latest", ""):
+        m = mails[0]
+    else:
+        hits = [x for x in mails if x["name"] == target or x["file"] == target]
+        if not hits:
+            return r.fail(t("未找到邮件：{name}", name=target),
+                          available=[x["name"] for x in mails[:10]])
+        m = hits[0]
+    r.data = {**m, "content": mail_catcher.read_mail(m["file"])}
+    r.say(m["file"])
+    r.say(r.data["content"])
+    return r
+
+
+def cmd_mail_clear(a, r: Result) -> Result:
+    if not a.yes:
+        return r.fail(t("清空捕获到的邮件需加 --yes 确认"))
+    n = mail_catcher.clear_mails()
+    r.data = {"removed": n, "mail_dir": mail_catcher.mail_dir()}
+    r.say(t("已清空 {n} 封邮件", n=n))
+    return r
+
+
+def cmd_mail_status(a, r: Result) -> Result:
+    _, v = _php_target(a, r)
+    if v is None:
+        return r
+    st = mail_catcher.status(v)
+    r.data = {**st, "php": v.name}
+    r.say(t("[{name}] 邮件捕获：{state}", name=v.name,
+            state=t("已开启") if st["enabled"] else t("未开启")))
+    r.say(t("邮件目录：{dir}（已捕获 {n} 封）", dir=st["mail_dir"], n=st["count"]))
+    if st["current"]:
+        r.say(f"sendmail_path = {st['current']}")
+    if not st["supported"]:
+        r.note(t("sendmail_path 仅 Unix 有效（Windows 的 mail() 走 SMTP），暂不支持。"))
+    return r
+
+
+def _mail_toggle(a, r: Result, on: bool) -> Result:
+    _, v = _php_target(a, r)
+    if v is None:
+        return r
+    ok, msg, backup = (mail_catcher.enable(v) if on else mail_catcher.disable(v))
+    r.ok = bool(ok)
+    r.data = {"php": v.name, "enabled": on, "backup": backup,
+              "mail_dir": mail_catcher.mail_dir()}
+    if not ok:
+        r.data["error"] = msg
+    r.say(msg)
+    return r
+
+
+def cmd_mail_enable(a, r: Result) -> Result:
+    return _mail_toggle(a, r, True)
+
+
+def cmd_mail_disable(a, r: Result) -> Result:
+    return _mail_toggle(a, r, False)
 
 
 # --------------------------------------------------------------------------- #
@@ -2349,6 +2441,23 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--hosts", action="store_true", help="同时写入 hosts（可能需要系统授权）")
     p.add_argument("--dry-run", action="store_true", help="只报告将做什么")
     _leaf(gs, "open", cmd_adminer_open, "adminer.open", "在浏览器打开 Adminer")
+
+    # mail（邮件捕获 .eml，F11；sendmail_path 仅 Unix 有效）
+    g = sub.add_parser("mail", help="邮件捕获（.eml 落盘，sendmail_path 仅 Unix）",
+                       parents=[COMMON])
+    gs = g.add_subparsers(dest="action", metavar="<action>")
+    p = _leaf(gs, "list", cmd_mail_list, "mail.list", "列出捕获到的邮件")
+    p.add_argument("--limit", type=int, default=50, help="最多列出多少封（默认 50）")
+    p = _leaf(gs, "show", cmd_mail_show, "mail.show", "查看邮件原文（默认最新一封）")
+    p.add_argument("target", nargs="?", default="latest", help="邮件文件名 / 路径，或 latest")
+    p = _leaf(gs, "clear", cmd_mail_clear, "mail.clear", "清空捕获到的邮件（需 --yes）")
+    p.add_argument("--yes", action="store_true", help="确认清空")
+    p = _leaf(gs, "status", cmd_mail_status, "mail.status", "查看某版本的邮件捕获状态")
+    p.add_argument("name", help="版本名，如 php82 / 8.2 / 82")
+    for act, fn, hlp in (("enable", cmd_mail_enable, "为该版本开启邮件捕获（写 sendmail_path）"),
+                         ("disable", cmd_mail_disable, "关闭邮件捕获并还原原有 sendmail_path")):
+        p = _leaf(gs, act, fn, f"mail.{act}", hlp)
+        p.add_argument("name", help="版本名")
 
     # site
     g = sub.add_parser("site", help="站点（vhost）管理", parents=[COMMON])

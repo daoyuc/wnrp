@@ -474,8 +474,9 @@
   ]
  },
  "PHP 版本：": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "ui/mail_panel.py",
    "ui/site_wizard.py"
   ]
  },
@@ -715,6 +716,12 @@
    "ui/php_panel.py"
   ]
  },
+ "[{name}] 捕获：{state} · 目录：{dir}（{n} 封）": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
+  ]
+ },
  "[{name}] 未在运行": {
   "count": 1,
   "files": [
@@ -803,6 +810,12 @@
   "count": 1,
   "files": [
    "core/xdebug.py"
+  ]
+ },
+ "[{name}] 还没有生效的 php.ini，请先生成后再开启邮件捕获。": {
+  "count": 1,
+  "files": [
+   "core/mail_catcher.py"
   ]
  },
  "[{name}] 还没有生效的 php.ini：{path}\n请先点「初始化 php.ini」生成配置，再使用该功能。": {
@@ -1133,6 +1146,18 @@
   "count": 1,
   "files": [
    "core/php_downloader.py"
+  ]
+ },
+ "sendmail_path 仅 Unix 有效（Windows 的 mail() 走 SMTP），当前平台不可用。": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
+  ]
+ },
+ "sendmail_path 仅 Unix 有效（Windows 的 mail() 走 SMTP），暂不支持。": {
+  "count": 2,
+  "files": [
+   "core/mail_catcher.py"
   ]
  },
  "ssl_certificate 指令为空": {
@@ -1666,6 +1691,12 @@
    "core/diag.py"
   ]
  },
+ "主题": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
+  ]
+ },
  "事件日志 Application/1000": {
   "count": 1,
   "files": [
@@ -2060,12 +2091,13 @@
   ]
  },
  "关闭": {
-  "count": 10,
+  "count": 11,
   "files": [
    "ui/diag_dialog.py",
    "ui/dialogs.py",
    "ui/download_dialog.py",
    "ui/extension_dialog.py",
+   "ui/mail_panel.py",
    "ui/site_wizard.py",
    "ui/sqlite_panel.py",
    "ui/tuning_dialog.py",
@@ -2094,6 +2126,12 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "关闭捕获": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
   ]
  },
  "关闭调试": {
@@ -2193,8 +2231,9 @@
   ]
  },
  "写入失败：{err}": {
-  "count": 6,
+  "count": 8,
   "files": [
+   "core/mail_catcher.py",
    "core/site_service.py",
    "core/vhost_manager.py"
   ]
@@ -2302,8 +2341,9 @@
   ]
  },
  "刷新": {
-  "count": 7,
+  "count": 8,
   "files": [
+   "ui/mail_panel.py",
    "ui/nginx_log_panel.py",
    "ui/php_panel.py",
    "ui/redis_panel.py",
@@ -2421,6 +2461,12 @@
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "发件人": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
   ]
  },
  "发布信息格式不正确": {
@@ -2858,8 +2904,9 @@
   ]
  },
  "备份失败，未做修改：{err}": {
-  "count": 2,
+  "count": 3,
   "files": [
+   "core/mail_catcher.py",
    "core/site_service.py"
   ]
  },
@@ -2924,9 +2971,10 @@
   ]
  },
  "大小": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/download_dialog.py"
+   "ui/download_dialog.py",
+   "ui/mail_panel.py"
   ]
  },
  "失败": {
@@ -3193,6 +3241,12 @@
    "ui/tuning_dialog.py"
   ]
  },
+ "将删除邮件目录下的全部 .eml（{n} 封）：\n{dir}\n\n确定继续？": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
+  ]
+ },
  "将启动 Nginx": {
   "count": 1,
   "files": [
@@ -3221,6 +3275,12 @@
   "count": 1,
   "files": [
    "core/backup_bundle.py"
+  ]
+ },
+ "将把 [{name}] 的 sendmail_path 指向 phpvm 的捕获脚本（改前自动备份，关闭时还原）。\nPHP 的 mail() 邮件会写入：\n{dir}\n\n确定继续？": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
   ]
  },
  "将把 {name} 切到 {php}（端口 {port}）": {
@@ -3443,6 +3503,12 @@
    "ui/sqlite_panel.py"
   ]
  },
+ "已关闭邮件捕获并还原原有设置（重启生效）。": {
+  "count": 1,
+  "files": [
+   "core/mail_catcher.py"
+  ]
+ },
  "已写入": {
   "count": 1,
   "files": [
@@ -3639,8 +3705,9 @@
   ]
  },
  "已开启": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "ui/mail_panel.py",
    "ui/main_window.py"
   ]
  },
@@ -3648,6 +3715,12 @@
   "count": 1,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "已开启邮件捕获：邮件将写入 {dir}\n（重启 [{name}] 后生效）": {
+  "count": 1,
+  "files": [
+   "core/mail_catcher.py"
   ]
  },
  "已恢复 {n} 个配置文件。": {
@@ -3696,6 +3769,12 @@
   "count": 1,
   "files": [
    "ui/php_panel.py"
+  ]
+ },
+ "已捕获 {n} 封邮件": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
   ]
  },
  "已是最新版本": {
@@ -3751,6 +3830,12 @@
   "count": 1,
   "files": [
    "core/cert_manager.py"
+  ]
+ },
+ "已清空 {n} 封邮件": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
   ]
  },
  "已清空崩溃告警记录": {
@@ -3975,16 +4060,34 @@
    "core/tuning.py"
   ]
  },
+ "开启": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
+  ]
+ },
  "开启字节码缓存：省掉每个请求重复编译 PHP 的开销，本地开发同样受益": {
   "count": 1,
   "files": [
    "core/tuning.py"
   ]
  },
+ "开启捕获": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
+  ]
+ },
  "开启调试": {
   "count": 1,
   "files": [
    "ui/xdebug_dialog.py"
+  ]
+ },
+ "开启邮件捕获": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
   ]
  },
  "开始下载": {
@@ -4093,6 +4196,12 @@
   "count": 1,
   "files": [
    "ui/sqlite_panel.py"
+  ]
+ },
+ "当前没有捕获到的邮件。": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
   ]
  },
  "当前版本 {cur} · 最新版本 {new}": {
@@ -4255,6 +4364,12 @@
    "ui/php_panel.py"
   ]
  },
+ "打开邮件目录": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
+  ]
+ },
  "打开配置文件": {
   "count": 3,
   "files": [
@@ -4382,11 +4497,12 @@
   ]
  },
  "提示": {
-  "count": 9,
+  "count": 10,
   "files": [
    "ui/dialogs.py",
    "ui/download_dialog.py",
    "ui/extension_dialog.py",
+   "ui/mail_panel.py",
    "ui/php_panel.py",
    "ui/redis_panel.py",
    "ui/tuning_dialog.py"
@@ -4429,12 +4545,19 @@
   ]
  },
  "操作失败": {
-  "count": 5,
+  "count": 7,
   "files": [
+   "ui/mail_panel.py",
    "ui/main_window.py",
    "ui/php_panel.py",
    "ui/vhost_panel.py",
    "core/service_group.py"
+  ]
+ },
+ "操作失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
   ]
  },
  "操作完成": {
@@ -4448,6 +4571,12 @@
   "count": 1,
   "files": [
    "core/service_group.py"
+  ]
+ },
+ "收件人": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
   ]
  },
  "故障模块": {
@@ -4739,9 +4868,10 @@
   ]
  },
  "时间": {
-  "count": 2,
+  "count": 3,
   "files": [
    "ui/dialogs.py",
+   "ui/mail_panel.py",
    "ui/run_log_panel.py"
   ]
  },
@@ -4791,6 +4921,12 @@
   "count": 1,
   "files": [
    "ui/nginx_log_panel.py"
+  ]
+ },
+ "暂无捕获到的邮件。\n\n在「PHP 版本管理」页或本页选择版本后点「开启捕获」，PHP 的 mail() 就会把邮件写到邮件目录。": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
   ]
  },
  "更新 /etc/hosts 需要管理员授权（已取消或失败：{err}）": {
@@ -4944,6 +5080,12 @@
   "count": 1,
   "files": [
    "core/tuning.py"
+  ]
+ },
+ "未开启": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
   ]
  },
  "未扫描到可用 PHP 版本（可先到「PHP 版本管理」页确认）。\nLaravel / WordPress / ThinkPHP 等模板需要 PHP，可先选「静态站点 / SPA」模板。": {
@@ -5406,6 +5548,12 @@
    "ui/php_panel.py"
   ]
  },
+ "正在{act}邮件捕获…": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
+  ]
+ },
  "正在{label}…": {
   "count": 1,
   "files": [
@@ -5646,6 +5794,12 @@
    "ui/download_dialog.py"
   ]
  },
+ "正在读取…": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
+  ]
+ },
  "正在运行 php -v 验证": {
   "count": 1,
   "files": [
@@ -5739,8 +5893,9 @@
   ]
  },
  "清空": {
-  "count": 2,
+  "count": 5,
   "files": [
+   "ui/mail_panel.py",
    "ui/run_log_panel.py",
    "ui/sqlite_panel.py"
   ]
@@ -5961,8 +6116,9 @@
   ]
  },
  "目录不存在": {
-  "count": 2,
+  "count": 3,
   "files": [
+   "ui/mail_panel.py",
    "ui/site_wizard.py",
    "ui/vhost_panel.py"
   ]
@@ -6627,6 +6783,12 @@
    "ui/update_dialog.py"
   ]
  },
+ "该版本未开启邮件捕获，无需操作。": {
+  "count": 1,
+  "files": [
+   "core/mail_catcher.py"
+  ]
+ },
  "该站点已启用 HTTPS，无需重复操作。": {
   "count": 1,
   "files": [
@@ -6713,6 +6875,18 @@
    "ui/tuning_dialog.py"
   ]
  },
+ "请先在上方选择一个 PHP 版本": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
+  ]
+ },
+ "请先在上方选择一个 PHP 版本。": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
+  ]
+ },
  "请先在列表中选择一个 PHP 版本。": {
   "count": 1,
   "files": [
@@ -6780,10 +6954,17 @@
   ]
  },
  "读取失败：{err}": {
-  "count": 3,
+  "count": 6,
   "files": [
+   "core/mail_catcher.py",
    "core/php_manager.py",
    "core/vhost_manager.py"
+  ]
+ },
+ "读取邮件失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
   ]
  },
  "读取配置失败：{err}": {
@@ -7028,6 +7209,24 @@
    "ui/site_wizard.py"
   ]
  },
+ "邮件": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "邮件原文（.eml）": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
+  ]
+ },
+ "邮件目录不存在：{path}": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
+  ]
+ },
  "配合 sendfile，等包攒满再发出，减少小包数量": {
   "count": 1,
   "files": [
@@ -7080,8 +7279,9 @@
   ]
  },
  "配置文件不存在：{path}": {
-  "count": 2,
+  "count": 3,
   "files": [
+   "core/mail_catcher.py",
    "core/site_service.py"
   ]
  },
@@ -7491,6 +7691,12 @@
   "count": 1,
   "files": [
    "ui/download_dialog.py"
+  ]
+ },
+ "（无主题）": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
   ]
  },
  "（无生效配置文件，请先「初始化 php.ini」）": {
