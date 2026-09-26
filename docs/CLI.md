@@ -39,6 +39,7 @@
 | `logs` | 站点与应用日志聚合（只读） | `sources` · `tail` |
 | `mail` | 邮件捕获（.eml 落盘，sendmail_path 仅 Unix） | `clear` · `disable` · `enable` · `list` · `show` · `status` |
 | `module` | 功能模块开关 | `disable` · `enable` · `list` |
+| `monitor` | 轻量资源监控（CPU / 内存，仅 phpvm 管理进程） | `snapshot` |
 | `mysql` | MySQL 管理 | `list` · `log` · `restart` · `start` · `status` · `stop` |
 | `nginx` | Nginx 管理 | `logs` · `reload` · `start` · `status` · `stop` · `test` |
 | `overview` | 首页总览仪表盘（只读快照） | `summary` |
@@ -222,6 +223,12 @@
 | `--dry-run` |  |  | 只报告将做什么 |
 
 ### `module list` — 列出模块与启用状态
+
+（无参数）
+
+## `monitor` — 轻量资源监控（CPU / 内存，仅 phpvm 管理进程）
+
+### `monitor snapshot` — 输出各服务（Nginx / PHP / Redis / MySQL）的 CPU 与内存占用快照
 
 （无参数）
 

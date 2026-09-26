@@ -14,6 +14,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 from core import i18n, overview as ovmod
+from core.resource_monitor import human_bytes as _human_bytes
 from . import theme
 
 C_OK = "#2e7d32"
@@ -91,11 +92,20 @@ class OverviewPanel(ttk.Frame):
             except Exception as e:  # noqa: BLE001
                 ov = None
                 self.after(0, lambda: self.notify(i18n.t("总览聚合失败：{err}", err=e)))
-            self.after(0, lambda: self._render(ov))
+                return
+            metrics = None
+            try:
+                from core import resource_monitor as rm
+                metrics = rm.collect_service_metrics(
+                    self.config, self.php_mgr, self.nginx_mgr,
+                    self.redis_mgr, self.mysql_mgr)
+            except Exception:  # noqa: BLE001
+                metrics = None
+            self.after(0, lambda: self._render(ov, metrics))
 
         threading.Thread(target=worker, daemon=True).start()
 
-    def _render(self, ov) -> None:
+    def _render(self, ov, metrics=None) -> None:
         self._busy = False
         if ov is None:
             return
@@ -109,33 +119,61 @@ class OverviewPanel(ttk.Frame):
         else:
             self.banner_var.set(i18n.t("环境正常 · 全部在线 · 共 {n} 个站点", n=ov.site_count))
             self.banner.configure(foreground=C_OK)
-        self._fill_services(ov)
+        self._fill_services(ov, metrics)
         self._fill(self.alert_text, ov.alerts or [i18n.t("无告警")], default_tag="ok")
         self._fill(self.crash_text, ov.crashes or [i18n.t("无")], default_tag="mute")
         self._fill(self.log_text, ov.recent_logs or [i18n.t("无")], default_tag="mute")
 
-    def _fill_services(self, ov) -> None:
-        lines = []
-        lines.append((i18n.t("Nginx"), ov.nginx.running, ov.nginx.detail))
+    def _fill_services(self, ov, metrics=None) -> None:
+        # 资源指标按 (kind, name) 索引，行内附带内存/CPU（F12 轻量资源监控）
+        res_map: dict = {}
+        if metrics:
+            for s in metrics.get("services", []):
+                res_map[(s["kind"], s["name"])] = s
+
+        def _res_text(kind, name) -> str:
+            s = res_map.get((kind, name))
+            if not s or not s["running"]:
+                return ""
+            mem = _human_bytes(s["rss_bytes"])
+            cpu = f"{s['cpu_percent']:.0f}%" if s["cpu_percent"] >= 0 else i18n.t("未知")
+            return i18n.t("内存 {mem} · CPU {cpu}", mem=mem, cpu=cpu)
+
+        rows = []
+        rows.append((i18n.t("Nginx"), ov.nginx.running, ov.nginx.detail, "nginx", "Nginx"))
         if ov.php:
             for s in ov.php:
-                lines.append((f"PHP {s.name}", s.running, s.detail))
+                rows.append((f"PHP {s.name}", s.running, s.detail, "php", s.name))
         else:
-            lines.append((i18n.t("PHP"), False, i18n.t("未检测到版本")))
+            rows.append((i18n.t("PHP"), False, i18n.t("未检测到版本"), "php", ""))
         for s in ov.redis:
-            lines.append((i18n.t("Redis") + " " + s.name, s.running, s.detail))
+            rows.append((i18n.t("Redis") + " " + s.name, s.running, s.detail, "redis", s.name))
         for s in ov.mysql:
-            lines.append((i18n.t("MySQL") + " " + s.name, s.running, s.detail))
+            rows.append((i18n.t("MySQL") + " " + s.name, s.running, s.detail, "mysql", s.name))
 
         self.svc_text.configure(state="normal")
         self.svc_text.delete("1.0", "end")
-        for name, running, detail in lines:
+        for name, running, detail, kind, rname in rows:
             tag = "ok" if running else "err"
             mark = "● " if running else "○ "
             self.svc_text.insert("end", mark + name, tag)
             if detail:
                 self.svc_text.insert("end", "  " + detail, "mute")
+            extra = _res_text(kind, rname) if running else ""
+            if extra:
+                self.svc_text.insert("end", " " + extra, "mute")
             self.svc_text.insert("end", "\n")
+
+        # 合计资源占用（F12）
+        if metrics:
+            tot = metrics.get("totals", {})
+            if tot:
+                mem = _human_bytes(tot.get("rss_bytes", 0))
+                cpu = (f"{tot['cpu_percent']:.0f}%" if tot.get("cpu_percent", -1) >= 0
+                       else i18n.t("未知"))
+                line = i18n.t("合计 · {n} 个服务运行中 · 内存 {mem} · CPU {cpu}",
+                             n=tot.get("service_count", 0), mem=mem, cpu=cpu)
+                self.svc_text.insert("end", "\n" + line, "mute")
         self.svc_text.configure(state="disabled")
 
     def _fill(self, txt: tk.Text, items: list, default_tag: str = "") -> None:
