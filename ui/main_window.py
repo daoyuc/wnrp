@@ -256,6 +256,11 @@ class MainWindow(tk.Tk):
         if modules.is_enabled("log", self.config):
             self.log_panel = LogPanel(nb, self.set_log, self.nginx_mgr,
                                       self.config, self.vhost_mgr)
+        # 邮件页（可选模块）：查看 PHP mail() 捕获到的 .eml
+        self.mail_panel = None
+        if modules.is_enabled("mail", self.config):
+            from .mail_panel import MailPanel
+            self.mail_panel = MailPanel(nb, self.set_log, self.php_mgr, self.config)
         # 总览仪表盘（可选模块，置顶第一个页签）
         self.overview_panel = None
         if modules.is_enabled("overview", self.config):
@@ -278,6 +283,8 @@ class MainWindow(tk.Tk):
             nb.add(self.sqlite_panel, text=t("SQLite 数据库"))
         if self.log_panel is not None:
             nb.add(self.log_panel, text=t("日志"))
+        if self.mail_panel is not None:
+            nb.add(self.mail_panel, text=t("邮件"))
         # 运行日志：全局记录（应用启停 / 服务启停结果 / 异常），不受模块开关影响
         self.run_panel = RunLogPanel(nb, self.set_log)
         nb.add(self.run_panel, text=t("运行日志"))
@@ -1025,7 +1032,7 @@ class MainWindow(tk.Tk):
         切回时由 <<NotebookTabChanged>> 立即补一次，不会看到陈旧数据。
         """
         for panel in (self.overview_panel, self.php_panel, self.nginx_panel,
-                      self.redis_panel, self.log_panel):
+                      self.redis_panel, self.log_panel, self.mail_panel):
             if panel is None or not self._panel_visible(panel):
                 continue
             try:
