@@ -12,6 +12,7 @@ from tkinter import messagebox, ttk
 
 from core import crash_watchdog
 from core import process_utils as pu
+from core import xdebug
 from core.config import Config, IS_WIN
 from core.health_monitor import HealthMonitor
 from core.i18n import t
@@ -23,14 +24,41 @@ from .tuning_dialog import TuningDialog
 from .xdebug_dialog import XdebugDialog
 from . import theme
 
+#: 列表列：状态 / 标识 / 端口进程 + 4 项最常用的 ini 指标 + 扩展数 / 调试开关。
+#: 完整指标与路径放在下方「常用指标」栏，避免列过宽挤占比较视图。
 COLUMNS = [
-    ("status", t("状态"), 70, "center"),
-    ("name", t("版本目录"), 110, "w"),
-    ("ver", t("PHP 版本"), 90, "center"),
-    ("port", t("端口"), 80, "center"),
-    ("pid", "PID", 90, "center"),
-    ("ini", t("配置文件"), 300, "w"),
+    ("status", t("状态"), 64, "center"),
+    ("name", t("版本目录"), 105, "w"),
+    ("ver", t("PHP 版本"), 85, "center"),
+    ("port", t("端口"), 68, "center"),
+    ("pid", "PID", 78, "center"),
+    ("mem", t("内存上限"), 92, "center"),
+    ("upload", t("上传上限"), 92, "center"),
+    ("maxtime", t("执行时限"), 92, "center"),
+    ("ext", t("扩展"), 68, "center"),
+    ("debug", t("调试"), 64, "center"),
+    ("ini", t("配置文件"), 170, "w"),
 ]
+
+#: 详情栏「常用指标」展示的 ini 项（key, 展示名），按 4 列网格排布
+METRIC_ITEMS = [
+    ("memory_limit", t("内存上限")),
+    ("post_max_size", t("提交上限")),
+    ("upload_max_filesize", t("上传上限")),
+    ("max_file_uploads", t("最大上传文件数")),
+    ("max_execution_time", t("执行时限")),
+    ("max_input_time", t("输入超时")),
+    ("display_errors", t("显示错误")),
+    ("error_reporting", t("错误级别")),
+    ("date.timezone", t("时区")),
+    ("default_charset", t("默认字符集")),
+    ("opcache.enable", t("OPcache")),
+    ("extension_dir", t("扩展目录")),
+]
+
+#: 关键扩展（与「版本自检」的 9 项一致）：详情栏给出命中统计
+KEY_EXTS = ("redis", "pdo_mysql", "mysqli", "openssl",
+            "curl", "mbstring", "gd", "fileinfo", "zip")
 
 #: 配置文件列前缀：该版本还没有生效的 php.ini（需先「初始化 php.ini」）
 _MISSING_MARK = "⚠ "
@@ -49,6 +77,8 @@ class PhpPanel(ttk.Frame):
         self._name_to_iid: dict[str, str] = {}
         self._pending_row_refresh = False
         self._draining = False  # 队列 drain 是否已启动（唯一消费者）
+        #: 常用指标缓存：{版本名: 指标}，按 ini 的 (mtime, size) 失效
+        self._metrics: dict[str, dict] = {}
 
         self._build()
         self.refresh_versions()
@@ -86,6 +116,9 @@ class PhpPanel(ttk.Frame):
             b.pack(side="left", padx=(0, 6))
         ttk.Label(bar, text=t("选中版本后操作 · 双击行查看配置"),
                   style="SubTitle.TLabel").pack(side="left", padx=(4, 0))
+
+        # 常用指标栏（选中版本）：先按 bottom 占位，表格再 fill 剩余空间
+        self._build_metrics_bar().pack(side="bottom", fill="x", pady=(6, 0))
 
         # 表格
         wrap = ttk.Frame(self)
@@ -186,15 +219,173 @@ class PhpPanel(ttk.Frame):
             self._update_rows()
 
     def _row(self, v: PhpVersion, i: int) -> tuple[tuple, list[str]]:
-        """单行数据 + 标记：配置文件缺失时路径前加 ⚠（该行需先「初始化 php.ini」）。"""
-        dot, tag = ("●", "dot_run") if v.running else ("○", "dot_stop")
-        ini = self.php_mgr.ini_target(v)
-        if not self.php_mgr.ini_ready(v):
-            ini = _MISSING_MARK + ini
+        """单行数据 + 标记：指标取自该版本 ini（按 mtime 缓存，心跳刷新只做 stat）。
+
+        配置文件缺失时路径前加 ⚠（该行需先「初始化 php.ini」），指标列显示 —。
+        """
+        if v.running:
+            dot, tag = "●", "dot_run"
+        elif v.error:
+            dot, tag = "!", "dot_err"  # 二进制跑不起来（如 Homebrew 升级后缺动态库）
+        else:
+            dot, tag = "○", "dot_stop"
+        disp = t("不可用") if v.error else (v.display or "—")
+        target = self.php_mgr.ini_target(v)
+        cell = self._ini_cell(target)
+        m = self._metrics_for(v)
+        keys = m.get("keys") or {}
+        if self.php_mgr.ini_ready(v):
+            ini = cell
+            ext_cell = str(len(m.get("exts") or []))
+            debug_cell = t("开") if m.get("xdebug") else t("关")
+        else:
+            ini = _MISSING_MARK + cell
+            ext_cell = debug_cell = "—"
         return (
-            (dot, v.name, v.display, v.port, v.pid if v.pid else "—", ini),
+            (dot, v.name, disp, v.port, v.pid if v.pid else "—",
+             keys.get("memory_limit") or "—",
+             keys.get("upload_max_filesize") or "—",
+             keys.get("max_execution_time") or "—",
+             ext_cell, debug_cell, ini),
             [tag, "odd" if i % 2 else "even"],
         )
+
+    # ------------------------------------------------------------------ #
+    # 常用指标：底部详情栏 + 列表行（按 ini 的 mtime 缓存，避免心跳重复读盘）
+    # ------------------------------------------------------------------ #
+    @staticmethod
+    def _ini_cell(target: str) -> str:
+        """配置文件列的紧凑显示：末两级（如 ``8.5/php.ini`` / ``php82/php.ini``）。"""
+        parent = os.path.basename(os.path.dirname(target or ""))
+        name = os.path.basename(target or "")
+        return f"{parent}/{name}" if parent else name
+
+    def _bind_metrics_refresh(self, dlg):
+        """配置类对话框关闭后刷新指标（这些对话框没有完成回调，靠 Destroy 事件）。
+
+        ini 的 (mtime, size) 已变 → 缓存失效重算，列表与详情栏随即反映修改结果。
+        """
+        def on_destroy(event):
+            if event.widget is dlg and self.winfo_exists():
+                self._update_rows()
+
+        dlg.bind("<Destroy>", on_destroy, add="+")
+        return dlg
+
+    def _build_metrics_bar(self) -> ttk.LabelFrame:
+        """底部「常用指标」栏：选中版本的常用 ini 值 + 扩展 / 调试 + 关键路径。"""
+        box = ttk.LabelFrame(self, text=t("常用指标"), padding=(10, 6))
+        grid = ttk.Frame(box, style="Card.TFrame")
+        grid.pack(fill="x")
+        self._metric_vars: dict[str, tk.StringVar] = {}
+        cols = 4
+        for idx, (key, label) in enumerate(METRIC_ITEMS):
+            row, col = divmod(idx, cols)
+            var = tk.StringVar(value="—")
+            self._metric_vars[key] = var
+            ttk.Label(grid, text=label + "：", style="SubTitle.TLabel").grid(
+                row=row, column=col * 2, sticky="e", padx=(0, 2), pady=1)
+            ttk.Label(grid, textvariable=var, style="Card.TLabel").grid(
+                row=row, column=col * 2 + 1, sticky="w", padx=(0, 14), pady=1)
+        r = (len(METRIC_ITEMS) + cols - 1) // cols
+        span = cols * 2 - 1
+        self._ext_var = tk.StringVar(value="—")
+        ttk.Label(grid, text=t("扩展") + "：", style="SubTitle.TLabel").grid(
+            row=r, column=0, sticky="e", padx=(0, 2), pady=(4, 1))
+        ttk.Label(grid, textvariable=self._ext_var, style="Card.TLabel").grid(
+            row=r, column=1, columnspan=span, sticky="w", pady=(4, 1))
+        # 运行依赖异常（如缺动态库）：仅在确有原因时显示
+        self._dep_var = tk.StringVar(value="")
+        self._dep_label = ttk.Label(grid, text=t("运行依赖") + "：", style="SubTitle.TLabel")
+        self._dep_value = ttk.Label(grid, textvariable=self._dep_var, style="Card.TLabel",
+                                    wraplength=760, justify="left")
+        self._dep_label.grid(row=r + 1, column=0, sticky="e", padx=(0, 2), pady=1)
+        self._dep_value.grid(row=r + 1, column=1, columnspan=span, sticky="w", pady=1)
+        self._set_dep_error("")
+        self._path_var = tk.StringVar(value="—")
+        ttk.Label(grid, text=t("配置文件") + "：", style="SubTitle.TLabel").grid(
+            row=r + 2, column=0, sticky="e", padx=(0, 2), pady=1)
+        ttk.Label(grid, textvariable=self._path_var, style="Card.TLabel",
+                  wraplength=760, justify="left").grid(
+            row=r + 2, column=1, columnspan=span, sticky="w", pady=1)
+        self._cgi_var = tk.StringVar(value="—")
+        ttk.Label(grid, text="php-cgi：", style="SubTitle.TLabel").grid(
+            row=r + 3, column=0, sticky="e", padx=(0, 2), pady=1)
+        ttk.Label(grid, textvariable=self._cgi_var, style="Card.TLabel",
+                  wraplength=760, justify="left").grid(
+            row=r + 3, column=1, columnspan=span, sticky="w", pady=1)
+        return box
+
+    def _set_dep_error(self, reason: str) -> None:
+        """显示 / 隐藏「运行依赖」行（空原因时整行隐藏，不占视觉噪音）。"""
+        self._dep_var.set(reason)
+        if reason:
+            self._dep_value.configure(foreground=theme.ERR)
+            self._dep_label.grid()
+            self._dep_value.grid()
+        else:
+            self._dep_label.grid_remove()
+            self._dep_value.grid_remove()
+
+    def _metrics_for(self, v: PhpVersion) -> dict:
+        """该版本的常用指标；ini 未变（mtime + size 相同）时复用缓存。"""
+        target = self.php_mgr.ini_target(v)
+        try:
+            st = os.stat(target)
+            sig = (st.st_mtime_ns, st.st_size)
+        except OSError:
+            sig = None
+        cached = self._metrics.get(v.name)
+        if cached is not None and cached.get("_sig") == sig:
+            return cached
+        m = self._compute_metrics(v)
+        m["_sig"] = sig
+        self._metrics[v.name] = m
+        return m
+
+    def _compute_metrics(self, v: PhpVersion) -> dict:
+        """读取该版本生效 php.ini 的常用指标（无生效配置时 ``ok=False``）。"""
+        info = self.php_mgr.read_key_ini(v)
+        if "__error__" in info:
+            return {"ok": False, "keys": {}, "exts": [], "xdebug": False}
+        keys = {k: val for k, val in info.items() if not str(k).startswith("__")}
+        exts = [str(e).strip().strip('"').strip("'")
+                for e in info.get("__extensions__", [])]
+        try:
+            xdebug_on = xdebug.loader_enabled(v)
+        except Exception:  # noqa: BLE001 —— 指标展示不应影响面板
+            xdebug_on = False
+        return {"ok": True, "keys": keys, "exts": exts, "xdebug": xdebug_on}
+
+    def _update_metrics_bar(self) -> None:
+        """把选中版本的常用指标刷到详情栏；未选中 / 无配置时给出提示。"""
+        v = self._selected()
+        if v is None:
+            for var in self._metric_vars.values():
+                var.set("—")
+            self._ext_var.set(t("选中一个版本查看常用指标"))
+            self._set_dep_error("")
+            self._path_var.set("—")
+            self._cgi_var.set("—")
+            return
+        m = self._metrics_for(v)
+        keys = m.get("keys") or {}
+        for key, _label in METRIC_ITEMS:
+            self._metric_vars[key].set(keys.get(key) or "—")
+        if not m.get("ok"):
+            self._ext_var.set(t("（无生效配置文件，请先「初始化 php.ini」）"))
+        else:
+            exts = m.get("exts") or []
+            stems = {os.path.splitext(e)[0].lower() for e in exts}
+            hit = sum(1 for k in KEY_EXTS if k in stems)
+            self._ext_var.set(
+                t("共 {n} 个", n=len(exts)) + "  ·  "
+                + t("关键扩展 {hit}/{total}", hit=hit, total=len(KEY_EXTS))
+                + "  ·  " + t("Xdebug {state}",
+                              state=t("开") if m.get("xdebug") else t("关")))
+        self._set_dep_error(v.error)
+        self._path_var.set(self.php_mgr.ini_target(v))
+        self._cgi_var.set(v.cgi or "—")
 
     def _render(self, versions: list[PhpVersion]) -> None:
         self._versions = versions
@@ -336,6 +527,8 @@ class PhpPanel(ttk.Frame):
         need_ini = v is not None and not self.php_mgr.ini_ready(v)
         self.btn_init_ini.configure(
             state="normal" if (need_ini and not self._busy) else "disabled")
+        # 选中项变化 / 状态刷新后，同步底部常用指标
+        self._update_metrics_bar()
 
     def _set_busy(self, busy: bool) -> None:
         self._busy = busy
@@ -370,7 +563,7 @@ class PhpPanel(ttk.Frame):
                 parent=self,
             )
             return
-        IniEditDialog(self, v, self.php_mgr)
+        self._bind_metrics_refresh(IniEditDialog(self, v, self.php_mgr))
 
     def _recommend_settings(self) -> None:
         """按本机硬件给出 php.ini 的开发环境推荐值，由用户勾选后写入。"""
@@ -397,13 +590,13 @@ class PhpPanel(ttk.Frame):
                 parent=self,
             )
             return
-        TuningDialog(
+        self._bind_metrics_refresh(TuningDialog(
             self,
             t("PHP 推荐设置 · {name}", name=v.name),
             t("配置文件：{file}", file=v.ini),
             profile, items, tuning.php_notes(),
             lambda picked: self._apply_tuning(v, picked),
-        )
+        ))
 
     def _apply_tuning(self, v, items) -> tuple[bool, str]:
         """写入勾选的推荐项；返回 (是否成功, 提示文本)。"""
@@ -454,8 +647,9 @@ class PhpPanel(ttk.Frame):
         v = self._selected()
         if v is None:
             return
-        XdebugDialog(self, v, on_restart=lambda: self._operate("restart"),
-                     notify=lambda msg: self.notify(msg))
+        self._bind_metrics_refresh(
+            XdebugDialog(self, v, on_restart=lambda: self._operate("restart"),
+                         notify=lambda msg: self.notify(msg)))
 
     def _self_check(self) -> None:
         v = self._selected()
@@ -503,7 +697,7 @@ class PhpPanel(ttk.Frame):
                 parent=self,
             )
             return
-        ExtensionDialog(self, v, self.php_mgr)
+        self._bind_metrics_refresh(ExtensionDialog(self, v, self.php_mgr))
 
     def _composer(self) -> None:
         """检测 Composer，并在所选 PHP 版本的 PATH 下打开终端查看版本。"""

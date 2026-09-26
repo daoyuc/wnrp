@@ -367,6 +367,12 @@
    "core/nginx_manager.py"
   ]
  },
+ "OPcache": {
+  "count": 1,
+  "files": [
+   "ui/php_panel.py"
+  ]
+ },
  "PECL 无适配本机 {series} {ts} {arch} 的 {ext} 构建。\n该扩展可能尚未提供当前 PHP 主版本的 Windows 包。": {
   "count": 1,
   "files": [
@@ -573,6 +579,12 @@
   "count": 1,
   "files": [
    "core/tuning.py"
+  ]
+ },
+ "Xdebug {state}": {
+  "count": 1,
+  "files": [
+   "ui/php_panel.py"
   ]
  },
  "Xdebug 调试": {
@@ -1468,6 +1480,12 @@
    "ui/site_wizard.py"
   ]
  },
+ "上传上限": {
+  "count": 2,
+  "files": [
+   "ui/php_panel.py"
+  ]
+ },
  "下一步": {
   "count": 2,
   "files": [
@@ -1562,6 +1580,12 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "不可用": {
+  "count": 1,
+  "files": [
+   "ui/php_panel.py"
   ]
  },
  "不在响应头暴露 nginx 版本号（顺便少几十字节）": {
@@ -1975,6 +1999,12 @@
    "ui/dialogs.py"
   ]
  },
+ "共 {n} 个": {
+  "count": 1,
+  "files": [
+   "ui/php_panel.py"
+  ]
+ },
  "共 {n} 个可用版本（含历史归档）": {
   "count": 1,
   "files": [
@@ -1999,6 +2029,12 @@
    "ui/extension_dialog.py"
   ]
  },
+ "关": {
+  "count": 2,
+  "files": [
+   "ui/php_panel.py"
+  ]
+ },
  "关于": {
   "count": 1,
   "files": [
@@ -2009,6 +2045,12 @@
   "count": 1,
   "files": [
    "core/health_monitor.py"
+  ]
+ },
+ "关键扩展 {hit}/{total}": {
+  "count": 1,
+  "files": [
+   "ui/php_panel.py"
   ]
  },
  "关键配置": {
@@ -2058,6 +2100,12 @@
   "count": 2,
   "files": [
    "ui/xdebug_dialog.py"
+  ]
+ },
+ "内存上限": {
+  "count": 2,
+  "files": [
+   "ui/php_panel.py"
   ]
  },
  "内容": {
@@ -3825,6 +3873,12 @@
    "ui/main_window.py"
   ]
  },
+ "常用指标": {
+  "count": 1,
+  "files": [
+   "ui/php_panel.py"
+  ]
+ },
  "平滑重载": {
   "count": 2,
   "files": [
@@ -3883,6 +3937,12 @@
   "count": 1,
   "files": [
    "ui/tuning_dialog.py"
+  ]
+ },
+ "开": {
+  "count": 2,
+  "files": [
+   "ui/php_panel.py"
   ]
  },
  "开发必须开启：检查文件修改时间，改了代码自动失效，不用手动清缓存": {
@@ -4228,11 +4288,24 @@
    "ui/site_wizard.py"
   ]
  },
- "扩展": {
+ "执行时限": {
   "count": 2,
   "files": [
+   "ui/php_panel.py"
+  ]
+ },
+ "扩展": {
+  "count": 4,
+  "files": [
    "ui/dialogs.py",
-   "ui/extension_dialog.py"
+   "ui/extension_dialog.py",
+   "ui/php_panel.py"
+  ]
+ },
+ "扩展目录": {
+  "count": 1,
+  "files": [
+   "ui/php_panel.py"
   ]
  },
  "扫描失败": {
@@ -4299,6 +4372,12 @@
   "count": 5,
   "files": [
    "ui/nginx_panel.py",
+   "ui/php_panel.py"
+  ]
+ },
+ "提交上限": {
+  "count": 1,
+  "files": [
    "ui/php_panel.py"
   ]
  },
@@ -4562,6 +4641,12 @@
    "ui/vhost_panel.py"
   ]
  },
+ "无法执行：{exe}": {
+  "count": 1,
+  "files": [
+   "core/php_manager.py"
+  ]
+ },
  "无法探测 PHP 版本信息，在线安装不可用。": {
   "count": 1,
   "files": [
@@ -4647,6 +4732,12 @@
    "ui/run_log_panel.py"
   ]
  },
+ "时区": {
+  "count": 1,
+  "files": [
+   "ui/php_panel.py"
+  ]
+ },
  "时间": {
   "count": 2,
   "files": [
@@ -4676,6 +4767,12 @@
   "count": 1,
   "files": [
    "ui/vhost_panel.py"
+  ]
+ },
+ "显示错误": {
+  "count": 1,
+  "files": [
+   "ui/php_panel.py"
   ]
  },
  "暂不支持自动修复该项": {
@@ -4712,6 +4809,12 @@
   "count": 1,
   "files": [
    "ui/update_dialog.py"
+  ]
+ },
+ "最大上传文件数": {
+  "count": 1,
+  "files": [
+   "ui/php_panel.py"
   ]
  },
  "最小化到托盘": {
@@ -6246,6 +6349,12 @@
    "ui/site_wizard.py"
   ]
  },
+ "缺少动态库：{lib}": {
+  "count": 1,
+  "files": [
+   "core/php_manager.py"
+  ]
+ },
  "缺少域名": {
   "count": 1,
   "files": [
@@ -6704,7 +6813,7 @@
   ]
  },
  "调试": {
-  "count": 1,
+  "count": 2,
   "files": [
    "ui/php_panel.py"
   ]
@@ -6775,6 +6884,12 @@
    "ui/redis_panel.py"
   ]
  },
+ "输入超时": {
+  "count": 1,
+  "files": [
+   "ui/php_panel.py"
+  ]
+ },
  "过滤：": {
   "count": 1,
   "files": [
@@ -6788,6 +6903,12 @@
    "ui/mysql_panel.py",
    "ui/nginx_panel.py",
    "ui/redis_panel.py"
+  ]
+ },
+ "运行依赖": {
+  "count": 1,
+  "files": [
+   "ui/php_panel.py"
   ]
  },
  "运行日志": {
@@ -6877,6 +6998,12 @@
    "ui/tray.py"
   ]
  },
+ "选中一个版本查看常用指标": {
+  "count": 1,
+  "files": [
+   "ui/php_panel.py"
+  ]
+ },
  "选中版本后操作 · 双击行查看配置": {
   "count": 1,
   "files": [
@@ -6938,7 +7065,7 @@
   ]
  },
  "配置文件": {
-  "count": 4,
+  "count": 5,
   "files": [
    "ui/dialogs.py",
    "ui/mysql_panel.py",
@@ -7155,6 +7282,12 @@
    "core/diag.py"
   ]
  },
+ "错误级别": {
+  "count": 1,
+  "files": [
+   "ui/php_panel.py"
+  ]
+ },
  "错误：{text}": {
   "count": 1,
   "files": [
@@ -7330,6 +7463,12 @@
    "ui/main_window.py"
   ]
  },
+ "默认字符集": {
+  "count": 1,
+  "files": [
+   "ui/php_panel.py"
+  ]
+ },
  "（全新安装）": {
   "count": 1,
   "files": [
@@ -7352,6 +7491,12 @@
   "count": 1,
   "files": [
    "ui/download_dialog.py"
+  ]
+ },
+ "（无生效配置文件，请先「初始化 php.ini」）": {
+  "count": 1,
+  "files": [
+   "ui/php_panel.py"
   ]
  },
  "（无）": {
