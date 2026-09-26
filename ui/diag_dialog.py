@@ -31,8 +31,10 @@ class DiagDialog(tk.Toplevel):
         self.resizable(True, True)
         self.configure(bg=theme.CARD_BG)
         self.transient(master)
-        self.grab_set()
         self._build()
+        # 构建成功后再抓取模态：_build 若抛错，不会留下无法释放的 grab
+        # （曾因半成品对话框持有模态而放大故障）
+        self.grab_set()
         self._start()
 
     # ------------------------------------------------------------------ #
@@ -65,7 +67,7 @@ class DiagDialog(tk.Toplevel):
         self.btn_rerun.pack(side="right")
         ttk.Button(bar, text=t("关闭"), command=self.destroy).pack(side="right", padx=(0, _PAD))
 
-        fit_window(self, master)
+        fit_window(self, self.master)
 
     # ------------------------------------------------------------------ #
     def _start(self) -> None:
