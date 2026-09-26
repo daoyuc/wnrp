@@ -69,6 +69,28 @@ class XdebugTest(unittest.TestCase):
         self.assertTrue(info["ini_exists"])
         self.assertEqual(info["port"], xdebug.DEFAULT_PORT)
 
+    def test_loader_enabled_reads_ini_without_subprocess(self):
+        """loader_enabled 只读 ini 加载行，不触发 `php -m`（版本列表批量展示用）。"""
+        with open(self.ini, "w", encoding="utf-8") as f:
+            f.write("zend_extension=xdebug.so\n")
+        called: list = []
+        orig = xdebug.pu.run_cmd
+        xdebug.pu.run_cmd = lambda *a, **k: (called.append(1), (0, "", ""))[1]
+        try:
+            self.assertTrue(xdebug.loader_enabled(self.v))
+        finally:
+            xdebug.pu.run_cmd = orig
+        self.assertEqual(called, [], "不应执行任何子进程")
+
+    def test_loader_enabled_false_when_commented(self):
+        with open(self.ini, "w", encoding="utf-8") as f:
+            f.write(";zend_extension=xdebug.so\n")
+        self.assertFalse(xdebug.loader_enabled(self.v))
+
+    def test_loader_enabled_false_without_ini(self):
+        self.v.ini = os.path.join(self.dir, "missing.ini")
+        self.assertFalse(xdebug.loader_enabled(self.v))
+
     def test_enable_requires_extension(self):
         ok, msg, _ = xdebug.enable(self.v)
         self.assertFalse(ok)

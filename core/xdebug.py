@@ -102,13 +102,22 @@ def _loader_line(ini_path: str) -> str:
     return ""
 
 
+def loader_enabled(v: PhpVersion) -> bool:
+    """仅按 ini 加载行判定是否启用调试（纯读盘，**不执行** `php -m`）。
+
+    供版本列表等需要批量展示状态的场景复用；需要完整状态（安装情况 / 端口 /
+    mode / idekey）时用 :func:`status`。
+    """
+    loader = _loader_line(v.ini or "")
+    return bool(loader) and not loader.lstrip().startswith(";")
+
+
 def status(v: PhpVersion) -> dict:
     """读取当前调试状态（不写任何文件）。"""
     ini = v.ini or ""
     ini_exists = bool(ini) and os.path.exists(ini)
     values = ini_editor.load_any(ini, list(DEBUG_DIRECTIVES)) if ini_exists else {}
-    loader = _loader_line(ini)
-    enabled = bool(loader) and not loader.lstrip().startswith(";")
+    enabled = loader_enabled(v)
     try:
         port = int(str(values.get("xdebug.client_port", DEFAULT_PORT)).strip())
     except ValueError:

@@ -133,6 +133,7 @@ def _php_dict(v) -> dict:
         "dir": v.dir,
         "cgi": v.cgi,
         "ini": v.ini,
+        "error": v.error,
     }
 
 
@@ -505,8 +506,11 @@ def cmd_php_list(a, r: Result) -> Result:
     if not pm.versions:
         r.note(f"未扫描到 PHP 版本（环境根：{WNRP_ROOT}）")
     for v in pm.versions:
-        r.say(f"{'●' if v.running else '○'} {v.name} · PHP {v.display or '?'} · "
+        mark = "●" if v.running else ("!" if v.error else "○")
+        r.say(f"{mark} {v.name} · PHP {v.display or '?'} · "
               f"端口 {v.port}" + (f" · PID {v.pid}" if v.pid else ""))
+        if v.error:
+            r.say(f"    ⚠ {t('运行依赖异常：{err}', err=v.error)}")
         r.say(f"    目录 {v.dir}")
         r.say(f"    ini  {v.ini or '（未使用独立配置）'}")
     return r
@@ -524,8 +528,11 @@ def cmd_php_status(a, r: Result) -> Result:
     if v is None:
         return r
     r.data = _php_dict(v)
-    r.say(f"{'●' if v.running else '○'} {v.name} · PHP {v.display or '?'} · 端口 {v.port}"
+    mark = "●" if v.running else ("!" if v.error else "○")
+    r.say(f"{mark} {v.name} · PHP {v.display or '?'} · 端口 {v.port}"
           + (f" · PID {v.pid}" if v.pid else ""))
+    if v.error:
+        r.say(t("运行依赖异常：{err}", err=v.error))
     return r
 
 

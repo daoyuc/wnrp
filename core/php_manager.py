@@ -100,6 +100,7 @@ class PhpVersion:
     port: int            # 当前配置端口
     running: bool = False
     pid: int | None = None
+    error: str = ""      # `php -v` 失败时的可读原因（如缺少动态库）；空表示正常
 
 
 # 版本号：display（8.2.4）优先，目录名（php85）只在 display 不可用时兜底
@@ -125,6 +126,27 @@ def version_key(v: PhpVersion) -> tuple[int, int, int]:
             return (int(digits[:-1]), int(digits[-1]), 0)
         return (int(digits), 0, 0)
     return (0, 0, 0)
+
+
+#: dyld 缺库报错（Homebrew 升级 icu/openssl 后，老 keg 常因此无法运行）
+_RE_DYLD_LIB = re.compile(r"Library not loaded:\s*(\S+)")
+
+
+def _first_line(text: str) -> str:
+    """取输出中第一条非空行（把多行报错归纳成一行提示）。"""
+    for line in (text or "").splitlines():
+        line = line.strip()
+        if line:
+            return line
+    return ""
+
+
+def error_hint(text: str) -> str:
+    """把子进程输出归纳成一行可读原因：优先「缺少动态库 x」，其次首个非空行。"""
+    m = _RE_DYLD_LIB.search(text or "")
+    if m:
+        return t("缺少动态库：{lib}", lib=os.path.basename(m.group(1)))
+    return _first_line(text)
 
 
 # --------------------------------------------------------------------------- #
@@ -276,15 +298,16 @@ class PhpManager:
         self.versions = kept
 
     def resolve(self, refresh_status: bool = True, fast: bool = True) -> list[PhpVersion]:
-        """解析各版本号并（可选）刷新运行状态。耗时操作，建议后台线程调用。
+        """解析各版本号 + 失败原因，并（可选）刷新运行状态。耗时操作，建议后台线程调用。
 
         fast=True 时状态判定仅用「端口监听 + PID 存活」（适合定时刷新）；
         完整操作后校验用 fast=False（额外校验进程命令行含本版本 php-cgi）。
         版本号解析带 mtime 缓存 + 并发执行。
         """
         with ThreadPoolExecutor(max_workers=min(6, len(self.versions) or 1)) as ex:
-            for v, disp in zip(self.versions, ex.map(self.parse_version, self.versions)):
-                v.display = disp
+            for v, (disp, err) in zip(self.versions,
+                                      ex.map(self._probe_version, self.versions)):
+                v.display, v.error = disp, err
         if refresh_status:
             if fast:
                 self.refresh_all_status(self.versions, fast=True)
@@ -293,12 +316,16 @@ class PhpManager:
                     v.running, v.pid = self.get_status(v, fast=fast)
         return self.versions
 
-    # 版本号缓存：{可执行文件绝对路径: (版本号, mtime)}，mtime 未变即复用
-    _VERSION_CACHE: dict[str, tuple[str, float]] = {}
+    # 版本号缓存：{可执行文件绝对路径: (版本号, 失败原因, mtime)}，mtime 未变即复用
+    _VERSION_CACHE: dict[str, tuple[str, str, float]] = {}
     _VERSION_CACHE_LOCK: threading.Lock = threading.Lock()
 
-    def parse_version(self, v: PhpVersion) -> str:
-        """从 php -v 首行解析版本号，如 8.2.4。带 mtime 缓存。"""
+    def _probe_version(self, v: PhpVersion) -> tuple[str, str]:
+        """运行 ``php -v``：返回 ``(版本号, 失败原因)``，成功时原因为空串。
+
+        失败原因取输出的首条有效行（如 Homebrew 升级 icu 后的 dyld 缺库），
+        比只显示「未知」更利于定位；版本号与原因一起按 mtime 缓存。
+        """
         exe = os.path.join(os.path.dirname(v.cgi), CLI_NAME)
         if not os.path.exists(exe):
             exe = v.cgi
@@ -308,15 +335,22 @@ class PhpManager:
             mtime = 0.0
         with self._VERSION_CACHE_LOCK:
             cached = self._VERSION_CACHE.get(exe)
-            if cached is not None and cached[1] == mtime:
-                return cached[0]
+            if cached is not None and cached[2] == mtime:
+                return cached[0], cached[1]
         _, out, err = pu.run_cmd([exe, "-v"], timeout=10)
         text = out or err
         m = re.search(r"PHP\s+([0-9]+\.[0-9]+\.[0-9]+)", text)
-        version = m.group(1) if m else t("未知")
+        if m:
+            version, why = m.group(1), ""
+        else:
+            version, why = t("未知"), error_hint(text) or t("无法执行：{exe}", exe=exe)
         with self._VERSION_CACHE_LOCK:
-            self._VERSION_CACHE[exe] = (version, mtime)
-        return version
+            self._VERSION_CACHE[exe] = (version, why, mtime)
+        return version, why
+
+    def parse_version(self, v: PhpVersion) -> str:
+        """从 php -v 首行解析版本号，如 8.2.4。带 mtime 缓存。"""
+        return self._probe_version(v)[0]
 
     # ------------------------------------------------------------------ #
     # 状态判定
