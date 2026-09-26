@@ -3,7 +3,9 @@
 import os
 import tempfile
 import unittest
+from unittest import mock
 
+from core import php_manager
 from core.config import IS_WIN
 from core.php_manager import (INI_SKELETON, PhpManager, PhpVersion, _resolve_ini)
 
@@ -122,6 +124,67 @@ class ResolveIniTest(unittest.TestCase):
     def test_loose_ini_fallback_accepts_other_names(self):
         other = self._touch("custom.ini")
         self.assertEqual(_resolve_ini(self.root, "php85", False), other)
+
+
+class BrewIniTest(unittest.TestCase):
+    """Homebrew keg 的 ini 解析：规范配置在 ``<prefix>/etc/php/<ver>/php.ini``。
+
+    覆盖无版本号 keg（``opt/php`` → ``Cellar/php/8.5.10``）：历史上会被漏掉，
+    FastCGI 落到 keg 内残留的骨架 ini，扩展开关（如 redis）对站点不生效。
+    """
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.prefix = self.dir.name
+        self.addCleanup(self.dir.cleanup)
+        patch = mock.patch.object(php_manager, "brew_prefixes", lambda: [self.prefix])
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def _keg(self, name: str, real: str) -> str:
+        opt = os.path.join(self.prefix, "opt")
+        os.makedirs(opt, exist_ok=True)
+        real_dir = os.path.join(self.prefix, "Cellar", real)
+        os.makedirs(real_dir, exist_ok=True)
+        link = os.path.join(opt, name)
+        os.symlink(real_dir, link)
+        return link
+
+    def _etc_ini(self, ver: str) -> str:
+        p = os.path.join(self.prefix, "etc", "php", ver, "php.ini")
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        with open(p, "w", encoding="utf-8") as f:
+            f.write("; etc\n")
+        return p
+
+    def test_unversioned_keg_resolves_etc_ini(self):
+        keg = self._keg("php", "8.5.10")
+        expected = self._etc_ini("8.5")  # 先建好：_brew_etc_ini 需要它存在
+        self.assertEqual(php_manager._brew_etc_ini(keg), expected)
+
+    def test_versioned_keg_resolves_etc_ini(self):
+        keg = self._keg("php@7.4", "7.4.33")
+        expected = self._etc_ini("7.4")
+        self.assertEqual(php_manager._brew_etc_ini(keg), expected)
+
+    def test_keg_without_etc_ini_returns_empty(self):
+        self.assertEqual(php_manager._brew_etc_ini(self._keg("php", "8.5.10")), "")
+
+    def test_resolve_prefers_etc_over_stray_keg_ini(self):
+        keg = self._keg("php", "8.5.10")
+        stray = os.path.join(keg, "php.ini")  # keg 内残留骨架 ini
+        with open(stray, "w", encoding="utf-8") as f:
+            f.write("; stray skeleton\n")
+        expected = self._etc_ini("8.5")
+        self.assertEqual(
+            _resolve_ini(keg, "php", True, php_manager._brew_etc_ini(keg)), expected)
+
+    def test_resolve_keeps_keg_ini_when_not_brew(self):
+        keg = self._keg("php", "8.5.10")
+        stray = os.path.join(keg, "php.ini")
+        with open(stray, "w", encoding="utf-8") as f:
+            f.write("; stray\n")
+        self.assertEqual(_resolve_ini(keg, "php", False), stray)
 
 
 if __name__ == "__main__":
