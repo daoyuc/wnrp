@@ -151,11 +151,19 @@ def _brew_name(base: str) -> str:
 def _resolve_ini(d: str, name: str, is_brew: bool, brew_conf: str = "") -> str:
     """解析版本实际使用的配置（CLI 与 FastCGI 统一为 `php.ini`）。
 
+    Homebrew keg 的规范配置在 ``<prefix>/etc/php/<ver>/php.ini``，也是 `php`
+    命令行默认加载的那份，故 brew 版本**优先**取它：keg 目录内若残留 `php.ini`
+    （历史上「初始化 php.ini」会写到 keg 内，且 `brew upgrade` 会连目录一起替换），
+    忽略之 —— 否则会出现「CLI 读 A、FastCGI 读 B」，扩展开关（如 redis）在站点侧
+    不生效。
+
     历史上曾为 php82 / php85（后扩展到「目录内存在即用」）优先使用
     `php-web.ini`，把 CLI 与 Web 拆成两份配置；现统一回 `php.ini`，避免
     「改了 php.ini 不生效」的困惑。老安装留下的 `php-web.ini` 不再被读取，
     也不参与下面的散落 `*.ini` 兜底（否则等于又把它选回来）。
     """
+    if is_brew and brew_conf and os.path.exists(brew_conf):
+        return brew_conf
     p = os.path.join(d, INI_NAME)
     if os.path.exists(p):
         return p
@@ -169,13 +177,26 @@ def _resolve_ini(d: str, name: str, is_brew: bool, brew_conf: str = "") -> str:
 
 
 def _brew_etc_ini(d: str) -> str:
-    """Homebrew keg 对应的 etc 配置：/opt/homebrew/etc/php/7.4/php.ini。"""
+    """Homebrew keg 对应的 etc 配置：``<prefix>/etc/php/<ver>/php.ini``。
+
+    keg 名可能是带版本号的 ``php@7.4``，也可能是无版本号的 ``php``（当前 8.5）：
+    后者从 keg 的真实路径（``Cellar/php/8.5.10``）推 ``major.minor`` 定位 etc 目录，
+    否则会漏掉这份规范配置。
+    """
+    ver = ""
     m = re.fullmatch(r"php@(\d+(?:\.\d+)?)", os.path.basename(d))
-    if not m:
+    if m:
+        ver = m.group(1)
+    elif os.path.basename(d) == "php":
+        real = os.path.basename(os.path.realpath(d))  # 如 8.5.10
+        vm = re.match(r"(\d+)\.(\d+)", real)
+        if vm:
+            ver = f"{vm.group(1)}.{vm.group(2)}"
+    if not ver:
         return ""
     for prefix in brew_prefixes():
         if os.path.dirname(d) == os.path.join(prefix, "opt"):
-            p = os.path.join(prefix, "etc", "php", m.group(1), INI_NAME)
+            p = os.path.join(prefix, "etc", "php", ver, INI_NAME)
             if os.path.exists(p):
                 return p
     return ""
