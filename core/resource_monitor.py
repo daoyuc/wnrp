@@ -1,0 +1,365 @@
+# -*- coding: utf-8 -*-
+"""轻量资源监控（F12 · P2）：统计 phpvm 管理的进程（nginx / 各 PHP 版本 /
+Redis 实例 / MySQL 实例）的 CPU 与内存占用。
+
+设计取舍（对标 ServBay / FlyEnv，但不引 psutil）：
+- 标准库无 psutil，需分平台取数：
+  * macOS / Linux：一次 ``ps -axo pid=,rss=,%cpu=,time=,command=`` 全量快照
+    （带 TTL 缓存，复用 process_utils 的风格），本地按 PID 过滤；
+  * Windows：ctypes 调 GetProcessMemoryInfo（RSS）+ GetProcessTimes（CPU 时间），
+    零外部进程。
+- CPU% 用「两次采样的累计 CPU 时间差 / 采样间隔」算瞬时占用（更准确），
+  首次采样无基线时回退 ps 的 lifetime %cpu（Windows 回退为 -1 表示未知）。
+- 聚合视角以「服务」为单位：每个 nginx / PHP 版本 / Redis 实例 / MySQL 实例
+  把名下全部 PID 的 RSS 与 CPU% 求和，得到该服务的资源画像。
+"""
+import threading
+import time
+
+from . import process_utils as pu
+from .config import IS_WIN
+
+if IS_WIN:
+    import ctypes
+    from ctypes import wintypes
+
+
+# --------------------------------------------------------------------------- #
+# 进程级采样
+# --------------------------------------------------------------------------- #
+class ProcSample:
+    """单进程资源采样。cpu_percent=-1 表示尚不可知（无基线或取数失败）。"""
+
+    __slots__ = ("pid", "name", "rss_bytes", "cpu_percent", "cpu_time_total", "cmd")
+
+    def __init__(self, pid, name="", rss_bytes=0, cpu_percent=-1.0,
+                 cpu_time_total=0.0, cmd=""):
+        self.pid = pid
+        self.name = name
+        self.rss_bytes = rss_bytes
+        self.cpu_percent = cpu_percent
+        self.cpu_time_total = cpu_time_total
+        self.cmd = cmd
+
+
+# posix 全量 {pid: (rss_kb, cpu_lifetime, cpu_time_seconds, cmd)} 快照 + TTL
+_posix_rsrc_snap = None
+_posix_rsrc_lock = threading.Lock()
+_POSIX_RSRC_TTL = 2.0  # 秒
+
+# CPU 基线缓存：pid -> (monotonic_ts, cpu_time_seconds)
+_prev_lock = threading.Lock()
+_prev: dict[int, tuple[float, float]] = {}
+
+# Windows 句柄权限
+_PROCESS_QUERY_INFORMATION = 0x0400
+_PROCESS_VM_READ = 0x0010
+
+
+def human_bytes(n: int) -> str:
+    """把字节数转可读字符串（B / KB / MB / GB）。"""
+    if n < 1024:
+        return f"{n} B"
+    if n < 1024 * 1024:
+        return f"{n / 1024:.1f} KB"
+    if n < 1024 * 1024 * 1024:
+        return f"{n / 1024 / 1024:.1f} MB"
+    return f"{n / 1024 / 1024 / 1024:.2f} GB"
+
+
+def _parse_ps_time(s: str) -> float:
+    """解析 ps 的累计 CPU 时间字符串为秒。
+
+    兼容 macOS（``0:00.05`` / ``1:23``）与 Linux（``1:02:03`` / ``2-03:04:05``）。
+    """
+    s = (s or "").strip()
+    if not s:
+        return 0.0
+    days = 0.0
+    if "-" in s:
+        dpart, _, rest = s.partition("-")
+        try:
+            days = float(dpart)
+        except ValueError:
+            days = 0.0
+        s = rest
+    comps = s.split(":")
+    try:
+        if len(comps) == 1:
+            total = float(comps[0])
+        elif len(comps) == 2:
+            total = int(comps[0]) * 60 + float(comps[1])
+        else:
+            # 时:分:秒（取最后三段，忽略更细的层级）
+            h, m, sec = comps[-3], comps[-2], comps[-1]
+            total = int(h) * 3600 + int(m) * 60 + float(sec)
+    except (ValueError, IndexError):
+        return 0.0
+    return days * 86400 + total
+
+
+def _posix_resource_snapshot(force: bool = False) -> dict:
+    """一次 ps 返回全量 {pid: (rss_kb, cpu_lifetime, cpu_time, cmd)}，带 TTL 缓存。"""
+    global _posix_rsrc_snap
+    now = time.monotonic()
+    with _posix_rsrc_lock:
+        cached = _posix_rsrc_snap
+        if not force and cached and now - cached[0] < _POSIX_RSRC_TTL:
+            return cached[1]
+    code, out, _ = pu.run_cmd(
+        ["ps", "-axo", "pid=,rss=,%cpu=,time=,command="], timeout=15)
+    snap: dict[int, tuple] = {}
+    if code == 0:
+        for raw in out.splitlines():
+            line = raw.strip()
+            if not line:
+                continue
+            sp1 = line.find(" ")
+            if sp1 <= 0:
+                continue
+            try:
+                pid = int(line[:sp1])
+            except ValueError:
+                continue
+            rest = line[sp1:].strip()
+            # rss %cpu time command 四列；command 可能含空格，最后整体取
+            parts = rest.split(None, 3)
+            if len(parts) < 4:
+                continue
+            try:
+                rss = int(parts[0])
+                cpu = float(parts[1])
+            except ValueError:
+                continue
+            ctime = _parse_ps_time(parts[2])
+            cmd = parts[3]
+            snap[pid] = (rss, cpu, ctime, cmd)
+    with _posix_rsrc_lock:
+        _posix_rsrc_snap = (now, snap)
+    return snap
+
+
+def _win_rss_and_time(pid: int) -> tuple[int, float]:
+    """Windows：返回 (工作集字节, 累计 CPU 秒)；失败 (0, 0.0)。"""
+    try:
+        k32 = ctypes.windll.kernel32
+    except AttributeError:  # pragma: no cover - 非 Windows
+        return 0, 0.0
+    handle = k32.OpenProcess(
+        _PROCESS_QUERY_INFORMATION | _PROCESS_VM_READ, False, pid)
+    if not handle:
+        return 0, 0.0
+    try:
+        rss = 0
+        ctime = 0.0
+        # GetProcessMemoryInfo
+        class PROCESS_MEMORY_COUNTERS(ctypes.Structure):
+            _fields_ = [
+                ("cb", wintypes.DWORD),
+                ("PageFaultCount", wintypes.DWORD),
+                ("PeakWorkingSetSize", ctypes.c_size_t),
+                ("WorkingSetSize", ctypes.c_size_t),
+                ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+                ("PagefileUsage", ctypes.c_size_t),
+                ("PeakPagefileUsage", ctypes.c_size_t),
+                ("WorkingSetSize64", ctypes.c_uint64),
+                ("QuotaPagedPoolUsage64", ctypes.c_uint64),
+                ("QuotaNonPagedPoolUsage64", ctypes.c_uint64),
+                ("PagefileUsage64", ctypes.c_uint64),
+                ("PeakPagefileUsage64", ctypes.c_uint64),
+            ]
+
+        pmc = PROCESS_MEMORY_COUNTERS()
+        pmc.cb = ctypes.sizeof(pmc)
+        if k32.GetProcessMemoryInfo(
+                handle, ctypes.byref(pmc), ctypes.sizeof(pmc)):
+            rss = int(pmc.WorkingSetSize)
+
+        # GetProcessTimes -> kernel + user FILETIME（100ns 为单位）
+        kt = wintypes.FILETIME()
+        ut = wintypes.FILETIME()
+        if k32.GetProcessTimes(handle, ctypes.byref(wintypes.FILETIME()),
+                               ctypes.byref(wintypes.FILETIME()),
+                               ctypes.byref(kt), ctypes.byref(ut)):
+            def _ft2ns(ft):
+                return (ft.dwHighDateTime << 32) | ft.dwLowDateTime
+
+            ctime = (_ft2ns(kt) + _ft2ns(ut)) / 1e7
+        return rss, ctime
+    except Exception:  # noqa: BLE001
+        return 0, 0.0
+    finally:
+        try:
+            k32.CloseHandle(handle)
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def snapshot_pids(pids: list[int], force: bool = False) -> dict[int, ProcSample]:
+    """返回 {pid: ProcSample}（仅含传入且在系统中存在的 PID）。
+
+    posix 走一次 ps 全量快照（TTL 缓存），Windows 走 ctypes 逐 PID 取数。
+    CPU% 尽量用两次采样差；首次/失败为 -1 或 ps 的 lifetime 值。
+    """
+    result: dict[int, ProcSample] = {}
+    now = time.monotonic()
+    if IS_WIN:
+        for pid in pids:
+            if pid <= 0:
+                continue
+            rss, ctime = _win_rss_and_time(pid)
+            with _prev_lock:
+                base = _prev.get(pid)
+            if base is None:
+                cpu = -1.0
+            else:
+                dt = now - base[0]
+                cpu = ((ctime - base[1]) / dt * 100.0) if dt > 0.05 and ctime >= base[1] else -1.0
+            with _prev_lock:
+                _prev[pid] = (now, ctime)
+            result[pid] = ProcSample(pid=pid, rss_bytes=rss,
+                                     cpu_percent=cpu, cpu_time_total=ctime)
+        return result
+
+    snap = _posix_resource_snapshot(force=force)
+    for pid in pids:
+        if pid <= 0:
+            continue
+        hit = snap.get(pid)
+        if not hit:
+            continue
+        rss_kb, cpu_life, ctime, cmd = hit
+        with _prev_lock:
+            base = _prev.get(pid)
+        if base is None:
+            cpu = cpu_life
+        else:
+            dt = now - base[0]
+            if dt > 0.05 and ctime >= base[1]:
+                cpu = (ctime - base[1]) / dt * 100.0
+                if cpu < 0:
+                    cpu = cpu_life
+            else:
+                cpu = cpu_life
+        with _prev_lock:
+            _prev[pid] = (now, ctime)
+        name = cmd.split()[0] if cmd else ""
+        result[pid] = ProcSample(pid=pid, name=name, rss_bytes=rss_kb * 1024,
+                                 cpu_percent=cpu, cpu_time_total=ctime, cmd=cmd)
+    return result
+
+
+def reset_cpu_baseline() -> None:
+    """清空 CPU 基线缓存（如长时间未采样的进程已退出）。"""
+    with _prev_lock:
+        _prev.clear()
+
+
+# --------------------------------------------------------------------------- #
+# 服务级聚合
+# --------------------------------------------------------------------------- #
+def _service_entry(kind, name, running, pids, samples) -> dict:
+    rss = 0
+    cpu = 0.0
+    known = 0
+    cpu_unknown = False
+    for pid in pids:
+        s = samples.get(pid)
+        if s is None:
+            continue
+        rss += s.rss_bytes
+        if s.cpu_percent < 0:
+            cpu_unknown = True
+        else:
+            cpu += s.cpu_percent
+            known += 1
+    return {
+        "kind": kind,
+        "name": name,
+        "running": bool(running),
+        "pids": [int(p) for p in pids],
+        "rss_bytes": rss,
+        "cpu_percent": (round(cpu, 1) if known or not cpu_unknown
+                        else -1.0),
+    }
+
+
+def collect_service_metrics(config, php_mgr, nginx_mgr, redis_mgr=None,
+                             mysql_mgr=None) -> dict:
+    """聚合 phpvm 管理进程的资源画像，返回可 JSON 序列化的字典。
+
+    任一 manager 缺失（模块停用）时跳过对应分组。进程快照全局只取一次。
+    """
+    services: list[dict] = []
+    all_pids: list[int] = []
+
+    def safe(fn, default=None):
+        try:
+            return fn()
+        except Exception:  # noqa: BLE001
+            return default
+
+    # Nginx
+    ng_run, ng_pids = safe(lambda: nginx_mgr.get_status(), (False, [])) or (False, [])
+    all_pids.extend(ng_pids)
+    services.append(_service_entry("nginx", "Nginx", ng_run, ng_pids, {}))
+
+    # PHP（按版本）
+    if php_mgr is not None:
+        versions = safe(lambda: php_mgr.resolve(refresh_status=True, fast=True), []) or []
+        for v in versions:
+            pids = [v.pid] if getattr(v, "running", False) and getattr(v, "pid", None) else []
+            all_pids.extend(pids)
+            services.append(_service_entry(
+                "php", getattr(v, "name", "?"), getattr(v, "running", False), pids, {}))
+
+    # Redis
+    if redis_mgr is not None:
+        safe(redis_mgr.refresh_instances)
+        safe(redis_mgr.get_status_all)
+        for inst in getattr(redis_mgr, "instances", []) or []:
+            pids = getattr(inst, "pids", []) or []
+            all_pids.extend(pids)
+            services.append(_service_entry(
+                "redis", getattr(inst, "name", "?"),
+                getattr(inst, "running", False), pids, {}))
+
+    # MySQL
+    if mysql_mgr is not None:
+        safe(mysql_mgr.refresh_instances)
+        for inst in getattr(mysql_mgr, "instances", []) or []:
+            pids = getattr(inst, "pids", []) or []
+            all_pids.extend(pids)
+            services.append(_service_entry(
+                "mysql", getattr(inst, "name", "?"),
+                getattr(inst, "running", False), pids, {}))
+
+    # 一次性采样全部 PID，回填到各服务
+    samples = snapshot_pids(list(dict.fromkeys(all_pids)))
+    # 重新计算带采样数据的服务条目
+    out_services: list[dict] = []
+    total_rss = 0
+    total_cpu = 0.0
+    cpu_known = False
+    for svc in services:
+        entry = _service_entry(svc["kind"], svc["name"], svc["running"],
+                               svc["pids"], samples)
+        out_services.append(entry)
+        if entry["running"]:
+            total_rss += entry["rss_bytes"]
+            if entry["cpu_percent"] >= 0:
+                total_cpu += entry["cpu_percent"]
+                cpu_known = True
+
+    return {
+        "updated_at": time.time(),
+        "services": out_services,
+        "totals": {
+            "rss_bytes": total_rss,
+            "cpu_percent": round(total_cpu, 1) if cpu_known else -1.0,
+            "service_count": sum(1 for s in out_services if s["running"]),
+        },
+    }

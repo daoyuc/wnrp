@@ -1,0 +1,8 @@
+{
+  "资源占用快照（仅统计 phpvm 管理的进程）：": "Resource usage snapshot (only phpvm-managed processes):",
+  "停止": "Stopped",
+  "内存 {mem} · CPU {cpu}": "Mem {mem} · CPU {cpu}",
+  "合计：{n} 个运行中的服务 · 内存 {mem} · CPU {cpu}": "Totals: {n} running service(s) · Mem {mem} · CPU {cpu}",
+  "未知": "unknown",
+  "合计 · {n} 个服务运行中 · 内存 {mem} · CPU {cpu}": "Totals · {n} service(s) running · Mem {mem} · CPU {cpu}"
+}

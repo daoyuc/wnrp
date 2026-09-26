@@ -50,6 +50,7 @@ from core import (  # noqa: E402
     modules,
     overview,
     project_config,
+    resource_monitor,
     site_service,
     site_templates,
     updater,
@@ -943,6 +944,34 @@ def cmd_overview_summary(a, r: Result) -> Result:
     for al in ov.alerts:
         r.say("  - " + al)
     r.say(t("健康：{h}", h=ov.health))
+    return r
+
+
+# --------------------------------------------------------------------------- #
+# monitor（轻量资源监控，F12；只读快照 phpvm 管理进程的 CPU/内存）
+# --------------------------------------------------------------------------- #
+def cmd_monitor_snapshot(a, r: Result) -> Result:
+    cfg = Config()
+    nginx = NginxManager()
+    php = PhpManager(cfg)
+    redis = RedisManager() if modules.is_enabled("redis", cfg) else None
+    mysql = MysqlManager() if modules.is_enabled("mysql", cfg) else None
+    data = resource_monitor.collect_service_metrics(
+        cfg, php, nginx, redis, mysql)
+    r.data = data
+    r.say(t("资源占用快照（仅统计 phpvm 管理的进程）："))
+    for svc in data["services"]:
+        if not svc["running"]:
+            r.say(f"  {svc['name']}: {t('停止')}")
+            continue
+        rss = resource_monitor.human_bytes(svc["rss_bytes"])
+        cpu = f"{svc['cpu_percent']:.0f}%" if svc["cpu_percent"] >= 0 else t("未知")
+        r.say(f"  {svc['name']}: {t('内存 {mem} · CPU {cpu}', mem=rss, cpu=cpu)}")
+    tot = data["totals"]
+    tot_rss = resource_monitor.human_bytes(tot["rss_bytes"])
+    tot_cpu = f"{tot['cpu_percent']:.0f}%" if tot["cpu_percent"] >= 0 else t("未知")
+    r.say(t("合计：{n} 个运行中的服务 · 内存 {mem} · CPU {cpu}",
+            n=tot["service_count"], mem=tot_rss, cpu=tot_cpu))
     return r
 
 
@@ -2403,6 +2432,13 @@ def build_parser() -> argparse.ArgumentParser:
     gs = g.add_subparsers(dest="action", metavar="<action>")
     _leaf(gs, "summary", cmd_overview_summary, "overview.summary",
           "输出环境总览快照（服务状态 / 站点告警 / 健康级别）")
+
+    # monitor（轻量资源监控，F12；只读快照，不引 psutil）
+    g = sub.add_parser("monitor", help="轻量资源监控（CPU / 内存，仅 phpvm 管理进程）",
+                       parents=[COMMON])
+    gs = g.add_subparsers(dest="action", metavar="<action>")
+    _leaf(gs, "snapshot", cmd_monitor_snapshot, "monitor.snapshot",
+          "输出各服务（Nginx / PHP / Redis / MySQL）的 CPU 与内存占用快照")
 
     # backup（环境备份与迁移，仅配置）
     g = sub.add_parser("backup", help="环境备份与迁移（仅配置，不含数据库数据）",
