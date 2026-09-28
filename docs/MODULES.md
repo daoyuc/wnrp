@@ -36,7 +36,7 @@ PHP 版本管理(php,刚需) │ Nginx 管理(nginx,刚需) │ Redis 管理(red
 | 首页总览仪表盘 | `ui/overview_panel.py` / `overview` | `overview.py` | 只读（聚合各 manager 状态，不新增轮询/进程；模块可停用） | 服务状态卡（内嵌每服务内存/CPU 占用，F12）+ 站点告警（未映射 hosts / 端口未映射 / 证书缺失）+ 最近崩溃/运行日志；一键全部启动/停止/体检全部 |
 | 轻量资源监控（CPU / 内存） | `monitor` / 总览面板「服务状态」行内 | `resource_monitor.py` | 只读（不引 psutil；posix 走 `ps` 一次快照 + TTL 缓存，Windows 走 ctypes 取 RSS/CPU 时间） | 按服务聚合 phpvm 管理的 nginx / 各 PHP 版本 / Redis / MySQL 进程的 RSS 与 CPU%；CLI `monitor snapshot` 输出机器可读快照，GUI 在总览行内展示并合计 |
 | 环境备份与迁移 | `ui/main_window.py` 关于页 / `backup` | `backup_bundle.py` | 导出 zip；恢复时改前 `.bak` | 只打包配置（config.json / vhost / nginx.conf / php.ini）；恢复后 `nginx -t` 失败整体回滚；不含数据库数据 |
-| 邮件捕获（.eml） | `ui/mail_panel.py` / `mail` | `mail_catcher.py` | php.ini（`.bak`）+ `<数据目录>/mail/*.eml` | `sendmail_path` 指向 POSIX shell 垫片，把 `mail()` 邮件落盘；仅 Unix（Windows 走 SMTP）；关闭时还原用户原值 |
+| 邮件捕获（.eml） | `ui/mail_panel.py` / `mail` | `mail_catcher.py`、`mail_sink.py` | php.ini（`.bak`）+ `<数据目录>/mail/*.eml` | 两种落地方式同一目录：Unix 用 `sendmail_path` POSIX 垫片；Windows 把 `SMTP`/`smtp_port`/`sendmail_from` 指向内置 sink（`mail_sink.py`，127.0.0.1:1025，随 phpvm 运行）；关闭时还原用户原值 |
 | 项目级配置 `.phpvm.json` | `ui/vhost_panel.py` 右键 / `project` | `project_config.py` | vhost（`.bak`）+ hosts + 服务进程 | `apply` 按配置对齐：切站点 PHP 端口 / 写 hosts / 启服务；不改项目业务代码；用 JSON 避免 YAML 依赖 |
 | Adminer 数据库 GUI | `ui/main_window.py` 关于页 / `adminer` | `adminer.py` | `<数据目录>/adminer/index.php` + 站点配置 | 下载单文件 Adminer 并托管为 `adminer.test`；离线可「用户自备」；写库能力仅限本地开发 |
 | 新建站点向导 / HTTPS 证书 | `ui/site_wizard.py` | `site_service.py`、`site_templates.py`、`cert_manager.py` | vhost + hosts + 证书文件 | 5 步编排，任一步失败可整体回滚 |

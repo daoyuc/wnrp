@@ -48,8 +48,11 @@ class LogSourcesPureTest(unittest.TestCase):
         ini = os.path.join(tmp, "php.ini")
         with open(ini, "w") as f:
             f.write('error_log = "logs/php.log"\n')
-        self.assertEqual(logsrc._php_error_log(types.SimpleNamespace(ini=ini)),
-                         os.path.join(tmp, "logs", "php.log"))
+        # ini 里写的是 posix 风格相对路径，拼接后 Windows 上会混用分隔符（可正常打开）；
+        # 断言用 normpath 归一化，避免把「分隔符风格」当成失败
+        self.assertEqual(
+            os.path.normpath(logsrc._php_error_log(types.SimpleNamespace(ini=ini))),
+            os.path.normpath(os.path.join(tmp, "logs", "php.log")))
 
     def test_php_error_log_syslog_and_missing(self):
         tmp = tempfile.mkdtemp()

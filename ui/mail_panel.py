@@ -149,6 +149,9 @@ class MailPanel(ttk.Frame):
                 self.refresh()
             else:
                 messagebox.showerror(t("操作失败"), msg, parent=self)
+        elif kind == "sink":
+            # 自动拉起 SMTP sink 的结果（Windows）：只提示，不打断
+            self.notify(payload)
         else:  # error
             self._set_busy(False)
             self.notify(str(payload))
@@ -170,9 +173,13 @@ class MailPanel(ttk.Frame):
                 # 下拉框不一致（要等下一次心跳才恢复）
                 chosen = name if name in names else (names[0] if names else "")
                 v = next((x for x in self.php_mgr.versions if x.name == chosen), None)
+                # Windows：有版本开着捕获但 sink 没在跑（如 phpvm 重启过）→ 自动拉起
+                started = mail_catcher.ensure_sink(self.php_mgr.versions)
                 status = mail_catcher.status(v) if v is not None else None
                 mails = mail_catcher.list_mails(limit=500)
                 self._queue.put(("data", (names, mails, status, chosen)))
+                if started:
+                    self._queue.put(("sink", started[1]))
             except Exception as e:  # noqa: BLE001
                 self._queue.put(("error", t("读取邮件失败：{err}", err=e)))
 
@@ -215,18 +222,30 @@ class MailPanel(ttk.Frame):
             self._hint.configure(text="")
             self._set_buttons(False, False)
             return
-        if not status["supported"]:
-            self._hint.configure(
-                text=t("sendmail_path 仅 Unix 有效（Windows 的 mail() 走 SMTP），当前平台不可用。"),
-                foreground=theme.WARN)
+        smtp = status.get("mode") == "smtp"
+        if smtp:
+            # Windows：mail() 走 SMTP，由本机 sink 收信；sink 随 phpvm 进程运行
+            if status["enabled"] and not status["sink_running"]:
+                self._hint.configure(
+                    text=t("捕获服务未运行：phpvm 关闭期间 PHP 发信会失败，"
+                           "点「开启捕获」可立即拉起（127.0.0.1:{port}）。",
+                           port=status.get("sink_port", 0)),
+                    foreground=theme.WARN)
+            else:
+                self._hint.configure(
+                    text=t("Windows 的 mail() 走 SMTP：phpvm 在 127.0.0.1:{port} 收信并落盘 .eml"
+                           "（捕获服务随 phpvm 运行）。", port=status.get("sink_port", 0)),
+                    foreground=theme.TEXT)
         else:
             self._hint.configure(text="", foreground=theme.TEXT)
         state = t("已开启") if status["enabled"] else t("未开启")
-        self._state.configure(
-            text=t("[{name}] 捕获：{state} · 目录：{dir}（{n} 封）",
-                   name=name or self._current_name(), state=state,
-                   dir=status["mail_dir"], n=status["count"]),
-            foreground=theme.OK if status["enabled"] else theme.GRAY)
+        line = t("[{name}] 捕获：{state}", name=name or self._current_name(), state=state)
+        if smtp:
+            line += " · " + t("SMTP {state}",
+                              state=t("运行中") if status["sink_running"] else t("未运行"))
+        line += " · " + t("目录：{dir}（{n} 封）", dir=status["mail_dir"], n=status["count"])
+        self._state.configure(text=line,
+                              foreground=theme.OK if status["enabled"] else theme.GRAY)
         self._set_buttons(status["supported"] and not status["enabled"],
                           status["supported"] and status["enabled"])
 

@@ -23,6 +23,53 @@ if IS_WIN:
     import ctypes
     from ctypes import wintypes
 
+    class _ProcessMemoryCounters(ctypes.Structure):
+        """标准 PROCESS_MEMORY_COUNTERS（10 字段，SIZE_T 宽度随架构）。
+
+        注意：曾额外追加 `*64` 字段并把 `cb` 设为放大后的 sizeof，
+        会让 API 校验 cbSize 失败（Windows 上 RSS 恒为 0）。
+        """
+        _fields_ = [
+            ("cb", wintypes.DWORD),
+            ("PageFaultCount", wintypes.DWORD),
+            ("PeakWorkingSetSize", ctypes.c_size_t),
+            ("WorkingSetSize", ctypes.c_size_t),
+            ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+            ("QuotaPagedPoolUsage", ctypes.c_size_t),
+            ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+            ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+            ("PagefileUsage", ctypes.c_size_t),
+            ("PeakPagefileUsage", ctypes.c_size_t),
+        ]
+
+    def _load_mem_info_fn():
+        """解析可用的 GetProcessMemoryInfo；都取不到返回 None。
+
+        `GetProcessMemoryInfo` 由 **psapi.dll** 导出，新系统在 kernel32 上以
+        `K32GetProcessMemoryInfo` 转发；实测 `kernel32.GetProcessMemoryInfo`
+        并不存在（直接调用会 AttributeError，被上层吞掉后 RSS 恒 0）。
+        """
+        for dll, sym in (("psapi", "GetProcessMemoryInfo"),
+                         ("kernel32", "K32GetProcessMemoryInfo"),
+                         ("kernel32", "GetProcessMemoryInfo")):
+            try:
+                lib = ctypes.WinDLL(dll)
+            except (OSError, AttributeError):
+                continue
+            fn = getattr(lib, sym, None)
+            if fn is None:
+                continue
+            fn.argtypes = [wintypes.HANDLE,
+                           ctypes.POINTER(_ProcessMemoryCounters),
+                           wintypes.DWORD]
+            fn.restype = wintypes.BOOL
+            return fn
+        return None
+
+    _mem_info_fn = _load_mem_info_fn()
+else:
+    _mem_info_fn = None
+
 
 # --------------------------------------------------------------------------- #
 # 进程级采样
@@ -65,6 +112,16 @@ def human_bytes(n: int) -> str:
     if n < 1024 * 1024 * 1024:
         return f"{n / 1024 / 1024:.1f} MB"
     return f"{n / 1024 / 1024 / 1024:.2f} GB"
+
+
+def format_rss(n: int) -> str:
+    """内存占用的展示值：0/负值意味着「取不到」而非「不占内存」。
+
+    取不到是常态之一 —— 例如 MySQL 以 Windows 服务方式由 SYSTEM 运行、
+    非提权进程的 OpenProcess 被拒（此时 rss=0、ctime=-1）。活跃进程的工作集
+    必然 > 0，故这里渲染成「—」，避免把「读不到」误读成「0 B」。
+    """
+    return human_bytes(n) if n and n > 0 else "—"
 
 
 def _parse_ps_time(s: str) -> float:
@@ -140,42 +197,28 @@ def _posix_resource_snapshot(force: bool = False) -> dict:
 
 
 def _win_rss_and_time(pid: int) -> tuple[int, float]:
-    """Windows：返回 (工作集字节, 累计 CPU 秒)；失败 (0, 0.0)。"""
+    """Windows：返回 (工作集字节, 累计 CPU 秒)。
+
+    取数失败时该指标用哨兵值表示「未知」：rss=0（活跃进程工作集必 >0）、
+    ctime=-1.0。两者可能单独失败（例如服务以 SYSTEM 运行、非提权进程
+    打不开句柄），因此不能让失败值参与 CPU 差值计算，否则会算出荒谬的百分比。
+    """
+    if _mem_info_fn is None:
+        return 0, -1.0
     try:
         k32 = ctypes.windll.kernel32
     except AttributeError:  # pragma: no cover - 非 Windows
-        return 0, 0.0
+        return 0, -1.0
     handle = k32.OpenProcess(
         _PROCESS_QUERY_INFORMATION | _PROCESS_VM_READ, False, pid)
     if not handle:
-        return 0, 0.0
+        return 0, -1.0
     try:
         rss = 0
-        ctime = 0.0
-        # GetProcessMemoryInfo
-        class PROCESS_MEMORY_COUNTERS(ctypes.Structure):
-            _fields_ = [
-                ("cb", wintypes.DWORD),
-                ("PageFaultCount", wintypes.DWORD),
-                ("PeakWorkingSetSize", ctypes.c_size_t),
-                ("WorkingSetSize", ctypes.c_size_t),
-                ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
-                ("QuotaPagedPoolUsage", ctypes.c_size_t),
-                ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
-                ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
-                ("PagefileUsage", ctypes.c_size_t),
-                ("PeakPagefileUsage", ctypes.c_size_t),
-                ("WorkingSetSize64", ctypes.c_uint64),
-                ("QuotaPagedPoolUsage64", ctypes.c_uint64),
-                ("QuotaNonPagedPoolUsage64", ctypes.c_uint64),
-                ("PagefileUsage64", ctypes.c_uint64),
-                ("PeakPagefileUsage64", ctypes.c_uint64),
-            ]
-
-        pmc = PROCESS_MEMORY_COUNTERS()
+        ctime = -1.0
+        pmc = _ProcessMemoryCounters()
         pmc.cb = ctypes.sizeof(pmc)
-        if k32.GetProcessMemoryInfo(
-                handle, ctypes.byref(pmc), ctypes.sizeof(pmc)):
+        if _mem_info_fn(handle, ctypes.byref(pmc), ctypes.sizeof(pmc)):
             rss = int(pmc.WorkingSetSize)
 
         # GetProcessTimes -> kernel + user FILETIME（100ns 为单位）
@@ -190,7 +233,7 @@ def _win_rss_and_time(pid: int) -> tuple[int, float]:
             ctime = (_ft2ns(kt) + _ft2ns(ut)) / 1e7
         return rss, ctime
     except Exception:  # noqa: BLE001
-        return 0, 0.0
+        return 0, -1.0
     finally:
         try:
             k32.CloseHandle(handle)
@@ -213,15 +256,18 @@ def snapshot_pids(pids: list[int], force: bool = False) -> dict[int, ProcSample]
             rss, ctime = _win_rss_and_time(pid)
             with _prev_lock:
                 base = _prev.get(pid)
-            if base is None:
-                cpu = -1.0
-            else:
+            cpu = -1.0
+            # 两次采样都拿到 CPU 时间才做差值；否则保持「未知」——
+            # 把取数失败的 -1 当基线会算出荒谬的百分比（如 1000%+）
+            if ctime >= 0 and base is not None and base[1] >= 0:
                 dt = now - base[0]
-                cpu = ((ctime - base[1]) / dt * 100.0) if dt > 0.05 and ctime >= base[1] else -1.0
+                if dt > 0.05 and ctime >= base[1]:
+                    cpu = (ctime - base[1]) / dt * 100.0
             with _prev_lock:
                 _prev[pid] = (now, ctime)
             result[pid] = ProcSample(pid=pid, rss_bytes=rss,
-                                     cpu_percent=cpu, cpu_time_total=ctime)
+                                     cpu_percent=cpu,
+                                     cpu_time_total=max(0.0, ctime))
         return result
 
     snap = _posix_resource_snapshot(force=force)

@@ -299,7 +299,8 @@ def render_config(key: str, *, server_name: str, docroot: str,
     """渲染完整 vhost 配置文件文本。
 
     server_name：已格式化的域名串（空格分隔，可含通配符）
-    docroot    ：nginx 正斜杠文档根（已去尾斜杠）
+    docroot    ：文档根；Windows 反斜杠会在此统一转正斜杠
+                 （nginx 会把 ``\\w``/``\\a`` 当转义，写进配置就成坏路径）
     port       ：FastCGI 端口（PHP 模板必填；非 PHP 模板可传 None）
     ssl_cert / ssl_key：非空时生成 HTTPS 变体（listen 443 ssl + 证书指令）
     """
@@ -314,7 +315,9 @@ def render_config(key: str, *, server_name: str, docroot: str,
 
     replacements = {
         "server_name": server_name.strip(),
-        "docroot": docroot.strip().rstrip("/"),
+        # 统一正斜杠：调用方可能直接传 os.path.join 的结果（Windows 下是反斜杠），
+        # 不转换会生成 root "C:\wnrp\..." 这类被 nginx 当转义解析的坏配置
+        "docroot": docroot.strip().replace("\\", "/").rstrip("/"),
         "port": str(port) if port else "",
     }
     for token, value in replacements.items():

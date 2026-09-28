@@ -147,7 +147,12 @@ class BrewIniTest(unittest.TestCase):
         real_dir = os.path.join(self.prefix, "Cellar", real)
         os.makedirs(real_dir, exist_ok=True)
         link = os.path.join(opt, name)
-        os.symlink(real_dir, link)
+        try:
+            os.symlink(real_dir, link)
+        except (OSError, NotImplementedError) as e:
+            # Windows 默认没有创建符号链接的特权（WinError 1314，需开发者模式/管理员）；
+            # brew keg 本身只存在于 macOS/Linux，这里跳过而不是报错
+            raise unittest.SkipTest("本机无法创建符号链接：%s" % e)
         return link
 
     def _etc_ini(self, ver: str) -> str:

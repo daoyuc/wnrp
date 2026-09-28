@@ -1,0 +1,46 @@
+name: tests
+
+# 目的：把「本地手跑」的 unittest 变成三平台门禁。
+# 背景（2026-09-28）：此前 CI 只构建安装包、从不跑测试，于是 6 个 Windows 失败
+# 与 5 个错误（brew symlink 权限、ps 采样断言、sendmail_path 未跳过等）长期无人发现，
+# 一次「主窗口启动即崩」也因此漏到用户手里。
+#
+# 触发：推送、PR、手动。手动跑：Actions → tests → Run workflow。
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  unittest:
+    name: unittest (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false          # 一个平台挂了也要看到另外两个平台的结果
+      matrix:
+        os: [macos-14, ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Linux 上的 tkinter 需要额外包；装不上也不致命 --
+      # tests/test_main_window_smoke.py 在无 Tk 环境下会自行跳过
+      - name: Install tkinter (Linux)
+        if: runner.os == 'Linux'
+        continue-on-error: true
+        run: sudo apt-get update && sudo apt-get install -y python3-tk
+
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -t . -v
+
+      # docs/CLI.md 由 cli.py 的 argparse 结构生成（tests/test_docs.py 亦会校验）
+      - name: Check docs/CLI.md is up to date
+        run: python _docs_cli.py --check
+
+      # i18n 覆盖率守护：目前 ja/ko 存量缺译最多（约 385 条），阈值只用于
+      # 挡住「一次性新增大量未译文案」，不代表缺译已清零（详见 ROADMAP）
+      - name: i18n coverage guard
+        run: python _i18n_scan.py --fail-under=400

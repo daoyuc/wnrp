@@ -74,6 +74,9 @@ class MainWindow(tk.Tk):
         self._crash_queue: queue.Queue = queue.Queue()
         self._tray_queue: queue.Queue = queue.Queue()
         self._tray_draining = False  # 托盘结果队列的唯一消费者是否已启动
+        # 通用「回主线程执行」队列：worker 线程一律 _post(fn)，不直接碰 Tk
+        self._ui_queue: queue.Queue = queue.Queue()
+        self._ui_draining = False
         self.health = HealthMonitor()
         self._crash_alert_active = False
         self._crash_tick = 0
@@ -261,7 +264,8 @@ class MainWindow(tk.Tk):
         if modules.is_enabled("mail", self.config):
             from .mail_panel import MailPanel
             self.mail_panel = MailPanel(nb, self.set_log, self.php_mgr, self.config)
-        # 总览仪表盘（可选模块，置顶第一个页签）
+        # 总览仪表盘（可选模块）：面板先建好，页签位置在最后统一前插
+        # （Tk 不允许对空 notebook 调 insert(0, ...)，见 _place_first_tab）
         self.overview_panel = None
         if modules.is_enabled("overview", self.config):
             from .overview_panel import OverviewPanel
@@ -269,7 +273,6 @@ class MainWindow(tk.Tk):
                 nb, self.set_log, self.php_mgr, self.nginx_mgr,
                 self.redis_mgr, self.mysql_mgr, self.vhost_mgr,
                 self.config, self.services)
-            nb.insert(0, self.overview_panel, text=t("总览"))
         about = self._build_about(nb)
         # 页签文字两侧留白由 TNotebook.Tab 的 padding 控制（不再用空格凑宽度）
         nb.add(self.php_panel, text=t("PHP 版本管理"))
@@ -289,6 +292,24 @@ class MainWindow(tk.Tk):
         self.run_panel = RunLogPanel(nb, self.set_log)
         nb.add(self.run_panel, text=t("运行日志"))
         nb.add(about, text=t("关于"))
+        # 全部页签就位后再把「总览」插到最前（空 notebook 直接 insert 会抛 TclError）
+        self._place_first_tab(nb, self.overview_panel, t("总览"))
+
+    @staticmethod
+    def _place_first_tab(nb: ttk.Notebook, panel, text: str) -> None:
+        """把可选页签放到第一位。
+
+        Tk 的 ``ttk::notebook insert`` 会把下标与**已有**从属项数量比较，
+        对空 notebook 调 ``insert(0, ...)`` 会抛
+        ``TclError: Slave index 0 out of bounds``（Windows/Linux 的 Tk 8.6 均可复现），
+        因此这里在没有其它页签时退化为 ``add``。
+        """
+        if panel is None:
+            return
+        if nb.tabs():
+            nb.insert(0, panel, text=text)
+        else:
+            nb.add(panel, text=text)
 
     def _build_about(self, master) -> ttk.Frame:
         # 整页为一张卡片：分组框与内部文本统一走 Card.* 样式，避免底色不一致
@@ -573,7 +594,7 @@ class MainWindow(tk.Tk):
 
         def worker():
             res = backup_bundle.export_bundle(dest, self.config)
-            self.after(0, lambda: self._backup_done(res, True))
+            self._post(lambda: self._backup_done(res, True))
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -594,7 +615,7 @@ class MainWindow(tk.Tk):
 
         def worker():
             res = backup_bundle.restore_bundle(src, self.config)
-            self.after(0, lambda: self._backup_done(res, False))
+            self._post(lambda: self._backup_done(res, False))
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -626,7 +647,7 @@ class MainWindow(tk.Tk):
 
         def worker():
             res = adminer.install(self.config, hosts=True, reload=True)
-            self.after(0, lambda: self._adminer_done(res))
+            self._post(lambda: self._adminer_done(res))
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -1215,6 +1236,42 @@ class MainWindow(tk.Tk):
 
         threading.Thread(target=worker, daemon=True).start()
         self._start_tray_drain()
+
+    # ------------------------------------------------------------------ #
+    # 通用回调队列：worker → 主线程
+    # ------------------------------------------------------------------ #
+    def _post(self, fn) -> None:
+        """把回调投递到主线程执行。
+
+        worker 线程里**不能**直接改控件，也不能调 ``after()``（启动期主线程还没进
+        ``mainloop()`` 会抛 ``RuntimeError: main thread is not in main loop``，
+        见 ``docs/ARCHITECTURE.md`` 的并发模型）。
+        """
+        self._ui_queue.put(fn)
+        self._start_ui_drain()
+
+    def _start_ui_drain(self) -> None:
+        if self._ui_draining:
+            return
+        self._ui_draining = True
+        self.after(80, self._drain_ui)
+
+    def _drain_ui(self) -> None:
+        if not self.winfo_exists():  # 窗口已销毁：停止轮询
+            self._ui_draining = False
+            return
+        try:
+            while True:
+                fn = self._ui_queue.get_nowait()
+                try:
+                    fn()
+                except Exception as e:  # noqa: BLE001 - 单个回调失败不拖垮主循环
+                    run_log.error("ui", t("界面回调异常：{name}：{msg}",
+                                          name=type(e).__name__, msg=e))
+        except queue.Empty:
+            pass
+        # 不可见/后台时降频：空转取消息不必跟着 80ms 跑
+        self.after(80 if self.winfo_ismapped() else 400, self._drain_ui)
 
     def _start_tray_drain(self) -> None:
         """启动托盘/操作结果队列的唯一消费者（幂等）。

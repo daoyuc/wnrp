@@ -60,6 +60,7 @@ DEFAULT_SETTINGS = {
     "check_update_on_start": True,  # 启动时静默检查新版本（发现后仅状态栏提示）
     "skipped_version": "",          # 用户点过「跳过此版本」的版本号，启动检查不再提示
     "theme": "system",              # 界面主题：light / dark / system（跟随系统外观，见 core/theme.py）
+    "mail_sink_port": 1025,         # 邮件捕获 SMTP sink 端口（仅 Windows，见 core/mail_sink.py）
     "start_services_on_launch": False,  # 启动 phpvm 时自动启动全部服务（结果见「运行日志」页签）
     # 自动启动服务时启动哪些 PHP 版本（见 core/service_group.py PHP_SCOPES）：
     # newest=仅版本号最新（默认，避免一次拉起全部版本）/ used=站点实际引用+最新
