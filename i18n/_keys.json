@@ -534,6 +534,18 @@
    "core/php_installer.py"
   ]
  },
+ "SMTP {host}:{port}": {
+  "count": 1,
+  "files": [
+   "core/mail_catcher.py"
+  ]
+ },
+ "SMTP {state}": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
+  ]
+ },
  "SQL 查询": {
   "count": 1,
   "files": [
@@ -580,6 +592,12 @@
   "count": 1,
   "files": [
    "core/tuning.py"
+  ]
+ },
+ "Windows 的 mail() 走 SMTP：phpvm 在 127.0.0.1:{port} 收信并落盘 .eml（捕获服务随 phpvm 运行）。": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
   ]
  },
  "Xdebug {state}": {
@@ -716,7 +734,7 @@
    "ui/php_panel.py"
   ]
  },
- "[{name}] 捕获：{state} · 目录：{dir}（{n} 封）": {
+ "[{name}] 捕获：{state}": {
   "count": 1,
   "files": [
    "ui/mail_panel.py"
@@ -1148,14 +1166,8 @@
    "core/php_downloader.py"
   ]
  },
- "sendmail_path 仅 Unix 有效（Windows 的 mail() 走 SMTP），当前平台不可用。": {
-  "count": 1,
-  "files": [
-   "ui/mail_panel.py"
-  ]
- },
  "sendmail_path 仅 Unix 有效（Windows 的 mail() 走 SMTP），暂不支持。": {
-  "count": 2,
+  "count": 1,
   "files": [
    "core/mail_catcher.py"
   ]
@@ -3479,6 +3491,12 @@
    "core/mysql_manager.py"
   ]
  },
+ "已停止邮件捕获服务": {
+  "count": 1,
+  "files": [
+   "core/mail_sink.py"
+  ]
+ },
  "已关闭": {
   "count": 1,
   "files": [
@@ -3504,7 +3522,7 @@
   ]
  },
  "已关闭邮件捕获并还原原有设置（重启生效）。": {
-  "count": 1,
+  "count": 2,
   "files": [
    "core/mail_catcher.py"
   ]
@@ -3715,6 +3733,12 @@
   "count": 1,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "已开启邮件捕获：邮件将写入 {dir}\n（SMTP 127.0.0.1:{port}，重启 [{name}] 后生效；捕获服务随 phpvm 运行，phpvm 关闭期间 PHP 发信会失败）": {
+  "count": 1,
+  "files": [
+   "core/mail_catcher.py"
   ]
  },
  "已开启邮件捕获：邮件将写入 {dir}\n（重启 [{name}] 后生效）": {
@@ -4477,6 +4501,12 @@
    "ui/site_wizard.py"
   ]
  },
+ "捕获服务未运行：phpvm 关闭期间 PHP 发信会失败，点「开启捕获」可立即拉起（127.0.0.1:{port}）。": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
+  ]
+ },
  "推荐目录": {
   "count": 2,
   "files": [
@@ -4780,6 +4810,12 @@
   "count": 1,
   "files": [
    "ui/extension_dialog.py"
+  ]
+ },
+ "无法监听 127.0.0.1:{port}：{err}": {
+  "count": 1,
+  "files": [
+   "core/mail_sink.py"
   ]
  },
  "无法获取版本": {
@@ -5381,6 +5417,12 @@
   "count": 1,
   "files": [
    "core/tuning.py"
+  ]
+ },
+ "未运行": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
   ]
  },
  "未选择数据库文件。": {
@@ -6129,6 +6171,12 @@
    "ui/mysql_panel.py"
   ]
  },
+ "目录：{dir}（{n} 封）": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
+  ]
+ },
  "目标 DB：": {
   "count": 1,
   "files": [
@@ -6784,7 +6832,7 @@
   ]
  },
  "该版本未开启邮件捕获，无需操作。": {
-  "count": 1,
+  "count": 2,
   "files": [
    "core/mail_catcher.py"
   ]
@@ -6954,7 +7002,7 @@
   ]
  },
  "读取失败：{err}": {
-  "count": 6,
+  "count": 7,
   "files": [
    "core/mail_catcher.py",
    "core/php_manager.py",
@@ -7078,9 +7126,10 @@
   ]
  },
  "运行中": {
-  "count": 4,
+  "count": 5,
   "files": [
    "ui/dialogs.py",
+   "ui/mail_panel.py",
    "ui/mysql_panel.py",
    "ui/nginx_panel.py",
    "ui/redis_panel.py"
@@ -7219,6 +7268,24 @@
   "count": 1,
   "files": [
    "ui/mail_panel.py"
+  ]
+ },
+ "邮件捕获服务已启动：127.0.0.1:{port}（随 phpvm 运行，关闭 phpvm 即停止）": {
+  "count": 1,
+  "files": [
+   "core/mail_sink.py"
+  ]
+ },
+ "邮件捕获服务已在运行（127.0.0.1:{port}）": {
+  "count": 2,
+  "files": [
+   "core/mail_sink.py"
+  ]
+ },
+ "邮件捕获服务未在运行": {
+  "count": 1,
+  "files": [
+   "core/mail_sink.py"
   ]
  },
  "邮件目录不存在：{path}": {

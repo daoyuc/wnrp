@@ -65,7 +65,7 @@ phpvm 是一个**本机开发环境管理器**（PHP 多版本 + Nginx + Redis +
 | 角色 | 载体 | 职责 | 约束 |
 |---|---|---|---|
 | 界面主线程 | Tk 主循环（`ui/main_window.py`） | 绘制与事件分发；每 **8 秒** `_tick()` 触发一轮状态刷新（面板内部自己排队异步执行），崩溃告警约 8 个 tick 查一次 | 主线程里禁止做阻塞 IO（启停服务、扫描端口一律下沉到 worker） |
-| 面板 worker 线程 | 各 `*_panel.py` / `main_window` 中的 `threading.Thread(daemon=True)` | 启停服务、扫描版本、写配置等耗时动作 | 结果经 `queue` + `after()` 回投主线程渲染，禁止在工作线程直接改控件 |
+| 面板 worker 线程 | 各 `*_panel.py` / `main_window` 中的 `threading.Thread(daemon=True)` | 启停服务、扫描版本、写配置等耗时动作 | 只允许 `queue.put()`：**worker 里连 `after()` 都不能调**（启动期主线程还没进 `mainloop()`，会抛 `RuntimeError: main thread is not in main loop` 并丢掉首屏结果）；渲染一律由主线程 drain 从队列取 —— 各面板用 `_drain()`，主窗口用 `_post(fn)` + `_drain_ui()`（通用回调队列，见 `main_window.py`） |
 | 日志写盘线程 | `core/run_log.py` 单写线程 + `atexit` 冲刷 | 调用方只入内存/队列（零磁盘 IO），批量落盘、超 1MB 轮转 | 队列满即丢弃，日志系统不阻塞业务 |
 | 自愈守护进程 | `core/crash_watchdog.py`（被 `spawn()` 以 `pythonw` 拉起） | 与 GUI 生命周期解耦地轮询崩溃事件与进程失联，按防抖/限次策略重启 php-cgi | 用 `crash_watchdog.lock` 单例；关闭自愈开关后守护进程自行退出，不杀进程 |
 | 单实例保护 | `main.py` | Windows 命名互斥体 `Global\wnrp_phpvm_singleton_mutex`；posix `/tmp/phpvm_singleton.sock` | 第二实例提示后退出并写一条 warn 日志；「重启」功能用 `PHPVM_RESTART=1` 抢锁 |

@@ -111,15 +111,16 @@ class LogPanel(ttk.Frame):
         self.info_var.set(t("正在枚举日志源…"))
 
         def worker():
+            # worker 只入队：跨线程直接 after()/改控件在启动期会抛
+            # "main thread is not in main loop"，且违反本仓库的线程约定
             try:
                 groups = logsrc.collect(self.config, self.vhost_mgr)
+                self._queue.put(("groups", groups))
             except Exception as e:  # noqa: BLE001
-                groups = {}
-                self.after(0, lambda: self.info_var.set(
-                    t("枚举日志源失败：{err}", err=e)))
-            self.after(0, lambda: self._apply_groups(groups))
+                self._queue.put(("groups_err", t("枚举日志源失败：{err}", err=e)))
 
         threading.Thread(target=worker, daemon=True).start()
+        self._poll()
 
     def _apply_groups(self, groups: dict) -> None:
         self._groups = groups
@@ -248,6 +249,14 @@ class LogPanel(ttk.Frame):
         try:
             kind, payload = self._queue.get_nowait()
         except queue.Empty:
+            self.after(60, self._poll)
+            return
+        if kind in ("groups", "groups_err"):
+            # 日志源枚举结果：与文件内容读取互不干扰，不参与 _busy 状态
+            if kind == "groups_err":
+                self.info_var.set(payload)
+            else:
+                self._apply_groups(payload)
             self.after(60, self._poll)
             return
         self._busy = False

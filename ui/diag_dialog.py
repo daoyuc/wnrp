@@ -2,6 +2,7 @@
 """一键体检对话框：对选中站点（或全站）跑只读诊断，分级列出 502 成因，
 并对可安全修复项（补 include / 写 hosts / 启动 PHP / 重新启用 / 启动 Nginx）提供一键修复。"""
 import os
+import queue
 import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
@@ -26,6 +27,8 @@ class DiagDialog(tk.Toplevel):
         self.notify = notify or (lambda m: None)
         self.deps: dict = {}
         self._busy = False
+        self._queue: queue.Queue = queue.Queue()  # 唯一消费者是主线程 drain
+        self._draining = False
 
         self.title(t("一键体检") + (f" · {entry.server_name}" if entry else t(" · 全部站点")))
         self.resizable(True, True)
@@ -79,6 +82,7 @@ class DiagDialog(tk.Toplevel):
         self._clear()
 
         def worker():
+            # worker 只入队：跨线程直接改控件 / after() 都不允许（见 ARCHITECTURE 并发模型）
             try:
                 pm = PhpManager(self.cfg)
                 pm.scan_versions()
@@ -100,15 +104,44 @@ class DiagDialog(tk.Toplevel):
                     results.append((e, items))
                 self.deps = {"php_versions": pm.versions, "nginx": nginx,
                              "logs_dir": logs_dir, "hosts_map": hosts_map}
-                self.after(0, lambda: self._render(results))
+                self._queue.put(("data", results))
             except Exception as e:  # noqa: BLE001
-                self.after(0, lambda: self._status.configure(
-                    text=t("体检失败：{err}", err=e)))
+                self._queue.put(("error", t("体检失败：{err}", err=e)))
             finally:
+                self._queue.put(("done", None))
                 self._busy = False
-                self.after(0, lambda: self.btn_rerun.configure(state="normal"))
 
         threading.Thread(target=worker, daemon=True).start()
+        self._start_drain()
+
+    # ------------------------------------------------------------------ #
+    def _start_drain(self) -> None:
+        if self._draining:
+            return
+        self._draining = True
+        self.after(80, self._drain)
+
+    def _drain(self) -> None:
+        if not self.winfo_exists():
+            self._draining = False
+            return
+        try:
+            while True:
+                kind, payload = self._queue.get_nowait()
+                if kind == "data":
+                    self._render(payload)
+                elif kind == "error":
+                    self._status.configure(text=payload)
+                elif kind == "fix_done":
+                    self.notify(payload)
+                    self._status.configure(text=payload)
+                    self._busy = False
+                    self._start()          # 修复后重新体检
+                else:  # done：无论成败都放开按钮
+                    self.btn_rerun.configure(state="normal")
+        except queue.Empty:
+            pass
+        self.after(80 if self.winfo_ismapped() else 400, self._drain)
 
     @staticmethod
     def _diagnose(entry, php_versions, nginx_running, logs_dir, hosts_map):
@@ -193,11 +226,10 @@ class DiagDialog(tk.Toplevel):
                 msg = self._apply_fix(fix_key, entry)
             except Exception as e:  # noqa: BLE001
                 msg = t("修复失败：{err}", err=e)
-            self.after(0, lambda: self.notify(msg))
-            self.after(0, lambda: self._status.configure(text=msg))
-            self.after(0, self._start)  # 修复后重新体检
+            self._queue.put(("fix_done", msg))
 
         threading.Thread(target=worker, daemon=True).start()
+        self._start_drain()
 
     def _apply_fix(self, fix_key: str, entry) -> str:
         if fix_key == "include":

@@ -1,21 +1,22 @@
 # -*- coding: utf-8 -*-
 """邮件捕获（F11）：把 PHP ``mail()`` 发出的邮件落盘为 ``.eml``，供「邮件」页查看。
 
-实现取舍（与规划一致）：**不托管 Mailpit 之类的外部二进制**，改用 PHP 的
-``sendmail_path`` 指向一个只依赖 POSIX shell 的脚本 —— 脚本从 stdin 读取邮件原文，
-写成 ``<数据目录>/mail/<时间戳>-<pid>.eml``。零外部依赖、零常驻进程、零端口占用。
+两种落地方式（同一捕获目录、同一阅读页）：
 
-平台边界（重要）：
-- 官方 php.ini 明确 ``sendmail_path`` **For Unix only**；Windows 下 ``mail()`` 走
-  SMTP（``SMTP`` / ``smtp_port``），本方案不适用 —— 相关操作会直接拒绝并说明原因。
-- 改动 php.ini 走「备份 → 改 → 保留原值」，:func:`disable` 可完整还原用户原有设置。
+- **Unix（``sendmail`` 模式）**：``sendmail_path`` 指向一个只依赖 POSIX shell 的脚本，
+  脚本从 stdin 读邮件原文落盘。零常驻进程、零端口占用。
+- **Windows（``smtp`` 模式）**：官方 php.ini 明确 ``sendmail_path`` **For Unix only**，
+  ``mail()`` 只能走 SMTP，因此把 ``SMTP`` / ``smtp_port`` 指向
+  :mod:`core.mail_sink`（127.0.0.1 上的极简 sink，随 phpvm 运行）。
+
+共同约定：改动 php.ini 一律「备份 → 改 → 记住原值」，:func:`disable` 可完整还原。
 """
 import email
 import os
 import re
 from email import policy
 
-from . import app_paths, file_backup
+from . import app_paths, file_backup, mail_sink
 from .config import IS_WIN
 from .i18n import t
 
@@ -24,10 +25,22 @@ SHIM_NAME = "phpvm-sendmail.sh"
 
 #: 我们写入 ini 的标记行（成对出现：标记 + sendmail_path）
 MARK = "; >>> phpvm mail catcher >>>"
-#: 记录用户原有 sendmail_path，便于 disable 还原
+#: Windows（SMTP 模式）的标记块：带结束标记，便于整块摘除
+SMTP_MARK = "; >>> phpvm mail catcher (SMTP) >>>"
+SMTP_END_MARK = "; <<< phpvm mail catcher (SMTP) <<<"
+#: 记录用户原有取值，便于 disable 还原（sendmail 模式：原 sendmail_path；SMTP 模式：key=value）
 ORIG_MARK = "; phpvm-mail-catcher-original: "
 
 _RE_SENDMAIL = re.compile(r"^(\s*)(;?)\s*sendmail_path\s*=\s*(.*)$", re.IGNORECASE)
+_RE_SMTP = re.compile(r"^(\s*)(;?)\s*SMTP\s*=\s*(.*)$", re.IGNORECASE)
+_RE_SMTP_PORT = re.compile(r"^(\s*)(;?)\s*smtp_port\s*=\s*(.*)$", re.IGNORECASE)
+_RE_FROM = re.compile(r"^(\s*)(;?)\s*sendmail_from\s*=\s*(.*)$", re.IGNORECASE)
+#: SMTP 模式要写入 / 还原的键（顺序即写回顺序）
+_SMTP_KEYS = ("SMTP", "smtp_port", "sendmail_from")
+#: Windows 的 mail() 需要一个默认发件人，否则报 "Bad Message Return Path"
+_SMTP_FROM = "dev@phpvm.local"
+
+_cfg_cache = None
 
 #: 从 stdin 读邮件并落盘的最小脚本（占位符 __PHPVM_MAIL_DIR__ 在安装时替换）
 _SHIM = """#!/bin/sh
@@ -43,8 +56,35 @@ cat > "$f"
 
 
 def supported() -> bool:
-    """当前平台是否可用（``sendmail_path`` 仅 Unix 有效）。"""
-    return not IS_WIN
+    """当前平台是否可用。
+
+    Unix 用 ``sendmail_path`` 垫片，Windows 用 :mod:`core.mail_sink`（SMTP），
+    两条路径都可用，故恒为 True；具体模式见 :func:`mode`。
+    """
+    return True
+
+
+def mode() -> str:
+    """当前生效的捕获方式：``sendmail``（Unix）/ ``smtp``（Windows）。"""
+    return "smtp" if IS_WIN else "sendmail"
+
+
+def smtp_port() -> int:
+    """SMTP sink 端口（``settings.mail_sink_port``，默认 1025）。"""
+    global _cfg_cache
+    if _cfg_cache is None:
+        try:
+            from .config import Config
+
+            _cfg_cache = Config()
+        except Exception:  # noqa: BLE001 - 读不到配置就退回默认端口
+            _cfg_cache = False
+    if _cfg_cache:
+        try:
+            return int(_cfg_cache.get_setting("mail_sink_port", mail_sink.DEFAULT_PORT))
+        except (TypeError, ValueError):
+            pass
+    return mail_sink.DEFAULT_PORT
 
 
 def mail_dir() -> str:
@@ -70,8 +110,11 @@ def _sh_escape(path: str) -> str:
 
 
 def install_shim() -> tuple[bool, str]:
-    """写入 / 覆盖垫片脚本并置可执行位。返回 ``(ok, 路径或错误信息)``。"""
-    if not supported():
+    """写入 / 覆盖垫片脚本并置可执行位。返回 ``(ok, 路径或错误信息)``。
+
+    仅 ``sendmail`` 模式（Unix）适用；Windows 走 SMTP sink，不需要垫片。
+    """
+    if mode() != "sendmail":
         return False, t("sendmail_path 仅 Unix 有效（Windows 的 mail() 走 SMTP），暂不支持。")
     path = shim_path()
     body = _SHIM.replace("__PHPVM_MAIL_DIR__", _sh_escape(mail_dir()))
@@ -112,19 +155,53 @@ def active_sendmail(ini: str) -> str:
     return ""
 
 
+def active_smtp(ini: str) -> tuple[str, str]:
+    """ini 中**生效**的 ``(SMTP, smtp_port)``（未设置 / 仅注释时为空串）。"""
+    host = port = ""
+    try:
+        with open(ini, "rb") as f:
+            text = f.read().decode("latin-1")
+    except OSError:
+        return "", ""
+    for line in text.splitlines():
+        s = line.strip()
+        if not host:
+            m = _RE_SMTP.match(s)
+            if m and not m.group(2):
+                host = m.group(3).strip()
+                continue
+        if not port:
+            m = _RE_SMTP_PORT.match(s)
+            if m and not m.group(2):
+                port = m.group(3).strip()
+    return host, port
+
+
 def status(v) -> dict:
     """该版本的邮件捕获状态（只读）。"""
     ini = getattr(v, "ini", "") or ""
-    cur = active_sendmail(ini) if ini and os.path.exists(ini) else ""
+    exists = bool(ini) and os.path.exists(ini)
+    cur = active_sendmail(ini) if exists else ""
+    host, port = active_smtp(ini) if exists else ("", "")
+    if mode() == "smtp":
+        enabled = host.strip().lower() in ("127.0.0.1", "localhost") \
+            and port.strip() == str(smtp_port())
+        current = t("SMTP {host}:{port}", host=host, port=port) if host or port else ""
+    else:
+        enabled = bool(_norm(cur)) and _norm(cur) == _norm(shim_path())
+        current = cur
     return {
         "supported": supported(),
+        "mode": mode(),
         "installed": is_installed(),
         "shim": shim_path(),
         "mail_dir": mail_dir(),
         "ini": ini,
-        "ini_exists": bool(ini) and os.path.exists(ini),
-        "current": cur,
-        "enabled": bool(_norm(cur)) and _norm(cur) == _norm(shim_path()),
+        "ini_exists": exists,
+        "current": current,
+        "enabled": enabled,
+        "sink_running": mail_sink.running() if mode() == "smtp" else False,
+        "sink_port": smtp_port() if mode() == "smtp" else 0,
         "count": len(list_mails(limit=100000)),
     }
 
@@ -190,14 +267,94 @@ def _transform(ini: str, shim: str, on: bool) -> tuple[bool, str, str]:
     return _rewrite(ini, out)
 
 
+def _transform_smtp(ini: str, on: bool) -> tuple[bool, str, str]:
+    """Windows：重写 ini 的 ``SMTP`` / ``smtp_port`` 指向本机 sink。
+
+    与 sendmail 版同样保留用户原值（写成 ``; phpvm-mail-catcher-original: KEY=VALUE``），
+    :func:`disable` 时原样还原。返回 ``(ok, 消息, 备份路径)``。
+    """
+    try:
+        with open(ini, "rb") as f:
+            text = f.read().decode("latin-1")
+    except OSError as e:
+        return False, t("读取失败：{err}", err=e), ""
+    out: list[str] = []
+    originals: dict[str, str] = {}
+    in_block = False
+    for line in text.splitlines():
+        s = line.strip()
+        if in_block:                      # 标记块内全部丢弃，直到结束标记
+            if s == SMTP_END_MARK:
+                in_block = False
+            continue
+        if s == SMTP_MARK:
+            in_block = True
+            continue
+        if s.startswith(ORIG_MARK):
+            key, _, value = s[len(ORIG_MARK):].strip().partition("=")
+            if key.strip() in _SMTP_KEYS:
+                originals[key.strip()] = value.strip()
+                continue
+            out.append(line)
+            continue
+        for key, rx in (("SMTP", _RE_SMTP), ("smtp_port", _RE_SMTP_PORT),
+                        ("sendmail_from", _RE_FROM)):
+            m = rx.match(s)
+            if m and not m.group(2):      # 生效中的同名键：摘掉并记住原值
+                originals.setdefault(key, m.group(3).strip())
+                break
+        else:
+            out.append(line)
+    if on:
+        for key in _SMTP_KEYS:
+            if key in originals:
+                out.append(f"{ORIG_MARK}{key}={originals[key]}")
+        out.append(SMTP_MARK)
+        out.append("SMTP = 127.0.0.1")
+        out.append(f"smtp_port = {smtp_port()}")
+        out.append(f"sendmail_from = {_SMTP_FROM}")
+        out.append(SMTP_END_MARK)
+    else:
+        for key in _SMTP_KEYS:
+            if key in originals:
+                out.append(f"{key} = {originals[key]}")
+    return _rewrite(ini, out)
+
+
+def ensure_sink(versions) -> tuple[bool, str] | None:
+    """Windows：任一版本已开启捕获而 sink 未运行时自动拉起它。
+
+    返回 ``None`` 表示无需动作（非 Windows / 已在运行 / 没有任何版本开启）。
+    """
+    if mode() != "smtp" or mail_sink.running():
+        return None
+    try:
+        need = any(status(v)["enabled"] for v in (versions or []))
+    except Exception:  # noqa: BLE001 - 状态探测失败不应阻塞界面
+        return None
+    if not need:
+        return None
+    return mail_sink.start(smtp_port())
+
+
 def enable(v) -> tuple[bool, str, str]:
     """开启该版本的邮件捕获。返回 ``(ok, 消息, 备份路径)``。"""
-    if not supported():
-        return False, t("sendmail_path 仅 Unix 有效（Windows 的 mail() 走 SMTP），暂不支持。"), ""
     ini = getattr(v, "ini", "") or ""
     if not ini or not os.path.exists(ini):
         return False, t("[{name}] 还没有生效的 php.ini，请先生成后再开启邮件捕获。",
                         name=getattr(v, "name", "?")), ""
+    name = getattr(v, "name", "?")
+    if mode() == "smtp":
+        ok, msg = mail_sink.start(smtp_port())
+        if not ok:
+            return False, msg, ""
+        ok, msg, backup = _transform_smtp(ini, True)
+        if not ok:
+            return False, msg, ""
+        return True, t("已开启邮件捕获：邮件将写入 {dir}\n"
+                       "（SMTP 127.0.0.1:{port}，重启 [{name}] 后生效；"
+                       "捕获服务随 phpvm 运行，phpvm 关闭期间 PHP 发信会失败）",
+                       dir=mail_dir(), port=smtp_port(), name=name), backup
     ok, msg = install_shim()
     if not ok:
         return False, msg, ""
@@ -205,14 +362,23 @@ def enable(v) -> tuple[bool, str, str]:
     if not ok:
         return False, msg, ""
     return True, t("已开启邮件捕获：邮件将写入 {dir}\n（重启 [{name}] 后生效）",
-                   dir=mail_dir(), name=getattr(v, "name", "?")), backup
+                   dir=mail_dir(), name=name), backup
 
 
 def disable(v) -> tuple[bool, str, str]:
-    """关闭该版本的邮件捕获并还原原有 sendmail_path。返回 ``(ok, 消息, 备份路径)``。"""
+    """关闭该版本的邮件捕获并还原原有设置。返回 ``(ok, 消息, 备份路径)``。"""
     ini = getattr(v, "ini", "") or ""
     if not ini or not os.path.exists(ini):
         return False, t("配置文件不存在：{path}", path=ini or "—"), ""
+    if mode() == "smtp":
+        host, port = active_smtp(ini)
+        if not (host.strip().lower() in ("127.0.0.1", "localhost")
+                and port.strip() == str(smtp_port())):
+            return True, t("该版本未开启邮件捕获，无需操作。"), ""
+        ok, msg, backup = _transform_smtp(ini, False)
+        if not ok:
+            return False, msg, ""
+        return True, t("已关闭邮件捕获并还原原有设置（重启生效）。"), backup
     if _norm(active_sendmail(ini)) != _norm(shim_path()):
         return True, t("该版本未开启邮件捕获，无需操作。"), ""
     ok, msg, backup = _transform(ini, shim_path(), False)

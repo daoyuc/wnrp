@@ -9,12 +9,13 @@
 
 数据异步聚合（核心 build_overview 会触发各 manager 状态查询），渲染在主线程。
 """
+import queue
 import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
 
 from core import i18n, overview as ovmod
-from core.resource_monitor import human_bytes as _human_bytes
+from core.resource_monitor import format_rss as _format_rss
 from . import theme
 
 C_OK = "#2e7d32"
@@ -36,8 +37,11 @@ class OverviewPanel(ttk.Frame):
         self.config = config
         self.services = services
         self._busy = False
+        self._queue: queue.Queue = queue.Queue()  # 唯一消费者是主线程 drain
+        self._draining = False
         self._build()
         self.auto_refresh()
+        self._start_drain()
 
     # ------------------------------------------------------------------ #
     def _build(self) -> None:
@@ -85,14 +89,17 @@ class OverviewPanel(ttk.Frame):
         self._busy = True
 
         def worker():
+            # 约定：worker 只入队，绝不跨线程碰 Tk —— 连 after() 也不行
+            # （启动期主线程还没进 mainloop，after 会抛
+            #  "RuntimeError: main thread is not in main loop"，首屏直接丢）
+            ov = None
+            err = None
             try:
                 ov = ovmod.build_overview(
                     self.config, self.php_mgr, self.nginx_mgr,
                     self.redis_mgr, self.mysql_mgr, self.vhost_mgr)
             except Exception as e:  # noqa: BLE001
-                ov = None
-                self.after(0, lambda: self.notify(i18n.t("总览聚合失败：{err}", err=e)))
-                return
+                err = e
             metrics = None
             try:
                 from core import resource_monitor as rm
@@ -101,9 +108,46 @@ class OverviewPanel(ttk.Frame):
                     self.redis_mgr, self.mysql_mgr)
             except Exception:  # noqa: BLE001
                 metrics = None
-            self.after(0, lambda: self._render(ov, metrics))
+            self._queue.put(("data", (ov, metrics, err)))
 
         threading.Thread(target=worker, daemon=True).start()
+        self._start_drain()
+
+    # ------------------------------------------------------------------ #
+    # 队列消息分发（唯一消费者：主线程 drain；worker 只 queue.put）
+    # ------------------------------------------------------------------ #
+    def _start_drain(self) -> None:
+        if self._draining:
+            return
+        self._draining = True
+        self.after(120, self._drain)
+
+    def _drain(self) -> None:
+        if not self.winfo_exists():  # 面板已销毁：停止轮询
+            self._draining = False
+            return
+        try:
+            while True:
+                kind, payload = self._queue.get_nowait()
+                if kind == "data":
+                    ov, metrics, err = payload
+                    if err is not None:
+                        self._busy = False
+                        self.notify(i18n.t("总览聚合失败：{err}", err=err))
+                    else:
+                        self._render(ov, metrics)
+                elif kind == "diag_error":
+                    self.notify(payload)
+                else:  # diag_result
+                    err, warn, total = payload
+                    messagebox.showinfo(
+                        i18n.t("体检结果"),
+                        i18n.t("共 {n} 个站点，错误 {e} 项，警告 {w} 项",
+                               n=total, e=err, w=warn), parent=self)
+        except queue.Empty:
+            pass
+        # 不可见页签降频：drain 只是空转取消息，不必跟着 120ms 跑
+        self.after(120 if self.winfo_ismapped() else 400, self._drain)
 
     def _render(self, ov, metrics=None) -> None:
         self._busy = False
@@ -135,7 +179,7 @@ class OverviewPanel(ttk.Frame):
             s = res_map.get((kind, name))
             if not s or not s["running"]:
                 return ""
-            mem = _human_bytes(s["rss_bytes"])
+            mem = _format_rss(s["rss_bytes"])
             cpu = f"{s['cpu_percent']:.0f}%" if s["cpu_percent"] >= 0 else i18n.t("未知")
             return i18n.t("内存 {mem} · CPU {cpu}", mem=mem, cpu=cpu)
 
@@ -168,7 +212,7 @@ class OverviewPanel(ttk.Frame):
         if metrics:
             tot = metrics.get("totals", {})
             if tot:
-                mem = _human_bytes(tot.get("rss_bytes", 0))
+                mem = _format_rss(tot.get("rss_bytes", 0))
                 cpu = (f"{tot['cpu_percent']:.0f}%" if tot.get("cpu_percent", -1) >= 0
                        else i18n.t("未知"))
                 line = i18n.t("合计 · {n} 个服务运行中 · 内存 {mem} · CPU {cpu}",
@@ -217,11 +261,9 @@ class OverviewPanel(ttk.Frame):
                 err, warn, total = ovmod.diagnose_all(
                     self.config, self.vhost_mgr, self.php_mgr, self.nginx_mgr)
             except Exception as e:  # noqa: BLE001
-                self.after(0, lambda: self.notify(i18n.t("体检失败：{err}", err=e)))
+                self._queue.put(("diag_error", i18n.t("体检失败：{err}", err=e)))
                 return
-            self.after(0, lambda: messagebox.showinfo(
-                i18n.t("体检结果"),
-                i18n.t("共 {n} 个站点，错误 {e} 项，警告 {w} 项",
-                       n=total, e=err, w=warn)))
+            self._queue.put(("diag_result", (err, warn, total)))
 
         threading.Thread(target=worker, daemon=True).start()
+        self._start_drain()

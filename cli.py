@@ -964,11 +964,11 @@ def cmd_monitor_snapshot(a, r: Result) -> Result:
         if not svc["running"]:
             r.say(f"  {svc['name']}: {t('停止')}")
             continue
-        rss = resource_monitor.human_bytes(svc["rss_bytes"])
+        rss = resource_monitor.format_rss(svc["rss_bytes"])
         cpu = f"{svc['cpu_percent']:.0f}%" if svc["cpu_percent"] >= 0 else t("未知")
         r.say(f"  {svc['name']}: {t('内存 {mem} · CPU {cpu}', mem=rss, cpu=cpu)}")
     tot = data["totals"]
-    tot_rss = resource_monitor.human_bytes(tot["rss_bytes"])
+    tot_rss = resource_monitor.format_rss(tot["rss_bytes"])
     tot_cpu = f"{tot['cpu_percent']:.0f}%" if tot["cpu_percent"] >= 0 else t("未知")
     r.say(t("合计：{n} 个运行中的服务 · 内存 {mem} · CPU {cpu}",
             n=tot["service_count"], mem=tot_rss, cpu=tot_cpu))
@@ -1181,11 +1181,15 @@ def cmd_mail_status(a, r: Result) -> Result:
     r.data = {**st, "php": v.name}
     r.say(t("[{name}] 邮件捕获：{state}", name=v.name,
             state=t("已开启") if st["enabled"] else t("未开启")))
+    if st["mode"] == "smtp":
+        r.say(t("捕获方式：SMTP 127.0.0.1:{port}（服务{state}；随 phpvm 运行）",
+                port=st["sink_port"],
+                state=t("运行中") if st["sink_running"] else t("未运行")))
+    else:
+        r.say(t("捕获方式：sendmail_path 垫片脚本"))
     r.say(t("邮件目录：{dir}（已捕获 {n} 封）", dir=st["mail_dir"], n=st["count"]))
     if st["current"]:
-        r.say(f"sendmail_path = {st['current']}")
-    if not st["supported"]:
-        r.note(t("sendmail_path 仅 Unix 有效（Windows 的 mail() 走 SMTP），暂不支持。"))
+        r.say(st["current"] if st["mode"] == "smtp" else f"sendmail_path = {st['current']}")
     return r
 
 
@@ -2478,8 +2482,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--dry-run", action="store_true", help="只报告将做什么")
     _leaf(gs, "open", cmd_adminer_open, "adminer.open", "在浏览器打开 Adminer")
 
-    # mail（邮件捕获 .eml，F11；sendmail_path 仅 Unix 有效）
-    g = sub.add_parser("mail", help="邮件捕获（.eml 落盘，sendmail_path 仅 Unix）",
+    # mail（邮件捕获 .eml，F11：Unix 用 sendmail_path 垫片，Windows 用内置 SMTP sink）
+    g = sub.add_parser("mail", help="邮件捕获（.eml 落盘：Unix 走 sendmail_path，Windows 走 SMTP sink）",
                        parents=[COMMON])
     gs = g.add_subparsers(dest="action", metavar="<action>")
     p = _leaf(gs, "list", cmd_mail_list, "mail.list", "列出捕获到的邮件")
@@ -2490,8 +2494,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--yes", action="store_true", help="确认清空")
     p = _leaf(gs, "status", cmd_mail_status, "mail.status", "查看某版本的邮件捕获状态")
     p.add_argument("name", help="版本名，如 php82 / 8.2 / 82")
-    for act, fn, hlp in (("enable", cmd_mail_enable, "为该版本开启邮件捕获（写 sendmail_path）"),
-                         ("disable", cmd_mail_disable, "关闭邮件捕获并还原原有 sendmail_path")):
+    for act, fn, hlp in (("enable", cmd_mail_enable,
+                          "为该版本开启邮件捕获（Unix 写 sendmail_path / Windows 写 SMTP）"),
+                         ("disable", cmd_mail_disable, "关闭邮件捕获并还原原有设置")):
         p = _leaf(gs, act, fn, f"mail.{act}", hlp)
         p.add_argument("name", help="版本名")
 

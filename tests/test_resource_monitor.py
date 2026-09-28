@@ -4,12 +4,14 @@
 全部用假 manager + 打桩 ps 输出，不触达真实进程；语言固定 zh_CN 避免英文
 locale 下断言中文文案失败（见项目 i18n 测试约定）。
 """
+import os
 import types
 import unittest
 from unittest import mock
 
 from core import i18n as _i18n
 from core import resource_monitor as rm
+from core.config import IS_WIN
 
 
 _FAKE_PS = (
@@ -71,6 +73,7 @@ class ResourceMonitorTest(unittest.TestCase):
         self.assertAlmostEqual(rm._parse_ps_time("2-03:04:05"), 183845.0, places=2)
         self.assertEqual(rm._parse_ps_time(""), 0.0)
 
+    @unittest.skipIf(IS_WIN, "ps 输出解析仅 posix；Windows 走 ctypes（见 WinSampleTest）")
     def test_snapshot_pids_parses_ps(self):
         with mock.patch.object(rm.pu, "run_cmd", _fake_run_cmd):
             samples = rm.snapshot_pids([12345, 99999, 77777, 1])
@@ -82,6 +85,7 @@ class ResourceMonitorTest(unittest.TestCase):
         # 不存在的 PID 被忽略
         self.assertNotIn(1, samples)
 
+    @unittest.skipIf(IS_WIN, "ps 输出解析仅 posix")
     def test_snapshot_pids_cpu_delta(self):
         with mock.patch.object(rm.pu, "run_cmd", _fake_run_cmd):
             first = rm.snapshot_pids([12345])
@@ -89,6 +93,7 @@ class ResourceMonitorTest(unittest.TestCase):
             second = rm.snapshot_pids([12345])
         self.assertIsInstance(second[12345].cpu_percent, float)
 
+    @unittest.skipIf(IS_WIN, "该断言基于 ps 采样值；Windows 见 WinSampleTest")
     def test_collect_service_metrics_aggregates(self):
         nginx = _nginx((True, [12345]))
         php = _php([types.SimpleNamespace(name="php82", running=True, pid=99999, port=9000)])
@@ -118,6 +123,77 @@ class ResourceMonitorTest(unittest.TestCase):
             data = rm.collect_service_metrics(None, php, nginx, None, None)
         self.assertEqual(len(data["services"]), 2)
         self.assertEqual(data["totals"]["service_count"], 0)
+
+    def test_format_rss_marks_unreadable_as_dash(self):
+        """读不到内存时展示「—」而不是「0 B」（服务以 SYSTEM 运行时很常见）。"""
+        self.assertEqual(rm.format_rss(0), "—")
+        self.assertEqual(rm.format_rss(-1), "—")
+        self.assertEqual(rm.format_rss(1536), "1.5 KB")
+        self.assertEqual(rm.format_rss(1024 * 1024), "1.0 MB")
+
+
+@unittest.skipUnless(IS_WIN, "Windows ctypes 采样路径")
+class WinSampleTest(unittest.TestCase):
+    """Windows 取数：符号解析、RSS 真实值、失败哨兵与 CPU 差值。
+
+    历史缺陷：`kernel32.GetProcessMemoryInfo` 并不存在（符号在 psapi.dll），
+    异常被吞后 RSS 恒 0；且 -1 哨兵被当成 CPU 基线会算出荒谬的百分比。
+    """
+
+    def setUp(self):
+        rm.reset_cpu_baseline()
+        self.addCleanup(rm.reset_cpu_baseline)
+
+    def test_mem_info_symbol_resolved_and_rss_real(self):
+        self.assertIsNotNone(rm._mem_info_fn, "应解析到 psapi/K32 的内存信息符号")
+        rss, ctime = rm._win_rss_and_time(os.getpid())
+        self.assertGreater(rss, 0, "自身进程工作集不可能为 0")
+        self.assertGreater(ctime, 0.0)
+
+    def test_missing_cpu_time_keeps_unknown(self):
+        clock = [100.0]
+        with mock.patch.object(rm.time, "monotonic", lambda: clock[0]), \
+                mock.patch.object(rm, "_win_rss_and_time", lambda pid: (0, -1.0)):
+            first = rm.snapshot_pids([4242])
+            clock[0] += 1.0
+            second = rm.snapshot_pids([4242])
+        self.assertEqual(first[4242].cpu_percent, -1.0)
+        self.assertEqual(second[4242].cpu_percent, -1.0,
+                         "取数失败不能当基线，否则会算出 1000%+ 的假占用")
+        self.assertEqual(second[4242].cpu_time_total, 0.0)
+
+    def test_cpu_delta_from_real_times(self):
+        clock = [100.0]
+        seq = [(1024, 1.0), (1024, 1.5)]
+        with mock.patch.object(rm.time, "monotonic", lambda: clock[0]), \
+                mock.patch.object(rm, "_win_rss_and_time", lambda pid: seq.pop(0)):
+            rm.snapshot_pids([4242])
+            clock[0] += 1.0
+            sample = rm.snapshot_pids([4242])[4242]
+        self.assertAlmostEqual(sample.cpu_percent, 50.0, places=4)  # (1.5-1.0)/1s
+
+    def test_collect_service_metrics_aggregates_on_windows(self):
+        clock = [1000.0]
+        seq = {12345: [(1024 * 1024, 1.0), (1024 * 1024, 1.1)],
+               99999: [(2048 * 1024, 2.0), (2048 * 1024, 2.2)],
+               77777: [(4096 * 1024, 3.0), (4096 * 1024, 3.1)]}
+
+        def fake(pid):
+            items = seq.get(pid)
+            return items.pop(0) if items else (0, -1.0)
+
+        nginx = _nginx((True, [12345]))
+        php = _php([types.SimpleNamespace(name="php82", running=True, pid=99999, port=9000)])
+        redis = _redis([types.SimpleNamespace(name="redis@6.2", running=True, pids=[77777])])
+        with mock.patch.object(rm.time, "monotonic", lambda: clock[0]), \
+                mock.patch.object(rm, "_win_rss_and_time", fake):
+            rm.collect_service_metrics(None, php, nginx, redis, None)  # 建立基线
+            clock[0] += 1.0
+            data = rm.collect_service_metrics(None, php, nginx, redis, None)
+        self.assertEqual(data["totals"]["rss_bytes"], (1024 + 2048 + 4096) * 1024)
+        self.assertEqual(data["totals"]["service_count"], 3)
+        # 10% + 20% + 10%
+        self.assertAlmostEqual(data["totals"]["cpu_percent"], 40.0, places=3)
 
 
 if __name__ == "__main__":

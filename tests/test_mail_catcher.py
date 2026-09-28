@@ -107,6 +107,8 @@ class ListTest(_Lang):
         self.assertEqual(mail_catcher.list_mails(), [])
 
 
+@unittest.skipIf(IS_WIN, "sendmail_path 仅 Unix 有效：Windows 的 mail() 走 SMTP，"
+                         "enable()/disable() 会直接拒绝（见 test_install_refused_on_windows）")
 class EnableDisableTest(_Lang):
     def setUp(self):
         super().setUp()
