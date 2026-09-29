@@ -47,9 +47,10 @@ PHP 版本管理(php,刚需) │ Nginx 管理(nginx,刚需) │ Redis 管理(red
 | Nginx 日志查看 | `ui/nginx_log_panel.py` | `nginx_manager.py`（日志目录推导） | — | 增量 tail + 自动跟随 |
 | 运行日志 | `ui/run_log_panel.py` | `run_log.py` | `run_log.log(.1)` | 内存 2000 条 / 单文件 1MB 轮转 |
 | 整套服务一键启停 | 关于页按钮、托盘菜单 | `service_group.py` | 各服务进程 | 顺序：启动 PHP→Redis→MySQL→Nginx，停止反向 |
-| 自动启动的 PHP 范围 | 关于页「自动启动服务的 PHP 版本」 | `service_group.php_targets()` | `settings.autostart_php_scope` | `newest`(默认)/`used`/`active`/`all`；手动「全部启动」与停止始终覆盖全部 |
+| 自动启动的 PHP 范围 | 关于页「自动启动服务的 PHP 版本」 | `service_group.php_targets()` | `settings.autostart_php_scope` | `newest`(默认)/`used`/`active`/`custom`/`all`；手动「全部启动」与停止始终覆盖全部 |
+| 逐个版本的开机自启勾选 | PHP 页「开机自启」列（点击切换） | `php_panel._toggle_autostart()` → `service_group.set_autostart_versions()` | `settings.autostart_php_versions` | 仅 `custom` 策略下生效；勾选/取消会自动把策略切到 `custom` |
 | 开机自启 phpvm / 服务 | 关于页设置区 | `autostart.py`、`main.py --start-all` | Win Run 项 + 启动目录 vbs / mac LaunchAgent | 服务启动范围同上；日志 `autostart_services.log` |
-| 崩溃检测与自愈 | 状态栏告警 + 崩溃详情对话框 | `health_monitor.py`、`crash_watchdog.py`、`recover_history.py` | `recover_history.json`、`crash_watchdog.*` | 自愈默认关闭；防抖 + 每小时限次 + 手动停止宽限期 |
+| 崩溃检测与自愈 | 状态栏告警 + 崩溃详情对话框 | `health_monitor.py`、`crash_watchdog.py`、`recover_history.py` | `recover_history.json`、`crash_watchdog.*` | 自愈默认关闭；防抖 + 每小时限次 + 手动停止宽限期；守护启动首轮按开机自启范围裁剪看护列表（见 `_prune_watch_for_boot`） |
 | 开发环境配置推荐 | `ui/tuning_dialog.py` | `tuning.py`、`nginx_conf.py` | php.ini / nginx.conf + `.bak` | 按硬件分档出建议，逐条勾选后写入，`nginx -t` 失败回滚 |
 | 外部工具（Composer） | `ui/php_panel.py` | `tool_manager.py` | — | 以所选 PHP 版本运行（临时前置 PATH） |
 | 软件更新 | `ui/update_dialog.py` + 状态栏 | `updater.py`、`version.py`、`app_paths.py` | `updates/` 缓存 | 检查 GitHub Releases → SHA-256 校验 → 替换后重启 |

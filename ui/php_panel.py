@@ -7,16 +7,18 @@
 import os
 import queue
 import threading
+import time
 import tkinter as tk
 from tkinter import messagebox, ttk
 
 from core import crash_watchdog
 from core import process_utils as pu
+from core import service_group
 from core import xdebug
 from core.config import Config, IS_WIN
 from core.health_monitor import HealthMonitor
 from core.i18n import t
-from core.php_manager import PhpManager, PhpVersion, PortConflictError
+from core.php_manager import PhpManager, PhpVersion, PortConflictError, version_key
 from .dialogs import IniDialog, IniEditDialog, PortDialog, SelfCheckDialog
 from .download_dialog import DownloadDialog
 from .extension_dialog import ExtensionDialog
@@ -26,19 +28,29 @@ from . import theme
 
 #: 列表列：状态 / 标识 / 端口进程 + 4 项最常用的 ini 指标 + 扩展数 / 调试开关。
 #: 完整指标与路径放在下方「常用指标」栏，避免列过宽挤占比较视图。
+#: 列宽按「默认窗口（1080）下不出现横向截断」取值：新增勾选列后收窄了指标列与
+#: 配置文件列（标题实测 48px、典型值 「128M」33px / 「8.5/php.ini」61px）
 COLUMNS = [
     ("status", t("状态"), 64, "center"),
     ("name", t("版本目录"), 105, "w"),
     ("ver", t("PHP 版本"), 85, "center"),
+    ("autostart", t("开机自启"), 60, "center"),
     ("port", t("端口"), 68, "center"),
     ("pid", "PID", 78, "center"),
-    ("mem", t("内存上限"), 92, "center"),
-    ("upload", t("上传上限"), 92, "center"),
-    ("maxtime", t("执行时限"), 92, "center"),
+    ("mem", t("内存上限"), 76, "center"),
+    ("upload", t("上传上限"), 76, "center"),
+    ("maxtime", t("执行时限"), 76, "center"),
     ("ext", t("扩展"), 68, "center"),
     ("debug", t("调试"), 64, "center"),
-    ("ini", t("配置文件"), 170, "w"),
+    ("ini", t("配置文件"), 140, "w"),
 ]
+
+#: 「开机自启」列的序号（Treeview 的 identify_column 用 #N 表示，从 1 起算）
+_AUTOSTART_COL = [c[0] for c in COLUMNS].index("autostart") + 1
+#: 勾选 / 未勾选的字形（Tk 默认字体均可渲染，与状态列的 ●○ 风格一致）
+_CHECKED, _UNCHECKED = "☑", "☐"
+#: 重复点击同一版本的抑制窗口（双击会触发两次 Button-1，避免来回翻转）
+_TOGGLE_DEBOUNCE = 0.4
 
 #: 详情栏「常用指标」展示的 ini 项（key, 展示名），按 4 列网格排布
 METRIC_ITEMS = [
@@ -65,11 +77,17 @@ _MISSING_MARK = "⚠ "
 
 
 class PhpPanel(ttk.Frame):
-    def __init__(self, master, php_mgr: PhpManager, config: Config, notify):
+    def __init__(self, master, php_mgr: PhpManager, config: Config, notify,
+                 on_autostart_change=None):
+        """on_autostart_change(names, switched)：开机自启勾选变更回调（可省略）。
+
+        勾选框切换启动策略时，由主窗口借此同步「设置」页的下拉框显示。
+        """
         super().__init__(master, padding=8)
         self.php_mgr = php_mgr
         self.config = config
         self.notify = notify
+        self._on_autostart_change = on_autostart_change
 
         self._queue: queue.Queue = queue.Queue()
         self._busy = False
@@ -79,6 +97,9 @@ class PhpPanel(ttk.Frame):
         self._draining = False  # 队列 drain 是否已启动（唯一消费者）
         #: 常用指标缓存：{版本名: 指标}，按 ini 的 (mtime, size) 失效
         self._metrics: dict[str, dict] = {}
+        #: 勾选了「开机自启」的版本名（渲染前从配置重读，见 _reload_autostart）
+        self._autostart: set[str] = set()
+        self._last_toggle: tuple[str, float] | None = None  # 防双击重复翻转
 
         self._build()
         self.refresh_versions()
@@ -114,7 +135,7 @@ class PhpPanel(ttk.Frame):
                   self.btn_tune, self.btn_init_ini, self.btn_debug, self.btn_download,
                   self.btn_terminal, self.btn_composer, self.btn_refresh):
             b.pack(side="left", padx=(0, 6))
-        ttk.Label(bar, text=t("选中版本后操作 · 双击行查看配置"),
+        ttk.Label(bar, text=t("选中版本后操作 · 双击行查看配置 · 点击「开机自启」列切换勾选"),
                   style="SubTitle.TLabel").pack(side="left", padx=(4, 0))
 
         # 常用指标栏（选中版本）：先按 bottom 占位，表格再 fill 剩余空间
@@ -142,7 +163,9 @@ class PhpPanel(ttk.Frame):
         self.tree.tag_configure("dot_err", foreground=theme.ERR)
         self.tree.tag_configure("odd", background=theme.ROW_ALT)
         self.tree.tag_configure("even", background=theme.CARD_BG)
-        self.tree.bind("<Double-1>", lambda e: self._view_ini())
+        self.tree.bind("<Double-1>", self._on_double_click)
+        # 点击「开机自启」列切换勾选（add="+" 保留原有的选中行行为）
+        self.tree.bind("<Button-1>", self._on_tree_click, add="+")
         self.tree.bind("<<TreeviewSelect>>", lambda e: self._update_buttons())
 
     # ------------------------------------------------------------------ #
@@ -241,8 +264,9 @@ class PhpPanel(ttk.Frame):
         else:
             ini = _MISSING_MARK + cell
             ext_cell = debug_cell = "—"
+        mark = _CHECKED if v.name in self._autostart else _UNCHECKED
         return (
-            (dot, v.name, disp, v.port, v.pid if v.pid else "—",
+            (dot, v.name, disp, mark, v.port, v.pid if v.pid else "—",
              keys.get("memory_limit") or "—",
              keys.get("upload_max_filesize") or "—",
              keys.get("max_execution_time") or "—",
@@ -389,6 +413,7 @@ class PhpPanel(ttk.Frame):
 
     def _render(self, versions: list[PhpVersion]) -> None:
         self._versions = versions
+        self._reload_autostart()
         self._name_to_iid.clear()
         self.tree.delete(*self.tree.get_children())
         for i, v in enumerate(versions):
@@ -451,6 +476,75 @@ class PhpPanel(ttk.Frame):
         self._refresh_row(name)
 
     # ------------------------------------------------------------------ #
+    # 开机自启勾选（列表「开机自启」列）
+    # ------------------------------------------------------------------ #
+    def _reload_autostart(self) -> None:
+        """从配置重读勾选名单（渲染前调用，保证列表与配置一致）。"""
+        self._autostart = set(service_group.autostart_versions(self.config))
+
+    def _on_tree_click(self, event) -> str | None:
+        """点击「开机自启」列 → 切换该版本标记；其它列交给默认行为。"""
+        if self.tree.identify_region(event.x, event.y) != "cell":
+            return None
+        if self.tree.identify_column(event.x) != f"#{_AUTOSTART_COL}":
+            return None
+        iid = self.tree.identify_row(event.y)
+        name = next((n for n, i in self._name_to_iid.items() if i == iid), "")
+        if not name:
+            return None
+        now = time.monotonic()
+        # 双击会触发两次 Button-1：同一版本的重复点击只认第一次，避免来回翻转
+        if (self._last_toggle and self._last_toggle[0] == name
+                and now - self._last_toggle[1] < _TOGGLE_DEBOUNCE):
+            return "break"
+        self._last_toggle = (name, now)
+        self._toggle_autostart(name)
+        return "break"  # 勾选与选中行是两件事：不改变当前选中
+
+    def _on_double_click(self, event) -> None:
+        """双击行为不变（查看配置）；落在勾选列上时不弹窗。"""
+        if (self.tree.identify_region(event.x, event.y) == "cell"
+                and self.tree.identify_column(event.x) == f"#{_AUTOSTART_COL}"):
+            return
+        self._view_ini()
+
+    def _toggle_autostart(self, name: str) -> None:
+        """切换某版本的开机自启标记，并把启动策略切到「按 PHP 页勾选」。
+
+        勾选框只在 scope=custom 时生效，因此首次勾选/取消时自动切换策略并提示，
+        避免「勾了但开机没按它来」这种无反馈的落差。
+        """
+        names = set(service_group.autostart_versions(self.config))
+        if name in names:
+            names.discard(name)
+            msg = t("已取消 [{name}] 的开机自启", name=name)
+        else:
+            names.add(name)
+            msg = t("已勾选 [{name}] 的开机自启", name=name)
+        order = {v.name: i for i, v in
+                 enumerate(sorted(self._versions, key=version_key))}
+        service_group.set_autostart_versions(
+            self.config, sorted(names, key=lambda n: (order.get(n, len(order)), n)))
+        self._autostart = names
+        scope = self.config.get_setting("autostart_php_scope",
+                                        service_group.PHP_SCOPE_NEWEST)
+        switched = scope != service_group.PHP_SCOPE_CUSTOM
+        if switched:
+            self.config.set_setting("autostart_php_scope",
+                                    service_group.PHP_SCOPE_CUSTOM)
+        if not names:
+            msg += " · " + t("未勾选任何版本，开机时按「仅最新版本」处理")
+        elif switched:
+            msg += " · " + t("「自动启动服务的 PHP 版本」已切换为：按 PHP 页勾选")
+        self.notify(msg)
+        self._refresh_row(name)
+        if callable(self._on_autostart_change):
+            try:
+                self._on_autostart_change(set(names), switched)
+            except Exception:  # noqa: BLE001 —— 回调异常不影响勾选本身
+                pass
+
+    # ------------------------------------------------------------------ #
     # 轻量状态刷新（定时器）
     # ------------------------------------------------------------------ #
     def auto_refresh(self) -> None:
@@ -496,6 +590,7 @@ class PhpPanel(ttk.Frame):
         self._start_drain()
 
     def _update_rows(self) -> None:
+        self._reload_autostart()
         for i, v in enumerate(self._versions):
             iid = self._name_to_iid.get(v.name)
             if not iid:

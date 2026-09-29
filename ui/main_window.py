@@ -20,7 +20,8 @@ from core.mysql_manager import MysqlManager
 from core.nginx_manager import NginxManager
 from core.php_manager import PhpManager
 from core.redis_manager import RedisManager
-from core.service_group import PHP_SCOPE_NEWEST, PHP_SCOPES, ServiceGroup, scope_label
+from core.service_group import (PHP_SCOPE_CUSTOM, PHP_SCOPE_NEWEST, PHP_SCOPES,
+                                ServiceGroup, autostart_versions, scope_label)
 from core.vhost_manager import VhostManager
 from .dialogs import CliSwitchDialog, CrashDialog
 from .mysql_panel import MysqlPanel
@@ -235,7 +236,8 @@ class MainWindow(tk.Tk):
         self.notebook = nb
         # 切回某个页签时立即补一次刷新（不可见页签的自动刷新是暂停的）
         nb.bind("<<NotebookTabChanged>>", lambda e: self._refresh_panels())
-        self.php_panel = PhpPanel(nb, self.php_mgr, self.config, self.set_log)
+        self.php_panel = PhpPanel(nb, self.php_mgr, self.config, self.set_log,
+                                  on_autostart_change=self._on_php_autostart_change)
         self.nginx_panel = NginxPanel(nb, self.nginx_mgr, self.set_log,
                                       on_new_site=self._open_site_wizard)
         self.redis_panel = None
@@ -419,6 +421,12 @@ class MainWindow(tk.Tk):
             settings,
             text=t("默认「仅最新版本」：开机自启/启动时不会一次拉起全部 PHP 版本，"
                    "其它版本可在 PHP 页手动启动。"),
+            style="SubTitle.TLabel",
+        ).pack(anchor="w", pady=(0, theme.PAD_XS))
+        ttk.Label(
+            settings,
+            text=t("选「按 PHP 页勾选」时，只启动 PHP 页中勾选了「开机自启」的版本"
+                   "（在 PHP 页点击「开机自启」列即可切换）。"),
             style="SubTitle.TLabel",
         ).pack(anchor="w", pady=(0, theme.PAD_XS))
         self._recover_var = tk.BooleanVar(value=bool(self.config.get_setting("auto_recover_crash", False)))
@@ -729,6 +737,23 @@ class MainWindow(tk.Tk):
         scope = PHP_SCOPES[idx]
         self.config.set_setting("autostart_php_scope", scope)
         self.set_log(t("自动启动服务的 PHP 版本已设为：{scope}", scope=scope_label(scope)))
+
+    def _on_php_autostart_change(self, names: set, switched: bool) -> None:
+        """PHP 页勾选「开机自启」后：同步设置页下拉框显示并记一条日志。
+
+        面板自身已提示用户，这里只负责让设置页不显示过期值（勾选会隐式切换策略）。
+        """
+        box = getattr(self, "_svc_scope_box", None)
+        if box is not None:
+            try:
+                self._sync_service_scope_box()
+            except tk.TclError:  # 窗口正在销毁
+                pass
+        run_log.info("env", t("开机自启勾选的 PHP 版本：{names}",
+                              names="、".join(sorted(names)) or t("无")))
+        if switched:
+            run_log.info("env", t("自动启动服务的 PHP 版本：{scope}",
+                                  scope=scope_label(PHP_SCOPE_CUSTOM)))
 
     def _maybe_start_services_on_launch(self) -> None:
         """设置里开启「启动时自动启动全部服务」时调起整套服务。

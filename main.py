@@ -27,7 +27,11 @@ _RESTART_RETRY_DELAY = 0.1
 
 
 def _php_scope_override() -> str | None:
-    """命令行 `--php-scope=<scope>` 覆盖（开机自启脚本可不改配置临时指定）。"""
+    """命令行 `--php-scope=<scope>` 覆盖（开机自启脚本可不改配置临时指定）。
+
+    取值见 core/service_group.PHP_SCOPES（newest / used / active / custom / all）；
+    custom 表示按 PHP 页勾选的开机自启名单启动。
+    """
     for arg in sys.argv[1:]:
         if arg.startswith("--php-scope="):
             return arg.split("=", 1)[1].strip() or None
@@ -38,8 +42,9 @@ def _start_all_services() -> None:
     """无界面启动整套服务（Nginx + 若干 PHP + Redis + MySQL）。
 
     供「开机自动启动服务」写入的启动脚本调用；PHP 启动范围取设置
-    `autostart_php_scope`（默认仅最新版本，避免登录时拉起全部版本），
-    可用 `--php-scope=newest|used|active|all` 临时覆盖。每项的成败由
+    `autostart_php_scope`（默认仅最新版本，避免登录时拉起全部版本；
+    custom 表示按 PHP 页勾选的名单，见 settings.autostart_php_versions），
+    可用 `--php-scope=newest|used|active|custom|all` 临时覆盖。每项的成败由
     ServiceGroup 写入全局运行日志（core.run_log），结果同时追加到
     autostart_services.log，便于排查登录时未起来的服务。
     """
