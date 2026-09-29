@@ -64,8 +64,10 @@ DEFAULT_SETTINGS = {
     "start_services_on_launch": False,  # 启动 phpvm 时自动启动全部服务（结果见「运行日志」页签）
     # 自动启动服务时启动哪些 PHP 版本（见 core/service_group.py PHP_SCOPES）：
     # newest=仅版本号最新（默认，避免一次拉起全部版本）/ used=站点实际引用+最新
-    # / active=跟随 cmd 中生效的版本 / all=全部版本
+    # / active=跟随 cmd 中生效的版本 / custom=按 PHP 页勾选 / all=全部版本
     "autostart_php_scope": "newest",
+    # scope=custom 时开机自启的版本名（PHP 页「开机自启」列勾选，如 ["php82", "php85"]）
+    "autostart_php_versions": [],
 }
 
 

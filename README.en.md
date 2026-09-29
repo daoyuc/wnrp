@@ -44,7 +44,7 @@ Each PHP version is started and stopped precisely by port, so versions never int
 - **Environment backup & migration**: export config.json / vhost / nginx.conf / php.ini to a zip and restore in one click (backed up first, full rollback if `nginx -t` fails; database data excluded)
 - **Adminer database GUI**: download the single file and host it at `adminer.test` (zero driver dependencies, local development only)
 - **Mail capture**: PHP `mail()` messages are written as `.eml` and viewable on the "Mail" page (`sendmail_path` shim, no external dependencies; Unix only)
-- **Crash detection & self-healing**: detect php-cgi crashes and alert; optional standalone watchdog to restart automatically (debounce + rate limit)
+- **Crash detection & self-healing**: detect php-cgi crashes and alert; optional standalone watchdog to restart automatically (debounce + rate limit); manual / stop-all also clears the watch list, so stopped versions are never pulled back up
 - **Auto-update** (installer builds), **launch at login**, **system tray** (Windows)
 
 ## Getting Started

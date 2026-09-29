@@ -7,10 +7,17 @@ FAILED = "nginx: [emerg] unexpected \"}\" in ...\nnginx: configuration file ... 
 
 
 class FakeConfig:
-    """只实现被测代码用到的那部分 Config（ports），避免读写真实 config.json。"""
+    """只实现被测代码用到的那部分 Config（ports / settings），避免读写真实 config.json。"""
 
-    def __init__(self, ports: dict | None = None):
+    def __init__(self, ports: dict | None = None, settings: dict | None = None):
         self.ports = dict(ports or {})
+        self.settings: dict = dict(settings or {})
+
+    def get_setting(self, key: str, default=None):
+        return self.settings.get(key, default)
+
+    def set_setting(self, key: str, value) -> None:
+        self.settings[key] = value
 
 
 class FakeNginx:

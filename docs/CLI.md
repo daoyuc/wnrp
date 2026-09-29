@@ -468,7 +468,7 @@
 | 参数 | 必填 | 默认 | 说明 |
 |---|---|---|---|
 | `--dry-run` |  |  | 只报告将做什么 |
-| `--php` |  |  | PHP 启动范围：newest（仅最新）/ used（站点引用+最新）/ active（跟随 cmd 生效版本）/ all（全部，默认），或逗号分隔的版本名（如 php82,php85） |
+| `--php` |  |  | PHP 启动范围：newest（仅最新）/ used（站点引用+最新）/ active（跟随 cmd 生效版本）/ custom（按 PHP 页勾选）/ all（全部，默认），或逗号分隔的版本名（如 php82,php85） |
 
 ### `services stop-all` — 停止全部服务
 

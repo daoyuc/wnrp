@@ -170,14 +170,28 @@ def unwatch(version: str) -> None:
     同时记录手动停止时间戳：在 MANUAL_GRACE 宽限期内即使版本再次失联
     也不会被自动拉起，尊重用户主动停止的意图。
     """
+    unwatch_many([version])
+
+
+def unwatch_many(versions) -> None:
+    """批量移除看护（一键「全部停止」走这里，避免逐版本重复读写状态文件）。
+
+    语义与 ``unwatch()`` 一致：移出看护名单 + 记录手动停止时间戳。
+    """
+    names = [str(v) for v in (versions or []) if str(v)]
+    if not names:
+        return
     state = _load_state()
-    watch = state.get("watch", {})
-    if version in watch:
-        watch.pop(version)
-    state.setdefault("manual_stops", {})[version] = time.time()
+    watch = state.setdefault("watch", {})
+    stops = state.setdefault("manual_stops", {})
+    now = time.time()
+    for name in names:
+        watch.pop(name, None)
+        stops[name] = now
     _save_state(state)
-    _log(t("[{ver}] 已被手动停止，移除崩溃看护并进入 {sec}s 宽限",
-           ver=version, sec=int(MANUAL_GRACE)))
+    for name in names:
+        _log(t("[{ver}] 已被手动停止，移除崩溃看护并进入 {sec}s 宽限",
+               ver=name, sec=int(MANUAL_GRACE)))
 
 
 def _manual_grace(version: str) -> bool:
@@ -234,8 +248,6 @@ def _try_restart(cfg: Config, pm: PhpManager, versions: dict,
     if v is None:
         return
     watch = state.setdefault("watch", {})
-    _ensure_watch(state, version)
-    rec = watch[version]
     now = time.time()
 
     # 已在运行（可能已被手动拉起）→ 不重复操作
@@ -245,10 +257,14 @@ def _try_restart(cfg: Config, pm: PhpManager, versions: dict,
         running = False
     if running:
         return
-    # 刚被 GUI 手动停止 → 宽限期内不自动拉回
+    # 刚被 GUI 手动停止 → 宽限期内不自动拉回。
+    # 注意：必须先过宽限判定再 _ensure_watch，否则崩溃事件会把刚被停止的版本
+    # 重新登记进看护名单，宽限期一过就被失联探测拉活（「全部停止」失效）。
     if _manual_grace(version):
         _log(t("[{ver}] {reason}：处于手动停止宽限期，跳过", ver=version, reason=reason))
         return
+    _ensure_watch(state, version)
+    rec = watch[version]
 
     if rec["last_restart"] and now - rec["last_restart"] < MIN_INTERVAL:
         recover_history.append(
@@ -348,6 +364,62 @@ def _tick_once(cfg: Config, pm: PhpManager, versions: dict,
                          t("进程失联（端口 {port} 无监听）", port=v.port))
 
 
+def _boot_php_names(cfg: Config, pm: PhpManager, versions: dict) -> set[str]:
+    """本次开机应启动的 PHP 版本集合（按 settings.autostart_php_scope / 勾选名单）。
+
+    复用已扫描结果（写入 pm.versions）避免重复扫描；策略解析失败时抛异常，
+    由调用方决定保守策略。
+    """
+    from core.service_group import PHP_SCOPE_NEWEST, ServiceGroup
+
+    scope = cfg.get_setting("autostart_php_scope", PHP_SCOPE_NEWEST)
+    pm.versions = list(versions.values())
+    targets, _ = ServiceGroup(pm, None, None).php_targets(scope)
+    return {v.name for v in targets}
+
+
+def _prune_watch_for_boot(cfg: Config, pm: PhpManager, versions: dict,
+                          state: dict) -> None:
+    """守护启动首轮：丢弃「跨重启复活」的看护项，尊重开机自启策略。
+
+    看护列表是持久化的，而 ``unwatch()`` 只在用户**手动停止**时调用 —— 正常关机
+    不会清空它。于是上一轮运行过的全部版本会在下次开机被逐条判定「失联」并拉起，
+    绕过 ``settings.autostart_php_scope`` 与 PHP 页勾选（本机实测：登录后 11 个
+    版本全被拉活）。此处只移除「当前未运行 且 不属于本次开机集合」的条目：
+
+    - 属于本次开机集合的：保留，随后由失联探测正常拉起；
+    - 当前正在运行的：保留（会话中途重启守护不丢看护，手动启动的版本照旧受保护）。
+    """
+    try:
+        boot = _boot_php_names(cfg, pm, versions)
+    except Exception as ex:  # noqa: BLE001 —— 策略不可解析时保守保留全部看护
+        _log(t("开机集合适配失败，保留全部崩溃看护：{err}",
+               err=f"{type(ex).__name__}: {ex}"))
+        return
+    watch = state.get("watch", {})
+    dropped: list[str] = []
+    for name in list(watch):
+        if name in boot:
+            continue
+        v = versions.get(name)
+        if v is None:
+            watch.pop(name, None)  # 版本目录已不存在，无需再看护
+            dropped.append(name)
+            continue
+        try:
+            running, _ = pm.get_status(v, fast=False)
+        except Exception:  # noqa: BLE001
+            running = False
+        if not running:
+            watch.pop(name, None)
+            dropped.append(name)
+    _log(t("开机自启的 PHP 版本：{names}",
+           names="、".join(sorted(boot)) or t("无")))
+    if dropped:
+        _log(t("已忽略 {n} 个不属于本次开机集合的崩溃看护：{names}",
+               n=len(dropped), names="、".join(sorted(dropped))))
+
+
 def _baseline_watch(state: dict, pm: PhpManager, versions: dict) -> None:
     """守护启动首轮快照：把当前正在运行的 php-cgi 版本纳入看护。
 
@@ -391,7 +463,10 @@ def run(once: bool = False) -> None:
                 # 崩溃事件数据源：Windows 事件日志 / macOS 崩溃报告，Linux 无
                 hm = HealthMonitor() if (IS_WIN or sys.platform == "darwin") else None
                 if round_no == 0:
-                    # 启动首轮：纳入当前运行中的版本作为看护基线
+                    # 启动首轮：先按开机自启策略裁剪遗留看护（否则跨重启会复活
+                    # 上一轮运行过的全部版本，绕过 scope / 勾选名单），
+                    # 再把当前运行中的版本纳入看护基线
+                    _prune_watch_for_boot(cfg, pm, versions, state)
                     _baseline_watch(state, pm, versions)
                 _tick_once(cfg, pm, versions, hm, state, event_round)
                 _save_state(state)
