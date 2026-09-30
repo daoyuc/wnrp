@@ -152,8 +152,10 @@ class WinSampleTest(unittest.TestCase):
 
     def test_missing_cpu_time_keeps_unknown(self):
         clock = [100.0]
+        # 系统快照同样取不到（打桩为空）时，才维持「未知」
         with mock.patch.object(rm.time, "monotonic", lambda: clock[0]), \
-                mock.patch.object(rm, "_win_rss_and_time", lambda pid: (0, -1.0)):
+                mock.patch.object(rm, "_win_rss_and_time", lambda pid: (0, -1.0)), \
+                mock.patch.object(rm, "_win_system_process_snapshot", lambda **k: {}):
             first = rm.snapshot_pids([4242])
             clock[0] += 1.0
             second = rm.snapshot_pids([4242])
@@ -161,6 +163,23 @@ class WinSampleTest(unittest.TestCase):
         self.assertEqual(second[4242].cpu_percent, -1.0,
                          "取数失败不能当基线，否则会算出 1000%+ 的假占用")
         self.assertEqual(second[4242].cpu_time_total, 0.0)
+
+    def test_system_snapshot_supplements_unopenable_process(self):
+        """句柄打不开的服务进程（SYSTEM 运行的 mysqld）用系统级快照补 RSS / CPU。
+
+        回归点：这类进程 OpenProcess 一律 ERROR_ACCESS_DENIED（连
+        PROCESS_QUERY_LIMITED_INFORMATION 也拒），此前恒显示「内存 — · CPU 未知」。
+        """
+        clock = [100.0]
+        snap = {4242: (23_756_800, 16.375, 3600.0)}  # (rss, cpu 秒, 存活秒)
+        with mock.patch.object(rm.time, "monotonic", lambda: clock[0]), \
+                mock.patch.object(rm, "_win_rss_and_time", lambda pid: (0, -1.0)), \
+                mock.patch.object(rm, "_win_system_process_snapshot", lambda **k: snap):
+            sample = rm.snapshot_pids([4242])[4242]
+        self.assertEqual(sample.rss_bytes, 23_756_800)
+        self.assertAlmostEqual(sample.cpu_time_total, 16.375, places=3)
+        # 首次采样无基线 → 退化为存活期平均占用（与 posix 的 ps lifetime %cpu 同策略）
+        self.assertAlmostEqual(sample.cpu_percent, 16.375 / 3600 * 100, places=3)
 
     def test_cpu_delta_from_real_times(self):
         clock = [100.0]
@@ -186,7 +205,8 @@ class WinSampleTest(unittest.TestCase):
         php = _php([types.SimpleNamespace(name="php82", running=True, pid=99999, port=9000)])
         redis = _redis([types.SimpleNamespace(name="redis@6.2", running=True, pids=[77777])])
         with mock.patch.object(rm.time, "monotonic", lambda: clock[0]), \
-                mock.patch.object(rm, "_win_rss_and_time", fake):
+                mock.patch.object(rm, "_win_rss_and_time", fake), \
+                mock.patch.object(rm, "_win_system_process_snapshot", lambda **k: {}):
             rm.collect_service_metrics(None, php, nginx, redis, None)  # 建立基线
             clock[0] += 1.0
             data = rm.collect_service_metrics(None, php, nginx, redis, None)

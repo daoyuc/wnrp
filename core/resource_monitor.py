@@ -7,7 +7,10 @@ Redis 实例 / MySQL 实例）的 CPU 与内存占用。
   * macOS / Linux：一次 ``ps -axo pid=,rss=,%cpu=,time=,command=`` 全量快照
     （带 TTL 缓存，复用 process_utils 的风格），本地按 PID 过滤；
   * Windows：ctypes 调 GetProcessMemoryInfo（RSS）+ GetProcessTimes（CPU 时间），
-    零外部进程。
+    零外部进程；对**打不开句柄**的进程（以服务方式运行的 mysqld 属 SYSTEM，
+    非提权进程 OpenProcess 一律 ERROR_ACCESS_DENIED）再退回一次
+    NtQuerySystemInformation 全量快照补数 —— 这也是任务管理器在非提权下
+    依然能看到服务进程内存的原理（无需句柄、无需提权）。
 - CPU% 用「两次采样的累计 CPU 时间差 / 采样间隔」算瞬时占用（更准确），
   首次采样无基线时回退 ps 的 lifetime %cpu（Windows 回退为 -1 表示未知）。
 - 聚合视角以「服务」为单位：每个 nginx / PHP 版本 / Redis 实例 / MySQL 实例
@@ -67,8 +70,25 @@ if IS_WIN:
         return None
 
     _mem_info_fn = _load_mem_info_fn()
+
+    def _load_nt_query_fn():
+        """解析 NtQuerySystemInformation；取不到返回 None（则不做系统快照回退）。"""
+        try:
+            ntdll = ctypes.WinDLL("ntdll")
+        except (OSError, AttributeError):  # pragma: no cover - 非 Windows
+            return None
+        fn = getattr(ntdll, "NtQuerySystemInformation", None)
+        if fn is None:
+            return None
+        fn.argtypes = [ctypes.c_long, ctypes.c_void_p, wintypes.ULONG,
+                       ctypes.POINTER(wintypes.ULONG)]
+        fn.restype = ctypes.c_long
+        return fn
+
+    _nt_query_fn = _load_nt_query_fn()
 else:
     _mem_info_fn = None
+    _nt_query_fn = None
 
 
 # --------------------------------------------------------------------------- #
@@ -241,19 +261,124 @@ def _win_rss_and_time(pid: int) -> tuple[int, float]:
             pass
 
 
+# Windows 全量进程快照 {pid: (rss, cpu 秒, 存活秒)} + TTL（与 posix 快照同节奏）
+_win_sysproc_snap = None
+_win_sysproc_lock = threading.Lock()
+_WIN_SYSPROC_TTL = 2.0  # 秒
+
+# SYSTEM_PROCESS_INFORMATION 字段偏移：**仅 64 位验证过**（本机 x64 实测：
+# 工作集 23,756,800 B 与 tasklist 的 23,200 K 完全吻合）。32 位偏移未实测，
+# 因此只在 64 位解释器上启用回退，其余情况维持原行为（读不到就显示「—」）。
+_OFF_CREATE_TIME = 0x20
+_OFF_USER_TIME = 0x28
+_OFF_KERNEL_TIME = 0x30
+_OFF_PID = 0x50
+_OFF_WORKING_SET = 0x90
+_SYSTEM_PROCESS_INFORMATION = 5
+_STATUS_INFO_LENGTH_MISMATCH = 0xC0000004
+
+
+def _win_filetime_now() -> int:
+    """当前 FILETIME（100ns 为单位）。"""
+    ft = wintypes.FILETIME()
+    ctypes.windll.kernel32.GetSystemTimeAsFileTime(ctypes.byref(ft))
+    return (ft.dwHighDateTime << 32) | ft.dwLowDateTime
+
+
+def _win_query_system_processes(max_bytes: int = 64 << 20) -> bytes:
+    """一次 NtQuerySystemInformation 取回全部进程信息；失败返回空字节。"""
+    if _nt_query_fn is None:
+        return b""
+    size = 1 << 20
+    while size <= max_bytes:
+        buf = ctypes.create_string_buffer(size)
+        ret = wintypes.ULONG(0)
+        try:
+            status = _nt_query_fn(_SYSTEM_PROCESS_INFORMATION, buf, size,
+                                  ctypes.byref(ret))
+        except Exception:  # noqa: BLE001 - 结构/权限异常一律退回旧行为
+            return b""
+        if status == 0:
+            return buf.raw[: int(ret.value) or size]
+        if status & 0xFFFFFFFF != _STATUS_INFO_LENGTH_MISMATCH:
+            return b""
+        size = max(size * 2, int(ret.value) * 2)
+    return b""
+
+
+def _win_system_process_snapshot(force: bool = False) -> dict[int, tuple]:
+    """Windows 全量进程快照：``{pid: (工作集字节, 累计 CPU 秒, 存活秒)}``（TTL 缓存）。
+
+    为什么需要它：以 Windows 服务运行的 mysqld / nginx 属于 SYSTEM（或 Network Service），
+    非提权进程对它 ``OpenProcess`` 一律 ``ERROR_ACCESS_DENIED``——实测连
+    ``PROCESS_QUERY_LIMITED_INFORMATION`` 也被拒，于是 RSS 恒 0、CPU 恒「未知」。
+    系统信息查询**不需要进程句柄、也不需要提权**，正好补上这类进程的指标。
+    """
+    global _win_sysproc_snap
+    if _nt_query_fn is None or ctypes.sizeof(ctypes.c_void_p) != 8:
+        return {}
+    now = time.monotonic()
+    with _win_sysproc_lock:
+        cached = _win_sysproc_snap
+        if not force and cached and now - cached[0] < _WIN_SYSPROC_TTL:
+            return cached[1]
+    data = _win_query_system_processes()
+    now_ft = _win_filetime_now()
+    snap: dict[int, tuple] = {}
+    pos = 0
+    total = len(data)
+    while pos + _OFF_WORKING_SET + 8 <= total:
+        next_off = int.from_bytes(data[pos:pos + 4], "little")
+        try:
+            create = int.from_bytes(
+                data[pos + _OFF_CREATE_TIME:pos + _OFF_CREATE_TIME + 8], "little")
+            user = int.from_bytes(
+                data[pos + _OFF_USER_TIME:pos + _OFF_USER_TIME + 8], "little")
+            kernel = int.from_bytes(
+                data[pos + _OFF_KERNEL_TIME:pos + _OFF_KERNEL_TIME + 8], "little")
+            rss = int.from_bytes(
+                data[pos + _OFF_WORKING_SET:pos + _OFF_WORKING_SET + 8], "little")
+            pid = int.from_bytes(data[pos + _OFF_PID:pos + _OFF_PID + 8], "little")
+        except Exception:  # noqa: BLE001
+            break
+        if pid > 0 and rss > 0:
+            snap[pid] = (rss, (user + kernel) / 1e7,
+                         max(0.0, (now_ft - create) / 1e7))
+        if next_off <= 0:
+            break
+        pos += next_off
+    with _win_sysproc_lock:
+        _win_sysproc_snap = (now, snap)
+    return snap
+
+
 def snapshot_pids(pids: list[int], force: bool = False) -> dict[int, ProcSample]:
     """返回 {pid: ProcSample}（仅含传入且在系统中存在的 PID）。
 
-    posix 走一次 ps 全量快照（TTL 缓存），Windows 走 ctypes 逐 PID 取数。
+    posix 走一次 ps 全量快照（TTL 缓存），Windows 走 ctypes 逐 PID 取数，
+    打不开句柄的进程再用系统级快照补数。
     CPU% 尽量用两次采样差；首次/失败为 -1 或 ps 的 lifetime 值。
     """
     result: dict[int, ProcSample] = {}
     now = time.monotonic()
     if IS_WIN:
+        sysproc: dict | None = None
         for pid in pids:
             if pid <= 0:
                 continue
             rss, ctime = _win_rss_and_time(pid)
+            lifetime = None
+            if rss <= 0 or ctime < 0:
+                # 句柄打不开（典型：SYSTEM 运行的服务进程）→ 系统快照补数
+                if sysproc is None:
+                    sysproc = _win_system_process_snapshot(force=force)
+                hit = sysproc.get(pid)
+                if hit:
+                    if rss <= 0:
+                        rss = hit[0]
+                    if ctime < 0:
+                        ctime = hit[1]
+                    lifetime = hit[2]
             with _prev_lock:
                 base = _prev.get(pid)
             cpu = -1.0
@@ -263,6 +388,11 @@ def snapshot_pids(pids: list[int], force: bool = False) -> dict[int, ProcSample]
                 dt = now - base[0]
                 if dt > 0.05 and ctime >= base[1]:
                     cpu = (ctime - base[1]) / dt * 100.0
+            elif ctime >= 0 and lifetime:
+                # 首次采样无基线：退化为「存活期内的平均 CPU%」，
+                # 与 posix 用 ps 的 lifetime %cpu 兜底是同一策略
+                # （多线程服务可能 >100%，与差值口径一致，不做截断）
+                cpu = ctime / lifetime * 100.0
             with _prev_lock:
                 _prev[pid] = (now, ctime)
             result[pid] = ProcSample(pid=pid, rss_bytes=rss,
