@@ -34,6 +34,7 @@ phpvm 是一个**本机开发环境管理器**（PHP 多版本 + Nginx + Redis +
 │ dialogs.py · site_wizard.py · download_dialog.py · extension_dialog.py │
 │ update_dialog.py · tuning_dialog.py   各类对话框与向导                  │
 │ theme.py · tray.py · window_utils.py  主题样式 / 托盘 / 窗口自适应      │
+│ layout.py                             可滚动内容区 / 长文本自动换行     │
 └───────────────────────────────┬───────────────────────────────────────┘
                                 │ 单向依赖（ui → core，core 绝不反向）
 ┌── 服务层 core/ ───────────────┴───────────────────────────────────────┐
