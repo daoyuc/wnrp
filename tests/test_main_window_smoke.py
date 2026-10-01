@@ -8,6 +8,9 @@ core 层测试覆盖不到这类问题，故这里真正建一次窗口。
 
 无显示环境（CI / Linux 无 X）自动跳过。
 """
+import os
+import subprocess
+import sys
 import threading
 import time
 import unittest
@@ -32,14 +35,27 @@ except Exception as e:  # noqa: BLE001 - pragma: no cover
 
 
 def _has_display() -> bool:
+    """是否有可用的 Tk 显示环境（**只做环境判断，绝不创建窗口**）。
+
+    macOS + Tk 9 上不能用「建一个 root 再销毁」来探测：那样本进程就已经用过
+    一次 Tcl 解释器，随后 MainWindow 建的是第二个 root，而 macOS Aqua 下第二个
+    解释器里调用 ``update_idletasks()``（``fit_window`` 第一行）会直接
+    **SIGSEGV** —— 进程当场死掉，排在它后面的所有用例都不会被执行
+    （表现为 ``unittest discover`` 只跑一部分就退出码 139）。
+    """
     if MainWindow is None:
         return False
-    try:
-        root = tk.Tk()
-    except Exception:  # noqa: BLE001
-        return False
-    root.destroy()
-    return True
+    if sys.platform == "win32":
+        return True
+    if sys.platform == "darwin":
+        # macOS：Aqua 依赖 GUI 会话（WindowServer）；纯 SSH 登录时 Tk() 会直接中止
+        try:
+            return subprocess.run(["pgrep", "-qx", "WindowServer"],
+                                  stdout=subprocess.DEVNULL,
+                                  stderr=subprocess.DEVNULL).returncode == 0
+        except OSError:  # pragma: no cover - pgrep 缺失时保守放行
+            return True
+    return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
 
 
 @unittest.skipUnless(_has_display(), "无可用 Tk 显示环境（或未安装 tkinter）")
@@ -61,13 +77,11 @@ class MainWindowSmokeTest(unittest.TestCase):
     def tearDown(self):
         if self.app is not None:
             try:
-                # 先撤掉挂起的定时器（_tick / _check_crash_startup …），
-                # 否则窗口销毁后它们仍会触发，Tk 会打 "invalid command name ..." 噪音
-                for aid in self.app.tk.call("after", "info"):
-                    try:
-                        self.app.after_cancel(aid)
-                    except Exception:  # noqa: BLE001
-                        pass
+                # 直接 destroy：Tk 会顺带撤销挂起的定时器（_tick /
+                # _check_crash_startup …），不会留下 "invalid command name" 噪音。
+                # 反过来先手动 after_cancel 掉 "after info" 里的全部 id，会把 Tk
+                # 内部命令一起注销，destroy 时反抛
+                # TclError: can't delete Tcl command，窗口销毁失败、残留到下一个用例。
                 self.app.destroy()
             except Exception:  # noqa: BLE001
                 pass

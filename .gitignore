@@ -35,5 +35,9 @@ local/
 # Adminer 单文件（F9，运行时下载到数据目录）
 adminer/
 
-# 邮件捕获目录（F11，mail() 落盘的 .eml 与垫片脚本）
+# 邮件捕获目录（F11，mail() 落盘的 .eml）
 mail/
+
+# 邮件捕获垫片（F11）：由 sendmail_path 指向，落在数据目录而非 mail/ 下；
+# 开发态的数据目录就是仓库根，故这里按仓库根精确忽略（历史上曾被误提交）
+/phpvm-sendmail.sh
