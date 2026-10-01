@@ -1,6 +1,6 @@
 {
  "\n[错误] 当前模板需要 PHP，但未选择任何 PHP 版本 —— 请返回第 1 步选择。": "\n[Error] The current template requires PHP, but no PHP version has been selected — please go back to step 1 to choose one.",
- "\n提示：修改端口后需同步修改对应 nginx vhost 的 fastcgi_pass 才会生效。\nphpvm 按端口精确启停，不会像旧的 start_phpXX.bat 那样误杀其它版本进程。": "\nNote: after changing a port you must also update the matching fastcgi_pass in the nginx vhost for it to take effect.\nphpvm starts/stops versions precisely by port and will not kill other versions' processes the way the old start_phpXX.bat did.",
+ "提示：修改端口后需同步修改对应 nginx vhost 的 fastcgi_pass 才会生效。\nphpvm 按端口精确启停，不会像旧的 start_phpXX.bat 那样误杀其它版本进程。": "\nNote: after changing a port you must also update the matching fastcgi_pass in the nginx vhost for it to take effect.\nphpvm starts/stops versions precisely by port and will not kill other versions' processes the way the old start_phpXX.bat did.",
  "\n注意：同名配置文件已存在，创建时将覆盖（原文件自动备份为 .bak）": "\nNote: a config file with the same name already exists and will be overwritten when created (the original is automatically backed up as .bak)",
  "           {reasons}": "           {reasons}",
  " 泛解析": " catch-all",

@@ -14,10 +14,14 @@ from core import i18n as _i18n
 from core.service_group import (
     PHP_SCOPE_ACTIVE,
     PHP_SCOPE_ALL,
+    PHP_SCOPE_CUSTOM,
     PHP_SCOPE_NEWEST,
     PHP_SCOPE_USED,
+    PHP_SCOPES,
     ServiceGroup,
+    autostart_versions,
     scope_label,
+    set_autostart_versions,
 )
 from tests.fakes import FakeConfig, make_layout
 
@@ -227,6 +231,65 @@ class PhpScopeTest(unittest.TestCase):
         self.assertEqual(scope_label("nope"), "仅最新版本")
 
 
+class CrashWatchSyncTest(unittest.TestCase):
+    """一键启停必须同步崩溃自愈守护进程（core.crash_watchdog）的看护名单。
+
+    真实故障：总览「全部停止」只停了进程，没解除看护 → 守护进程按端口/进程失联
+    探测把各版本逐个拉回，用户看到「刚停止又自动启动了」。
+    """
+
+    def setUp(self):
+        self._lang = _i18n.current_language()
+        _i18n.set_language("zh_CN")
+        self.v74 = FakePhpVersion("php74", display="7.4.33", port=9074)
+        self.v82 = FakePhpVersion("php82", display="8.2.4", port=9000)
+        self.v85 = FakePhpVersion("php85", display="8.5.9", port=9085)
+
+    def tearDown(self):
+        _i18n.set_language(self._lang)
+
+    def test_stop_all_unwatches_every_version(self):
+        for v in (self.v74, self.v82, self.v85):
+            v.running = True
+        php, group = make_group([self.v74, self.v82, self.v85])
+        with mock.patch("core.crash_watchdog.unwatch_many") as unwatch:
+            group.stop_all()
+        unwatch.assert_called_once()
+        self.assertEqual(sorted(unwatch.call_args[0][0]), ["php74", "php82", "php85"])
+
+    def test_stop_all_unwatches_idling_version_too(self):
+        # 当前未运行但仍留在看护名单里（崩溃后等待自愈拉起）→ 一并解除
+        self.v85.running = True
+        php, group = make_group([self.v74, self.v85])
+        with mock.patch("core.crash_watchdog.unwatch_many") as unwatch:
+            group.stop_all()
+        self.assertEqual(sorted(unwatch.call_args[0][0]), ["php74", "php85"])
+
+    def test_stop_failure_keeps_watch(self):
+        # 停止抛异常（进程可能还在跑）→ 不能解除看护，否则该版本失去自愈保护
+        self.v85.running = True
+        php, group = make_group([self.v85])
+        with mock.patch.object(php, "stop", side_effect=OSError("busy")), \
+                mock.patch("core.crash_watchdog.unwatch_many") as unwatch:
+            group.stop_all()
+        unwatch.assert_not_called()
+
+    def test_start_all_watches_started_versions(self):
+        php, group = make_group([self.v74, self.v85])
+        with mock.patch("core.crash_watchdog.watch_version") as watch:
+            group.start_all(php_scope=PHP_SCOPE_NEWEST)
+        self.assertEqual([c.args[0] for c in watch.call_args_list], ["php85"])
+
+    def test_watch_sync_error_does_not_break_stop(self):
+        # 看护同步失败（如状态文件不可写）不能让一键停止整体失败
+        self.v85.running = True
+        php, group = make_group([self.v85])
+        with mock.patch("core.crash_watchdog.unwatch_many",
+                        side_effect=OSError("read-only")):
+            msg = group.stop_all()
+        self.assertIn("php85", msg)
+
+
 class UsedScopeTest(unittest.TestCase):
     """used：站点 fastcgi_pass 引用到的版本 + 最新版。"""
 
@@ -269,6 +332,61 @@ class UsedScopeTest(unittest.TestCase):
                         side_effect=OSError("no nginx")):
             group.start_all(php_scope=PHP_SCOPE_USED)
         self.assertEqual(php.started, ["php85"])
+
+
+class PhpCustomScopeTest(unittest.TestCase):
+    """custom：只启动 PHP 页勾选了「开机自启」的版本（settings.autostart_php_versions）。"""
+
+    def setUp(self):
+        self._lang = _i18n.current_language()
+        _i18n.set_language("zh_CN")
+        self.v74 = FakePhpVersion("php74", display="7.4.33", port=9074)
+        self.v82 = FakePhpVersion("php82", display="8.2.4", port=9000)
+        self.v85 = FakePhpVersion("php85", display="8.5.9", port=9085)
+
+    def tearDown(self):
+        _i18n.set_language(self._lang)
+
+    def _group(self, checked):
+        cfg = FakeConfig(settings={"autostart_php_versions": list(checked)})
+        php, group = make_group([self.v74, self.v82, self.v85], config=cfg)
+        return cfg, php, group
+
+    def test_custom_is_a_known_scope_with_label(self):
+        self.assertIn(PHP_SCOPE_CUSTOM, PHP_SCOPES)
+        self.assertTrue(scope_label(PHP_SCOPE_CUSTOM))
+
+    def test_custom_picks_checked_versions_in_version_order(self):
+        _, _, group = self._group(["php85", "php74"])
+        targets, skipped = group.php_targets(PHP_SCOPE_CUSTOM)
+        self.assertEqual([v.name for v in targets], ["php74", "php85"])
+        self.assertEqual([v.name for v in skipped], ["php82"])
+
+    def test_custom_empty_falls_back_to_newest(self):
+        _, _, group = self._group([])
+        targets, _ = group.php_targets(PHP_SCOPE_CUSTOM)
+        self.assertEqual([v.name for v in targets], ["php85"])
+
+    def test_custom_unknown_names_fall_back_to_newest(self):
+        # 勾选的版本目录已被删除：不能什么都起不来，回落最新并告警
+        _, _, group = self._group(["php99"])
+        targets, _ = group.php_targets(PHP_SCOPE_CUSTOM)
+        self.assertEqual([v.name for v in targets], ["php85"])
+
+    def test_start_all_custom_starts_only_checked(self):
+        _, php, group = self._group(["php74"])
+        msg = group.start_all(php_scope=PHP_SCOPE_CUSTOM)
+        self.assertEqual(php.started, ["php74"])
+        self.assertIn("跳过", msg)  # 未勾选的版本明确写出来，避免误判为启动失败
+
+    def test_autostart_versions_helper_tolerates_dirty_config(self):
+        cfg = FakeConfig(settings={"autostart_php_versions": [" php85 ", "php85", "", 7]})
+        self.assertEqual(autostart_versions(cfg), ["php85", "7"])
+        # 配置被手工改成非列表：视为「未勾选」，不抛异常
+        self.assertEqual(autostart_versions(FakeConfig(settings={
+            "autostart_php_versions": "php85"})), [])
+        set_autostart_versions(cfg, ["php82", "php82", " php85 "])
+        self.assertEqual(cfg.get_setting("autostart_php_versions"), ["php82", "php85"])
 
 
 if __name__ == "__main__":

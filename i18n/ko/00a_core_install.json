@@ -1,6 +1,6 @@
 {
  "\n[错误] 当前模板需要 PHP，但未选择任何 PHP 版本 —— 请返回第 1 步选择。": "\n[오류] 현재 템플릿에는 PHP가 필요하지만 선택된 PHP 버전이 없습니다 — 1단계로 돌아가 선택하세요.",
- "\n提示：修改端口后需同步修改对应 nginx vhost 的 fastcgi_pass 才会生效。\nphpvm 按端口精确启停，不会像旧的 start_phpXX.bat 那样误杀其它版本进程。": "\n힌트: 포트를 변경한 뒤에는 해당 nginx vhost의 fastcgi_pass도 함께 수정해야 반영됩니다.\nphpvm은 포트 단위로 정확히 시작/중지하므로 예전 start_phpXX.bat처럼 다른 버전의 프로세스를 잘못 종료하지 않습니다.",
+ "提示：修改端口后需同步修改对应 nginx vhost 的 fastcgi_pass 才会生效。\nphpvm 按端口精确启停，不会像旧的 start_phpXX.bat 那样误杀其它版本进程。": "\n힌트: 포트를 변경한 뒤에는 해당 nginx vhost의 fastcgi_pass도 함께 수정해야 반영됩니다.\nphpvm은 포트 단위로 정확히 시작/중지하므로 예전 start_phpXX.bat처럼 다른 버전의 프로세스를 잘못 종료하지 않습니다.",
  "\n注意：同名配置文件已存在，创建时将覆盖（原文件自动备份为 .bak）": "\n참고: 동일한 이름의 설정 파일이 이미 있어 생성 시 덮어씁니다(원본 파일은 .bak으로 자동 백업)",
  "           {reasons}": "           {reasons}",
  " 泛解析": " 와일드카드",
