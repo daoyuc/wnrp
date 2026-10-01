@@ -38,12 +38,15 @@ ServiceGroup.start_all(php_scope=…)
  │    newest(默认) 仅版本号最新（display 由 php -v 解析，解析不出用目录名兜底；见 php_manager.version_key）
  │    used         站点 fastcgi_pass 引用到的版本 + 最新版
  │    active       跟随 cmd/终端中 php 实际生效的版本（找不到回落最新）
+ │    custom       只启动 PHP 页勾选了「开机自启」的版本（见 settings.autostart_php_versions；
+ │                 一个都没勾 → 回落 newest）
  │    all          全部版本（手动「全部启动」按钮与 CLI 默认值）
  ├─ 逐个 start：PHP → Redis → MySQL → Nginx（已运行的跳过；单项失败不影响后续）
  ├─ 被跳过的 PHP 写成「跳过 PHP 版本：…（策略：…）」进入汇总与运行日志（避免误判为启动失败）
  └─ 结果：GUI 走托盘/状态栏队列；--start-all 追加到 autostart_services.log（含 php_scope=）
 
-设置项：settings.autostart_php_scope（默认 newest）；命令行可临时覆盖
+设置项：settings.autostart_php_scope（默认 newest）；custom 的名单在 PHP 页「开机自启」列勾选
+        （`settings.autostart_php_versions`）；命令行可临时覆盖
         pythonw main.py --start-all --php-scope=used
 ```
 
@@ -107,6 +110,9 @@ CLI 等价：`python3 cli.py site sync-port --old 9082 --new 9083 --reload`。
   开启 auto_recover_crash → crash_watchdog.spawn()（pythonw，无窗口；lock 文件 + PID 校验单例）
   守护循环（core/crash_watchdog.py 顶部常量）：
     失联探测每 10s 一轮；每 3 轮（≈30s）查一次崩溃事件；事件回溯 6 小时
+  启动首轮：按 settings.autostart_php_scope / 勾选名单裁剪持久化看护列表
+    （只保留「本次开机集合」与当前正在运行的版本；看护列表跨会话持久化，正常关机
+      不会清空它，若不裁剪则上一轮运行过的全部版本会在下次开机被逐条「失联复活」）
   决策顺序（任一命中即跳过本轮自愈，并写入 recover_history.json）：
     仍在运行 → 什么都不做
     手动停止宽限期内（unwatch() 记时间戳，300s）→ 尊重用户意图，不拉回
@@ -115,6 +121,11 @@ CLI 等价：`python3 cli.py site sync-port --old 9082 --new 9083 --reload`。
   动作：重启该版本 php-cgi；连续失败达 5 次 → 解除看护并提示人工介入
   关闭开关：守护进程下一轮自行退出（不杀进程）
   界面启动/重启某版本 → watch_version()；手动停止 → unwatch()
+  一键启停 / CLI（services stop-all、php stop、总览「全部停止」）
+    → service_group.sync_crash_watch() 批量同步：停止解除看护（否则失联探测会把
+      停掉的版本逐个拉回，表现为「点完全部停止又自己起来了」），启动反向登记
+  宽限判定先于登记：崩溃事件不得把刚被停止的版本重新塞回看护名单
+    （否则宽限期一过又被失联探测拉活）
 ```
 
 ## 7. 软件更新（`core/updater.py` + `ui/update_dialog.py`）

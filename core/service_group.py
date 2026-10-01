@@ -9,6 +9,7 @@ PHP 版本的启动范围（`php_scope`，见 PHP_SCOPES）：
 - newest（默认，开机自启用）：只启动版本号最新的那个，避免登录时一次拉起全部版本；
 - used：站点（nginx vhost）实际引用到的版本 + 最新版；
 - active：跟随 cmd / 终端中 `php` 实际生效的版本（找不到则回落最新）；
+- custom：只启动 PHP 页勾选了「开机自启」的版本（见 SETTING_AUTOSTART_VERSIONS）；
 - all：全部版本（旧的「全部启动」行为，GUI 一键启动/CLI 默认仍用它）。
 手动一键启动与停止始终覆盖全部 PHP（停止不受 scope 限制）。
 
@@ -26,13 +27,19 @@ from .php_manager import version_key
 PHP_SCOPE_NEWEST = "newest"
 PHP_SCOPE_USED = "used"
 PHP_SCOPE_ACTIVE = "active"
+PHP_SCOPE_CUSTOM = "custom"
 PHP_SCOPE_ALL = "all"
-PHP_SCOPES = (PHP_SCOPE_NEWEST, PHP_SCOPE_USED, PHP_SCOPE_ACTIVE, PHP_SCOPE_ALL)
+PHP_SCOPES = (PHP_SCOPE_NEWEST, PHP_SCOPE_USED, PHP_SCOPE_ACTIVE,
+              PHP_SCOPE_CUSTOM, PHP_SCOPE_ALL)
+
+#: 开机自启勾选名单的配置键（PHP 页「开机自启」列维护；scope=custom 时生效）
+SETTING_AUTOSTART_VERSIONS = "autostart_php_versions"
 
 _SCOPE_LABELS = {
     PHP_SCOPE_NEWEST: "仅最新版本",
     PHP_SCOPE_USED: "站点实际引用 + 最新版",
     PHP_SCOPE_ACTIVE: "跟随 cmd 中生效的版本",
+    PHP_SCOPE_CUSTOM: "按 PHP 页勾选",
     PHP_SCOPE_ALL: "全部版本",
 }
 
@@ -40,6 +47,58 @@ _SCOPE_LABELS = {
 def scope_label(scope: str) -> str:
     """启动范围的展示名（经 i18n 翻译）；未知取值按默认的「仅最新版本」显示。"""
     return t(_SCOPE_LABELS.get(scope, _SCOPE_LABELS[PHP_SCOPE_NEWEST]))
+
+
+def autostart_versions(config) -> list[str]:
+    """设置里勾选的开机自启版本名（去空白、去重、保持配置顺序）。
+
+    只接受字符串项：配置被手工改坏（非列表 / 含非字符串）时忽略非法项，
+    保证「勾选框 → 配置 → 开机策略」这条链路不因脏数据抛错。
+    """
+    raw = config.get_setting(SETTING_AUTOSTART_VERSIONS, []) if config else []
+    if not isinstance(raw, (list, tuple)):
+        return []
+    out: list[str] = []
+    for item in raw:
+        name = str(item).strip()
+        if name and name not in out:
+            out.append(name)
+    return out
+
+
+def set_autostart_versions(config, names: list[str]) -> None:
+    """写入勾选名单（去重保序，供 PHP 页勾选框与脚本共用同一份格式）。"""
+    out: list[str] = []
+    for item in names or []:
+        name = str(item).strip()
+        if name and name not in out:
+            out.append(name)
+    config.set_setting(SETTING_AUTOSTART_VERSIONS, out)
+
+
+def sync_crash_watch(names, watched: bool) -> None:
+    """同步崩溃自愈守护进程（core.crash_watchdog）的看护名单。
+
+    停止后**必须**解除看护：守护进程按「端口/进程失联」探测并自动拉起，若不同步
+    名单，一键「全部停止」后 PHP 会被守护进程立刻拉回（真实故障：总览点
+    「全部停止」→ 十几秒后各版本重新上线）。启动则反向登记，让崩溃自愈继续覆盖
+    这些版本。
+
+    失败只记一条警告：看护名单同步不了不能影响启停主流程。
+    """
+    picked = [str(n) for n in (names or []) if str(n)]
+    if not picked:
+        return
+    try:
+        from . import crash_watchdog
+
+        if watched:
+            for name in picked:
+                crash_watchdog.watch_version(name)
+        else:
+            crash_watchdog.unwatch_many(picked)
+    except Exception as e:  # noqa: BLE001
+        run_log.warn("services", t("同步崩溃自愈看护失败：{err}", err=e))
 
 
 class ServiceGroup:
@@ -133,11 +192,26 @@ class ServiceGroup:
                 picked.append(v)
         return picked
 
+    def _custom(self):
+        """PHP 页勾选了「开机自启」的版本；一个都没勾时回落「仅最新版本」。"""
+        names = autostart_versions(self.php_mgr.config)
+        if not names:
+            run_log.warn("services", t("未勾选任何开机自启的 PHP 版本，已按「仅最新版本」处理"))
+            return [self._newest()]
+        wanted = set(names)
+        picked = [v for v in self.php_mgr.versions or [] if v.name in wanted]
+        missing = sorted(wanted - {v.name for v in picked})
+        if missing:
+            run_log.warn("services", t("未找到 PHP 版本：{names}",
+                                       names="、".join(missing)))
+        return picked or [self._newest()]
+
     def php_targets(self, php_scope: str = PHP_SCOPE_ALL,
                     php_names: list[str] | None = None) -> tuple[list, list]:
         """按策略挑出本次要启动的 PHP 版本，返回 (要启动, 被跳过)。
 
         - php_names 非空时按版本名精确指定（忽略 php_scope）；
+        - custom 取 PHP 页勾选名单（未勾选则回落「仅最新版本」）；
         - 未知 php_scope 保守回落到「仅最新版本」并记日志；
         - 返回值按版本号升序排列，便于日志阅读。
         """
@@ -164,6 +238,8 @@ class ServiceGroup:
             picked = [self._active()]
         elif scope == PHP_SCOPE_USED:
             picked = self._used()
+        elif scope == PHP_SCOPE_CUSTOM:
+            picked = self._custom()
         else:
             run_log.warn("services", t("未知的 PHP 启动策略：{scope}，已按「仅最新版本」处理",
                                        scope=scope))
@@ -184,11 +260,14 @@ class ServiceGroup:
         }
         return table.get((action, ok_), t("操作成功") if ok_ else t("操作失败"))
 
-    def _call(self, tag: str, fn, *args, action: str = "") -> str:
+    def _call(self, tag: str, fn, *args, action: str = "", on_ok=None) -> str:
         """调用单项服务操作：异常不外抛先转文本，结果写入全局运行日志。
 
         「自动启动 / 一键启停」时逐项记录 PHP / Redis / MySQL / Nginx
         各自成功还是失败，便于事后在「运行日志」页签定位是哪一项没起来。
+
+        ``on_ok``：仅在该项**成功**后执行（如同步崩溃自愈看护）；回调自身抛错
+        只记一条警告，不影响该项结果与后续项。
         """
         try:
             msg = fn(*args)
@@ -197,6 +276,11 @@ class ServiceGroup:
             run_log.error("services", f"{tag} {self._verb(action, False)}：{msg}")
         else:
             run_log.ok("services", f"{tag} {self._verb(action, True)}：{msg}")
+            if on_ok is not None:
+                try:
+                    on_ok()
+                except Exception as e:  # noqa: BLE001
+                    run_log.warn("services", t("同步崩溃自愈看护失败：{err}", err=e))
         return f"{tag}：{msg}"
 
     # ------------------------------------------------------------------ #
@@ -211,10 +295,13 @@ class ServiceGroup:
             run_log.info("services", t("PHP 启动策略：{scope}（{names}）",
                                        scope=scope_label(php_scope),
                                        names="、".join(v.name for v in targets)))
+        started: list[str] = []
         for v in targets:
             if getattr(v, "running", False):
                 continue
-            lines.append(self._call(f"PHP {v.name}", self.php_mgr.start, v, action="start"))
+            lines.append(self._call(f"PHP {v.name}", self.php_mgr.start, v, action="start",
+                                    on_ok=lambda v=v: started.append(v.name)))
+        sync_crash_watch(started, True)
         if skipped:
             # 明确写出「没启动哪些」，避免误判为启动失败
             lines.append(t("跳过 PHP 版本：{names}（策略：{scope}）",
@@ -255,10 +342,16 @@ class ServiceGroup:
         if running:
             lines.append(self._call("Nginx", self.nginx_mgr.stop, action="stop"))
 
+        # 「全部停止」= 明确不要任何 PHP 运行：停止成功的与原本就没运行的，
+        # 一律移出崩溃看护名单，否则守护进程会把它们逐个拉回（失联探测）。
+        stopped: list[str] = []
         for v in self.php_mgr.versions or []:
             if not getattr(v, "running", False):
+                stopped.append(v.name)
                 continue
-            lines.append(self._call(f"PHP {v.name}", self.php_mgr.stop, v, action="stop"))
+            lines.append(self._call(f"PHP {v.name}", self.php_mgr.stop, v, action="stop",
+                                    on_ok=lambda v=v: stopped.append(v.name)))
+        sync_crash_watch(stopped, False)
         for inst in (self.redis_mgr.instances if self.redis_mgr else []):
             if not getattr(inst, "running", False):
                 continue

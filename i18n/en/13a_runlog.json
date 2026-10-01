@@ -62,5 +62,10 @@
  "自动启动服务的 PHP 版本：{scope}": "PHP version(s) for auto-start: {scope}",
  "默认「仅最新版本」：开机自启/启动时不会一次拉起全部 PHP 版本，其它版本可在 PHP 页手动启动。": "Default \"newest version only\": autostart/launch will not bring up every PHP version; start the others manually on the PHP tab.",
  "自动启动服务的 PHP 版本已设为：{scope}": "Auto-start PHP version scope set to: {scope}",
- "启动时自动启动全部服务：开始（PHP：{scope}）": "Auto-start all services on launch: starting (PHP: {scope})"
-}
+ "启动时自动启动全部服务：开始（PHP：{scope}）": "Auto-start all services on launch: starting (PHP: {scope})",
+ "按 PHP 页勾选": "Checked in PHP tab",
+ "未勾选任何开机自启的 PHP 版本，已按「仅最新版本」处理": "No PHP version is checked for startup; using the newest only",
+ "开机自启勾选的 PHP 版本：{names}": "PHP versions checked for startup: {names}",
+ "选「按 PHP 页勾选」时，只启动 PHP 页中勾选了「开机自启」的版本（在 PHP 页点击「开机自启」列即可切换）。": "With 'Checked in PHP tab', only the versions ticked under Startup in the PHP tab are started (click that column to toggle).",
+ "同步崩溃自愈看护失败：{err}": "Failed to sync crash auto-recovery watch list: {err}"
+ }

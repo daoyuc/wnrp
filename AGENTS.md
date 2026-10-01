@@ -62,9 +62,11 @@ python3 cli.py hosts restore --yes
 python3 cli.py config get settings.theme
 python3 cli.py config set settings.theme dark
 
-# 服务编排（--php 决定启动哪些 PHP：newest|used|active|all|<版本名列表>，默认 all）
+# 服务编排（--php 决定启动哪些 PHP：newest|used|active|custom|all|<版本名列表>，默认 all）
 python3 cli.py services start-all        # PHP → Redis → MySQL → Nginx
 python3 cli.py services start-all --php newest   # 只启动版本号最新的 PHP（开机自启的默认策略）
+python3 cli.py services start-all --php custom --dry-run   # 按 PHP 页勾选的开机自启名单（先预览）
+python3 cli.py config set settings.autostart_php_versions '["php82","php85"]'  # 直接改勾选名单
 python3 cli.py nginx test                # 任何改配置后都建议先跑
 ```
 

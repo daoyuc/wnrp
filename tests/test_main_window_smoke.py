@@ -110,6 +110,35 @@ class MainWindowSmokeTest(unittest.TestCase):
         app2 = self._build()
         self.assertEqual(app2.overview_panel.master.index(app2.overview_panel), 0)
 
+    def test_about_tab_scrolls_instead_of_being_clipped(self):
+        """关于页必须「可滚动看全 + 横向不溢出」。
+
+        回归点：内容（环境信息 / 模块开关 / 一堆设置项）远超一屏，且长文本默认
+        不换行会横向撑破布局 —— 用户只能手动拉大窗口才看得到，且边角被裁切。
+        """
+        app = self._build()
+        nb = app.overview_panel.master
+        nb.select(nb.tabs()[-1])          # 关于页是最后一个页签
+        for _ in range(5):
+            app.update()
+
+        canvas = app._about_scroll.canvas
+        first, last = canvas.yview()
+        self.assertLess(float(last), 1.0, "内容应高于一屏：必须靠滚动（而不是拉窗口）看全")
+        self.assertGreaterEqual(float(first), 0.0)
+
+        # 内容宽度不得超过可视宽度，否则右侧会被页签边界裁掉
+        canvas_w = canvas.winfo_width()
+        self.assertGreater(canvas_w, 1, "canvas 应已完成布局")
+        self.assertLessEqual(app._about_scroll.content.winfo_reqwidth(), canvas_w,
+                             "关于页内容横向溢出：长文本没有按容器宽度换行")
+
+        # 滚到底再回顶：验证滚动条区间与滚轮通道可用
+        canvas.yview_moveto(1.0)
+        app.update()
+        canvas.yview_moveto(0.0)
+        app.update()
+
     def test_worker_results_reach_main_thread_without_errors(self):
         """泵事件若干秒：各面板的 worker 结果必须能正常回主线程渲染。
 

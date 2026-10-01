@@ -25,5 +25,10 @@
   "运行依赖": "Runtime Deps",
   "缺少动态库：{lib}": "Missing library: {lib}",
   "无法执行：{exe}": "Cannot execute: {exe}",
-  "运行依赖异常：{err}": "Runtime dependency error: {err}"
+  "运行依赖异常：{err}": "Runtime dependency error: {err}",
+  "选中版本后操作 · 双击行查看配置 · 点击「开机自启」列切换勾选": "Select a version to operate · double-click a row for its config · click the Startup column to toggle",
+  "已勾选 [{name}] 的开机自启": "[{name}] will start at boot",
+  "已取消 [{name}] 的开机自启": "[{name}] will no longer start at boot",
+  "未勾选任何版本，开机时按「仅最新版本」处理": "Nothing is checked; the newest version is used at boot",
+  "「自动启动服务的 PHP 版本」已切换为：按 PHP 页勾选": "Startup PHP scope switched to: Checked in PHP tab"
 }

@@ -34,7 +34,7 @@ PHP 版本管理(php,刚需) │ Nginx 管理(nginx,刚需) │ Redis 管理(red
 | 一键体检 / 502 诊断 | `ui/vhost_panel.py` 的「一键体检」按钮 / `diag` | `diag.py` | 只读（必要时调用 start / ensure_include，均自带备份 + nginx -t 回滚） | 串联 vhost/php/nginx/hosts 只读检查；修复动作复用既有 manager |
 | 站点与应用日志聚合 | `ui/nginx_log_panel.py`（升级为「日志」页）/ `logs` | `log_sources.py` | 只读（不改任何文件；`settings.log_last_source` 记忆上次来源） | 按「来源」（Nginx / PHP / 站点）推导候选日志，复用既有增量读 + 着色 + 过滤 |
 | 首页总览仪表盘 | `ui/overview_panel.py` / `overview` | `overview.py` | 只读（聚合各 manager 状态，不新增轮询/进程；模块可停用） | 服务状态卡（内嵌每服务内存/CPU 占用，F12）+ 站点告警（未映射 hosts / 端口未映射 / 证书缺失）+ 最近崩溃/运行日志；一键全部启动/停止/体检全部 |
-| 轻量资源监控（CPU / 内存） | `monitor` / 总览面板「服务状态」行内 | `resource_monitor.py` | 只读（不引 psutil；posix 走 `ps` 一次快照 + TTL 缓存，Windows 走 ctypes 取 RSS/CPU 时间） | 按服务聚合 phpvm 管理的 nginx / 各 PHP 版本 / Redis / MySQL 进程的 RSS 与 CPU%；CLI `monitor snapshot` 输出机器可读快照，GUI 在总览行内展示并合计 |
+| 轻量资源监控（CPU / 内存） | `monitor` / 总览面板「服务状态」行内 | `resource_monitor.py` | 只读（不引 psutil；posix 走 `ps` 一次快照 + TTL 缓存，Windows 走 ctypes 取 RSS/CPU 时间） | 按服务聚合 phpvm 管理的 nginx / 各 PHP 版本 / Redis / MySQL 进程的 RSS 与 CPU%；CLI `monitor snapshot` 输出机器可读快照，GUI 在总览行内展示并合计；**Windows 服务进程**（mysqld 等以 SYSTEM 运行、非提权 `OpenProcess` 一律拒绝）自动改用 `NtQuerySystemInformation` 系统级快照补 RSS/CPU，不再恒显示「— / 未知」 |
 | 环境备份与迁移 | `ui/main_window.py` 关于页 / `backup` | `backup_bundle.py` | 导出 zip；恢复时改前 `.bak` | 只打包配置（config.json / vhost / nginx.conf / php.ini）；恢复后 `nginx -t` 失败整体回滚；不含数据库数据 |
 | 邮件捕获（.eml） | `ui/mail_panel.py` / `mail` | `mail_catcher.py`、`mail_sink.py` | php.ini（`.bak`）+ `<数据目录>/mail/*.eml` | 两种落地方式同一目录：Unix 用 `sendmail_path` POSIX 垫片；Windows 把 `SMTP`/`smtp_port`/`sendmail_from` 指向内置 sink（`mail_sink.py`，127.0.0.1:1025，随 phpvm 运行）；关闭时还原用户原值 |
 | 项目级配置 `.phpvm.json` | `ui/vhost_panel.py` 右键 / `project` | `project_config.py` | vhost（`.bak`）+ hosts + 服务进程 | `apply` 按配置对齐：切站点 PHP 端口 / 写 hosts / 启服务；不改项目业务代码；用 JSON 避免 YAML 依赖 |
@@ -47,9 +47,10 @@ PHP 版本管理(php,刚需) │ Nginx 管理(nginx,刚需) │ Redis 管理(red
 | Nginx 日志查看 | `ui/nginx_log_panel.py` | `nginx_manager.py`（日志目录推导） | — | 增量 tail + 自动跟随 |
 | 运行日志 | `ui/run_log_panel.py` | `run_log.py` | `run_log.log(.1)` | 内存 2000 条 / 单文件 1MB 轮转 |
 | 整套服务一键启停 | 关于页按钮、托盘菜单 | `service_group.py` | 各服务进程 | 顺序：启动 PHP→Redis→MySQL→Nginx，停止反向 |
-| 自动启动的 PHP 范围 | 关于页「自动启动服务的 PHP 版本」 | `service_group.php_targets()` | `settings.autostart_php_scope` | `newest`(默认)/`used`/`active`/`all`；手动「全部启动」与停止始终覆盖全部 |
+| 自动启动的 PHP 范围 | 关于页「自动启动服务的 PHP 版本」 | `service_group.php_targets()` | `settings.autostart_php_scope` | `newest`(默认)/`used`/`active`/`custom`/`all`；手动「全部启动」与停止始终覆盖全部 |
+| 逐个版本的开机自启勾选 | PHP 页「开机自启」列（点击切换） | `php_panel._toggle_autostart()` → `service_group.set_autostart_versions()` | `settings.autostart_php_versions` | 仅 `custom` 策略下生效；勾选/取消会自动把策略切到 `custom` |
 | 开机自启 phpvm / 服务 | 关于页设置区 | `autostart.py`、`main.py --start-all` | Win Run 项 + 启动目录 vbs / mac LaunchAgent | 服务启动范围同上；日志 `autostart_services.log` |
-| 崩溃检测与自愈 | 状态栏告警 + 崩溃详情对话框 | `health_monitor.py`、`crash_watchdog.py`、`recover_history.py` | `recover_history.json`、`crash_watchdog.*` | 自愈默认关闭；防抖 + 每小时限次 + 手动停止宽限期 |
+| 崩溃检测与自愈 | 状态栏告警 + 崩溃详情对话框 | `health_monitor.py`、`crash_watchdog.py`、`recover_history.py` | `recover_history.json`、`crash_watchdog.*` | 自愈默认关闭；防抖 + 每小时限次 + 手动停止宽限期；守护启动首轮按开机自启范围裁剪看护列表（见 `_prune_watch_for_boot`） |
 | 开发环境配置推荐 | `ui/tuning_dialog.py` | `tuning.py`、`nginx_conf.py` | php.ini / nginx.conf + `.bak` | 按硬件分档出建议，逐条勾选后写入，`nginx -t` 失败回滚 |
 | 外部工具（Composer） | `ui/php_panel.py` | `tool_manager.py` | — | 以所选 PHP 版本运行（临时前置 PATH） |
 | 软件更新 | `ui/update_dialog.py` + 状态栏 | `updater.py`、`version.py`、`app_paths.py` | `updates/` 缓存 | 检查 GitHub Releases → SHA-256 校验 → 替换后重启 |

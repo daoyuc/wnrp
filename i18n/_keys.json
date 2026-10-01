@@ -5,7 +5,7 @@
    "ui/site_wizard.py"
   ]
  },
- "\n提示：修改端口后需同步修改对应 nginx vhost 的 fastcgi_pass 才会生效。\nphpvm 按端口精确启停，不会像旧的 start_phpXX.bat 那样误杀其它版本进程。": {
+ "提示：修改端口后需同步修改对应 nginx vhost 的 fastcgi_pass 才会生效。\nphpvm 按端口精确启停，不会像旧的 start_phpXX.bat 那样误杀其它版本进程。": {
   "count": 1,
   "files": [
    "ui/main_window.py"
@@ -1480,6 +1480,12 @@
    "ui/vhost_panel.py"
   ]
  },
+ "「自动启动服务的 PHP 版本」已切换为：按 PHP 页勾选": {
+  "count": 1,
+  "files": [
+   "ui/php_panel.py"
+  ]
+ },
  "一次 accept 全部新连接，减少事件循环往返": {
   "count": 1,
   "files": [
@@ -2634,6 +2640,12 @@
    "ui/dialogs.py"
   ]
  },
+ "同步崩溃自愈看护失败：{err}": {
+  "count": 2,
+  "files": [
+   "core/service_group.py"
+  ]
+ },
  "同步过程异常：{err}": {
   "count": 1,
   "files": [
@@ -3569,6 +3581,12 @@
    "core/site_service.py"
   ]
  },
+ "已勾选 [{name}] 的开机自启": {
+  "count": 1,
+  "files": [
+   "ui/php_panel.py"
+  ]
+ },
  "已发现 {count} 个 PHP 版本": {
   "count": 1,
   "files": [
@@ -3579,6 +3597,12 @@
   "count": 1,
   "files": [
    "ui/sqlite_panel.py"
+  ]
+ },
+ "已取消 [{name}] 的开机自启": {
+  "count": 1,
+  "files": [
+   "ui/php_panel.py"
   ]
  },
  "已取消下载": {
@@ -3745,6 +3769,12 @@
   "count": 1,
   "files": [
    "core/mail_catcher.py"
+  ]
+ },
+ "已忽略 {n} 个不属于本次开机集合的崩溃看护：{names}": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
   ]
  },
  "已恢复 {n} 个配置文件。": {
@@ -4139,12 +4169,19 @@
   ]
  },
  "开机自启": {
+  "count": 2,
+  "files": [
+   "ui/main_window.py",
+   "ui/php_panel.py"
+  ]
+ },
+ "开机自启 phpvm：{a} · 开机自启服务：{b} · 崩溃自愈：{c} · 启动时自动启动服务：{d}": {
   "count": 1,
   "files": [
    "ui/main_window.py"
   ]
  },
- "开机自启 phpvm：{a} · 开机自启服务：{b} · 崩溃自愈：{c} · 启动时自动启动服务：{d}": {
+ "开机自启勾选的 PHP 版本：{names}": {
   "count": 1,
   "files": [
    "ui/main_window.py"
@@ -4168,10 +4205,22 @@
    "ui/main_window.py"
   ]
  },
+ "开机自启的 PHP 版本：{names}": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
+  ]
+ },
  "开机自启：开始启动服务": {
   "count": 1,
   "files": [
    "main.py"
+  ]
+ },
+ "开机集合适配失败，保留全部崩溃看护：{err}": {
+  "count": 1,
+  "files": [
+   "core/crash_watchdog.py"
   ]
  },
  "异常": {
@@ -4696,9 +4745,10 @@
   ]
  },
  "无": {
-  "count": 1,
+  "count": 3,
   "files": [
-   "ui/main_window.py"
+   "ui/main_window.py",
+   "core/crash_watchdog.py"
   ]
  },
  "无 PHP 版本关联，跳过运行检查": {
@@ -5025,6 +5075,18 @@
    "core/php_manager.py"
   ]
  },
+ "未勾选任何开机自启的 PHP 版本，已按「仅最新版本」处理": {
+  "count": 1,
+  "files": [
+   "core/service_group.py"
+  ]
+ },
+ "未勾选任何版本，开机时按「仅最新版本」处理": {
+  "count": 1,
+  "files": [
+   "ui/php_panel.py"
+  ]
+ },
  "未匹配到站点（域名：{doms}），跳过 PHP 切换": {
   "count": 1,
   "files": [
@@ -5155,7 +5217,7 @@
   ]
  },
  "未找到 PHP 版本：{names}": {
-  "count": 1,
+  "count": 2,
   "files": [
    "core/service_group.py"
   ]
@@ -6134,7 +6196,7 @@
   ]
  },
  "界面回调异常：{name}：{msg}": {
-  "count": 1,
+  "count": 2,
   "files": [
    "ui/main_window.py"
   ]
@@ -6596,7 +6658,7 @@
   ]
  },
  "自动启动服务的 PHP 版本：{scope}": {
-  "count": 1,
+  "count": 2,
   "files": [
    "ui/main_window.py"
   ]
@@ -7228,13 +7290,19 @@
    "ui/tray.py"
   ]
  },
+ "选「按 PHP 页勾选」时，只启动 PHP 页中勾选了「开机自启」的版本（在 PHP 页点击「开机自启」列即可切换）。": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
  "选中一个版本查看常用指标": {
   "count": 1,
   "files": [
    "ui/php_panel.py"
   ]
  },
- "选中版本后操作 · 双击行查看配置": {
+ "选中版本后操作 · 双击行查看配置 · 点击「开机自启」列切换勾选": {
   "count": 1,
   "files": [
    "ui/php_panel.py"

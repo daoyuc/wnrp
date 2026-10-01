@@ -70,7 +70,12 @@ from core.php_extension import (  # noqa: E402
 )
 from core.php_manager import PhpManager  # noqa: E402
 from core.redis_manager import RedisManager  # noqa: E402
-from core.service_group import PHP_SCOPES, ServiceGroup, scope_label  # noqa: E402
+from core.service_group import (  # noqa: E402
+    PHP_SCOPES,
+    ServiceGroup,
+    scope_label,
+    sync_crash_watch,
+)
 from core.sqlite_manager import SqliteManager  # noqa: E402
 from core.vhost_manager import (  # noqa: E402
     VhostManager,
@@ -552,13 +557,18 @@ def _php_batch(a, r: Result, action: str) -> Result:
         return r.fail("未扫描到任何 PHP 版本，无法操作")
     results = []
     ok_all = True
+    done: list[str] = []
     for v in targets:
         try:
             msg = getattr(pm, action)(v)
-            results.append({"name": v.name, "ok": True, "message": msg})
         except Exception as e:  # noqa: BLE001 —— 单版本失败不影响其它版本
             ok_all = False
             results.append({"name": v.name, "ok": False, "message": str(e)})
+        else:
+            done.append(v.name)
+            results.append({"name": v.name, "ok": True, "message": msg})
+    # 与 GUI 一致：停止后解除崩溃自愈看护，否则守护进程会把它们重新拉起
+    sync_crash_watch(done, action != "stop")
     r.ok = ok_all
     r.data = {"action": action, "results": results}
     for item in results:
@@ -2019,8 +2029,9 @@ def cmd_sqlite_query(a, r: Result) -> Result:
 def _php_scope_arg(raw: str | None) -> tuple[str, list[str] | None]:
     """解析 services start-all 的 --php：策略名或逗号分隔的版本名。
 
-    返回 (php_scope, php_names)：命中策略名时 names 为 None；给出的是版本名
-    （如 php82,php85）时 scope 回落 "all"、由 names 精确指定（未知版本名只告警）。
+    返回 (php_scope, php_names)：命中策略名时 names 为 None（custom 即
+    「按 PHP 页勾选」，名单取自 settings.autostart_php_versions）；给出的是
+    版本名（如 php82,php85）时 scope 回落 "all"、由 names 精确指定（未知版本名只告警）。
     """
     text = (raw or "").strip()
     if not text:
@@ -2624,7 +2635,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--dry-run", action="store_true", help="只报告将做什么")
     p.add_argument("--php", metavar="SCOPE|NAMES", default=None,
                    help="PHP 启动范围：newest（仅最新）/ used（站点引用+最新）"
-                        "/ active（跟随 cmd 生效版本）/ all（全部，默认），"
+                        "/ active（跟随 cmd 生效版本）/ custom（按 PHP 页勾选）"
+                        "/ all（全部，默认），"
                         "或逗号分隔的版本名（如 php82,php85）")
     p = _leaf(gs, "stop-all", cmd_services_stop, "services.stop-all", "停止全部服务")
     p.add_argument("--dry-run", action="store_true", help="只报告将做什么")

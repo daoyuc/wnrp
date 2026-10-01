@@ -1,6 +1,6 @@
 {
  "\n[错误] 当前模板需要 PHP，但未选择任何 PHP 版本 —— 请返回第 1 步选择。": "\n[錯誤] 目前範本需要 PHP，但未選取任何 PHP 版本 —— 請返回第 1 步選取。",
- "\n提示：修改端口后需同步修改对应 nginx vhost 的 fastcgi_pass 才会生效。\nphpvm 按端口精确启停，不会像旧的 start_phpXX.bat 那样误杀其它版本进程。": "\n提示：修改連接埠後，需同步修改對應 nginx vhost 的 fastcgi_pass 才會生效。\nphpvm 依連接埠精確啟停，不會像舊的 start_phpXX.bat 那樣誤殺其他版本的程序。",
+ "提示：修改端口后需同步修改对应 nginx vhost 的 fastcgi_pass 才会生效。\nphpvm 按端口精确启停，不会像旧的 start_phpXX.bat 那样误杀其它版本进程。": "\n提示：修改連接埠後，需同步修改對應 nginx vhost 的 fastcgi_pass 才會生效。\nphpvm 依連接埠精確啟停，不會像舊的 start_phpXX.bat 那樣誤殺其他版本的程序。",
  "\n注意：同名配置文件已存在，创建时将覆盖（原文件自动备份为 .bak）": "\n注意：相同名稱的設定檔已存在，建立時將覆寫（原始檔自動備份為 .bak）",
  "           {reasons}": "           {reasons}",
  " 泛解析": " 泛解析",
