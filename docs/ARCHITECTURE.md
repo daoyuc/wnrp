@@ -74,6 +74,16 @@ phpvm 是一个**本机开发环境管理器**（PHP 多版本 + Nginx + Redis +
 
 > 记日志的接口只有 `run_log.info/ok/warn/error(scope, message)`，`scope` 取值见 `README.md`「运行日志页」。
 
+**drain 契约（评审硬标准）**
+
+worker 只 `queue.put()`，主窗口的 `_post()` 也**只入队、不碰 `after()`**（启动期主循环未进，worker 调 `after()` 会抛 `RuntimeError` 且让队列投递永久失效）。各面板的 drain 循环必须同时满足：
+
+1. **续排包在 `try` 里**：单条消息处理抛异常只丢这一条并写 `run_log.error`，不得让异常冒出 Tk `after` 回调 —— 否则末尾的续排不执行，drain 链断裂、`_draining` 永为 `True`，此后所有 worker 结果被静默丢弃（busy 不复位、自动复检停摆、面板看着像卡死）。正确范式见 `ui/redis_panel.py`。
+2. **销毁竞态兜底**：整段包 `try/except tk.TclError`；弹窗 / 面板统一用 `window_utils.rearm_poll()` 续排（窗口已销毁时安静返回 `False`）。
+3. **挂起幂等**：`_start_drain()` 必须有 `_draining` 守卫，否则两个常驻循环会抢同一队列、互相吞消息。
+
+主窗口的通用回调队列（`_post` + `_drain_ui`）是**常驻自循环**：启动时由主线程挂一次，空闲时 400ms 一趟、忙时 80ms 排空。`tests/test_ui_stability.py` 守护以上契约。
+
 ## 4. 运行期状态与落点
 
 | 文件 / 位置 | 内容 | 谁写 | 备注 |

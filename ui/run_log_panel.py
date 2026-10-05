@@ -139,29 +139,35 @@ class RunLogPanel(ttk.Frame):
         self.after(80, self._drain)
 
     def _drain(self) -> None:
-        if not self.winfo_exists():  # 面板已销毁：停止轮询
-            self._draining = False
-            return
-        added: list = []
+        # 整个循环包在 try 里：面板销毁 / after 失败时必须停摆，不能让异常冒出
+        # Tk 回调 —— 否则末尾的重排不执行，drain 链断裂、_draining 永为 True，
+        # 面板会静默停止接收新日志（用户以为程序卡死）
         try:
-            while True:
-                kind, payload = self._queue.get_nowait()
-                if kind == "entry":
-                    added.append(payload)
-        except queue.Empty:
-            pass
-        if added:
-            self._entries.extend(added)
-            trimmed = len(self._entries) > MAX_VIEW
-            if trimmed:
-                self._entries = self._entries[-MAX_VIEW:]
-            # 过滤条件未变且未截断 → 只追加新行；否则全量重绘
-            if not trimmed and self._filter_key() == self._render_key:
-                self._append_rows(added)
-            else:
-                self._render()
-        # 不可见页签降频：drain 只是空转取消息，不必跟着 80ms 跑
-        self.after(80 if self.winfo_ismapped() else 400, self._drain)
+            if not self.winfo_exists():  # 面板已销毁：停止轮询
+                self._draining = False
+                return
+            added: list = []
+            try:
+                while True:
+                    kind, payload = self._queue.get_nowait()
+                    if kind == "entry":
+                        added.append(payload)
+            except queue.Empty:
+                pass
+            if added:
+                self._entries.extend(added)
+                trimmed = len(self._entries) > MAX_VIEW
+                if trimmed:
+                    self._entries = self._entries[-MAX_VIEW:]
+                # 过滤条件未变且未截断 → 只追加新行；否则全量重绘
+                if not trimmed and self._filter_key() == self._render_key:
+                    self._append_rows(added)
+                else:
+                    self._render()
+            # 不可见页签降频：drain 只是空转取消息，不必跟着 80ms 跑
+            self.after(80 if self.winfo_ismapped() else 400, self._drain)
+        except tk.TclError:  # 面板已销毁：排不了定时器，永久停摆
+            self._draining = False
 
     def reload(self) -> None:
         """重新回填内存日志（面板订阅期间漏掉的消息也一并补齐）。"""

@@ -487,11 +487,24 @@ class SiteWizardDialog(tk.Toplevel):
         if kind == "phps":
             self._render_phps(payload)
         elif kind == "phps_err":
+            # 真实原因必须让用户看到：此前直接渲染空列表，权限/路径/异常被
+            # 伪装成「未发现 PHP 版本」，用户无从下手
+            self._append_log(t("加载失败：{err}", err=payload), "err")
             self._render_phps([])
         elif kind == "done":
             self._on_done(payload)
+        elif kind == "fatal":
+            self._on_fatal(payload)
         else:
             self._render_phps([])
+
+    def _on_fatal(self, message: str) -> None:
+        """建站编排抛异常时的收尾：放开 busy 与按钮，允许重试或关闭。"""
+        self._set_busy(False)
+        self._append_log(t("操作失败：{err}", err=message), "err")
+        self.hint_label.configure(text=t("失败"), foreground=theme.ERR)
+        self.btn_next.configure(text=t("重试"), state="normal")
+        self.btn_cancel.configure(state="normal")
 
     def _render_phps(self, versions) -> None:
         self._php_map = []
@@ -663,8 +676,13 @@ class SiteWizardDialog(tk.Toplevel):
 
         def worker():
             # 建站编排与回滚都在 core/site_service（与 CLI 共用同一实现）
-            result = site_service.create_site(plan, self.config)
-            self._queue.put(("done", result))
+            # 必须兜住异常：否则队列永空，_poll 每 100ms 空转、_set_busy(True)
+            # 永不复位 → 向导永久卡死（下一步/取消按钮一直禁用）
+            try:
+                result = site_service.create_site(plan, self.config)
+                self._queue.put(("done", result))
+            except Exception as e:  # noqa: BLE001
+                self._queue.put(("fatal", f"{type(e).__name__}: {e}"))
 
         threading.Thread(target=worker, daemon=True).start()
         self._poll()

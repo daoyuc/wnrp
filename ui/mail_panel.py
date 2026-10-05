@@ -16,6 +16,7 @@ from tkinter import messagebox, ttk
 
 from core import mail_catcher
 from core import process_utils as pu
+from core import run_log
 from core.config import Config
 from core.i18n import t
 from core.php_manager import PhpManager
@@ -124,15 +125,23 @@ class MailPanel(ttk.Frame):
         self.after(80, self._drain)
 
     def _drain(self) -> None:
-        if not self.winfo_exists():
-            self._draining = False
-            return
+        # 整个循环包在 try 里：窗口销毁 / after 失败时必须停摆，不能让异常冒出
+        # Tk 回调 —— 否则末尾的重排不执行，drain 链断裂、_draining 永为 True，
+        # 队列消息被永久静默丢弃（busy 不复位、自动刷新停摆）
         try:
+            if not self.winfo_exists():
+                self._draining = False
+                return
             while True:
-                self._dispatch(*self._queue.get_nowait())
-        except queue.Empty:
-            pass
-        self.after(80 if self.winfo_ismapped() else 400, self._drain)
+                try:
+                    self._dispatch(*self._queue.get_nowait())
+                except queue.Empty:
+                    break
+                except Exception as e:  # noqa: BLE001 - 单条消息失败只丢这一条
+                    run_log.error("ui", t("内部错误：{err}", err=e))
+            self.after(80 if self.winfo_ismapped() else 400, self._drain)
+        except tk.TclError:  # 窗口已销毁：排不了定时器，永久停摆
+            self._draining = False
 
     def _dispatch(self, kind: str, payload) -> None:
         if kind == "data":

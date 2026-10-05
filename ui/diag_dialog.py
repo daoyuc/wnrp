@@ -8,6 +8,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 from core import hosts_manager
+from core import run_log
 from core.diag import level_label
 from core.i18n import t
 from core.php_manager import PhpManager
@@ -122,26 +123,35 @@ class DiagDialog(tk.Toplevel):
         self.after(80, self._drain)
 
     def _drain(self) -> None:
-        if not self.winfo_exists():
-            self._draining = False
-            return
+        # 整个循环包在 try 里：窗口销毁 / after 失败时必须停摆，不能让异常冒出
+        # Tk 回调 —— 否则末尾的重排不执行，drain 链断裂、_draining 永为 True，
+        # 队列消息被永久静默丢弃（busy 不复位、修复后自动复检停摆）
         try:
+            if not self.winfo_exists():
+                self._draining = False
+                return
             while True:
-                kind, payload = self._queue.get_nowait()
-                if kind == "data":
-                    self._render(payload)
-                elif kind == "error":
-                    self._status.configure(text=payload)
-                elif kind == "fix_done":
-                    self.notify(payload)
-                    self._status.configure(text=payload)
-                    self._busy = False
-                    self._start()          # 修复后重新体检
-                else:  # done：无论成败都放开按钮
-                    self.btn_rerun.configure(state="normal")
-        except queue.Empty:
-            pass
-        self.after(80 if self.winfo_ismapped() else 400, self._drain)
+                try:
+                    kind, payload = self._queue.get_nowait()
+                except queue.Empty:
+                    break
+                try:
+                    if kind == "data":
+                        self._render(payload)
+                    elif kind == "error":
+                        self._status.configure(text=payload)
+                    elif kind == "fix_done":
+                        self.notify(payload)
+                        self._status.configure(text=payload)
+                        self._busy = False
+                        self._start()          # 修复后重新体检
+                    else:  # done：无论成败都放开按钮
+                        self.btn_rerun.configure(state="normal")
+                except Exception as e:  # noqa: BLE001 - 单条消息失败只丢这一条
+                    run_log.error("ui", t("内部错误：{err}", err=e))
+            self.after(80 if self.winfo_ismapped() else 400, self._drain)
+        except tk.TclError:  # 窗口已销毁：排不了定时器，永久停摆
+            self._draining = False
 
     @staticmethod
     def _diagnose(entry, php_versions, nginx_running, logs_dir, hosts_map):

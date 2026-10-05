@@ -110,6 +110,9 @@ class MainWindow(tk.Tk):
         self._start_tray_drain()
         # 「启动时自动启动全部服务」开启时延迟调起（结果写入运行日志）
         self.after(1200, self._maybe_start_services_on_launch)
+        # 通用回调队列的唯一消费者：常驻自循环（空闲时自动降频）。
+        # 必须在主线程挂 —— worker 侧的 _post 只入队，不碰 Tk。
+        self._start_ui_drain()
 
     # ------------------------------------------------------------------ #
     def _build_menubar(self) -> None:
@@ -988,8 +991,10 @@ class MainWindow(tk.Tk):
             if self.mysql_panel is not None and self._panel_visible(self.mysql_panel):
                 try:
                     self.mysql_panel.auto_refresh()
-                except Exception:  # noqa: BLE001
-                    pass
+                except Exception as e:  # noqa: BLE001
+                    # 不再静默 pass：MySQL 状态会永远停在旧值而用户毫无提示
+                    run_log.error("mysql", t("界面回调异常：{name}：{msg}",
+                                             name=type(e).__name__, msg=e))
         # 崩溃检测（低频轮询事件日志，仅用于告警展示）+ 自愈守护保活
         self._crash_tick += 1
         if self._crash_tick >= CRASH_POLL_TICKS:
@@ -1046,17 +1051,25 @@ class MainWindow(tk.Tk):
     def _poll_crash_queue(self) -> None:
         if not self.winfo_exists():  # 窗口已销毁：停止轮询
             return
-        try:
-            kind, events = self._crash_queue.get_nowait()
-        except queue.Empty:
-            self.after(120, self._poll_crash_queue)
-            return
-        if kind == "wd":
-            # 守护进程操作反馈（自愈开关/保活线程回传）
-            self.set_log(events)
-            return
-        if events:
-            self._on_crash(events, startup=(kind == "startup"))
+        # 一次排空再重排：守护反馈（wd）与崩溃事件会同时排队。此前 wd 分支
+        # 直接 return、且处理完事件后不再排 after，导致已排队的崩溃事件被压到
+        # 下一轮 _poll_crash()（≈64s）才显示，告警严重延迟甚至被丢。
+        while True:
+            try:
+                kind, events = self._crash_queue.get_nowait()
+            except queue.Empty:
+                break
+            try:
+                if kind == "wd":
+                    # 守护进程操作反馈（自愈开关/保活线程回传）
+                    self.set_log(events)
+                    continue
+                if events:
+                    self._on_crash(events, startup=(kind == "startup"))
+            except Exception as e:  # noqa: BLE001 - 单条失败不压住后续事件
+                run_log.error("ui", t("界面回调异常：{name}：{msg}",
+                                      name=type(e).__name__, msg=e))
+        self.after(120, self._poll_crash_queue)
 
     def _on_crash(self, events: list[dict], startup: bool) -> None:
         """收到崩溃事件：状态栏告警 + 托盘气泡；运行中新崩溃额外弹详情。"""
@@ -1337,37 +1350,46 @@ class MainWindow(tk.Tk):
     # 通用回调队列：worker → 主线程
     # ------------------------------------------------------------------ #
     def _post(self, fn) -> None:
-        """把回调投递到主线程执行。
+        """把回调投递到主线程执行（**worker 线程安全**：只入队，不碰 Tk）。
 
-        worker 线程里**不能**直接改控件，也不能调 ``after()``（启动期主线程还没进
-        ``mainloop()`` 会抛 ``RuntimeError: main thread is not in main loop``，
-        见 ``docs/ARCHITECTURE.md`` 的并发模型）。
+        drain 循环由主线程在启动时挂一次（常驻自循环），因此这里不调 ``after()``
+        —— 启动期主线程还没进 ``mainloop()``，worker 调 ``after()`` 会抛
+        ``RuntimeError: main thread is not in main loop``，且 ``_ui_draining``
+        若已被置 True 就会永久早退，队列消息被静默丢弃（见 ``docs/ARCHITECTURE.md``）。
         """
         self._ui_queue.put(fn)
-        self._start_ui_drain()
 
     def _start_ui_drain(self) -> None:
+        """挂起常驻 drain 循环（幂等；**必须在主线程调用**）。
+
+        队列空闲时降到 400ms 一趟（几乎无开销），一旦有消息就按 80ms 快速排空。
+        """
         if self._ui_draining:
             return
         self._ui_draining = True
         self.after(80, self._drain_ui)
 
     def _drain_ui(self) -> None:
-        if not self.winfo_exists():  # 窗口已销毁：停止轮询
-            self._ui_draining = False
-            return
+        idle = True
         try:
+            if not self.winfo_exists():  # 窗口已销毁：停止轮询
+                self._ui_draining = False
+                return
             while True:
-                fn = self._ui_queue.get_nowait()
+                try:
+                    fn = self._ui_queue.get_nowait()
+                except queue.Empty:
+                    break
+                idle = False
                 try:
                     fn()
                 except Exception as e:  # noqa: BLE001 - 单个回调失败不拖垮主循环
                     run_log.error("ui", t("界面回调异常：{name}：{msg}",
                                           name=type(e).__name__, msg=e))
-        except queue.Empty:
-            pass
-        # 不可见/后台时降频：空转取消息不必跟着 80ms 跑
-        self.after(80 if self.winfo_ismapped() else 400, self._drain_ui)
+            # 不可见/后台时降频：空转取消息不必跟着 80ms 跑
+            self.after(400 if idle else 80, self._drain_ui)
+        except tk.TclError:  # 窗口已销毁：排不了定时器，永久停摆
+            self._ui_draining = False
 
     def _start_tray_drain(self) -> None:
         """启动托盘/操作结果队列的唯一消费者（幂等）。

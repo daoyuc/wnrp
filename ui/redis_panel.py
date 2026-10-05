@@ -65,6 +65,7 @@ class RedisPanel(ttk.Frame):
         self.notify = notify
 
         self._queue: queue.Queue[Any] = queue.Queue()
+        self._draining = False          # drain 循环是否已挂起（幂等守卫）
         self._busy = False              # 启停类操作忙
         self._pending_refresh = False
         self._cmd_busy = False          # 命令执行忙
@@ -308,22 +309,32 @@ class RedisPanel(ttk.Frame):
     # 收敛到主线程定时循环，避免跨线程操作 Tkinter）
     # ------------------------------------------------------------------ #
     def _start_drain(self) -> None:
+        # 幂等：常驻 drain 若被挂起两次会两个循环抢同一队列，互相吞消息
+        if self._draining:
+            return
+        self._draining = True
         self.after(150, self._drain)
 
     def _drain(self) -> None:
-        if not self.winfo_exists():  # 面板已销毁：停止轮询
-            return
+        # 外层 try 兜住「面板已销毁 / after 失败」：否则异常冒出 Tk 回调后，
+        # 末尾的重排不会执行 → drain 链断裂、busy 永不复位、面板永久失灵
         try:
-            while True:
-                item = self._queue.get_nowait()
-                try:
-                    self._dispatch(*item)
-                except Exception as e:  # noqa: BLE001
-                    self._append_log(t("内部错误：{err}", err=e), "err")
-        except queue.Empty:
-            pass
-        # 不可见页签降频：drain 只是空转取消息，不必跟着 150ms 跑
-        self.after(150 if self.winfo_ismapped() else 400, self._drain)
+            if not self.winfo_exists():  # 面板已销毁：停止轮询
+                self._draining = False
+                return
+            try:
+                while True:
+                    item = self._queue.get_nowait()
+                    try:
+                        self._dispatch(*item)
+                    except Exception as e:  # noqa: BLE001
+                        self._append_log(t("内部错误：{err}", err=e), "err")
+            except queue.Empty:
+                pass
+            # 不可见页签降频：drain 只是空转取消息，不必跟着 150ms 跑
+            self.after(150 if self.winfo_ismapped() else 400, self._drain)
+        except tk.TclError:  # 面板已销毁：排不了定时器，永久停摆
+            self._draining = False
 
     def _dispatch(self, kind: str, payload: Any) -> None:
         if kind == "status":

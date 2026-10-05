@@ -14,7 +14,7 @@ from core.i18n import t
 from core.php_manager import PhpManager, PhpVersion
 from core.vhost_manager import VhostManager
 from . import theme
-from .window_utils import fit_window
+from .window_utils import fit_window, rearm_poll
 
 # 终端别名文案（Windows 的 cmd / macOS 的终端）
 _CLI_DISP = "cmd" if IS_WIN else t("终端")
@@ -203,10 +203,16 @@ class VhostSyncDialog(tk.Toplevel):
         self._poll()
 
     def _poll(self) -> None:
+        # 窗口销毁竞态：worker 仍在跑时关掉弹窗，取队列 / 续排都会 TclError
+        try:
+            if not self.winfo_exists():
+                return
+        except tk.TclError:
+            return
         try:
             kind, payload = self._queue.get_nowait()
         except queue.Empty:
-            self.after(80, self._poll)
+            rearm_poll(self, self._poll)
             return
         self._set_busy(False)
         if kind == "files":
@@ -519,10 +525,16 @@ class CliSwitchDialog(tk.Toplevel):
         self._poll()
 
     def _poll(self) -> None:
+        # 窗口销毁竞态：worker 仍在跑时关掉弹窗，取队列 / 续排都会 TclError
+        try:
+            if not self.winfo_exists():
+                return
+        except tk.TclError:
+            return
         try:
             kind, payload = self._queue.get_nowait()
         except queue.Empty:
-            self.after(80, self._poll)
+            rearm_poll(self, self._poll)
             return
         if kind == "versions":
             self._render(payload)
@@ -818,10 +830,16 @@ class SelfCheckDialog(tk.Toplevel):
         self._poll()
 
     def _poll(self) -> None:
+        # 窗口销毁竞态：worker 仍在跑时关掉弹窗，取队列 / 续排都会 TclError
+        try:
+            if not self.winfo_exists():
+                return
+        except tk.TclError:
+            return
         try:
             kind, payload = self._queue.get_nowait()
         except queue.Empty:
-            self.after(80, self._poll)
+            rearm_poll(self, self._poll)
             return
         if kind == "error":
             self.state_label.configure(text=t("自检失败：{text}", text=payload))

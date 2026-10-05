@@ -62,6 +62,22 @@ def _win_work_area():
     return None
 
 
+def rearm_poll(win, fn, interval_ms: int = 80) -> bool:
+    """续排主线程轮询回调；窗口已销毁时安静放弃。
+
+    弹窗 / 面板在 worker 仍在跑时被关掉后，``after`` 与 ``winfo_exists()`` 都会抛
+    ``TclError``（Tcl 侧对象已随窗口销毁）。这类竞态若直接冒出 Tk 回调，会刷出
+    无主语义的 TclError 噪音并中断轮询链，故统一走这里：返回是否成功续排。
+    """
+    try:
+        if not win.winfo_exists():
+            return False
+        win.after(interval_ms, fn)
+        return True
+    except tk.TclError:
+        return False
+
+
 def fit_window(win, master=None, width=None, height=None,
                min_width=None, min_height=None, bias=3, margin=0):
     """按屏幕可用工作区收敛窗口尺寸并定位，返回最终 ``(w, h)``。

@@ -15,6 +15,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 from core import i18n, overview as ovmod
+from core import run_log
 from core.resource_monitor import format_rss as _format_rss
 from . import theme
 
@@ -123,31 +124,43 @@ class OverviewPanel(ttk.Frame):
         self.after(120, self._drain)
 
     def _drain(self) -> None:
-        if not self.winfo_exists():  # 面板已销毁：停止轮询
-            self._draining = False
-            return
+        # 整个循环包在 try 里：窗口销毁 / after 失败时必须停摆，不能让异常冒出
+        # Tk 回调 —— 否则末尾的重排不执行，drain 链断裂、_draining 永为 True，
+        # 队列消息被永久静默丢弃（busy 不复位、批量动作后不再刷新）
         try:
+            if not self.winfo_exists():  # 面板已销毁：停止轮询
+                self._draining = False
+                return
             while True:
-                kind, payload = self._queue.get_nowait()
-                if kind == "data":
-                    ov, metrics, err = payload
-                    if err is not None:
-                        self._busy = False
-                        self.notify(i18n.t("总览聚合失败：{err}", err=err))
-                    else:
-                        self._render(ov, metrics)
-                elif kind == "diag_error":
-                    self.notify(payload)
-                else:  # diag_result
-                    err, warn, total = payload
-                    messagebox.showinfo(
-                        i18n.t("体检结果"),
-                        i18n.t("共 {n} 个站点，错误 {e} 项，警告 {w} 项",
-                               n=total, e=err, w=warn), parent=self)
-        except queue.Empty:
-            pass
-        # 不可见页签降频：drain 只是空转取消息，不必跟着 120ms 跑
-        self.after(120 if self.winfo_ismapped() else 400, self._drain)
+                try:
+                    kind, payload = self._queue.get_nowait()
+                except queue.Empty:
+                    break
+                try:
+                    self._dispatch_one(kind, payload)
+                except Exception as e:  # noqa: BLE001 - 单条消息失败只丢这一条
+                    run_log.error("ui", i18n.t("内部错误：{err}", err=e))
+            self.after(120 if self.winfo_ismapped() else 400, self._drain)
+        except tk.TclError:  # 面板已销毁：排不了定时器，永久停摆
+            self._draining = False
+
+    def _dispatch_one(self, kind: str, payload) -> None:
+        """处理单条队列消息（异常由调用方兜住，故这里可以放心操作控件）。"""
+        if kind == "data":
+            ov, metrics, err = payload
+            if err is not None:
+                self._busy = False
+                self.notify(i18n.t("总览聚合失败：{err}", err=err))
+            else:
+                self._render(ov, metrics)
+        elif kind == "diag_error":
+            self.notify(payload)
+        else:  # diag_result
+            err, warn, total = payload
+            messagebox.showinfo(
+                i18n.t("体检结果"),
+                i18n.t("共 {n} 个站点，错误 {e} 项，警告 {w} 项",
+                       n=total, e=err, w=warn), parent=self)
 
     def _render(self, ov, metrics=None) -> None:
         self._busy = False

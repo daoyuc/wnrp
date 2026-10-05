@@ -11,6 +11,7 @@ import tkinter as tk
 import tkinter.ttk as ttk
 from tkinter import messagebox
 
+from core import run_log
 from core.config import Config
 from core.i18n import t
 from core.php_downloader import (
@@ -21,7 +22,7 @@ from core.php_downloader import (
 from core.php_installer import default_port_for, install, install_dir_for
 from core.php_manager import PhpManager
 from . import theme
-from .window_utils import fit_window
+from .window_utils import fit_window, rearm_poll
 
 STATE_INSTALLED = t("已安装")
 STATE_UPDATE = t("可更新")
@@ -292,9 +293,18 @@ class DownloadDialog(tk.Toplevel):
 
     # ------------------------------------------------------------ 事件轮询 #
     def _poll(self):
+        # 窗口销毁竞态：安装 worker 仍在跑时关窗 → 取队列 / 续排都会 TclError
         try:
-            while True:
+            if not self.winfo_exists():
+                return
+        except tk.TclError:
+            return
+        while True:
+            try:
                 msg = self.queue.get_nowait()
+            except queue.Empty:
+                break
+            try:
                 kind = msg[0]
                 if kind == "loaded":
                     _, candidates, installed = msg
@@ -324,10 +334,12 @@ class DownloadDialog(tk.Toplevel):
                     self._prog.configure(mode="determinate", value=0)
                     self._prog_text.config(text="")
                     messagebox.showerror(t("安装失败"), t("安装失败：{err}", err=msg[1]), parent=self)
-        except queue.Empty:
-            pass
-        if self.winfo_exists():
-            self.after(80, self._poll)
+            except Exception as e:  # noqa: BLE001 - 单条消息失败只丢这一条
+                # 不放开 busy 会让弹窗永久停在「安装中」，这里先恢复交互再上报
+                self._set_busy(False)
+                self._hint.config(text=t("内部错误：{err}", err=e))
+                run_log.error("ui", t("内部错误：{err}", err=e))
+        rearm_poll(self, self._poll)
 
     def _render_progress(self, stage: str, ratio: float | None):
         base = _STAGE_TEXT.get(stage, stage)

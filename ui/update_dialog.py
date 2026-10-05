@@ -14,7 +14,7 @@ from tkinter import messagebox, ttk
 from core import updater
 from core.i18n import t
 from . import theme
-from .window_utils import fit_window
+from .window_utils import fit_window, rearm_poll
 
 
 def format_size(num: int) -> str:
@@ -332,11 +332,12 @@ class UpdateBanner:
         self.master.after(1000, self._poll)
 
     def _poll(self) -> None:
+        # 窗口销毁竞态：master 已销毁时 master.after 会抛 TclError
         try:
             rel = self._queue.get_nowait()
         except queue.Empty:
             if not self._done:
-                self.master.after(1000, self._poll)
+                rearm_poll(self.master, self._poll, 1000)
             return
         if rel is not None and updater.is_newer_version(rel.version):
             skipped = str(self.config.get_setting("skipped_version", "") or "")

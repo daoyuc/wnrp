@@ -20,6 +20,7 @@ from tkinter import filedialog, messagebox, ttk
 from core.i18n import t
 from core.sqlite_manager import QUERY_LIMIT, SqliteManager, format_value, quote_ident
 from . import theme
+from .window_utils import rearm_poll
 
 
 class SqlitePanel(ttk.Frame):
@@ -336,10 +337,16 @@ class SqlitePanel(ttk.Frame):
         self._poll()
 
     def _poll(self) -> None:
+        # 窗口销毁竞态：worker 仍在跑时关窗 → 取队列 / 续排都会 TclError
+        try:
+            if not self.winfo_exists():
+                return
+        except tk.TclError:
+            return
         try:
             tag, payload = self._queue.get_nowait()
         except queue.Empty:
-            self.after(80, self._poll)
+            rearm_poll(self, self._poll)
             return
         self._set_busy(False)
         handler = {
@@ -349,9 +356,13 @@ class SqlitePanel(ttk.Frame):
             "query": self._on_query,
             "error": self._on_error,
         }.get(tag)
-        if handler is not None:
-            handler(payload)
-        self._resume_deferred()
+        try:
+            if handler is not None:
+                handler(payload)
+        finally:
+            # 放 finally：handler 抛异常也要恢复挂起队列，否则用户点过的
+            # 「打开 / 查询」无声消失
+            self._resume_deferred()
 
     def _resume_deferred(self) -> None:
         """执行被挂起的操作（若有）。"""

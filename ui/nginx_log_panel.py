@@ -21,6 +21,7 @@ from core import process_utils as pu
 from core.i18n import t
 from core.nginx_manager import NginxManager
 from . import theme
+from .window_utils import rearm_poll
 
 TAIL_BYTES = 256 * 1024
 MAX_LINES = 2000
@@ -246,10 +247,16 @@ class LogPanel(ttk.Frame):
         return "\n".join(lines[-MAX_LINES:])
 
     def _poll(self) -> None:
+        # 窗口销毁竞态：worker 仍在跑时关窗 → 取队列 / 续排都会 TclError
+        try:
+            if not self.winfo_exists():
+                return
+        except tk.TclError:
+            return
         try:
             kind, payload = self._queue.get_nowait()
         except queue.Empty:
-            self.after(60, self._poll)
+            rearm_poll(self, self._poll, 60)
             return
         if kind in ("groups", "groups_err"):
             # 日志源枚举结果：与文件内容读取互不干扰，不参与 _busy 状态
@@ -257,7 +264,7 @@ class LogPanel(ttk.Frame):
                 self.info_var.set(payload)
             else:
                 self._apply_groups(payload)
-            self.after(60, self._poll)
+            rearm_poll(self, self._poll, 60)
             return
         self._busy = False
         if kind == "error":
