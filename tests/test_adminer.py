@@ -15,10 +15,16 @@ class FakeConfig:
 
 
 class FakePhpManager:
+    """最小 PhpManager 替身：adminer 走 scan_versions + resolve（后者刷新 running）。"""
+
     def __init__(self, versions):
         self._v = versions
+        self.versions = versions
 
     def scan_versions(self):
+        return self._v
+
+    def resolve(self, refresh_status: bool = True, fast: bool = True):
         return self._v
 
 
@@ -109,6 +115,18 @@ class AdminerTest(unittest.TestCase):
         self.assertEqual(captured["plan"].docroot, os.path.join(self.tmp, "adminer"))
         self.assertEqual(captured["plan"].domains, [adminer.DEFAULT_DOMAIN])
         self.assertEqual(captured["plan"].port, 9000)
+
+    def test_install_warns_when_chosen_php_not_running(self):
+        """选到的 PHP 没在跑时必须给出提示（否则站点 502 却报安装成功）。"""
+        _php_file(self.file)
+        versions = [types.SimpleNamespace(name="php81", port=9081, running=False)]
+        with mock.patch.object(adminer, "PhpManager",
+                               lambda c: FakePhpManager(versions)), \
+                mock.patch.object(adminer.site_service, "create_site",
+                                  lambda plan, config: FakeSiteResult()):
+            res = adminer.install(FakeConfig({"php81": 9081}))
+        self.assertTrue(res["ok"], res)
+        self.assertTrue(any("9081" in w for w in res["warnings"]), res)
 
     def test_install_reports_site_failure(self):
         _php_file(self.file)

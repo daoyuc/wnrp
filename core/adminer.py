@@ -76,12 +76,26 @@ def _port_of(config, version) -> int | None:
     return (getattr(config, "ports", {}) or {}).get(version.name) or getattr(version, "port", None)
 
 
-def pick_php(config, php_name: str | None = None):
+def _php_versions(config) -> list:
+    """扫描 PHP 版本并**刷新运行状态**与版本号。
+
+    不能只用 ``scan_versions()``：它只扫目录，``running`` 恒为 False、
+    ``display`` 为空，于是「在跑的优先」退化成「按目录名字符串取最大」，
+    会把 Adminer 指向一个已停止的 PHP 端口（访问必然 502）。
+    与 cli/diag/php_panel 等处保持一致：scan → resolve。
+    """
+    mgr = PhpManager(config)
+    mgr.scan_versions()
+    return mgr.resolve(refresh_status=True, fast=True) or mgr.versions
+
+
+def pick_php(config, php_name: str | None = None, versions=None):
     """选择托管 Adminer 的 PHP 版本：指定名优先，否则「在跑的优先、版本号最新」。
 
+    ``versions`` 可传入 :func:`_php_versions` 的结果以避免重复扫描。
     返回 ``(name, port)``；无可用版本时返回 ``(None, None)``。
     """
-    versions = PhpManager(config).scan_versions() or []
+    versions = versions if versions is not None else (_php_versions(config) or [])
     if php_name:
         for v in versions:
             if v.name == php_name:
@@ -132,7 +146,8 @@ def install(config=None, *, domain: str = DEFAULT_DOMAIN, php: str | None = None
             progress_cb=None) -> dict:
     """下载（如需要）并创建托管站点。返回报告 dict（含 create_site 步骤）。"""
     config = config or Config()
-    name, port = pick_php(config, php)
+    versions = _php_versions(config)
+    name, port = pick_php(config, php, versions=versions)
     if dry_run:
         return {"ok": True, "dry_run": True, "domain": domain, "php": name,
                 "port": port, "file": adminer_file(), "dir": adminer_dir(),
@@ -141,6 +156,11 @@ def install(config=None, *, domain: str = DEFAULT_DOMAIN, php: str | None = None
     if not name or not port:
         return {"ok": False,
                 "message": t("未找到可用的 PHP 版本，请先在「PHP 版本管理」页启动一个版本。")}
+    # 所有版本都没在跑时站点配置照样能生成，但访问必然 502 —— 明确告知，别报假成功
+    warnings: list[str] = []
+    if not any(getattr(v, "running", False) and v.name == name for v in versions):
+        warnings.append(t("PHP {php}（端口 {port}）当前未运行，访问会返回 502；"
+                          "请先在「PHP 版本管理」页启动该版本。", php=name, port=port))
     if not is_installed():
         res = download(progress_cb=progress_cb)
         if not res.get("ok"):
@@ -159,6 +179,6 @@ def install(config=None, *, domain: str = DEFAULT_DOMAIN, php: str | None = None
                              steps="、".join(failed) or "?")}
     return {"ok": True, "domain": domain, "php": name, "port": port,
             "file": adminer_file(), "site": result.path, "steps": steps,
-            "url": f"http://{domain}",
+            "url": f"http://{domain}", "warnings": warnings,
             "message": t("已安装 Adminer 并托管为 http://{domain}（PHP {php} :{port}）",
                          domain=domain, php=name, port=port)}

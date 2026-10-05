@@ -1110,6 +1110,8 @@ def cmd_adminer_install(a, r: Result) -> Result:
     for s in res.get("steps", []):
         mark = "·" if s.get("skip") else ("✓" if s.get("ok") else "✗")
         r.say(f"  {mark} [{s.get('tag')}] {s.get('message', '')}")
+    for w in res.get("warnings") or []:
+        r.note(w)
     r.note(t("Adminer 具备写库能力，仅供本地开发使用。"))
     return r
 

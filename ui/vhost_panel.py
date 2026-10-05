@@ -135,6 +135,14 @@ class VhostPanel(ttk.Frame):
         self.tree.tag_configure("odd", background=theme.ROW_ALT)
         self.tree.tag_configure("even", background=theme.CARD_BG)
 
+    def auto_refresh(self) -> None:
+        """定时刷新钩子（与其它页签同名，供主窗口 _refresh_panels 统一调用）。
+
+        站点映射此前没有该钩子，主窗口的定时/切页签刷新会跳过它，
+        于是新建的站点（含 Adminer）必须手点「刷新」才会出现。
+        """
+        self.refresh()
+
     def refresh(self) -> None:
         if self._busy:
             return

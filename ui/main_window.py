@@ -735,6 +735,10 @@ class MainWindow(tk.Tk):
 
     def _adminer_done(self, res: dict) -> None:
         msg = res.get("message", "")
+        warns = res.get("warnings") or []
+        if warns:
+            # 未运行的 PHP 会让站点 502：不能只报「安装成功」
+            msg = msg + "\n\n" + "\n".join(warns)
         if res.get("ok"):
             self.set_log(msg, "ok")
             messagebox.showinfo(t("安装 / 更新 Adminer"), msg, parent=self)
@@ -1161,8 +1165,10 @@ class MainWindow(tk.Tk):
         只刷新当前可见的页签：不可见面板的状态扫描纯属白跑子进程/线程，
         切回时由 <<NotebookTabChanged>> 立即补一次，不会看到陈旧数据。
         """
+        # vhost_panel 必在列：新建站点 / Adminer 托管后要靠它把新站点刷出来
         for panel in (self.overview_panel, self.php_panel, self.nginx_panel,
-                      self.redis_panel, self.log_panel, self.mail_panel):
+                      self.redis_panel, self.log_panel, self.mail_panel,
+                      self.vhost_panel):
             if panel is None or not self._panel_visible(panel):
                 continue
             try:
