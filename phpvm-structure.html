@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>phpvm 项目结构 · 一套内核管住本机 PHP 开发环境</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&family=Noto+Serif:ital@0;1&family=Noto+Sans+SC:wght@400;500;600&family=Noto+Serif+SC:wght@400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #0b1220;   /* deep navy */
+      --color-ink:     #e6edf7;   /* ice */
+      --color-muted:   #94a3b8;   /* slate-400 */
+      --color-accent:  #38bdf8;   /* sky-400 */
+      --font-sans:     'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', 'Noto Serif SC', 'Songti SC', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+
+    .frame { max-width: 1200px; width: 100%; }
+    .diagram-container { width: 100%; overflow-x: auto; }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 0.75rem;
+    }
+
+    .dek {
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: var(--color-muted);
+      max-width: 62ch;
+      margin-bottom: 1.75rem;
+    }
+
+    svg { width: 100%; min-width: 1000px; display: block; }
+
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">WNRP · PHPVM · ARCHITECTURE</p>
+    <h1>phpvm 项目结构：一套内核，管住本机 PHP 开发环境</h1>
+    <p class="dek">phpvm 是跨平台的本机 PHP 开发环境管理器（Windows 根目录 <code>C:\wnrp</code>，macOS / Linux 为 <code>~/wnrp</code>）：桌面 GUI、命令行、开机自启三条入口共用同一套 <code>core/</code> 服务层，按端口精确启停多版本 PHP，并编排 Nginx、Redis、MySQL 与站点配置。</p>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 1000 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="phpvm-structure-title phpvm-structure-desc">
+        <title id="phpvm-structure-title">phpvm 项目结构：一套内核管住本机 PHP 开发环境</title>
+        <desc id="phpvm-structure-desc">架构图：桌面 GUI、命令行与开机自启三条入口共用 core/ 服务层，按端口启停多版本 PHP、Nginx、Redis、MySQL，并写入 vhost、php.ini 与 hosts 等本机配置。</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#94a3b8"/></marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#38bdf8"/></marker>
+          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#7dd3fc"/></marker>
+        </defs>
+
+        <rect width="100%" height="100%" fill="#0b1220"/>
+
+        <!-- Zone A: 入口通道 -->
+        <rect x="40" y="56" width="920" height="116" rx="8"
+              fill="rgba(230,237,247,0.02)" stroke="rgba(230,237,247,0.10)" stroke-width="0.8"/>
+        <rect x="60" y="60" width="84" height="16" rx="2" fill="#0b1220"/>
+        <text x="68" y="72" fill="#e6edf7" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans SC', sans-serif">三条入口通道</text>
+
+        <!-- Zone B: phpvm 本体 -->
+        <rect x="40" y="196" width="920" height="132" rx="8"
+              fill="rgba(230,237,247,0.02)" stroke="rgba(230,237,247,0.10)" stroke-width="0.8"/>
+        <rect x="60" y="200" width="184" height="16" rx="2" fill="#0b1220"/>
+        <text x="68" y="212" fill="#e6edf7" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans SC', sans-serif">phpvm 本体（GUI 与 CLI 共用）</text>
+
+        <!-- Zone C: 被管的本机环境 -->
+        <rect x="40" y="364" width="920" height="132" rx="8"
+              fill="rgba(230,237,247,0.02)" stroke="rgba(230,237,247,0.10)" stroke-width="0.8"/>
+        <rect x="60" y="368" width="140" height="16" rx="2" fill="#0b1220"/>
+        <text x="68" y="380" fill="#e6edf7" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans SC', sans-serif">被管本机环境 · C:\wnrp</text>
+
+        <!-- Arrows (drawn before nodes) -->
+        <line x1="212" y1="160" x2="212" y2="228" stroke="#94a3b8" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <path d="M 500,160 V 172 Q 500,180 508,180 H 720 Q 728,180 728,188 V 228"
+              fill="none" stroke="#94a3b8" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="788" y1="160" x2="788" y2="228" stroke="#94a3b8" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="460" y1="264" x2="536" y2="264" stroke="#94a3b8" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <path d="M 640,300 V 348 Q 640,356 632,356 H 280 Q 272,356 272,364 V 396"
+              fill="none" stroke="#94a3b8" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="730" y1="300" x2="730" y2="396" stroke="#94a3b8" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+        <!-- Arrow labels -->
+        <rect x="464" y="240" width="68" height="16" rx="2" fill="#0b1220"/>
+        <text x="498" y="252" fill="#94a3b8" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans SC', sans-serif" text-anchor="middle">单向依赖</text>
+
+        <rect x="424" y="332" width="64" height="16" rx="2" fill="#0b1220"/>
+        <text x="456" y="344" fill="#94a3b8" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans SC', sans-serif" text-anchor="middle">启停进程</text>
+
+        <rect x="736" y="336" width="76" height="16" rx="2" fill="#0b1220"/>
+        <text x="774" y="348" fill="#94a3b8" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans SC', sans-serif" text-anchor="middle">写入并备份</text>
+
+        <!-- Node A1: 桌面图形界面 -->
+        <rect x="80" y="88" width="264" height="72" rx="6" fill="#0b1220"/>
+        <rect x="80" y="88" width="264" height="72" rx="6" fill="rgba(148,163,184,0.10)" stroke="#64748b" stroke-width="1"/>
+        <rect x="88" y="94" width="28" height="12" rx="2" fill="transparent" stroke="rgba(230,237,247,0.35)" stroke-width="0.8"/>
+        <text x="102" y="103" fill="#94a3b8" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">GUI</text>
+        <text x="212" y="128" fill="#e6edf7" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans SC', sans-serif" text-anchor="middle">桌面图形界面</text>
+        <text x="212" y="144" fill="#94a3b8" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">main.py · ui/main_window.py</text>
+
+        <!-- Node A2: 命令行 -->
+        <rect x="368" y="88" width="264" height="72" rx="6" fill="#0b1220"/>
+        <rect x="368" y="88" width="264" height="72" rx="6" fill="rgba(148,163,184,0.10)" stroke="#64748b" stroke-width="1"/>
+        <rect x="376" y="94" width="28" height="12" rx="2" fill="transparent" stroke="rgba(230,237,247,0.35)" stroke-width="0.8"/>
+        <text x="390" y="103" fill="#94a3b8" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">CLI</text>
+        <text x="500" y="128" fill="#e6edf7" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans SC', sans-serif" text-anchor="middle">命令行通道</text>
+        <text x="500" y="144" fill="#94a3b8" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">cli.py · --json · --dry-run</text>
+
+        <!-- Node A3: 开机自启与自愈（可选 / 后台） -->
+        <rect x="656" y="88" width="264" height="72" rx="6" fill="#0b1220"/>
+        <rect x="656" y="88" width="264" height="72" rx="6" fill="rgba(230,237,247,0.02)" stroke="rgba(230,237,247,0.20)" stroke-width="1" stroke-dasharray="4,3"/>
+        <rect x="664" y="94" width="44" height="12" rx="2" fill="transparent" stroke="rgba(230,237,247,0.35)" stroke-width="0.8"/>
+        <text x="686" y="103" fill="#94a3b8" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">DAEMON</text>
+        <text x="788" y="128" fill="#e6edf7" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans SC', sans-serif" text-anchor="middle">开机自启 · 崩溃自愈</text>
+        <text x="788" y="144" fill="#94a3b8" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">--start-all · crash_watchdog.py</text>
+
+        <!-- Node B1: 界面层 -->
+        <rect x="80" y="228" width="380" height="72" rx="6" fill="#0b1220"/>
+        <rect x="80" y="228" width="380" height="72" rx="6" fill="#131c2e" stroke="#e6edf7" stroke-width="1"/>
+        <rect x="88" y="234" width="24" height="12" rx="2" fill="transparent" stroke="rgba(230,237,247,0.35)" stroke-width="0.8"/>
+        <text x="100" y="243" fill="#94a3b8" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">UI</text>
+        <text x="270" y="268" fill="#e6edf7" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans SC', sans-serif" text-anchor="middle">界面层 ui/</text>
+        <text x="270" y="284" fill="#94a3b8" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">main_window.py · *_panel.py · wizard</text>
+
+        <!-- Node B2: 服务层（焦点） -->
+        <rect x="540" y="228" width="380" height="72" rx="6" fill="#0b1220"/>
+        <rect x="540" y="228" width="380" height="72" rx="6" fill="rgba(56,189,248,0.12)" stroke="#38bdf8" stroke-width="1"/>
+        <rect x="548" y="234" width="36" height="12" rx="2" fill="transparent" stroke="rgba(56,189,248,0.50)" stroke-width="0.8"/>
+        <text x="566" y="243" fill="#38bdf8" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">CORE</text>
+        <text x="730" y="268" fill="#e6edf7" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans SC', sans-serif" text-anchor="middle">服务层 core/ · 唯一实现</text>
+        <text x="730" y="284" fill="#94a3b8" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">php · nginx · site · hosts · redis · mysql</text>
+
+        <!-- Node C1: 服务进程 -->
+        <rect x="80" y="396" width="380" height="72" rx="6" fill="#0b1220"/>
+        <rect x="80" y="396" width="380" height="72" rx="6" fill="rgba(230,237,247,0.03)" stroke="rgba(230,237,247,0.30)" stroke-width="1"/>
+        <rect x="88" y="402" width="36" height="12" rx="2" fill="transparent" stroke="rgba(230,237,247,0.35)" stroke-width="0.8"/>
+        <text x="106" y="411" fill="#94a3b8" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">PROC</text>
+        <text x="270" y="436" fill="#e6edf7" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans SC', sans-serif" text-anchor="middle">PHP 多版本 · Nginx · Redis · MySQL</text>
+        <text x="270" y="452" fill="#94a3b8" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">php-cgi:9000+ · nginx · redis-server · mysqld</text>
+
+        <!-- Node C2: 配置与文件 -->
+        <rect x="540" y="396" width="380" height="72" rx="6" fill="#0b1220"/>
+        <rect x="540" y="396" width="380" height="72" rx="6" fill="rgba(230,237,247,0.05)" stroke="#94a3b8" stroke-width="1"/>
+        <rect x="548" y="402" width="36" height="12" rx="2" fill="transparent" stroke="rgba(230,237,247,0.35)" stroke-width="0.8"/>
+        <text x="566" y="411" fill="#94a3b8" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">FILE</text>
+        <text x="730" y="436" fill="#e6edf7" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans SC', sans-serif" text-anchor="middle">站点配置 · hosts · 证书</text>
+        <text x="730" y="452" fill="#94a3b8" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">vhost/*.conf · nginx.conf · php.ini · SSL</text>
+
+        <!-- 铁律注释 -->
+        <text x="40" y="524" fill="#94a3b8" font-size="14" font-style="italic" font-family="'Instrument Serif', 'Noto Serif SC', serif">铁律：写前必备份 → 改完必校验（nginx -t）→ 失败自动回滚；端口与 vhost 的 fastcgi_pass 必须一致，否则站点 502。</text>
+
+        <!-- Legend strip -->
+        <line x1="40" y1="540" x2="960" y2="540" stroke="rgba(230,237,247,0.10)" stroke-width="0.8"/>
+        <text x="40" y="556" fill="#94a3b8" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.18em">LEGEND</text>
+
+        <rect x="40" y="568" width="14" height="10" rx="2" fill="rgba(56,189,248,0.12)" stroke="#38bdf8" stroke-width="1"/>
+        <text x="60" y="576" fill="#94a3b8" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans SC', sans-serif">焦点 · 服务层 core/</text>
+
+        <rect x="200" y="568" width="14" height="10" rx="2" fill="#131c2e" stroke="#e6edf7" stroke-width="1"/>
+        <text x="220" y="576" fill="#94a3b8" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans SC', sans-serif">界面层 ui/</text>
+
+        <rect x="360" y="568" width="14" height="10" rx="2" fill="rgba(230,237,247,0.03)" stroke="rgba(230,237,247,0.30)" stroke-width="1"/>
+        <text x="380" y="576" fill="#94a3b8" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans SC', sans-serif">外部服务进程</text>
+
+        <rect x="520" y="568" width="14" height="10" rx="2" fill="rgba(230,237,247,0.05)" stroke="#94a3b8" stroke-width="1"/>
+        <text x="540" y="576" fill="#94a3b8" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans SC', sans-serif">配置与文件</text>
+
+        <rect x="680" y="568" width="14" height="10" rx="2" fill="rgba(148,163,184,0.10)" stroke="#64748b" stroke-width="1"/>
+        <text x="700" y="576" fill="#94a3b8" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans SC', sans-serif">入口通道</text>
+
+        <rect x="820" y="568" width="14" height="10" rx="2" fill="rgba(230,237,247,0.02)" stroke="rgba(230,237,247,0.20)" stroke-width="1" stroke-dasharray="4,3"/>
+        <text x="840" y="576" fill="#94a3b8" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans SC', sans-serif">后台 · 可选</text>
+      </svg>
+    </div>
+  </div>
+</body>
+</html>
