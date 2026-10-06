@@ -38,6 +38,13 @@ python3 cli.py env --json      # 环境快照：nginx、PHP 版本与端口、Re
 - 所有写入自动备份 `.bak`；`nginx -t` 失败会自动回滚并置 `rolled_back: true`。
 - 不要提交运行期文件：`config.json`、`recover_history.json`、`crash_watchdog.*`、`run_log.log*`、`updates/`、`dist/`。
 
+## 一致性约束（改动时必须收口）
+
+下面两条是改完最容易漏、且单测不易捕获的坑，改动触及时必须自查：
+
+- **取「PHP 是否在跑」必须刷新状态**：`core/php_manager.py` 的 `scan_versions()` 只探测版本二进制，**不刷新 `running`**，直接读会得到陈旧值。统一走 `resolve(refresh_status=True, fast=True)`（定时刷新的默认姿势；操作后精确校验用 `fast=False`）。任何「挑一个 PHP 来用」的逻辑（托管站点建站、TLS 自动续期、端口同步等）都必须先按 `running` 过滤，再回退到版本列表——否则站点会落到未启动的 PHP 上，表现为 `502`。
+- **新增 UI 面板必须登记**：`ui/main_window.py` 的 `_refresh_panels()` 里有个面板元组，新面板不进这个列表，就不参与定时刷新和「操作完成后立即刷新」，会出现「命令成功但界面没变」（典型：新建站点 / 安装 Adminer 后站点映射页不更新）。
+
 ## 常用流程
 
 ```bash
