@@ -12,12 +12,15 @@ import sys
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 I18N = os.path.join(ROOT, "i18n")
+# 仓库根的脚本入口：这些文件不在 ui/ core/ 下，但输出面向用户，文案必须参与覆盖率统计。
+# 曾经只扫 ui/ 与 core/ —— cli.py 的文案既不进缺译清单也不进统计，CLI 新增文案可以长期漏译而不被发现。
+ROOT_SCRIPTS = ("main.py", "cli.py")
 SRC_DIRS = ["ui", "core"]
 RESOURCE_LANGS = ["en", "zh_TW", "ja", "ko"]
 
 
 def iter_sources():
-    for name in ("main.py",):
+    for name in ROOT_SCRIPTS:
         yield os.path.join(ROOT, name)
     for d in SRC_DIRS:
         for root, _dirs, files in os.walk(os.path.join(ROOT, d)):

@@ -27,6 +27,8 @@
  "开启邮件捕获": "Enable Mail Capture",
  "当前没有捕获到的邮件。": "There is no captured mail.",
  "打开邮件目录": "Open Mail Folder",
+ "捕获方式：SMTP 127.0.0.1:{port}（服务{state}；随 phpvm 运行）": "Capture mode: SMTP 127.0.0.1:{port} (service {state}; runs together with phpvm)",
+ "捕获方式：sendmail_path 垫片脚本": "Capture mode: sendmail_path capture script",
  "捕获服务未运行：phpvm 关闭期间 PHP 发信会失败，点「开启捕获」可立即拉起（127.0.0.1:{port}）。": "Capture service is not running: PHP cannot send mail while phpvm is closed. Click \"Enable capture\" to start it now (127.0.0.1:{port}).",
  "操作失败：{err}": "Operation failed: {err}",
  "收件人": "To",

@@ -5,12 +5,6 @@
    "ui/site_wizard.py"
   ]
  },
- "提示：修改端口后需同步修改对应 nginx vhost 的 fastcgi_pass 才会生效。\nphpvm 按端口精确启停，不会像旧的 start_phpXX.bat 那样误杀其它版本进程。": {
-  "count": 1,
-  "files": [
-   "ui/main_window.py"
-  ]
- },
  "\n注意：同名配置文件已存在，创建时将覆盖（原文件自动备份为 .bak）": {
   "count": 1,
   "files": [
@@ -106,6 +100,24 @@
   "count": 1,
   "files": [
    "ui/mysql_panel.py"
+  ]
+ },
+ "Adminer 具备写库能力，仅供本地开发使用。": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "Adminer 尚未安装或未托管站点，可先执行 adminer install。": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "Adminer 文件：{path}（{state}）": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "Composer": {
@@ -407,6 +419,12 @@
   "count": 1,
   "files": [
    "core/project_config.py"
+  ]
+ },
+ "PHP {php}（端口 {port}）当前未运行，访问会返回 502；请先在「PHP 版本管理」页启动该版本。": {
+  "count": 1,
+  "files": [
+   "core/adminer.py"
   ]
  },
  "PHP {version} 安装成功（{name}，默认端口 {port}）": {
@@ -840,6 +858,12 @@
   "count": 2,
   "files": [
    "ui/php_panel.py"
+  ]
+ },
+ "[{name}] 邮件捕获：{state}": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "[{ver}] {reason} → {msg}": {
@@ -1849,8 +1873,9 @@
   ]
  },
  "修复": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "cli.py",
    "ui/diag_dialog.py"
   ]
  },
@@ -1903,8 +1928,9 @@
   ]
  },
  "停止": {
-  "count": 7,
+  "count": 12,
   "files": [
+   "cli.py",
    "ui/main_window.py",
    "ui/nginx_panel.py",
    "ui/php_panel.py"
@@ -1974,6 +2000,12 @@
   "count": 1,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "健康：{h}": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "全不选": {
@@ -2058,6 +2090,12 @@
   "count": 1,
   "files": [
    "ui/download_dialog.py"
+  ]
+ },
+ "共 {n} 个站点": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "共 {n} 条": {
@@ -2158,6 +2196,12 @@
    "ui/xdebug_dialog.py"
   ]
  },
+ "内存 {mem} · CPU {cpu}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "内存上限": {
   "count": 2,
   "files": [
@@ -2177,9 +2221,16 @@
   ]
  },
  "内部错误：{err}": {
-  "count": 1,
+  "count": 9,
   "files": [
-   "ui/redis_panel.py"
+   "ui/diag_dialog.py",
+   "ui/download_dialog.py",
+   "ui/extension_dialog.py",
+   "ui/mail_panel.py",
+   "ui/nginx_panel.py",
+   "ui/php_panel.py",
+   "ui/redis_panel.py",
+   "ui/vhost_panel.py"
   ]
  },
  "写入 /etc/hosts 需要 root 权限。请在终端手动执行：\nsudo sh -c 'echo \"127.0.0.1 {doms}\" >> /etc/hosts'": {
@@ -2404,9 +2455,10 @@
   ]
  },
  "加载失败：{err}": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/extension_dialog.py"
+   "ui/extension_dialog.py",
+   "ui/site_wizard.py"
   ]
  },
  "加载行已注释但 Xdebug 仍在加载，请检查额外的 ini 扫描目录": {
@@ -2592,6 +2644,12 @@
    "ui/main_window.py"
   ]
  },
+ "可查看的日志源：": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "可缓存文件数上限需覆盖 vendor 规模，默认 10000 以下会漏缓存大量依赖文件": {
   "count": 1,
   "files": [
@@ -2608,6 +2666,12 @@
   "count": 1,
   "files": [
    "ui/redis_panel.py"
+  ]
+ },
+ "合计：{n} 个运行中的服务 · 内存 {mem} · CPU {cpu}": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "同上：两次 FastCGI 写之间的超时也要放开": {
@@ -2835,6 +2899,12 @@
    "ui/site_wizard.py"
   ]
  },
+ "告警 {n} 项": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "命令 {cmd} 会删除数据或影响运行，确定要执行吗？": {
   "count": 1,
   "files": [
@@ -3002,12 +3072,13 @@
   ]
  },
  "失败": {
-  "count": 5,
+  "count": 6,
   "files": [
    "ui/dialogs.py",
    "ui/mysql_panel.py",
    "ui/nginx_panel.py",
-   "ui/redis_panel.py"
+   "ui/redis_panel.py",
+   "ui/site_wizard.py"
   ]
  },
  "套用项目配置": {
@@ -3289,6 +3360,12 @@
    "core/project_config.py"
   ]
  },
+ "将域名：{doms}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "将安装 PHP {ver} {ts} → 目录 {name}，默认端口 {port}，包大小 {size}{status}": {
   "count": 1,
   "files": [
@@ -3317,6 +3394,12 @@
   "count": 1,
   "files": [
    "ui/vhost_panel.py"
+  ]
+ },
+ "将文件：{path}": {
+  "count": 2,
+  "files": [
+   "cli.py"
   ]
  },
  "将注释 [{name}] 的 php.ini 中的 Xdebug 加载行（原文件自动备份为 .bak）。\n确定继续？": {
@@ -3630,8 +3713,9 @@
   ]
  },
  "已启用": {
-  "count": 3,
+  "count": 4,
   "files": [
+   "cli.py",
    "ui/extension_dialog.py",
    "core/vhost_manager.py"
   ]
@@ -3699,8 +3783,9 @@
   ]
  },
  "已安装": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "cli.py",
    "ui/download_dialog.py"
   ]
  },
@@ -3747,8 +3832,9 @@
   ]
  },
  "已开启": {
-  "count": 2,
+  "count": 3,
   "files": [
+   "cli.py",
    "ui/mail_panel.py",
    "ui/main_window.py"
   ]
@@ -3887,8 +3973,9 @@
   ]
  },
  "已清空 {n} 封邮件": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "cli.py",
    "ui/mail_panel.py"
   ]
  },
@@ -4241,6 +4328,12 @@
    "core/health_monitor.py"
   ]
  },
+ "当前 HTTPS：{state}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "当前不是从 .app 运行，无法自动替换；请手动挂载安装镜像。": {
   "count": 1,
   "files": [
@@ -4302,6 +4395,12 @@
    "ui/dialogs.py"
   ]
  },
+ "当前目录及上层未找到 {name}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "待同步": {
   "count": 1,
   "files": [
@@ -4336,6 +4435,18 @@
   "count": 1,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "总览摘要：": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "恢复会覆盖当前配置，需加 --yes 确认（可先 --dry-run 预览）": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "成功": {
@@ -4457,6 +4568,12 @@
    "ui/vhost_panel.py"
   ]
  },
+ "托管站点：{site}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "执 行": {
   "count": 2,
   "files": [
@@ -4550,6 +4667,18 @@
    "ui/site_wizard.py"
   ]
  },
+ "捕获方式：SMTP 127.0.0.1:{port}（服务{state}；随 phpvm 运行）": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "捕获方式：sendmail_path 垫片脚本": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "捕获服务未运行：phpvm 关闭期间 PHP 发信会失败，点「开启捕获」可立即拉起（127.0.0.1:{port}）。": {
   "count": 1,
   "files": [
@@ -4599,6 +4728,12 @@
    "ui/nginx_panel.py"
   ]
  },
+ "提示：修改端口后需同步修改对应 nginx vhost 的 fastcgi_pass 才会生效。\nphpvm 按端口精确启停，不会像旧的 start_phpXX.bat 那样误杀其它版本进程。": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
  "提示：只读查询模式，仅支持 SELECT / PRAGMA / EXPLAIN / WITH 等语句；双击左侧表名可生成查询语句。": {
   "count": 1,
   "files": [
@@ -4634,9 +4769,10 @@
   ]
  },
  "操作失败：{err}": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/mail_panel.py"
+   "ui/mail_panel.py",
+   "ui/site_wizard.py"
   ]
  },
  "操作完成": {
@@ -4935,6 +5071,12 @@
    "ui/run_log_panel.py"
   ]
  },
+ "日志文件不存在：{path}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "日志文件：": {
   "count": 1,
   "files": [
@@ -5009,10 +5151,22 @@
    "ui/nginx_log_panel.py"
   ]
  },
+ "暂无捕获到的邮件": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "暂无捕获到的邮件。\n\n在「PHP 版本管理」页或本页选择版本后点「开启捕获」，PHP 的 mail() 就会把邮件写到邮件目录。": {
   "count": 1,
   "files": [
    "ui/mail_panel.py"
+  ]
+ },
+ "暂无捕获到的邮件（邮件目录：{dir}）": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "更新 /etc/hosts 需要管理员授权（已取消或失败：{err}）": {
@@ -5124,8 +5278,9 @@
   ]
  },
  "未发现任何站点配置": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "cli.py",
    "ui/diag_dialog.py"
   ]
  },
@@ -5136,8 +5291,9 @@
   ]
  },
  "未启用": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "cli.py",
    "ui/extension_dialog.py"
   ]
  },
@@ -5180,9 +5336,16 @@
    "core/tuning.py"
   ]
  },
- "未开启": {
+ "未安装": {
   "count": 1,
   "files": [
+   "cli.py"
+  ]
+ },
+ "未开启": {
+  "count": 2,
+  "files": [
+   "cli.py",
    "ui/mail_panel.py"
   ]
  },
@@ -5307,6 +5470,12 @@
    "ui/nginx_panel.py"
   ]
  },
+ "未找到任何日志源": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "未找到可执行文件：{path}": {
   "count": 1,
   "files": [
@@ -5349,6 +5518,12 @@
    "core/vhost_manager.py"
   ]
  },
+ "未找到邮件：{name}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "未找到配置文件。": {
   "count": 1,
   "files": [
@@ -5365,6 +5540,12 @@
   "count": 1,
   "files": [
    "core/mysql_manager.py"
+  ]
+ },
+ "未找到项目配置：{path}": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "未指定域名": {
@@ -5440,8 +5621,9 @@
   ]
  },
  "未知": {
-  "count": 10,
+  "count": 12,
   "files": [
+   "cli.py",
    "ui/main_window.py",
    "core/diag.py",
    "core/health_monitor.py",
@@ -5482,8 +5664,9 @@
   ]
  },
  "未运行": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "cli.py",
    "ui/mail_panel.py"
   ]
  },
@@ -5990,6 +6173,12 @@
    "ui/main_window.py"
   ]
  },
+ "清单：{counts}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "清屏": {
   "count": 1,
   "files": [
@@ -6002,6 +6191,12 @@
    "ui/mail_panel.py",
    "ui/run_log_panel.py",
    "ui/sqlite_panel.py"
+  ]
+ },
+ "清空捕获到的邮件需加 --yes 确认": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "清空记录": {
@@ -6196,7 +6391,7 @@
   ]
  },
  "界面回调异常：{name}：{msg}": {
-  "count": 2,
+  "count": 4,
   "files": [
    "ui/main_window.py"
   ]
@@ -6815,6 +7010,12 @@
    "core/updater.py"
   ]
  },
+ "访问地址：{url}": {
+  "count": 2,
+  "files": [
+   "cli.py"
+  ]
+ },
  "证书删除失败：{err}": {
   "count": 1,
   "files": [
@@ -6843,6 +7044,12 @@
   "count": 1,
   "files": [
    "core/overview.py"
+  ]
+ },
+ "证书能力：{msg}": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "该 server 块位于主配置（nginx.conf）中，无法自动启用 HTTPS；请先为它单独建立站点配置。": {
@@ -7078,8 +7285,9 @@
   ]
  },
  "读取配置失败：{err}": {
-  "count": 4,
+  "count": 5,
   "files": [
+   "cli.py",
    "ui/nginx_panel.py",
    "core/site_service.py",
    "core/tuning.py"
@@ -7139,6 +7347,12 @@
    "ui/xdebug_dialog.py"
   ]
  },
+ "资源占用快照（仅统计 phpvm 管理的进程）：": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "路径解析缓存：框架每次请求上千次 stat()，默认 16K 太小": {
   "count": 1,
   "files": [
@@ -7187,9 +7401,16 @@
    "ui/nginx_log_panel.py"
   ]
  },
- "运行中": {
-  "count": 5,
+ "运行": {
+  "count": 4,
   "files": [
+   "cli.py"
+  ]
+ },
+ "运行中": {
+  "count": 6,
+  "files": [
+   "cli.py",
    "ui/dialogs.py",
    "ui/mail_panel.py",
    "ui/mysql_panel.py",
@@ -7201,6 +7422,12 @@
   "count": 1,
   "files": [
    "ui/php_panel.py"
+  ]
+ },
+ "运行依赖异常：{err}": {
+  "count": 2,
+  "files": [
+   "cli.py"
   ]
  },
  "运行日志": {
@@ -7360,6 +7587,12 @@
   "count": 1,
   "files": [
    "ui/mail_panel.py"
+  ]
+ },
+ "邮件目录：{dir}（已捕获 {n} 封）": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "配合 sendfile，等包攒满再发出，减少小包数量": {
@@ -7572,9 +7805,10 @@
   ]
  },
  "重试": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/download_dialog.py"
+   "ui/download_dialog.py",
+   "ui/site_wizard.py"
   ]
  },
  "重载 Nginx": {
@@ -7756,6 +7990,12 @@
    "core/project_config.py"
   ]
  },
+ "项目配置：{path}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "首轮就绪：事件游标已推进，{count} 条历史事件进入看护待复核": {
   "count": 1,
   "files": [
@@ -7829,8 +8069,9 @@
   ]
  },
  "（无主题）": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "cli.py",
    "ui/mail_panel.py"
   ]
  },
@@ -7875,6 +8116,12 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "（未托管）": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "（未能读取版本）": {
