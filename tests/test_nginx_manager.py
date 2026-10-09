@@ -9,12 +9,29 @@ import tempfile
 import unittest
 from unittest import mock
 
+from core import i18n as _i18n
 from core.nginx_manager import NginxManager
 
 
-class NginxManagerPidFileTest(unittest.TestCase):
+class _Lang(unittest.TestCase):
+    """断言中文文案：显式切 zh_CN，避免英文 locale 下环境性失败。
+
+    reload 的返回文案中「重启」目前缺译文靠回落才偶发通过，「平滑重载」有译文
+    （"Nginx reloaded gracefully"），在英文环境下会直接失配。
+    """
 
     def setUp(self):
+        self._lang = _i18n.current_language()
+        _i18n.set_language("zh_CN")
+
+    def tearDown(self):
+        _i18n.set_language(self._lang)
+
+
+class NginxManagerPidFileTest(_Lang):
+
+    def setUp(self):
+        super().setUp()
         self.tmp = tempfile.mkdtemp()
         os.makedirs(os.path.join(self.tmp, "logs"))
         self.conf_dir = os.path.join(self.tmp, "conf")
