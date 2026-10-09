@@ -317,11 +317,17 @@ def _tick_once(cfg: Config, pm: PhpManager, versions: dict,
     # 1) 崩溃事件（Windows 事件日志 / macOS 崩溃报告）：新崩溃 → 进入看护并
     #    尝试立即重启；Linux 无数据源（hm=None），统一由「失联探测」兜底
     if event_round and hm is not None:
+        if state.get("_evt_err", 0) > 0:
+            state["_evt_err"] = state["_evt_err"] - 1
         events = hm.fetch_crash_events(hours=LOOKBACK_HOURS)
         if events is None:
-            # 查询失败：本轮不推进游标，避免漏掉窗口内的崩溃
-            _log(t("崩溃事件查询失败（无可用数据源），本轮跳过崩溃检测"))
+            # 查询失败：本轮不推进游标（避免漏掉窗口内崩溃）。但只在冷却期内首轮记录，
+            # 否则数据源持续不可用时每 30s 刷屏。
+            if state.get("_evt_err", 0) <= 0:
+                _log(t("崩溃事件查询失败（无可用数据源），本轮跳过崩溃检测"))
+                state["_evt_err"] = EVENT_EVERY
         else:
+            state["_evt_err"] = 0
             latest = events[0]["time"] if events else None
             prev = state.get("last_event_ts")
             if prev is None:

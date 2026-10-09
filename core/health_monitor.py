@@ -265,19 +265,21 @@ class HealthMonitor:
             return _fetch_mac_crash_events(hours)
         if not IS_WIN:
             return None
-        since = (datetime.now() - timedelta(hours=hours)).strftime(_TS_FMT)
+        # 注意：不要在此处用 PowerShell 的 `[datetime]'…'` 做时间过滤 —— 个别事件会让
+        # 整条管道抛错并以非零码退出，被上层误判为「查询失败」（每轮刷屏）。改为只取
+        # 近期事件，时间窗口放到 Python 侧过滤（见下方 ts_parsed 判断）。
         ps = (
-            "$e = Get-WinEvent -FilterHashtable @{LogName='Application'; Id=1000} "
-            "-MaxEvents 50 -ErrorAction SilentlyContinue | "
-            "Where-Object { $_.TimeCreated -ge [datetime]'" + since + "' }; "
-            "$e | ForEach-Object { $_.TimeCreated.ToString('" + _NET_TS_FMT +
+            "Get-WinEvent -FilterHashtable @{LogName='Application'; Id=1000} "
+            "-MaxEvents 200 -ErrorAction SilentlyContinue | "
+            "ForEach-Object { $_.TimeCreated.ToString('" + _NET_TS_FMT +
             "') + '|' + ($_.Message -replace \"[\\r\\n]\", ' | ') }"
         )
         code, out, _err = pu.run_cmd(
             ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps], timeout=10
         )
         if code != 0:
-            return None
+            return None  # 数据源真正不可用（如 PowerShell 缺失），调用方保守跳过
+        since_dt = datetime.now() - timedelta(hours=hours)
         events = []
         for line in out.splitlines():
             line = line.strip()
@@ -285,6 +287,9 @@ class HealthMonitor:
                 continue
             ts, _, msg = line.partition("|")
             if "php-cgi" not in msg:
+                continue
+            ts_parsed = _parse_ts(ts)  # 放 Python 侧解析，避免 PowerShell 时间转换偶发失败
+            if ts_parsed is None or ts_parsed < since_dt:
                 continue
             events.append(self._parse_event(ts, msg))
         return events

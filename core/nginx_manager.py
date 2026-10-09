@@ -214,22 +214,52 @@ class NginxManager:
         running, pids = self.get_status()
         if not running:
             return t("Nginx 未在运行，无法重载")
+        # 先修正 pid 文件：nginx -s reload 靠 pid 文件定位 master，而该文件在 nginx 多次
+        # 启停后可能滞后于真实 master（指向已退出的进程），导致打开过期的
+        # Global\ngx_reload_<旧pid> 事件失败。单进程（即 master）时直接写回真实 PID。
+        if len(pids) == 1:
+            self._sync_pid_file(pids[0])
         # 统一执行 `nginx -s reload`（root 模式带 -p，brew 不带）。
         # 注意：nginx 的 SIGUSR1 是「重开日志文件」，不是重载配置，故不能发给 master 代替。
         code, out, err_text = pu.run_cmd(self._cmd(["-s", "reload"]), timeout=10)
         text = (out or err_text).strip()
         if code == 0:
             return t("Nginx 已平滑重载") if not text else t("Nginx 已平滑重载：{text}", text=text)
-        if not IS_WIN:
-            # 命令通道失败时兜底向 master 发 SIGHUP（nginx 重载配置信号）
-            import signal as _signal
-            for pid in pids:
-                try:
-                    os.kill(pid, _signal.SIGHUP)
-                except (ProcessLookupError, PermissionError):
-                    pass
-            return t("Nginx 已平滑重载（SIGHUP 兜底）：{text}", text=text)
-        return t("Nginx 重载失败：{text}", text=text or t("未知错误"))
+        # 平滑重载失败（pid 文件滞后 / master 事件缺失等）→ 退化为「停止 + 启动」：
+        # 全新启动会重写 pid 文件并重建 reload 事件，配置同样生效。代价是短暂断开已有
+        # 连接，但比「reload 静默失败、配置改动不生效」更可接受。
+        self.stop()
+        self.start()
+        running2, _ = self.get_status()
+        if running2:
+            return t("Nginx 重载失败，已重启以应用配置：{detail}",
+                     detail=text or t("未知错误"))
+        return t("Nginx 重载失败且重启未成功：{text}", text=text or t("未知错误"))
+
+    def _pid_path(self) -> str:
+        """nginx 实际使用的 pid 文件路径（来自 nginx.conf 的 pid 指令，缺省 <prefix>/logs/nginx.pid）。"""
+        directive = "logs/nginx.pid"  # nginx 编译期默认
+        conf = os.path.join(self.prefix, "conf", "nginx.conf")
+        try:
+            with open(conf, encoding="utf-8", errors="ignore") as fh:
+                for line in fh:
+                    m = re.search(r"^\s*pid\s+(\S+);", line)
+                    if m:
+                        directive = m.group(1)
+                        break
+        except OSError:
+            pass
+        if not os.path.isabs(directive):
+            directive = os.path.join(self.prefix, directive)
+        return os.path.normpath(directive)
+
+    def _sync_pid_file(self, pid: int) -> None:
+        """把真实在跑的 master PID 写回 pid 文件（仅用于 reload 前修正滞后）。"""
+        try:
+            with open(self._pid_path(), "w", encoding="utf-8") as fh:
+                fh.write(str(pid))
+        except OSError:
+            pass
 
     def test_config(self) -> str:
         code, out, err_text = pu.run_cmd(self._cmd(["-t"]), timeout=10)
