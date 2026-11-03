@@ -29,6 +29,7 @@ from dataclasses import dataclass, field
 
 from . import app_paths
 from .i18n import t
+from .net_ssl import ssl_context
 from .version import (APP_NAME, GITHUB_REPO, PLATFORM_SUFFIX, RELEASES_API,
                       SUMS_ASSET)
 from .version import version as current_version
@@ -121,7 +122,7 @@ def _open(url: str, timeout: float = TIMEOUT):
     token = _token()
     if token:
         req.add_header("Authorization", f"Bearer {token}")
-    return urllib.request.urlopen(req, timeout=timeout)
+    return urllib.request.urlopen(req, timeout=timeout, context=ssl_context())
 
 
 def _http_text(url: str, timeout: float = TIMEOUT) -> str:

@@ -20,6 +20,7 @@ import zipfile
 from dataclasses import dataclass, field
 
 from .i18n import t
+from .net_ssl import ssl_context
 
 RELEASES_URL = "https://windows.php.net/downloads/releases/releases.json"
 ARCHIVES_URL = "https://windows.php.net/downloads/releases/archives/"
@@ -96,7 +97,7 @@ def detect_os_compiler(series: str) -> str | None:
 # --------------------------------------------------------------------------- #
 def _http_get(url: str, timeout: int = TIMEOUT) -> bytes:
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
+    with urllib.request.urlopen(req, timeout=timeout, context=ssl_context()) as resp:
         return resp.read()
 
 
@@ -270,7 +271,8 @@ def download_with_progress(url: str, dest: str, progress_cb=None) -> None:
     tmp = dest + ".part"
     last_report = 0.0
     try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+        with urllib.request.urlopen(req, timeout=TIMEOUT,
+                                    context=ssl_context()) as resp:
             total = int(resp.headers.get("Content-Length") or 0)
             written = 0
             with open(tmp, "wb") as f:

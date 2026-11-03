@@ -39,7 +39,7 @@ phpvm 是一个**本机开发环境管理器**（PHP 多版本 + Nginx + Redis +
                                 │ 单向依赖（ui → core，core 绝不反向）
 ┌── 服务层 core/ ───────────────┴───────────────────────────────────────┐
 │ 基础设施：version · app_paths · config · i18n · theme(数据) · run_log   │
-│           file_backup · modules · process_utils                        │
+│           file_backup · modules · process_utils · net_ssl              │
 │ 领域服务：php_manager · php_installer · php_downloader · php_extension │
 │           ini_editor · path_manager · nginx_manager · nginx_conf       │
 │           vhost_manager · site_service · site_templates · hosts_manager│

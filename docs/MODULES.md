@@ -60,6 +60,12 @@ PHP 版本管理(php,刚需) │ Nginx 管理(nginx,刚需) │ Redis 管理(red
 | CLI（AI / 脚本通道） | `cli.py` | 全部 `core/*` | 同 GUI（共用 config.json） | 不 import tkinter；写操作支持 `--dry-run` |
 | 打包与发布 | `packaging/build.py`、`packaging/phpvm.iss` | `.github/workflows/release.yml` | `dist/` | 打 tag 自动构建双平台并发布 Release |
 
+> 跨模块约定：`core/*` 的全部 HTTPS 请求（PHP 版本/扩展列表、PHP 与 Adminer 下载、软件更新）
+> 统一经 `core/net_ssl.py::ssl_context()` 取 SSL 上下文 —— 系统默认根 + 仓库内置
+> `core/cacert.pem`（Mozilla CA 集，certifi / MPL-2.0），用于规避 Windows 证书库里
+> 已过期的交叉签名根（如 DST Root CA X3）；证书校验与主机名校验始终开启。
+> 详见 [`ARCHITECTURE.md`](ARCHITECTURE.md)。
+
 ## 3. 模块开关实际影响
 
 `core/modules.py` 是唯一注册表（`key / name / required`）：

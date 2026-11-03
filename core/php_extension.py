@@ -18,6 +18,7 @@ from . import file_backup
 
 from . import process_utils as pu
 from .i18n import t
+from .net_ssl import ssl_context
 from .php_downloader import (
     USER_AGENT,
     _http_get,
@@ -368,5 +369,5 @@ def install_online(catalog_item: dict, php_dir: str, rt: RuntimeInfo,
 def _download(url: str, dest: str) -> None:
     """简单下载（无进度条，小体积扩展）。"""
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(req, timeout=60) as resp, open(dest, "wb") as f:
+    with urllib.request.urlopen(req, timeout=60, context=ssl_context()) as resp, open(dest, "wb") as f:
         shutil.copyfileobj(resp, f)
