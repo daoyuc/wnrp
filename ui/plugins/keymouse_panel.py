@@ -20,6 +20,9 @@ from core.plugins.keymouse import (
     ensure_daemon,
     is_paused,
     is_running,
+    open_permission_settings,
+    permission_state,
+    request_permission,
     set_paused,
     stats,
     status,
@@ -242,9 +245,13 @@ class KeymousePanel(ttk.Frame):
             return
         running = bool(state.get("running"))
         ok_platform = bool(state.get("supported", supported()))
+        perm = state.get("permission") or {}
         if not ok_platform:
-            self._empty_btn.configure(text=t("当前平台不支持（仅 Windows）"))
+            self._empty_btn.configure(text=t("当前平台不支持采集"))
             self._empty_btn.state(["disabled"])
+        elif perm.get("required") and not perm.get("granted"):
+            self._empty_btn.configure(text=t("去授权"))
+            self._empty_btn.state(["!disabled"])
         elif running:
             self._empty_btn.configure(text=t("采集中"))
             self._empty_btn.state(["disabled"])
@@ -261,9 +268,17 @@ class KeymousePanel(ttk.Frame):
         ok_platform = bool(state.get("supported", supported()))
         if not ok_platform:
             self._dot.configure(foreground=theme.ERR)
-            self._status_text.set(t("当前平台不支持（仅 Windows）"))
+            self._status_text.set(t("当前平台不支持采集"))
             self._btn_pause.state(["disabled"])
             self._btn_daemon.state(["disabled"])
+            return
+        perm = state.get("permission") or {}
+        if perm.get("required") and not perm.get("granted"):
+            self._dot.configure(foreground=theme.WARN)
+            self._status_text.set(t("未授权：需允许「输入监控」"))
+            self._btn_daemon.configure(text=t("去授权"))
+            self._btn_daemon.state(["!disabled"])
+            self._btn_pause.state(["disabled"])
             return
         if not running:
             self._dot.configure(foreground=theme.GRAY)
@@ -381,11 +396,29 @@ class KeymousePanel(ttk.Frame):
         self.notify(t("已暂停键盘采集") if paused else t("已恢复键盘采集"))
         self.refresh()
 
+    def _ensure_permission(self) -> bool:
+        """macOS 采集前先确保「输入监控」授权；返回是否可以继续。"""
+        perm = permission_state()
+        if not perm.get("required") or perm.get("granted"):
+            return True
+        if not messagebox.askyesno(
+                t("需要输入监控授权"),
+                t("macOS 需要「输入监控」授权才能记录按键。现在打开系统设置并授权？"),
+                parent=self):
+            return False
+        if not request_permission():
+            open_permission_settings()
+        self.notify(t("授权完成后请再点一次「启动后台记录」"))
+        self.refresh()
+        return False
+
     def _on_daemon(self) -> None:
         if not supported():
             messagebox.showinfo(t("键鼠统计"),
-                                t("当前平台不支持键盘采集（仅 Windows）。"),
+                                t("当前平台不支持键盘采集（仅 Windows / macOS）。"),
                                 parent=self)
+            return
+        if not is_running() and not self._ensure_permission():
             return
         if is_running():
             if not messagebox.askyesno(

@@ -147,7 +147,7 @@ worker 只 `queue.put()`，主窗口的 `_post()` 也**只入队、不碰 `after
 | `core/app_paths.py` | 数据目录可写性判定（包目录 → `~/.phpvm`） |
 | `core/theme.py` | 系统深浅色探测（注册表 / `defaults` / `gsettings`） |
 | `ui/tray.py` | 托盘仅 Windows 实现（macOS/Linux 以 Dock 驻留代替，`_init_tray` 直接返回） |
-| `core/plugins/keymouse/collector.py` | 键盘采集仅 Windows（`WH_KEYBOARD_LL`）；其它平台 `supported()` 返回 False，页面显示「当前平台不支持采集」而非报错 |
+| `core/plugins/keymouse/collector.py` | 键盘采集：Windows 用 `WH_KEYBOARD_LL`，macOS 用 `CGEventTap`（`listen-only` + `CFRunLoop`，见 [ADR 18](DECISIONS.md)）；Linux 上 `supported()` 返回 False，页面显示「当前平台不支持采集」而非报错 |
 
 ## 7. 新增一个功能，落点在哪
 

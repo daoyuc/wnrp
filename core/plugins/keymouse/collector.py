@@ -221,3 +221,7 @@ class KeyboardCollector:
 
     def pending(self) -> int:
         return len(self.events)
+
+
+if not IS_WIN:  # noqa: SIM108 - macOS 采集端（Linux 上 install() 直接返回不支持）
+    from .collector_mac import KeyboardCollector  # noqa: F401,E402

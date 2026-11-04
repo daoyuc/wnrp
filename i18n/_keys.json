@@ -1113,6 +1113,12 @@
    "ui/php_panel.py"
   ]
  },
+ "macOS 需要「输入监控」授权才能记录按键。现在打开系统设置并授权？": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
  "nginx -t 校验失败（详见上方输出）": {
   "count": 1,
   "files": [
@@ -2707,6 +2713,12 @@
    "ui/dialogs.py"
   ]
  },
+ "去授权": {
+  "count": 2,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
  "发件人": {
   "count": 1,
   "files": [
@@ -4296,6 +4308,12 @@
    "ui/mail_panel.py"
   ]
  },
+ "已授权": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "已是最新版本": {
   "count": 1,
   "files": [
@@ -4788,20 +4806,20 @@
    "ui/plugins/project_launcher_panel.py"
   ]
  },
- "当前平台不支持键盘采集（仅 Windows）": {
+ "当前平台不支持采集": {
+  "count": 2,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
+ "当前平台不支持键盘采集（仅 Windows / macOS）": {
   "count": 2,
   "files": [
    "cli.py"
   ]
  },
- "当前平台不支持键盘采集（仅 Windows）。": {
+ "当前平台不支持键盘采集（仅 Windows / macOS）。": {
   "count": 1,
-  "files": [
-   "ui/plugins/keymouse_panel.py"
-  ]
- },
- "当前平台不支持（仅 Windows）": {
-  "count": 2,
   "files": [
    "ui/plugins/keymouse_panel.py"
   ]
@@ -5224,6 +5242,12 @@
   "count": 1,
   "files": [
    "ui/mail_panel.py"
+  ]
+ },
+ "授权完成后请再点一次「启动后台记录」": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
   ]
  },
  "推荐目录": {
@@ -6282,6 +6306,18 @@
   "count": 1,
   "files": [
    "main.py"
+  ]
+ },
+ "未授权": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "未授权：需允许「输入监控」": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
   ]
  },
  "未提供 Nginx 管理器，跳过启动 Nginx": {
@@ -8312,6 +8348,12 @@
    "ui/redis_panel.py"
   ]
  },
+ "输入监控授权：{v}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "输入超时": {
   "count": 1,
   "files": [
@@ -8886,6 +8928,12 @@
   "count": 1,
   "files": [
    "ui/mysql_panel.py"
+  ]
+ },
+ "需要输入监控授权": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
   ]
  },
  "静态文件走内核零拷贝发送，省一次用户态拷贝": {

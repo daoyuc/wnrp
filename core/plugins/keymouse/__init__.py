@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""键鼠统计插件（内置，Windows Only）。
+"""键鼠统计插件（内置，Windows / macOS）。
 
 只记录**按了哪个键**与**按键时间点**：不记录字符、输入文本、窗口标题、剪贴板，
 数据仅落本机用户数据目录的 SQLite，不上传。
@@ -13,10 +13,13 @@
 导入本模块**不得**装钩子、不得起线程 —— 面板与 CLI 会 import 它读 MANIFEST。
 """
 import os
+import sys
 
 from ... import app_paths, autostart
 from ...config import IS_WIN
 from ..base import PluginSpec
+
+IS_MAC = sys.platform == "darwin"
 
 MANIFEST = PluginSpec(
     key="keymouse",
@@ -26,7 +29,7 @@ MANIFEST = PluginSpec(
     daemon_script="core/plugins/keymouse/daemon.py",
     ensure_background=("core.plugins.keymouse", "ensure_daemon"),
     default_settings={"autostart": False, "retention_days": 730},
-    platforms=("win32",),
+    platforms=("win32", "darwin"),
 )
 
 AUTOSTART_NAME = "phpvm-keymouse"
@@ -37,8 +40,35 @@ PAUSE_FILE_NAME = os.path.join("plugins", "keymouse", "paused")
 # 平台 / 后台进程
 # --------------------------------------------------------------------------- #
 def supported() -> bool:
-    """当前平台是否支持采集（首版仅 Windows）。"""
-    return IS_WIN
+    """当前平台是否支持采集（Windows 低层钩子 / macOS CGEventTap）。"""
+    return IS_WIN or IS_MAC
+
+
+def permission_state() -> dict:
+    """采集授权状态：macOS 需「输入监控」，Windows 无需授权。"""
+    if IS_MAC:
+        from . import collector_mac
+
+        return collector_mac.permission()
+    return {"required": False, "granted": True, "settings_url": ""}
+
+
+def request_permission() -> bool:
+    """触发一次系统授权（仅 macOS 有意义），已授权返回 True。"""
+    if not IS_MAC:
+        return True
+    from . import collector_mac
+
+    return collector_mac.request_trust()
+
+
+def open_permission_settings() -> bool:
+    """打开系统设置里的「输入监控」授权面板（仅 macOS）。"""
+    if not IS_MAC:
+        return False
+    from . import collector_mac
+
+    return collector_mac.open_permission_settings()
 
 
 def daemon_script_path() -> str:
@@ -49,7 +79,7 @@ def daemon_script_path() -> str:
 def ensure_daemon(config=None) -> tuple[bool, str]:
     """幂等拉起后台记录进程（框架 ``ensure_backgrounds`` 的钩子）。"""
     if not supported():
-        return False, "当前平台不支持键盘采集（仅 Windows）"
+        return False, "当前平台不支持键盘采集（仅 Windows / macOS）"
     from . import daemon
 
     return daemon.spawn()
@@ -145,9 +175,10 @@ def status(config=None) -> dict:
         "key": MANIFEST.key,
         "name": MANIFEST.name,
         "supported": supported(),
-        "running": is_running() if IS_WIN else False,
+        "running": is_running() if supported() else False,
         "paused": is_paused(),
-        "pid": daemon_pid() if IS_WIN else None,
+        "pid": daemon_pid() if supported() else None,
+        "permission": permission_state(),
         "autostart": autostart_enabled(),
         "retention_days": retention,
         "db": db,

@@ -156,7 +156,10 @@ CLI 等价：`python3 cli.py site sync-port --old 9082 --new 9083 --reload`。
  │    └─ daemon.spawn()：pythonw + CREATE_NO_WINDOW；daemon.lock(PID) + daemon.heartbeat 判活，幂等
  └─ 关闭主窗口：不杀守护进程，记录继续
 
-采集（独立进程，仅 Windows）
+采集（独立进程，Windows / macOS）
+ macOS：CFRunLoop 线程跑 CGEventTap（listen-only，需「输入监控」授权）
+         tap 被系统挂起 → 回调里立即 CGEventTapEnable 重启用；pump() 仅休眠
+ Windows 分支如下：
  消息泵：PeekMessageW 排空 → 空闲时 MsgWaitForMultipleObjects 等消息（≤50ms）
          绝不在钩子线程 time.sleep 轮询：休眠期间到达的按键会排队 ~30ms，
          打字 / 输入法组合输入发粘，久了还可能触发 LowLevelHooksTimeout

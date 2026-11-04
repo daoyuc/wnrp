@@ -30,6 +30,7 @@ from core import process_utils as pu  # noqa: E402
 from core.config import Config, IS_WIN  # noqa: E402
 from core.plugins import settings as plugin_settings  # noqa: E402
 from core.plugins.keymouse import collector as collector_mod  # noqa: E402
+from core.plugins.keymouse import permission_state, supported  # noqa: E402
 from core.plugins.keymouse import store  # noqa: E402
 
 STATE_DIR_NAME = os.path.join("plugins", "keymouse")
@@ -188,10 +189,14 @@ def _touch_heartbeat() -> None:
 # --------------------------------------------------------------------------- #
 def spawn() -> tuple[bool, str]:
     """幂等拉起守护进程（无窗口）。返回 (是否在跑, 提示文本)。"""
-    if not IS_WIN:
-        return False, "当前平台不支持键盘采集（仅 Windows）"
+    if not supported():
+        return False, "当前平台不支持键盘采集（仅 Windows / macOS）"
     if is_running():
         return True, "键鼠记录已在后台运行"
+    perm = permission_state()
+    if perm.get("required") and not perm.get("granted"):
+        return False, ("需要先在「系统设置 → 隐私与安全性 → 输入监控」中"
+                       "授权本程序，再启动后台记录")
     try:
         os.remove(stop_path())
     except OSError:
@@ -275,9 +280,14 @@ def _flush(writer: store.Writer, key_buf: dict, min_buf: dict) -> int:
 
 
 def main() -> int:
-    if not IS_WIN:
-        _log("当前平台不支持键盘采集（仅 Windows），退出")
+    if not supported():
+        _log("当前平台不支持键盘采集（仅 Windows / macOS），退出")
         return 2
+    perm = permission_state()
+    if perm.get("required") and not perm.get("granted"):
+        _log("未获「输入监控」授权，无法记录按键：请在「系统设置 → 隐私与安全性"
+             " → 输入监控」中授权本程序后重试")
+        return 6
     if not _acquire():
         _log("已有键鼠记录实例在运行，本进程退出")
         return 0
@@ -289,7 +299,7 @@ def main() -> int:
 
     collector = collector_mod.KeyboardCollector()
     if not collector.install():
-        _log(f"安装键盘钩子失败：{collector.error}")
+        _log(f"安装键盘采集失败：{collector.error}")
         _release()
         return 3
 
@@ -313,7 +323,7 @@ def main() -> int:
     hook_fail_logged = False
 
     _touch_heartbeat()
-    _log("键盘钩子已安装，开始记录")
+    _log("键盘采集已安装，开始记录")
     try:
         while True:
             if time.monotonic() - last_pause_poll >= PAUSE_POLL:

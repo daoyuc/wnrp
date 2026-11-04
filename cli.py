@@ -2253,6 +2253,10 @@ def cmd_keymouse_status(a, r: Result) -> Result:
                 else t("未运行"))
               + (f" · PID {data.get('pid')}" if data.get("pid") else "")
               + (t(" · 已暂停") if data.get("paused") else ""))
+        perm = data.get("permission") or {}
+        if perm.get("required"):
+            r.say(t("输入监控授权：{v}",
+                    v=t("已授权") if perm.get("granted") else t("未授权")))
     r.say(t("开机自启：{v}", v=t("是") if data.get("autostart") else t("否")))
     db = data.get("db") or {}
     r.say(t("统计库：{path}（{size} 字节）", path=db.get("path", ""),
@@ -2289,7 +2293,7 @@ def _keymouse_pause(a, r: Result, paused: bool) -> Result:
     from core.plugins.keymouse import set_paused, supported
 
     if not supported():
-        return r.fail(t("当前平台不支持键盘采集（仅 Windows）"))
+        return r.fail(t("当前平台不支持键盘采集（仅 Windows / macOS）"))
     if a.dry_run:
         r.data = {"dry_run": True, "paused": paused}
         r.say(t("[dry-run] 将{action}键盘采集",
@@ -2340,7 +2344,7 @@ def cmd_keymouse_daemon(a, r: Result) -> Result:
                 else t("未运行")))
         return r
     if not supported():
-        return r.fail(t("当前平台不支持键盘采集（仅 Windows）"))
+        return r.fail(t("当前平台不支持键盘采集（仅 Windows / macOS）"))
     if action == "start":
         if a.dry_run:
             r.data = {"dry_run": True, "action": "start"}

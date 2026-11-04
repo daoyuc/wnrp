@@ -94,6 +94,7 @@ class CallbackTest(_Base):
         self.assertEqual(len(self.c.take()), 4)
 
 
+@unittest.skipUnless(mod.IS_WIN, "钩子自愈逻辑对应 Windows 的 SetWindowsHookEx")
 class EnsureHookTest(unittest.TestCase):
     """钩子自动重装：替换 install/uninstall，不真正装系统钩子（跨平台可跑）。"""
 
@@ -176,6 +177,7 @@ class _PumpUser32:
         return 0
 
 
+@unittest.skipUnless(mod.IS_WIN, "消息泵对应 Windows 的 MsgWaitForMultipleObjects")
 class PumpTest(unittest.TestCase):
     """消息泵必须「等消息」而不是 sleep —— 后者会让打字 / 输入法变粘。"""
 

@@ -34,7 +34,7 @@ class PluginRegistryTest(unittest.TestCase):
         self.assertEqual(spec.panel_module, "ui.plugins.keymouse_panel")
         self.assertEqual(spec.panel_class, "KeymousePanel")
         self.assertTrue(spec.daemon_script.endswith("daemon.py"))
-        self.assertEqual(spec.platforms, ("win32",))
+        self.assertEqual(spec.platforms, ("win32", "darwin"))
 
     def test_plugins_merge_into_module_switch(self):
         keys = [m["key"] for m in modules.MODULES]
