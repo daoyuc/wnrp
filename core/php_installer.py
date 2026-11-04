@@ -16,6 +16,7 @@ from . import process_utils as pu
 from .config import DEFAULT_PORTS, WNRP_ROOT, Config
 from .i18n import t
 from .php_downloader import (
+    DownloadCancelled,
     PhpPackage,
     download_with_progress,
     extract_zip_safe,
@@ -60,6 +61,7 @@ class InstallResult:
     version: str | None = None    # 安装后的真实版本号
     port: int | None = None
     dir: str | None = None
+    cancelled: bool = False       # 用户主动取消（UI 不应当成错误弹框）
 
 
 # --------------------------------------------------------------------------- #
@@ -152,15 +154,28 @@ def _detect_vc_missing(text: str) -> bool:
 # --------------------------------------------------------------------------- #
 # 安装编排
 # --------------------------------------------------------------------------- #
-def install(pkg: PhpPackage, config: Config, progress=None) -> InstallResult:
+def _mb(size: int) -> str:
+    """字节数 → 展示用 MB 文本。"""
+    return f"{size / 1048576:.1f} MB"
+
+
+def install(pkg: PhpPackage, config: Config, progress=None,
+            stop_event=None) -> InstallResult:
     """执行完整安装流程。
 
-    progress(stage: str, ratio: float | None)：stage 为 下载/校验/解压/落盘/生成配置/验证；
-    ratio 为 0~1 进度（None 表示不确定阶段）。
+    progress(stage, ratio, detail)：stage 为 下载/校验/解压/落盘/生成配置/验证；
+    ratio 为 0~1 进度（None 表示不确定阶段），detail 为补充说明（如「12.3 MB / 34.5 MB」）。
+    也兼容只接收 (stage, ratio) 两参的旧回调。
+    stop_event: ``threading.Event``，置位后中断下载并返回 ``cancelled=True``
+    （已下载部分留在 ``.part``，下次同版本安装自动续传）。
     任何一步失败均清理临时文件；目标目录冲突 / 端口冲突提前返回不触碰磁盘。
     """
-    def report(stage: str, ratio: float | None = None):
-        if progress:
+    def report(stage: str, ratio: float | None = None, detail: str = ""):
+        if not progress:
+            return
+        try:
+            progress(stage, ratio, detail)
+        except TypeError:  # 旧签名的回调
             progress(stage, ratio)
 
     name = install_dir_for(pkg.series)
@@ -186,11 +201,14 @@ def install(pkg: PhpPackage, config: Config, progress=None) -> InstallResult:
     extract_dir = os.path.join(tmp_root, f"{name}_src")
     target_ready = False
     try:
-        # 1. 下载（带进度）
+        # 1. 下载（带进度；无 Content-Length 时 ratio 为 None，但 detail 仍有字节数）
         report("下载", 0.0)
         download_with_progress(
             pkg.url, zip_path,
-            lambda done, total: report("下载", (done / total) if total else None),
+            lambda done, total: report(
+                "下载", (done / total) if total else None,
+                f"{_mb(done)} / {_mb(total)}" if total else _mb(done)),
+            stop_event=stop_event,
         )
 
         # 2. SHA-256 校验（archives 无元数据时跳过，空串 verify_sha256 返回 True）
@@ -254,6 +272,8 @@ def install(pkg: PhpPackage, config: Config, progress=None) -> InstallResult:
                      name=name, detail=text.strip()[:300]),
             name=name, port=port, dir=target_dir,
         )
+    except DownloadCancelled:
+        return InstallResult(False, t("已取消下载。"), name=name, cancelled=True)
     except Exception as e:  # noqa: BLE001
         return InstallResult(False, t("安装失败：{err}",
                                       err=f"{type(e).__name__}: {e}"), name=name)

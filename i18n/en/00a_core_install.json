@@ -50,5 +50,8 @@
  "Redis 管理": "Redis management",
  "Redis：未发现实例": "Redis: no instance found",
  "SHA-256 校验失败：文件可能被篡改或下载不完整，已自动清理临时文件。": "SHA-256 verification failed: the file may have been tampered with or the download is incomplete; temporary files were cleaned up automatically.",
- "TS（线程安全）": "TS (thread-safe)"
+ "TS（线程安全）": "TS (thread-safe)",
+ "已取消下载。": "Download cancelled.",
+ "下载不完整：已收到 {done} 字节，应为 {total} 字节": "Incomplete download: received {done} bytes, expected {total} bytes",
+ "下载失败（已自动重试 {n} 次）：{err}": "Download failed (retried {n} times automatically): {err}"
 }

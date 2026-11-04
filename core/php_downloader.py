@@ -15,6 +15,7 @@ import platform
 import re
 import shutil
 import time
+import urllib.error
 import urllib.request
 import zipfile
 from dataclasses import dataclass, field
@@ -26,8 +27,16 @@ RELEASES_URL = "https://windows.php.net/downloads/releases/releases.json"
 ARCHIVES_URL = "https://windows.php.net/downloads/releases/archives/"
 DOWNLOAD_BASE = "https://windows.php.net/downloads/releases/"
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) phpvm-installer"
-TIMEOUT = 30
+# 元数据（releases.json / archives 索引）请求超时
+TIMEOUT = 20
+# 下载 socket 读超时：任一次读取超过该秒数收不到字节即判定连接停滞，
+# 中断本次传输并带着 Range 续传重试（避免「进度条不动也不报错」的永久卡住）
+DOWNLOAD_TIMEOUT = 20
+# 下载失败自动重试次数（续传，不是从头再来）
+RETRIES = 2
 CHUNK = 64 * 1024
+# 进度回调节流间隔（秒）：过密会把 UI 消息队列刷爆，过疏则进度条看起来卡住
+PROGRESS_INTERVAL = 0.15
 
 # 编译器优先级：新编译器优先（部分版本过渡期同时提供 vs16/vs17）
 _COMPILER_ORDER = ("vs17", "vs16", "vc15", "vc14", "vc11", "vc9")
@@ -248,7 +257,9 @@ def build_candidates(include_legacy: bool = True,
 
     if include_legacy:
         try:
-            archives = fetch_archives_candidates(timeout)
+            # 旧版只是补充数据源：索引页体积大，给更短的超时，避免候选列表
+            # 长时间停在「正在获取可用版本」被误认为卡死
+            archives = fetch_archives_candidates(min(timeout, 12))
         except Exception:
             archives = {}
         for series, cand in archives.items():
@@ -262,38 +273,105 @@ def build_candidates(include_legacy: bool = True,
 # --------------------------------------------------------------------------- #
 # 下载 / 校验 / 解压
 # --------------------------------------------------------------------------- #
-def download_with_progress(url: str, dest: str, progress_cb=None) -> None:
-    """流式下载到 dest（先写 .part 再原子改名）。进度回调 (done_bytes, total_bytes)。
+class DownloadCancelled(RuntimeError):
+    """调用方通过 stop_event 主动取消下载（GUI「取消」按钮）。"""
 
-    Content-Length 未知时 total 为 0；回调节流 ~6 次/秒避免高频刷新 UI。
-    """
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    tmp = dest + ".part"
-    last_report = 0.0
+
+def _download_request(url: str, offset: int = 0):
+    """构造下载请求；offset>0 时带 Range 头做断点续传。"""
+    headers = {"User-Agent": USER_AGENT, "Accept-Encoding": "identity"}
+    if offset:
+        headers["Range"] = f"bytes={offset}-"
+    req = urllib.request.Request(url, headers=headers)
+    return urllib.request.urlopen(req, timeout=DOWNLOAD_TIMEOUT,
+                                 context=ssl_context())
+
+
+def _download_once(url: str, tmp: str, progress_cb, stop_event) -> None:
+    """单次传输：支持 Range 续传，读满 Content-Length 才算完成。"""
+    offset = os.path.getsize(tmp) if os.path.isfile(tmp) else 0
     try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT,
-                                    context=ssl_context()) as resp:
-            total = int(resp.headers.get("Content-Length") or 0)
-            written = 0
-            with open(tmp, "wb") as f:
-                while True:
-                    chunk = resp.read(CHUNK)
-                    if not chunk:
-                        break
-                    f.write(chunk)
-                    written += len(chunk)
-                    if progress_cb and (
-                        written >= total or time.time() - last_report >= 0.15
-                    ):
-                        last_report = time.time()
-                        progress_cb(written, total)
-        os.replace(tmp, dest)
-    finally:
-        if os.path.exists(tmp):
+        resp = _download_request(url, offset)
+    except urllib.error.HTTPError as e:
+        if e.code == 416 and offset:
+            # .part 已不短于服务端文件（多为上次下载其实已完成），丢弃后从头下
             try:
                 os.remove(tmp)
             except OSError:
                 pass
+            return _download_once(url, tmp, progress_cb, stop_event)
+        raise
+
+    with resp:
+        status = int(getattr(resp, "status", 200) or 200)
+        # 只有 206 Partial Content 才说明服务端认可续传；否则清空重下
+        if offset and status != 206:
+            offset = 0
+        content_range = resp.headers.get("Content-Range") or ""
+        m = re.match(r"bytes\s+(\d+)-", content_range.strip())
+        if m and int(m.group(1)) != offset:
+            offset = 0  # 服务端起止点与本地不一致，丢弃已有分片
+        length = int(resp.headers.get("Content-Length") or 0)
+        total = offset + length if length else 0
+        written = offset
+        last_report = 0.0
+        # read1 有数据就返回，不必凑满 CHUNK：慢速链路上进度也能持续跳动
+        read_chunk = getattr(resp, "read1", None) or resp.read
+        with open(tmp, "ab" if offset else "wb") as f:
+            while True:
+                if stop_event is not None and stop_event.is_set():
+                    raise DownloadCancelled(t("已取消下载"))
+                chunk = read_chunk(CHUNK)
+                if not chunk:
+                    break
+                f.write(chunk)
+                written += len(chunk)
+                if progress_cb:
+                    now = time.time()
+                    if now - last_report >= PROGRESS_INTERVAL or (
+                        total and written >= total
+                    ):
+                        last_report = now
+                        progress_cb(written, total)
+        if length and written - offset != length:
+            # 连接被提前关闭：保留 .part，交给上层续传重试
+            raise RuntimeError(
+                t("下载不完整：已收到 {done} 字节，应为 {total} 字节",
+                  done=written - offset, total=length))
+    if progress_cb:
+        progress_cb(written, total or written)
+
+
+def download_with_progress(url: str, dest: str, progress_cb=None,
+                           stop_event=None, retries: int = RETRIES) -> None:
+    """流式下载到 dest（先写 .part 再原子改名）。进度回调 (done_bytes, total_bytes)。
+
+    Content-Length 未知时 total 为 0（进度回调仍按已下载字节数持续上报）。
+    抗「卡住」的三层保护：
+    - 停滞即断：单次读取超过 ``DOWNLOAD_TIMEOUT`` 秒没字节 → 中断本次传输；
+    - 断点续传：失败保留 ``.part``，重试带 Range 从断点继续，不必从头再来；
+    - 有界重试：最多重试 ``retries`` 次，之后抛错由上层提示，绝不无限等待。
+    ``stop_event``（threading.Event）置位后立即抛 ``DownloadCancelled``。
+    """
+    tmp = dest + ".part"
+    last_err: Exception | None = None
+    for attempt in range(retries + 1):
+        if stop_event is not None and stop_event.is_set():
+            raise DownloadCancelled(t("已取消下载"))
+        try:
+            _download_once(url, tmp, progress_cb, stop_event)
+            os.replace(tmp, dest)
+            return
+        except DownloadCancelled:
+            raise
+        except Exception as e:  # noqa: BLE001 - 网络错误种类多，统一重试
+            if stop_event is not None and stop_event.is_set():
+                raise DownloadCancelled(t("已取消下载")) from e
+            last_err = e
+            if attempt < retries:
+                time.sleep(min(1.5 * (attempt + 1), 5))
+    raise RuntimeError(
+        t("下载失败（已自动重试 {n} 次）：{err}", n=retries, err=last_err)) from last_err
 
 
 def verify_sha256(path: str, expected: str) -> bool:
@@ -316,6 +394,7 @@ def extract_zip_safe(zip_path: str, dest_dir: str, progress_cb=None) -> None:
     with zipfile.ZipFile(zip_path) as zf:
         names = [n for n in zf.namelist() if not n.endswith("/")]
         total = len(names)
+        last_report = 0.0
         for i, name in enumerate(names):
             clean = name.replace("\\", "/")
             parts = clean.split("/")
@@ -326,4 +405,8 @@ def extract_zip_safe(zip_path: str, dest_dir: str, progress_cb=None) -> None:
             with zf.open(name) as src, open(target, "wb") as dst:
                 shutil.copyfileobj(src, dst)
             if progress_cb and total:
-                progress_cb(i + 1, total)
+                # PHP 包内文件上千个，逐文件回调会把 UI 队列刷爆（表现为解压时界面卡顿）
+                now = time.time()
+                if i + 1 >= total or now - last_report >= PROGRESS_INTERVAL:
+                    last_report = now
+                    progress_cb(i + 1, total)

@@ -51,5 +51,7 @@
  "停止 Redis": "Stop Redis",
  "全部同步完成：备份保留于各文件 .bak，可点击「重载 Nginx」生效。": "All synced: backups are kept as each file's .bak; click \"Reload Nginx\" to apply.",
  "全部通过": "All passed",
- "还原失败：{path}（备份 {backup}）": "Restore failed: {path} (backup {backup})"
+ "还原失败：{path}（备份 {backup}）": "Restore failed: {path} (backup {backup})",
+ "正在取消…": "Cancelling…",
+ "下载安装进行中，是否取消并关闭？": "Download and install in progress. Cancel and close?"
 }

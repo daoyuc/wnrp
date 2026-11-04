@@ -56,6 +56,9 @@ class DownloadDialog(tk.Toplevel):
         self._selected = None       # 当前选中的 SeriesCandidate
         self._selected_state = STATE_READY
         self._busy = False
+        self._stop = threading.Event()   # 置位后 worker 中断下载
+        self._pending_close = False      # 取消后自动关窗
+        self._indeterminate = False      # 进度条是否处于不确定模式
 
         self.title(t("下载 PHP 版本"))
         self.resizable(True, True)
@@ -148,11 +151,14 @@ class DownloadDialog(tk.Toplevel):
                                   background=theme.CARD_BG, anchor="w")
         self._summary.grid(row=2, column=0, columnspan=3, sticky="w", pady=(8, 0))
 
-        # 进度区
+        # 进度区（进度条 + 取消按钮同一行，保证不挤占底部操作区）
         prog = ttk.Frame(root, style="Card.TFrame")
         prog.pack(fill="x", pady=(0, 12))
-        self._prog = ttk.Progressbar(prog, maximum=100, mode="determinate")
-        self._prog.pack(fill="x")
+        bar_row = ttk.Frame(prog, style="Card.TFrame")
+        bar_row.pack(fill="x")
+        self._prog = ttk.Progressbar(bar_row, maximum=100, mode="determinate")
+        self._prog.pack(side="left", fill="x", expand=True)
+        self._btn_cancel = ttk.Button(bar_row, text=t("取消"), command=self._on_cancel)
         self._prog_text = ttk.Label(prog, text="", style="SubTitle.TLabel", anchor="w")
         self._prog_text.pack(fill="x", pady=(4, 0))
 
@@ -276,20 +282,33 @@ class DownloadDialog(tk.Toplevel):
             messagebox.showerror(t("错误"), t("该版本在当前架构下没有可用安装包。"), parent=self)
             return
         self._set_busy(True)
-        self._prog.configure(mode="determinate", value=0)
+        self._stop.clear()
+        self._pending_close = False
+        self._reset_progress()
         self._prog_text.config(text=f"{t('正在下载')}… 0%")
+        self._btn_cancel.pack(side="right", padx=(8, 0))
+        self._btn_cancel.state(["!disabled"])
         t = threading.Thread(target=self._install_worker, args=(pkg,), daemon=True)
         t.start()
 
     def _install_worker(self, pkg):
         try:
-            result = install(pkg, self.config, progress=self._on_progress)
+            result = install(pkg, self.config, progress=self._on_progress,
+                             stop_event=self._stop)
             self.queue.put(("installed", result))
         except Exception as e:  # noqa: BLE001
             self.queue.put(("install_error", f"{type(e).__name__}: {e}"))
 
-    def _on_progress(self, stage: str, ratio: float | None):
-        self.queue.put(("progress", stage, ratio))
+    def _on_progress(self, stage: str, ratio: float | None, detail: str = ""):
+        self.queue.put(("progress", stage, ratio, detail))
+
+    def _on_cancel(self):
+        """请求中断下载（worker 在下一个数据块边界退出，最迟一个读超时）。"""
+        if not self._busy:
+            return
+        self._stop.set()
+        self._btn_cancel.state(["disabled"])
+        self._prog_text.config(text=t("正在取消…"))
 
     # ------------------------------------------------------------ 事件轮询 #
     def _poll(self):
@@ -325,34 +344,72 @@ class DownloadDialog(tk.Toplevel):
                     self._tree.delete(*self._tree.get_children())
                     self._retry_btn.pack(side="right")
                 elif kind == "progress":
-                    _, stage, ratio = msg
-                    self._render_progress(stage, ratio)
+                    self._render_progress(*msg[1:])
                 elif kind == "installed":
                     self._handle_result(msg[1])
                 elif kind == "install_error":
-                    self._set_busy(False)
-                    self._prog.configure(mode="determinate", value=0)
-                    self._prog_text.config(text="")
-                    messagebox.showerror(t("安装失败"), t("安装失败：{err}", err=msg[1]), parent=self)
+                    self._finish_failed(t("安装失败：{err}", err=msg[1]))
             except Exception as e:  # noqa: BLE001 - 单条消息失败只丢这一条
                 # 不放开 busy 会让弹窗永久停在「安装中」，这里先恢复交互再上报
                 self._set_busy(False)
+                self._reset_progress()
                 self._hint.config(text=t("内部错误：{err}", err=e))
                 run_log.error("ui", t("内部错误：{err}", err=e))
         rearm_poll(self, self._poll)
 
-    def _render_progress(self, stage: str, ratio: float | None):
+    def _render_progress(self, stage: str, ratio: float | None, detail: str = ""):
+        if self._stop.is_set():
+            return  # 已请求取消：保留「正在取消…」提示，不被残留进度覆盖
         base = _STAGE_TEXT.get(stage, stage)
+        suffix = f" {detail}" if detail else ""
         if ratio is None:
-            self._prog.configure(mode="determinate", value=100)
-            self._prog_text.config(text=f"{base}…")
+            # 大小未知 / 不确定阶段：用滚动条表示「仍在进行」，不再伪装成 100%
+            self._set_indeterminate(True)
+            self._prog_text.config(text=f"{base}…{suffix}")
         else:
+            self._set_indeterminate(False)
             pct = max(0.0, min(100.0, ratio * 100))
-            self._prog.configure(mode="determinate", value=pct)
-            self._prog_text.config(text=f"{base}… {pct:.1f}%")
+            self._prog.configure(value=pct)
+            self._prog_text.config(text=f"{base}… {pct:.1f}%{suffix}")
+
+    def _set_indeterminate(self, on: bool):
+        """切换进度条确定 / 滚动模式（避免总大小未知时进度条卡在 100%）。"""
+        if on == self._indeterminate:
+            return
+        self._indeterminate = on
+        if on:
+            self._prog.configure(mode="indeterminate")
+            self._prog.start(15)
+        else:
+            self._prog.stop()
+            self._prog.configure(mode="determinate")
+
+    def _reset_progress(self):
+        self._set_indeterminate(False)
+        self._prog.configure(mode="determinate", value=0)
+        self._prog_text.config(text="")
+        self._hide_cancel()
+
+    def _hide_cancel(self):
+        self._btn_cancel.pack_forget()
+
+    def _finish_failed(self, text: str):
+        """失败收尾：解除 busy、复位进度，必要时（用户已请求关闭）直接关窗。"""
+        self._set_busy(False)
+        self._reset_progress()
+        if self._pending_close:
+            self._safe_destroy()
+            return
+        messagebox.showerror(t("安装失败"), text, parent=self)
 
     def _handle_result(self, result):
         self._set_busy(False)
+        self._reset_progress()
+        if getattr(result, "cancelled", False):
+            # 用户取消不是错误：不弹错误框，按需关窗
+            if self._pending_close:
+                self._safe_destroy()
+            return
         if result.ok:
             msg = (f"{result.message}\n\n"
                    + t("已自动完成：ini 配置生成、端口分配（{port}）。", port=result.port)
@@ -365,10 +422,10 @@ class DownloadDialog(tk.Toplevel):
                     pass
             self._safe_destroy()
         else:
+            if self._pending_close:
+                self._safe_destroy()
+                return
             messagebox.showerror(t("安装失败"), result.message, parent=self)
-            self._set_busy(False)
-            self._prog.configure(mode="determinate", value=0)
-            self._prog_text.config(text="")
 
     # ---------------------------------------------------------------- 辅助 #
     def _set_busy(self, busy: bool):
@@ -381,7 +438,13 @@ class DownloadDialog(tk.Toplevel):
 
     def _on_close(self):
         if self._busy:
-            messagebox.showwarning(t("提示"), t("下载安装进行中，请稍候…"), parent=self)
+            # 真卡住时不能把用户锁在窗里：允许取消后关闭
+            if not messagebox.askyesno(
+                t("提示"), t("下载安装进行中，是否取消并关闭？"), parent=self
+            ):
+                return
+            self._pending_close = True
+            self._on_cancel()
             return
         self._safe_destroy()
 
