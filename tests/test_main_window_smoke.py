@@ -122,6 +122,22 @@ class MainWindowSmokeTest(unittest.TestCase):
         self.assertEqual(len(panels), 1, "项目启动器页签应被挂载")
         self.assertTrue(panels[0]._browse_btn.winfo_exists())
 
+    def test_access_insights_tab_has_core_widgets(self):
+        """访问日志聚合页签挂上后，文件下拉与小时分布画布必须存在。"""
+        real = modules_mod.is_enabled
+        with mock.patch.object(
+                modules_mod, "is_enabled",
+                lambda key, cfg: True if key == "access_insights"
+                else real(key, cfg)):
+            app = self._build()
+        panels = [p for p in getattr(app, "_plugin_panels", [])
+                  if type(p).__name__ == "AccessInsightsPanel"]
+        self.assertEqual(len(panels), 1, "访问日志聚合页签应被挂载")
+        panel = panels[0]
+        self.assertTrue(panel._file_combo.winfo_exists())
+        self.assertTrue(panel._hour_canvas.winfo_exists())
+        self.assertIn(panel._lines, (2000, 20000, 100000))
+
     def test_build_is_repeatable(self):
         """连续建两次（覆盖「已有页签时 insert(0)」与「空 notebook」两条分支）。"""
         app = self._build()

@@ -36,6 +36,7 @@
 | `diag` | 一键体检 / 502 诊断（只读） | `all` · `site` |
 | `env` | 输出全部服务快照（nginx / PHP / Redis / MySQL） | — |
 | `hosts` | hosts 映射管理 | `add` · `remove` · `restore` · `status` |
+| `insights` | 访问日志聚合（只读解析 nginx access.log） | `files` · `report` |
 | `keymouse` | 键鼠统计插件 | `clear` · `daemon`（`start` · `status` · `stop`） · `export` · `pause` · `resume` · `status` · `summary` |
 | `launcher` | 项目启动器（列出项目 / 打开站点 / 一键终端） | `add` · `browse` · `commands` · `list` · `open` · `remove` |
 | `logs` | 站点与应用日志聚合（只读） | `sources` · `tail` |
@@ -157,6 +158,21 @@
 | 参数 | 必填 | 默认 | 说明 |
 |---|---|---|---|
 | `<domains>` | 是 |  | 域名列表 |
+
+## `insights` — 访问日志聚合（只读解析 nginx access.log）
+
+### `insights files` — 列出可分析的 nginx access 日志
+
+（无参数）
+
+### `insights report` — 聚合统计 access.log（状态码 / 热门路径 / 错误请求）
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--file` |  |  | 日志文件名（默认 access.log） |
+| `--lines` |  | 20000 | 统计尾部行数（默认 20000） |
+| `--top` |  | 10 | Top N（默认 10） |
+| `--errors` |  |  | 只输出错误请求（4xx / 5xx） |
 
 ## `keymouse` — 键鼠统计插件
 

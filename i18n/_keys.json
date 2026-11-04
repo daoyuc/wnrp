@@ -66,6 +66,12 @@
    "ui/main_window.py"
   ]
  },
+ "5xx 比例": {
+  "count": 1,
+  "files": [
+   "ui/plugins/access_insights_panel.py"
+  ]
+ },
  "== phpvm Nginx 管理器 ==": {
   "count": 1,
   "files": [
@@ -184,6 +190,12 @@
   "count": 1,
   "files": [
    "ui/xdebug_dialog.py"
+  ]
+ },
+ "IP": {
+  "count": 1,
+  "files": [
+   "ui/plugins/access_insights_panel.py"
   ]
  },
  "Linux 下显式指定 epoll（默认已自动选择，写出来便于确认）": {
@@ -599,6 +611,18 @@
   "count": 1,
   "files": [
    "ui/download_dialog.py"
+  ]
+ },
+ "Top IP": {
+  "count": 1,
+  "files": [
+   "ui/plugins/access_insights_panel.py"
+  ]
+ },
+ "Top IP：": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "URL 不在该项目的站点列表中：{url}": {
@@ -2546,7 +2570,7 @@
   ]
  },
  "刷新": {
-  "count": 9,
+  "count": 10,
   "files": [
    "ui/mail_panel.py",
    "ui/nginx_log_panel.py",
@@ -2555,6 +2579,7 @@
    "ui/run_log_panel.py",
    "ui/sqlite_panel.py",
    "ui/vhost_panel.py",
+   "ui/plugins/access_insights_panel.py",
    "ui/plugins/project_launcher_panel.py"
   ]
  },
@@ -2638,6 +2663,12 @@
   "count": 1,
   "files": [
    "core/tuning.py"
+  ]
+ },
+ "占比": {
+  "count": 3,
+  "files": [
+   "ui/plugins/access_insights_panel.py"
   ]
  },
  "危险命令确认": {
@@ -2756,6 +2787,12 @@
   "count": 1,
   "files": [
    "core/ini_editor.py"
+  ]
+ },
+ "可分析的 access 日志：": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "可在主界面直接启动该版本。": {
@@ -3714,9 +3751,10 @@
   ]
  },
  "就绪": {
-  "count": 2,
+  "count": 3,
   "files": [
    "ui/main_window.py",
+   "ui/plugins/access_insights_panel.py",
    "ui/plugins/project_launcher_panel.py"
   ]
  },
@@ -4485,6 +4523,12 @@
    "cli.py"
   ]
  },
+ "平均耗时": {
+  "count": 1,
+  "files": [
+   "ui/plugins/access_insights_panel.py"
+  ]
+ },
  "平滑重载": {
   "count": 2,
   "files": [
@@ -5097,6 +5141,12 @@
    "core/tuning.py"
   ]
  },
+ "报告文件：{file}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "报告：{file}": {
   "count": 1,
   "files": [
@@ -5110,9 +5160,16 @@
   ]
  },
  "按小时分布": {
+  "count": 2,
+  "files": [
+   "ui/plugins/access_insights_panel.py",
+   "core/plugins/keymouse/stats.py"
+  ]
+ },
+ "按小时分布：": {
   "count": 1,
   "files": [
-   "core/plugins/keymouse/stats.py"
+   "cli.py"
   ]
  },
  "按小时活动": {
@@ -5400,6 +5457,18 @@
    "ui/php_panel.py"
   ]
  },
+ "方法": {
+  "count": 1,
+  "files": [
+   "ui/plugins/access_insights_panel.py"
+  ]
+ },
+ "方法：": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "无": {
   "count": 3,
   "files": [
@@ -5591,10 +5660,17 @@
    "ui/main_window.py"
   ]
  },
- "日志文件": {
+ "日志只读自 nginx 日志目录，不读取项目内文件": {
   "count": 1,
   "files": [
-   "ui/run_log_panel.py"
+   "ui/plugins/access_insights_panel.py"
+  ]
+ },
+ "日志文件": {
+  "count": 2,
+  "files": [
+   "ui/run_log_panel.py",
+   "ui/plugins/access_insights_panel.py"
   ]
  },
  "日志文件不存在：{path}": {
@@ -5622,11 +5698,12 @@
   ]
  },
  "时间": {
-  "count": 3,
+  "count": 4,
   "files": [
    "ui/dialogs.py",
    "ui/mail_panel.py",
-   "ui/run_log_panel.py"
+   "ui/run_log_panel.py",
+   "ui/plugins/access_insights_panel.py"
   ]
  },
  "是": {
@@ -5719,6 +5796,12 @@
    "cli.py"
   ]
  },
+ "暂无数据": {
+  "count": 1,
+  "files": [
+   "ui/plugins/access_insights_panel.py"
+  ]
+ },
  "暂无记录": {
   "count": 2,
   "files": [
@@ -5771,6 +5854,12 @@
   "count": 1,
   "files": [
    "core/diag.py"
+  ]
+ },
+ "最近错误请求": {
+  "count": 1,
+  "files": [
+   "ui/plugins/access_insights_panel.py"
   ]
  },
  "有警告": {
@@ -5972,6 +6061,24 @@
    "core/hosts_manager.py"
   ]
  },
+ "未找到 nginx access 日志": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "未找到 nginx access 日志（可能站点未产生访问，或配置里关闭了 access_log）": {
+  "count": 1,
+  "files": [
+   "ui/plugins/access_insights_panel.py"
+  ]
+ },
+ "未找到 nginx access 日志（目录：{dir}）": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "未找到 nginx 主配置：{file}\n请先确认 nginx 安装与前缀目录。": {
   "count": 1,
   "files": [
@@ -6108,6 +6215,13 @@
   "count": 1,
   "files": [
    "cli.py"
+  ]
+ },
+ "未找到该 access 日志：{name}": {
+  "count": 2,
+  "files": [
+   "cli.py",
+   "ui/plugins/access_insights_panel.py"
   ]
  },
  "未找到邮件：{name}": {
@@ -6440,6 +6554,12 @@
   "count": 1,
   "files": [
    "ui/plugins/keymouse_panel.py"
+  ]
+ },
+ "次数": {
+  "count": 3,
+  "files": [
+   "ui/plugins/access_insights_panel.py"
   ]
  },
  "正在{action} [{name}] …": {
@@ -6867,6 +6987,18 @@
    "ui/update_dialog.py"
   ]
  },
+ "热门路径": {
+  "count": 1,
+  "files": [
+   "ui/plugins/access_insights_panel.py"
+  ]
+ },
+ "热门路径：": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "版本": {
   "count": 2,
   "files": [
@@ -6905,6 +7037,24 @@
   "count": 1,
   "files": [
    "ui/redis_panel.py"
+  ]
+ },
+ "状态码": {
+  "count": 2,
+  "files": [
+   "ui/plugins/access_insights_panel.py"
+  ]
+ },
+ "状态码分布": {
+  "count": 1,
+  "files": [
+   "ui/plugins/access_insights_panel.py"
+  ]
+ },
+ "状态码：": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "状态获取失败：{err}": {
@@ -6978,6 +7128,12 @@
   "count": 3,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "独立 IP": {
+  "count": 1,
+  "files": [
+   "ui/plugins/access_insights_panel.py"
   ]
  },
  "独立进程": {
@@ -7437,10 +7593,22 @@
    "ui/sqlite_panel.py"
   ]
  },
+ "统计失败": {
+  "count": 1,
+  "files": [
+   "ui/plugins/access_insights_panel.py"
+  ]
+ },
  "统计库：{path}（{size} 字节）": {
   "count": 1,
   "files": [
    "cli.py"
+  ]
+ },
+ "统计行数": {
+  "count": 1,
+  "files": [
+   "ui/plugins/access_insights_panel.py"
   ]
  },
  "继续采集": {
@@ -7709,6 +7877,24 @@
    "cli.py"
   ]
  },
+ "访问日志聚合": {
+  "count": 1,
+  "files": [
+   "ui/plugins/access_insights_panel.py"
+  ]
+ },
+ "访问日志聚合渲染失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/access_insights_panel.py"
+  ]
+ },
+ "访问日志聚合读取失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/access_insights_panel.py"
+  ]
+ },
  "证书删除失败：{err}": {
   "count": 1,
   "files": [
@@ -7940,10 +8126,22 @@
    "ui/plugins/project_launcher_panel.py"
   ]
  },
+ "请求 {n} · 独立 IP {ips} · 5xx 占比 {rate}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "请求体先在内存缓冲，减少写临时文件带来的磁盘 IO": {
   "count": 1,
   "files": [
    "core/tuning.py"
+  ]
+ },
+ "请求数": {
+  "count": 1,
+  "files": [
+   "ui/plugins/access_insights_panel.py"
   ]
  },
  "请输入 SQL 语句后执行": {
@@ -7968,6 +8166,13 @@
   "count": 2,
   "files": [
    "core/hosts_manager.py"
+  ]
+ },
+ "读取 {read} 行，解析 {parsed} 行（跳过 {skipped}）": {
+  "count": 2,
+  "files": [
+   "cli.py",
+   "ui/plugins/access_insights_panel.py"
   ]
  },
  "读取主配置失败：{err}": {
@@ -8063,6 +8268,12 @@
   "count": 1,
   "files": [
    "cli.py"
+  ]
+ },
+ "路径": {
+  "count": 2,
+  "files": [
+   "ui/plugins/access_insights_panel.py"
   ]
  },
  "路径解析缓存：框架每次请求上千次 stat()，默认 16K 太小": {
@@ -8573,6 +8784,12 @@
   "count": 1,
   "files": [
    "ui/php_panel.py"
+  ]
+ },
+ "错误请求（最近 {n} 条）：": {
+  "count": 2,
+  "files": [
+   "cli.py"
   ]
  },
  "错误：{text}": {

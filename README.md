@@ -52,6 +52,7 @@
 - **内置插件框架**：插件随版本分发，在「关于 → 模块」统一启用 / 停用；停用后不建页签、不加载其代码，也不再拉起后台记录进程
 - **键鼠统计**（仅 Windows）：独立后台进程记录按键次数与时间点，按今日 / 本周 / 本月 / 本年 / 全部汇总 —— 大数字卡（按键总数与日均、打字速度与峰值 / 均值）、键位 Top 10 横条榜、24 小时活动柱状图；支持暂停 / 继续、显示报告、导出 CSV、清空记录与登录后自动运行。**只记录按了哪个键，不记录输入内容、窗口标题或剪贴板**；关闭 phpvm 主窗口后仍继续记录
 - **项目启动器**：自动汇总本地项目（`<WNRP_ROOT>/www/*` + 站点 root 去重，读取 `.phpvm.json` 里的 PHP 版本 / 域名等元信息），从站点映射（vhost）的 `server_name` 生成访问地址：选中项目后点「在浏览器打开」、双击项目行，或右键选择具体域名 / 复制 URL；也可按 `composer.json` / `artisan` / `package.json` 等标志文件推荐常用命令，一键在终端打开并前置对应 PHP 版本的 PATH。命令只来自内置白名单或你自己添加的设置项，**不会自动执行，也绝不读取项目里的配置当命令运行**；URL 同样不采信 `.phpvm.json` 的域名。支持添加 / 删除自定义命令（可限定单个项目）；没有建站点的项目只能打开目录 / 终端，浏览器按钮会置灰
+- **访问日志聚合**：只读解析 nginx `access.log`（含 `.log.N` 轮转文件），汇总状态码分布、Top 路径 / IP / UA、按小时请求量与最近 4xx/5xx 明细，支持「只看错误请求」快速排查。日志只能从候选文件名里选，不读项目内任何文件，结果不落库、不上传（ADR 17）
 
 ## 启动方式
 
@@ -83,7 +84,7 @@ python3 cli.py schema --json    # 全部命令 / 参数 / 默认值的自描述�
 - 任意命令加 `--json`：stdout 只有一个 `{"ok", "command", "data", "warnings"}` 文档（字段名英文，稳定契约）
 - 退出码：`0` 成功 / `1` 业务失败（见 `data.error`）/ `2` 参数用法错误
 - 安全默认：写操作支持 `--dry-run`；删除需 `--yes`；Redis 危险命令需 `--force`；改动前自动备份 `.bak`
-- 覆盖 PHP / Nginx / 站点 / hosts / Redis / MySQL / SQLite / 服务编排 / 体检 / 日志 / 备份 / 项目配置 / Adminer / 插件（`plugin`）/ 键鼠统计（`keymouse`）/ 项目启动器（`launcher`）等分组
+- 覆盖 PHP / Nginx / 站点 / hosts / Redis / MySQL / SQLite / 服务编排 / 体检 / 日志 / 备份 / 项目配置 / Adminer / 插件（`plugin`）/ 键鼠统计（`keymouse`）/ 项目启动器（`launcher`）/ 访问日志聚合（`insights`）等分组
 
 完整命令参考见 [docs/CLI.md](docs/CLI.md)（由 `cli.py` 自动生成，不会漂移）。
 
@@ -108,7 +109,7 @@ vhost 里的 `fastcgi_pass 127.0.0.1:<端口>` 决定站点由哪个 PHP 版本�
 
 - **config.json** 保存端口映射与设置（自愈开关、语言、主题、自动启动范围与各版本勾选名单等）。程序目录可写时放在程序目录；只读安装目录（`.app` / `Program Files`）下自动改用 `~/.phpvm`，因此升级替换程序文件**不会丢配置**；`PHPVM_HOME` 可强制指定数据目录
 - 配置损坏或 JSON 解析失败时回退内置默认值并覆盖保存
-- **插件设置与数据**：插件设置统一落 `settings.plugin_settings.<插件 key>`（如保留天数 `retention_days`）；键鼠统计的数据在 `<数据目录>/plugins/keymouse/` —— `stats.db`（SQLite / WAL 聚合表）与 `daemon.lock` / `daemon.heartbeat` / `daemon.stop` / `paused` / `daemon.log`。均为运行期文件，不入库，也不上传
+- **插件设置与数据**：插件设置统一落 `settings.plugin_settings.<插件 key>`——键鼠统计的保留天数在 `retention_days`，项目启动器的自定义命令在 `project_launcher.custom_commands`；键鼠统计的数据在 `<数据目录>/plugins/keymouse/` —— `stats.db`（SQLite / WAL 聚合表）与 `daemon.lock` / `daemon.heartbeat` / `daemon.stop` / `paused` / `daemon.log`。均为运行期文件，不入库，也不上传
 - CLI 亦可读写：`cli.py config get settings.theme` / `cli.py config set settings.theme dark`
 
 ## 文档

@@ -138,4 +138,10 @@
 - **背景**：第二个插件要把「本地项目 → 常用命令」做成一键终端。`.phpvm.json` 的模块注释明确写着「团队可直接放进项目仓库」（`core/project_config.py`），而 `process_utils.open_terminal(command=...)` 是**立即执行**语义。若把项目配置里的字段喂给它，克隆一个仓库就等于执行任意代码；即便只做「自动推荐」，命令来源也会变成不可信输入。
 - **决策**：命令只有两类来源 —— `core/plugins/project_launcher/commands.py::BUILTIN` 固定模板（按 `composer.json` / `artisan` / `package.json` 等标志文件筛选）与用户在面板 / CLI 手动添加、只落 `settings.plugin_settings.project_launcher.custom_commands` 的自定义命令。`.phpvm.json` 只读 `php` / `domains` 作展示元信息，且**只读项目根自己的那一份**，不向上继承父目录配置。命令过元字符与长度校验；自定义命令运行前二次确认；插件无后台进程、无定时执行，只有用户点击 / 显式 CLI 调用才打开一次浏览器或终端；写操作先 `--dry-run`、删除需 `--yes`。
 - **URL 也是不可信输入**：「在浏览器打开」的地址只由 nginx vhost 的 `server_name` 生成（`projects.valid_site_url()` 限定 http/https + 合法域名、无路径 / 端口 / 凭据），`.phpvm.json` 的 `domains` 只作展示；`launcher browse --url` 也必须命中该项目的候选列表，否则带 `available` 失败，避免把任意字符串交给 `webbrowser.open`。已禁用站点（`.conf.disabled`）不产出 URL。
+
+## 17. 访问日志聚合只读 nginx 自己的日志目录，不接受任意路径
+
+- **背景**：第三个插件要把「访问日志 → 状态码 / 热门路径 / 错误请求」做成概览。日志**内容**不可信（路径、UA 都能被请求方构造），而「读哪个文件」如果做成任意路径参数，就等于给 GUI / CLI 开了一个读任意文件的入口；把统计结果落库还会额外引入运行期数据与隐私面。
+- **决策**：`core/plugins/access_insights/aggregate.py` 的 `access_logs()` 只枚举 `NginxManager().logs_dir` 下匹配 `*access*.log`（含 `.log.N` 轮转）的文件，并对每个候选做 `realpath` 前缀校验（符号链接逃逸同样被拒）；`report()` 只接受**候选列表里的文件名**，未知名字返回 `not_found` + `available`，不存在「传路径」的入口。逐行解析失败（含时间不可解析）计入 `skipped`，不抛异常；单次最多回溯 8MB / 20 万行，避免大日志打满内存。结果只存在于内存与响应体里，**不落库、不写文件、不上传**；插件无后台进程、无定时任务，刷新由主窗口 tick 或用户点击驱动。
+- **影响**：`insights files` / `insights report --file` 与面板的文件下拉共享同一份候选来源；后续若要支持自定义日志路径，必须先在 `NginxManager` 侧声明受管日志目录，而不是把路径直接交给插件。`tests/test_access_insights.py` 守住「只列 access 日志」「未知文件列出候选」「畸形行计入 skipped」。
 - **影响**：后续扩展插件不得引入「从项目仓库读取可执行内容」的路径；CLI 的 `--command` 参数必须使用独立 `dest`（`command_text`），否则覆盖 `Result.command` 的 `<group>.<action>` 契约；顺带修好 `open_terminal` Linux 分支忽略 `command` 的既有缺陷，并用 `shlex.quote` 引用路径。

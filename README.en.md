@@ -34,18 +34,18 @@ Each PHP version is started and stopped precisely by port, so versions never int
 
 **Services**
 
-- **PHP**: auto-discovery (including Homebrew), start / stop / restart by port, edit port with one-click vhost sync, ini form editing and recommended settings, extension management and online install, download new versions, version self-check, Composer detection, switch the terminal `php`, **one-click Xdebug toggle**
+- **PHP**: auto-discovery (including Homebrew), start / stop / restart by port, edit port with one-click vhost sync, ini form editing and recommended settings, extension management and online install, download new versions, version self-check, Composer detection, switch the terminal `php`, **one-click Xdebug toggle**, **per-version launch at login** (toggle the "Launch at login" column; combined with the "per PHP" policy in settings)
 - **Nginx**: start / graceful reload / config check / recommended settings
 - **Redis**: multi-instance discovery and control, command execution (confirmation for dangerous commands), DB keyspace chart
-- **MySQL**: instance discovery and control (Windows service first), config and error log
+- **MySQL**: instance discovery and control (Windows service first; besides the env-root `mysql*` it also probes services / PATH / common install locations, configurable via `settings.mysql_dirs`), config and error log
 - **SQLite**: read-only browsing of schema and queries
 
 **Data & operations**
 
 - **Environment backup & migration**: export config.json / vhost / nginx.conf / php.ini to a zip and restore in one click (backed up first, full rollback if `nginx -t` fails; database data excluded)
 - **Adminer database GUI**: download the single file and host it at `adminer.test` (zero driver dependencies, local development only)
-- **Mail capture**: PHP `mail()` messages are written as `.eml` and viewable on the "Mail" page (`sendmail_path` shim, no external dependencies; Unix only)
-- **Crash detection & self-healing**: detect php-cgi crashes and alert; optional standalone watchdog to restart automatically (debounce + rate limit); manual / stop-all also clears the watch list, so stopped versions are never pulled back up
+- **Mail capture**: PHP `mail()` messages are written as `.eml` and viewable on the "Mail" page — a `sendmail_path` shim on Unix (no external dependencies), an internal SMTP sink on Windows (`127.0.0.1:1025`, running with phpvm; see the "Mail" page)
+- **Crash detection & self-healing**: detect php-cgi crashes and alert; optional standalone watchdog to restart automatically (debounce + rate limit); the watch list is trimmed to the launch-at-login scope across restarts, so versions not started last run are never resurrected; manual / stop-all also clears the watch list, so stopped versions are never pulled back up
 - **Auto-update** (installer builds), **launch at login**, **system tray** (Windows)
 
 **Plugins**
@@ -53,6 +53,7 @@ Each PHP version is started and stopped precisely by port, so versions never int
 - **Built-in plugin framework**: plugins ship with the app and are toggled in About -> Modules; disabling one removes its tab, stops loading its code and prevents its background worker from starting
 - **Keyboard stats** (Windows only): a standalone background process records key presses and timestamps, with today / week / month / year / all summaries — big-number cards (total & daily average presses, typing speed with peak / mean), a Top 10 key ranking, a 24-hour activity chart, pause / resume, report view, CSV export, clear data and launch-at-login. Only *which key* was pressed is stored: no typed text, window titles or clipboard content. Recording continues after the main window is closed
 - **Project launcher**: collects local projects (www subdirectories + site roots, de-duplicated) and derives their URLs from the `server_name` in the vhost configs. Select a project and click "Open in browser", double-click the row, or use the right-click menu to pick a specific domain / copy the URL. It also suggests common commands from marker files (composer.json / artisan / package.json); one click opens a terminal in the project with the matching PHP version prepended to PATH. Commands come only from a built-in whitelist or entries you add yourself; nothing runs automatically, `.phpvm.json` is never used as a command source, and its domains never become URLs. Custom commands can be scoped to a single project. Projects without a vhost only offer folder / terminal actions, with the browser button disabled
+- **Access log insights**: read-only parsing of nginx access logs (including rotated `.log.N` files) with status code distribution, top paths / IPs / user agents, an hourly histogram and the latest 4xx/5xx requests, plus an "errors only" view for quick triage. Logs can only be picked from the candidate list — no project files are read, nothing is stored or uploaded (ADR 17)
 
 ## Getting Started
 
@@ -85,7 +86,7 @@ python3 cli.py schema --json    # self-describing contract for every command / a
 - Add `--json` to any command: stdout carries a single `{"ok", "command", "data", "warnings"}` document (English field names, stable contract)
 - Exit codes: `0` success / `1` business failure (see `data.error`) / `2` usage error
 - Safe defaults: write operations support `--dry-run`; deletion requires `--yes`; dangerous Redis commands require `--force`; files are backed up (`.bak`) before changes
-- Groups cover PHP / Nginx / sites / hosts / Redis / MySQL / SQLite / service orchestration / diagnostics / logs / backup / project config / Adminer
+- Groups cover PHP / Nginx / sites / hosts / Redis / MySQL / SQLite / service orchestration / diagnostics / logs / backup / project config / Adminer / plugins (`plugin`) / keyboard stats (`keymouse`) / project launcher (`launcher`) / access log insights (`insights`)
 
 Full command reference: [docs/CLI.md](docs/CLI.md) (generated from `cli.py`, so it never drifts).
 
@@ -110,6 +111,7 @@ Full command reference: [docs/CLI.md](docs/CLI.md) (generated from `cli.py`, so 
 
 - **config.json** stores port mappings and settings (self-healing switch, language, theme, autostart scope, ...). It lives in the program directory when that is writable; under read-only install locations (`.app` / `Program Files`) it moves to `~/.phpvm`, so upgrading program files **never loses your config**. `PHPVM_HOME` forces a custom data directory
 - If the file is corrupt or invalid JSON, built-in defaults are restored and re-saved
+- **Plugin settings & data**: every plugin keeps its settings under `settings.plugin_settings.<plugin key>` — `retention_days` for keyboard stats, `project_launcher.custom_commands` for custom launcher commands; keyboard stats data lives in `<data dir>/plugins/keymouse/` (`stats.db` as SQLite / WAL plus `daemon.lock` / `daemon.heartbeat` / `daemon.stop` / `paused` / `daemon.log`). All are runtime files: not committed, never uploaded
 - The CLI can read / write it too: `cli.py config get settings.theme` / `cli.py config set settings.theme dark`
 
 ## Documentation

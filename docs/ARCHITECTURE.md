@@ -98,6 +98,10 @@ worker 只 `queue.put()`，主窗口的 `_post()` 也**只入队、不碰 `after
 浏览器打开与命令都只经用户点击才执行一次。站点 URL 也只由 vhost 的 `server_name`
 生成，不采信 `.phpvm.json` 的 `domains`（安全边界见 [ADR 16](DECISIONS.md)）。
 
+访问日志聚合插件同样没有后台进程：worker 只读 nginx 日志目录里的 access 日志，
+结果不进数据库、不写文件；日志只能按**候选文件名**选择，从不接受任意路径
+（边界见 [ADR 17](DECISIONS.md)）。
+
 ## 4. 运行期状态与落点
 
 | 文件 / 位置 | 内容 | 谁写 | 备注 |

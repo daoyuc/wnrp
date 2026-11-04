@@ -59,6 +59,7 @@ from core import (  # noqa: E402
     xdebug,
 )
 from core import config as config_mod  # noqa: E402
+from core.plugins.access_insights import aggregate as access_insights  # noqa: E402
 from core.config import Config, WNRP_ROOT  # noqa: E402
 from core.i18n import t  # noqa: E402  (统一文案入口；此前缺失导致 t() 调用崩溃)
 from core.health_monitor import HealthMonitor  # noqa: E402
@@ -928,6 +929,77 @@ def cmd_logs_tail(a, r: Result) -> Result:
     text = _tail(path, a.lines)
     r.data = {"file": path, "lines": a.lines, "content": text}
     r.say(text)
+    return r
+
+
+# --------------------------------------------------------------------------- #
+# insights（nginx access.log 聚合，只读）
+# --------------------------------------------------------------------------- #
+def _fmt_size(size: int) -> str:
+    if size >= 1024 * 1024:
+        return f"{size / (1024 * 1024):.1f} MB"
+    if size >= 1024:
+        return f"{size / 1024:.1f} KB"
+    return f"{size} B"
+
+
+def cmd_insights_files(a, r: Result) -> Result:
+    files = access_insights.access_logs()
+    r.data = {"dir": access_insights.logs_dir(), "files": files}
+    if not files:
+        r.say(t("未找到 nginx access 日志"))
+        return r
+    r.say(t("可分析的 access 日志："))
+    for it in files:
+        r.say(f"  {it['name']}  ({_fmt_size(it['size'])})  ->  {it['path']}")
+    return r
+
+
+def cmd_insights_report(a, r: Result) -> Result:
+    rep = access_insights.report(a.file or "", lines=a.lines, top=a.top)
+    if not rep.get("ok"):
+        if rep.get("error") == "not_found":
+            return r.fail(t("未找到该 access 日志：{name}", name=a.file),
+                          available=rep.get("available") or [])
+        return r.fail(t("未找到 nginx access 日志（目录：{dir}）",
+                        dir=rep.get("dir") or ""))
+    r.data = {k: v for k, v in rep.items() if k != "ok"}
+
+    errors = r.data.get("errors") or []
+    if a.errors:
+        r.say(t("错误请求（最近 {n} 条）：", n=len(errors)))
+        for e in errors:
+            r.say(f"  {e['time']}  {e['status']}  {e['method']} {e['path']}")
+        return r
+
+    r.say(t("报告文件：{file}", file=r.data["file"]))
+    r.say(t("读取 {read} 行，解析 {parsed} 行（跳过 {skipped}）",
+            read=r.data["read"], parsed=r.data["parsed"],
+            skipped=r.data["skipped"]))
+    r.say(t("请求 {n} · 独立 IP {ips} · 5xx 占比 {rate}",
+            n=r.data["requests"], ips=r.data["unique_ips"],
+            rate=f'{r.data["error_rate"]:.1f}%'))
+    if r.data["status_codes"]:
+        r.say(t("状态码：") + "  " + "  ".join(
+            f'{it["code"]}×{it["count"]} ({it["pct"]:.1f}%)'
+            for it in r.data["status_codes"]))
+    if r.data["methods"]:
+        r.say(t("方法：") + "  " + "  ".join(
+            f'{it["method"]}×{it["count"]}' for it in r.data["methods"]))
+    if r.data["top_paths"]:
+        r.say(t("热门路径："))
+        for i, it in enumerate(r.data["top_paths"], 1):
+            r.say(f"  {i:>2}. {it['path']}  ×{it['count']}  ({it['pct']:.1f}%)")
+    if r.data["top_ips"]:
+        r.say(t("Top IP："))
+        for i, it in enumerate(r.data["top_ips"], 1):
+            r.say(f"  {i:>2}. {it['ip']}  ×{it['count']}  ({it['pct']:.1f}%)")
+    r.say(t("按小时分布：") + "  " + " ".join(
+        str(it["count"]) for it in r.data["hourly"]))
+    if errors:
+        r.say(t("错误请求（最近 {n} 条）：", n=len(errors)))
+        for e in errors:
+            r.say(f"  {e['time']}  {e['status']}  {e['method']} {e['path']}")
     return r
 
 
@@ -2791,6 +2863,21 @@ def build_parser() -> argparse.ArgumentParser:
     _p = _leaf(gs, "tail", cmd_logs_tail, "logs.tail", "查看任意日志文件尾部（只读）")
     _p.add_argument("path", help="日志文件绝对路径")
     _p.add_argument("--lines", type=int, default=200, help="尾部行数（默认 200）")
+
+    # insights（nginx access.log 聚合，只读）
+    g = sub.add_parser("insights", help="访问日志聚合（只读解析 nginx access.log）",
+                       parents=[COMMON])
+    gs = g.add_subparsers(dest="action", metavar="<action>")
+    _leaf(gs, "files", cmd_insights_files, "insights.files",
+          "列出可分析的 nginx access 日志")
+    _p = _leaf(gs, "report", cmd_insights_report, "insights.report",
+               "聚合统计 access.log（状态码 / 热门路径 / 错误请求）")
+    _p.add_argument("--file", default="", help="日志文件名（默认 access.log）")
+    _p.add_argument("--lines", type=int, default=20000,
+                    help="统计尾部行数（默认 20000）")
+    _p.add_argument("--top", type=int, default=10, help="Top N（默认 10）")
+    _p.add_argument("--errors", action="store_true",
+                    help="只输出错误请求（4xx / 5xx）")
 
     # overview（首页总览仪表盘，只读快照）
     g = sub.add_parser("overview", help="首页总览仪表盘（只读快照）", parents=[COMMON])
