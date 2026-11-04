@@ -11,9 +11,11 @@
 PHP 版本管理(php,刚需) │ Nginx 管理(nginx,刚需) │ Redis 管理(redis) │ MySQL 管理(mysql)
 │ 站点映射(vhost,刚需) │ SQLite 数据库(sqlite) │ Nginx 日志(log)
 │ 运行日志(常驻，不受开关影响) │ 关于(设置区/模块开关在此)
+│ 插件页签：由 core/plugins 的 MANIFEST 动态追加（如 键鼠统计(keymouse)）
 ```
 
 - 顶部：菜单栏（外观 / 语言 / 帮助）、状态栏（就绪消息 + 更新提示 + 崩溃告警）。
+- 插件页签在 `_build()` 末尾按 `plugins.enabled_specs(config)` 动态追加，面板经 `importlib` 从 `ui/plugins/` 延迟导入；单个插件导入失败只记 warn 并跳过该页签。
 - 托盘（Windows）：动态菜单 —— 一键启停整套服务、Nginx 子菜单、各 PHP 版本、Redis 子菜单、显示/隐藏/退出。
 - 页签构建在 `ui/main_window.py::_build()`；「关于」页（含设置区、模块开关、服务编排按钮）在 `_build_about()`。
 
@@ -59,6 +61,8 @@ PHP 版本管理(php,刚需) │ Nginx 管理(nginx,刚需) │ Redis 管理(red
 | 托盘 | `ui/tray.py`（Windows） | `icon.py` | `phpvm.ico`（生成） | 最小化即隐藏到托盘；关闭框提供「重启」 |
 | CLI（AI / 脚本通道） | `cli.py` | 全部 `core/*` | 同 GUI（共用 config.json） | 不 import tkinter；写操作支持 `--dry-run` |
 | 打包与发布 | `packaging/build.py`、`packaging/phpvm.iss` | `.github/workflows/release.yml` | `dist/` | 打 tag 自动构建双平台并发布 Release |
+| 插件框架（发现 / 开关 / 设置 / 后台拉起） | 关于页「功能模块」（自动并入） | `core/plugins/__init__.py`、`base.py`、`settings.py`、`core/modules.py` | `settings.disabled_modules`、`settings.plugin_settings` | 内置目录只声明 `MANIFEST: PluginSpec`，`pkgutil` + `importlib` 发现；单插件导入失败只 warn、不阻断启动；设置页与启动快照无需各写一遍枚举 |
+| 键鼠统计（今日 / 本周 / 本月 / 本年 / 全部） | `ui/plugins/keymouse_panel.py` / `plugin`、`keymouse` 命令组 | `core/plugins/keymouse/`（`collector`、`store`、`stats`、`daemon`、`keymap`） | `<数据目录>/plugins/keymouse/stats.db` + `daemon.*` / `paused` | 独立守护进程写库，GUI / CLI 只读 `mode=ro`；仅 Windows 采集；只落 vkCode + 时间戳；插件停用后守护进程 ≤60s 自行退出 |
 
 > 跨模块约定：`core/*` 的全部 HTTPS 请求（PHP 版本/扩展列表、PHP 与 Adminer 下载、软件更新）
 > 统一经 `core/net_ssl.py::ssl_context()` 取 SSL 上下文 —— 系统默认根 + 仓库内置
@@ -79,6 +83,10 @@ PHP 版本管理(php,刚需) │ Nginx 管理(nginx,刚需) │ Redis 管理(red
 | `mysql` | MySQL 管理 | ❌ | 同上 |
 | `sqlite` | SQLite 数据库 | ❌ | 同上 |
 | `log` | Nginx 日志 | ❌ | 同上 |
+| `keymouse` | 键鼠统计 | ❌ | 不建插件页签、不拉起后台记录进程；已在运行的守护进程下一轮配置检查（≤60s）自行 flush 并退出 |
+
+插件的 key / 名称来自各 `core/plugins/<name>/` 的 `MANIFEST`，由 `core/modules.py` 在启动期自动并入
+`MODULES` —— 关于页勾选框、启动快照与 CLI `plugin enable/disable` 因此无需各写一遍。
 
 停用是**启动期行为**（界面只在启动时构建），改完需重启 phpvm；`--start-all` 与 CLI 也遵守该开关
 （停用的模块不加载其 manager，因此不会去启停对应服务）。

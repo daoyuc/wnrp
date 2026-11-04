@@ -36,14 +36,15 @@ python3 cli.py env --json      # 环境快照：nginx、PHP 版本与端口、Re
 - **写 hosts 必须显式 `--hosts`**（会触发系统授权弹窗，无 TTY 时可能失败）。
 - **不要编辑 `ui/` 下代码来做自动化**；也不要在脚本里 import `ui/*`（会拉起 tkinter）。
 - 所有写入自动备份 `.bak`；`nginx -t` 失败会自动回滚并置 `rolled_back: true`。
-- 不要提交运行期文件：`config.json`、`recover_history.json`、`crash_watchdog.*`、`run_log.log*`、`updates/`、`dist/`。
+- 不要提交运行期文件：`config.json`、`recover_history.json`、`crash_watchdog.*`、`run_log.log*`、`updates/`、`dist/`、`plugins/`（键鼠统计的 `stats.db` / `daemon.*`）。
 
 ## 一致性约束（改动时必须收口）
 
-下面两条是改完最容易漏、且单测不易捕获的坑，改动触及时必须自查：
+下面是改完最容易漏、且单测不易捕获的坑，改动触及时必须自查：
 
 - **取「PHP 是否在跑」必须刷新状态**：`core/php_manager.py` 的 `scan_versions()` 只探测版本二进制，**不刷新 `running`**，直接读会得到陈旧值。统一走 `resolve(refresh_status=True, fast=True)`（定时刷新的默认姿势；操作后精确校验用 `fast=False`）。任何「挑一个 PHP 来用」的逻辑（托管站点建站、TLS 自动续期、端口同步等）都必须先按 `running` 过滤，再回退到版本列表——否则站点会落到未启动的 PHP 上，表现为 `502`。
 - **新增 UI 面板必须登记**：`ui/main_window.py` 的 `_refresh_panels()` 里有个面板元组，新面板不进这个列表，就不参与定时刷新和「操作完成后立即刷新」，会出现「命令成功但界面没变」（典型：新建站点 / 安装 Adminer 后站点映射页不更新）。
+- **插件面板与后台进程按框架接线**：插件 key 由 `core/modules.py` 自动并入 `MODULES`（设置页、启动快照、CLI `plugin enable/disable` 无需另写枚举）；面板须实现 `auto_refresh()` / `refresh_theme()`，并确认 `ui/main_window.py` 的 `_plugin_panels` 已进 `_refresh_panels()`；后台进程状态文件名以 `core/plugins/keymouse/daemon.py` 顶部常量为准（`daemon.lock` / `daemon.heartbeat` / `daemon.stop` / `paused`），不要按字面猜 `daemon.pid` 或 `stop`。
 
 ## 常用流程
 
@@ -74,6 +75,18 @@ python3 cli.py services start-all        # PHP → Redis → MySQL → Nginx
 python3 cli.py services start-all --php newest   # 只启动版本号最新的 PHP（开机自启的默认策略）
 python3 cli.py services start-all --php custom --dry-run   # 按 PHP 页勾选的开机自启名单（先预览）
 python3 cli.py config set settings.autostart_php_versions '["php82","php85"]'  # 直接改勾选名单
+# 插件与键鼠统计（写操作先 --dry-run，清空需 --yes）
+python3 cli.py plugin list --json
+python3 cli.py plugin status keymouse --json
+python3 cli.py plugin disable keymouse --dry-run
+python3 cli.py keymouse status --json
+python3 cli.py keymouse summary --range week --top 10 --json
+python3 cli.py keymouse export --range month --out report.csv --dry-run
+python3 cli.py keymouse pause --dry-run
+python3 cli.py keymouse clear --yes --dry-run
+python3 cli.py keymouse daemon start --json
+python3 cli.py keymouse daemon status --json
+
 python3 cli.py nginx test                # 任何改配置后都建议先跑
 ```
 
@@ -83,6 +96,8 @@ python3 cli.py nginx test                # 任何改配置后都建议先跑
 - `core/` 服务层（nginx / php / redis / mysql / vhost / hosts / sqlite / updater / modules …），CLI 与 GUI 共用
   - 建站流程只有一个实现：`core/site_service.py`（证书 → 写 vhost → 补 include → `nginx -t` → hosts → 重载 + 回滚），CLI 与 GUI 向导都调它
   - 文件备份统一走 `core/file_backup.py`（写配置前必 `.bak`，还原默认删备份）
+  - `core/plugins/` 插件注册表与内置插件（声明式 `MANIFEST`，只声明面板路径、不 import `ui/*`）；运行期数据在 `<数据目录>/plugins/keymouse/`，不入库
+- `ui/plugins/` 插件面板（由主窗口延迟导入）：新增面板必须实现 `auto_refresh()` / `refresh_theme()`，`core` 不得反向依赖它
 - `tests/` 单元测试（标准库 unittest）：`python -m unittest discover -s tests -t .`；其中 `tests/test_docs.py` 守护文档（链接 / 引用的代码路径 / `docs/CLI.md` 与代码一致性 / Markdown 表格列数）、`tests/test_main_window_smoke.py` 真建一次主窗口（守 GUI 启动崩溃，无显示环境自动跳过）
 - `docs/` 的 `CLI.md` 由 `_docs_cli.py` 从 `cli.py` 的 argparse 结构生成（**勿手改**）：改完命令跑 `python3 _docs_cli.py`，或用 `python3 _docs_cli.py --check` 单独校验
 - `ui/` 界面层（tkinter），**不可在 CLI / 脚本中 import**

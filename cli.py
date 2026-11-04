@@ -49,6 +49,7 @@ from core import (  # noqa: E402
     mail_catcher,
     modules,
     overview,
+    plugins,
     project_config,
     resource_monitor,
     site_service,
@@ -1945,6 +1946,229 @@ def cmd_mysql_log(a, r: Result) -> Result:
 
 
 # --------------------------------------------------------------------------- #
+# plugin / keymouse（内置插件）
+# --------------------------------------------------------------------------- #
+_KM_RANGES = ("today", "week", "month", "year", "all")
+
+
+def _plugin_dict(spec) -> dict:
+    return {
+        "key": spec.key,
+        "name": spec.name,
+        "required": bool(spec.required),
+        "description": spec.description,
+        "platforms": list(spec.platforms),
+        "has_panel": bool(spec.panel),
+        "has_daemon": bool(spec.daemon_script),
+        "default_settings": dict(spec.default_settings or {}),
+    }
+
+
+def _plugin_spec(key: str, r: Result):
+    spec = plugins.get(key)
+    if spec is None:
+        r.fail("未找到插件：" + str(key),
+               available=[s.key for s in plugins.discover()])
+        return None
+    return spec
+
+
+def cmd_plugin_list(a, r: Result) -> Result:
+    cfg = Config()
+    items = []
+    for spec in plugins.discover():
+        item = _plugin_dict(spec)
+        item["enabled"] = modules.is_enabled(spec.key, cfg)
+        item["supported"] = spec.platform_supported(sys.platform)
+        items.append(item)
+    r.data = {"count": len(items), "plugins": items}
+    for item in items:
+        mark = "●" if item["enabled"] else "○"
+        extra = "" if item["supported"] else t("（当前平台不支持）")
+        r.say(f"{mark} {item['key']} · {t(item['name'])}{extra}")
+    return r
+
+
+def cmd_plugin_status(a, r: Result) -> Result:
+    cfg = Config()
+    spec = _plugin_spec(a.key, r)
+    if spec is None:
+        return r
+    data = _plugin_dict(spec)
+    data["enabled"] = modules.is_enabled(spec.key, cfg)
+    data["supported"] = spec.platform_supported(sys.platform)
+    if spec.key == "keymouse":
+        from core.plugins.keymouse import status
+
+        data["status"] = status(cfg)
+    r.data = data
+    r.say(f"{spec.key} · {t(spec.name)} · "
+          + (t("已启用") if data["enabled"] else t("已停用")))
+    if "status" in data:
+        st = data["status"]
+        r.say(t("后台：{state}", state=t("运行中") if st.get("running")
+                else t("未运行"))
+              + (f" · PID {st.get('pid')}" if st.get("pid") else ""))
+    return r
+
+
+def _plugin_toggle(a, r: Result, enable: bool) -> Result:
+    cfg = Config()
+    spec = _plugin_spec(a.key, r)
+    if spec is None:
+        return r
+    if spec.required:
+        return r.fail(t("{name} 是刚需模块，不能停用", name=t(spec.name)))
+    disabled = modules.disabled_modules(cfg)
+    if enable:
+        disabled = [k for k in disabled if k != spec.key]
+    elif spec.key not in disabled:
+        disabled.append(spec.key)
+    action = t("启用") if enable else t("停用")
+    if a.dry_run:
+        r.data = {"dry_run": True, "key": spec.key, "enabled": enable}
+        r.say(t("[dry-run] 将{action}插件 {key}", action=action, key=spec.key))
+        return r
+    modules.set_disabled(cfg, disabled)
+    r.data = {"key": spec.key, "enabled": enable, "restart_required": True}
+    r.say(t("插件 {key} 已{action}，重启 phpvm 后生效", key=spec.key, action=action))
+    return r
+
+
+def cmd_plugin_enable(a, r: Result) -> Result:
+    return _plugin_toggle(a, r, True)
+
+
+def cmd_plugin_disable(a, r: Result) -> Result:
+    return _plugin_toggle(a, r, False)
+
+
+def _keymouse():
+    from core.plugins.keymouse import stats
+
+    return stats
+
+
+def cmd_keymouse_status(a, r: Result) -> Result:
+    from core.plugins.keymouse import status
+
+    data = status(Config())
+    r.data = data
+    r.say(t("平台支持：{v}", v=t("是") if data.get("supported") else t("否")))
+    if data.get("supported"):
+        r.say(t("后台：{state}", state=t("运行中") if data.get("running")
+                else t("未运行"))
+              + (f" · PID {data.get('pid')}" if data.get("pid") else "")
+              + (t(" · 已暂停") if data.get("paused") else ""))
+    r.say(t("开机自启：{v}", v=t("是") if data.get("autostart") else t("否")))
+    db = data.get("db") or {}
+    r.say(t("统计库：{path}（{size} 字节）", path=db.get("path", ""),
+            size=db.get("size", 0)))
+    return r
+
+
+def cmd_keymouse_summary(a, r: Result) -> Result:
+    stats = _keymouse()
+    data = stats.summary(a.range, top=a.top)
+    r.data = data
+    r.say(stats.report_text(data))
+    return r
+
+
+def cmd_keymouse_export(a, r: Result) -> Result:
+    stats = _keymouse()
+    if a.dry_run:
+        data = stats.summary(a.range, top=a.top)
+        r.data = {"dry_run": True, "out": a.out, "range": data["range"],
+                  "total_presses": data["total_presses"]}
+        r.say(t("[dry-run] 将把 {range} 的统计导出到 {out}",
+                range=data["label"], out=a.out))
+        return r
+    res = stats.export_csv(a.range, a.out, top=a.top)
+    if not res.get("ok"):
+        return r.fail(str(res.get("message") or "导出失败"))
+    r.data = {"path": res["path"], "rows": res["rows"]}
+    r.say(t("已导出 {rows} 行到 {path}", rows=res["rows"], path=res["path"]))
+    return r
+
+
+def _keymouse_pause(a, r: Result, paused: bool) -> Result:
+    from core.plugins.keymouse import set_paused, supported
+
+    if not supported():
+        return r.fail(t("当前平台不支持键盘采集（仅 Windows）"))
+    if a.dry_run:
+        r.data = {"dry_run": True, "paused": paused}
+        r.say(t("[dry-run] 将{action}键盘采集",
+                action=t("暂停") if paused else t("恢复")))
+        return r
+    state = set_paused(paused)
+    r.data = {"paused": state}
+    r.say(t("已暂停键盘采集") if state else t("已恢复键盘采集"))
+    return r
+
+
+def cmd_keymouse_pause(a, r: Result) -> Result:
+    return _keymouse_pause(a, r, True)
+
+
+def cmd_keymouse_resume(a, r: Result) -> Result:
+    return _keymouse_pause(a, r, False)
+
+
+def cmd_keymouse_clear(a, r: Result) -> Result:
+    from core.plugins.keymouse import store
+
+    if not a.yes:
+        return r.fail("清空统计需要 --yes 明确确认")
+    if a.dry_run:
+        r.data = {"dry_run": True, "action": "clear"}
+        r.say("[dry-run] 将删除全部键鼠统计记录")
+        return r
+    writer = store.Writer()
+    try:
+        writer.clear()
+    finally:
+        writer.close()
+    r.data = {"cleared": True}
+    r.say(t("已清空键鼠统计记录"))
+    return r
+
+
+def cmd_keymouse_daemon(a, r: Result) -> Result:
+    from core.plugins.keymouse import daemon, supported
+
+    action = a.daemon_action
+    if action == "status":
+        r.data = {"running": daemon.is_running(), "pid": daemon.lock_pid(),
+                  "supported": supported(),
+                  "log": daemon.log_path()}
+        r.say(t("后台：{state}", state=t("运行中") if r.data["running"]
+                else t("未运行")))
+        return r
+    if not supported():
+        return r.fail(t("当前平台不支持键盘采集（仅 Windows）"))
+    if action == "start":
+        if a.dry_run:
+            r.data = {"dry_run": True, "action": "start"}
+            r.say("[dry-run] 将启动键鼠记录后台进程")
+            return r
+        ok, msg = daemon.spawn()
+    else:
+        if a.dry_run:
+            r.data = {"dry_run": True, "action": "stop"}
+            r.say("[dry-run] 将停止键鼠记录后台进程")
+            return r
+        ok, msg = daemon.stop()
+    r.data = {"running": daemon.is_running(), "pid": daemon.lock_pid(),
+              "message": msg}
+    if not ok:
+        return r.fail(msg)
+    r.say(msg)
+    return r
+
+
+# --------------------------------------------------------------------------- #
 # sqlite（只读）
 # --------------------------------------------------------------------------- #
 def _sqlite_open(path: str):
@@ -2616,6 +2840,53 @@ def build_parser() -> argparse.ArgumentParser:
     p = _leaf(gs, "log", cmd_mysql_log, "mysql.log", "查看错误日志尾部")
     p.add_argument("name", nargs="?", default="", help="实例名（默认第一个）")
     p.add_argument("--lines", type=int, default=100, help="尾部行数（默认 100）")
+
+    # plugin（内置插件）
+    g = sub.add_parser("plugin", help="内置插件管理", parents=[COMMON])
+    gs = g.add_subparsers(dest="action", metavar="<action>")
+    _leaf(gs, "list", cmd_plugin_list, "plugin.list", "列出插件与启用状态")
+    p = _leaf(gs, "status", cmd_plugin_status, "plugin.status", "插件详情")
+    p.add_argument("key", help="插件 key（如 keymouse）")
+    for act, fn, hlp in (("enable", cmd_plugin_enable, "启用插件"),
+                         ("disable", cmd_plugin_disable, "停用插件")):
+        p = _leaf(gs, act, fn, f"plugin.{act}", hlp)
+        p.add_argument("key", help="插件 key")
+        p.add_argument("--dry-run", action="store_true", help="只报告将做什么")
+
+    # keymouse（键鼠统计插件）
+    g = sub.add_parser("keymouse", help="键鼠统计插件", parents=[COMMON])
+    gs = g.add_subparsers(dest="action", metavar="<action>")
+    _leaf(gs, "status", cmd_keymouse_status, "keymouse.status",
+          "采集状态与统计库概况")
+    p = _leaf(gs, "summary", cmd_keymouse_summary, "keymouse.summary",
+              "按范围汇总（今日 / 本周 / 本月 / 本年 / 全部）")
+    p.add_argument("--range", choices=list(_KM_RANGES), default="today",
+                   help="时间范围（默认 today）")
+    p.add_argument("--top", type=int, default=10, help="键位排名条数（默认 10）")
+    p = _leaf(gs, "export", cmd_keymouse_export, "keymouse.export",
+              "导出 CSV 报告")
+    p.add_argument("--range", choices=list(_KM_RANGES), default="today",
+                   help="时间范围（默认 today）")
+    p.add_argument("--out", required=True, help="导出的 CSV 路径")
+    p.add_argument("--top", type=int, default=10, help="键位排名条数（默认 10）")
+    p.add_argument("--dry-run", action="store_true", help="只报告将做什么")
+    for act, fn, hlp in (("pause", cmd_keymouse_pause, "暂停键盘采集"),
+                         ("resume", cmd_keymouse_resume, "恢复键盘采集")):
+        p = _leaf(gs, act, fn, f"keymouse.{act}", hlp)
+        p.add_argument("--dry-run", action="store_true", help="只报告将做什么")
+    p = _leaf(gs, "clear", cmd_keymouse_clear, "keymouse.clear",
+              "清空全部统计记录（需 --yes）")
+    p.add_argument("--yes", action="store_true", help="确认删除（必填）")
+    p.add_argument("--dry-run", action="store_true", help="只报告将做什么")
+    p = gs.add_parser("daemon", help="后台记录进程", parents=[COMMON])
+    p.set_defaults(func=cmd_keymouse_daemon, command="keymouse.daemon")
+    ds = p.add_subparsers(dest="daemon_action", metavar="<action>")
+    for act, hlp in (("start", "启动后台记录"), ("stop", "停止后台记录"),
+                     ("status", "查看后台状态")):
+        q = ds.add_parser(act, help=hlp, parents=[COMMON])
+        q.set_defaults(func=cmd_keymouse_daemon,
+                       command=f"keymouse.daemon.{act}", daemon_action=act)
+        q.add_argument("--dry-run", action="store_true", help="只报告将做什么")
 
     # sqlite
     g = sub.add_parser("sqlite", help="SQLite 只读查询", parents=[COMMON])

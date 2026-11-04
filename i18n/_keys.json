@@ -23,6 +23,12 @@
    "ui/diag_dialog.py"
   ]
  },
+ " · 已暂停": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  " 泛解析": {
   "count": 1,
   "files": [
@@ -118,6 +124,12 @@
   "count": 1,
   "files": [
    "cli.py"
+  ]
+ },
+ "CSV 文件": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
   ]
  },
  "Composer": {
@@ -319,12 +331,6 @@
    "core/nginx_manager.py"
   ]
  },
- "Nginx 已平滑重载（SIGHUP 兜底）：{text}": {
-  "count": 1,
-  "files": [
-   "core/nginx_manager.py"
-  ]
- },
  "Nginx 已平滑重载：{text}": {
   "count": 1,
   "files": [
@@ -373,7 +379,13 @@
    "core/diag.py"
   ]
  },
- "Nginx 重载失败：{text}": {
+ "Nginx 重载失败且重启未成功：{text}": {
+  "count": 1,
+  "files": [
+   "core/nginx_manager.py"
+  ]
+ },
+ "Nginx 重载失败，已重启以应用配置：{detail}": {
   "count": 1,
   "files": [
    "core/nginx_manager.py"
@@ -640,6 +652,24 @@
   "count": 2,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "[dry-run] 将{action}插件 {key}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "[dry-run] 将{action}键盘采集": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "[dry-run] 将把 {range} 的统计导出到 {out}": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "[{name}]  PHP {display}": {
@@ -1293,6 +1323,12 @@
    "ui/xdebug_dialog.py"
   ]
  },
+ "{name} 后台启动失败：{err}": {
+  "count": 1,
+  "files": [
+   "core/plugins/__init__.py"
+  ]
+ },
  "{name} 已在使用 {php}（端口 {port}）": {
   "count": 1,
   "files": [
@@ -1309,6 +1345,12 @@
   "count": 1,
   "files": [
    "core/php_installer.py"
+  ]
+ },
+ "{name} 是刚需模块，不能停用": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "{name}（FastCGI 端口 {port}）": {
@@ -1589,6 +1631,12 @@
    "core/php_extension.py"
   ]
  },
+ "下载不完整：已收到 {done} 字节，应为 {total} 字节": {
+  "count": 1,
+  "files": [
+   "core/php_downloader.py"
+  ]
+ },
  "下载内容不是 .dll 文件：{file}": {
   "count": 1,
   "files": [
@@ -1599,6 +1647,12 @@
   "count": 1,
   "files": [
    "core/adminer.py"
+  ]
+ },
+ "下载失败（已自动重试 {n} 次）：{err}": {
+  "count": 1,
+  "files": [
+   "core/php_downloader.py"
   ]
  },
  "下载失败：{err}": {
@@ -1613,7 +1667,7 @@
    "ui/update_dialog.py"
   ]
  },
- "下载安装进行中，请稍候…": {
+ "下载安装进行中，是否取消并关闭？": {
   "count": 1,
   "files": [
    "ui/download_dialog.py"
@@ -1860,6 +1914,18 @@
    "ui/extension_dialog.py"
   ]
  },
+ "保存报告": {
+  "count": 2,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
+ "保存报告…": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
  "保存（{n} 项变更）": {
   "count": 1,
   "files": [
@@ -1978,6 +2044,18 @@
    "ui/php_panel.py"
   ]
  },
+ "停止后台记录": {
+  "count": 2,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
+ "停止后将不再记录新的按键（已记录数据保留）。确定继续？": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
  "停止失败": {
   "count": 1,
   "files": [
@@ -1997,8 +2075,9 @@
   ]
  },
  "停用": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "cli.py",
    "ui/main_window.py"
   ]
  },
@@ -2300,11 +2379,12 @@
   ]
  },
  "写入失败：{err}": {
-  "count": 8,
+  "count": 9,
   "files": [
    "core/mail_catcher.py",
    "core/site_service.py",
-   "core/vhost_manager.py"
+   "core/vhost_manager.py",
+   "core/plugins/keymouse/stats.py"
   ]
  },
  "写入配置失败：{err}": {
@@ -2594,9 +2674,10 @@
   ]
  },
  "取消": {
-  "count": 5,
+  "count": 6,
   "files": [
    "ui/dialogs.py",
+   "ui/download_dialog.py",
    "ui/main_window.py",
    "ui/site_wizard.py"
   ]
@@ -2723,9 +2804,22 @@
    "ui/sqlite_panel.py"
   ]
  },
- "否": {
+ "后台未运行": {
   "count": 1,
   "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
+ "后台：{state}": {
+  "count": 3,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "否": {
+  "count": 3,
+  "files": [
+   "cli.py",
    "ui/site_wizard.py"
   ]
  },
@@ -2783,6 +2877,12 @@
   "count": 1,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "启动后台记录": {
+  "count": 2,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
   ]
  },
  "启动失败": {
@@ -2870,8 +2970,9 @@
   ]
  },
  "启用": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "cli.py",
    "ui/main_window.py"
   ]
  },
@@ -3336,6 +3437,12 @@
    "ui/tuning_dialog.py"
   ]
  },
+ "将删除全部键鼠统计记录（不可恢复）。确定继续？": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
  "将删除邮件目录下的全部 .eml（{n} 封）：\n{dir}\n\n确定继续？": {
   "count": 1,
   "files": [
@@ -3456,6 +3563,24 @@
    "ui/main_window.py"
   ]
  },
+ "峰值 {peak} · 均值 {avg}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
+ "峰值 {v}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
+ "峰值 — · 均值 —": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
  "崩溃事件": {
   "count": 1,
   "files": [
@@ -3552,6 +3677,12 @@
    "ui/extension_dialog.py"
   ]
  },
+ "已保存报告：{path}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
  "已保留生成文件，请手动修正后用「配置检查 + 平滑重载」验证。": {
   "count": 1,
   "files": [
@@ -3590,6 +3721,12 @@
   "count": 1,
   "files": [
    "core/mail_sink.py"
+  ]
+ },
+ "已停用": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "已关闭": {
@@ -3689,9 +3826,16 @@
   ]
  },
  "已取消下载": {
+  "count": 4,
+  "files": [
+   "core/php_downloader.py",
+   "core/updater.py"
+  ]
+ },
+ "已取消下载。": {
   "count": 1,
   "files": [
-   "core/updater.py"
+   "core/php_installer.py"
   ]
  },
  "已同步移除 hosts 映射：{doms}": {
@@ -3713,7 +3857,7 @@
   ]
  },
  "已启用": {
-  "count": 4,
+  "count": 5,
   "files": [
    "cli.py",
    "ui/extension_dialog.py",
@@ -3819,6 +3963,12 @@
    "ui/sqlite_panel.py"
   ]
  },
+ "已导出 {rows} 行到 {path}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "已导出到 {path}": {
   "count": 1,
   "files": [
@@ -3867,6 +4017,13 @@
   "count": 1,
   "files": [
    "core/backup_bundle.py"
+  ]
+ },
+ "已恢复键盘采集": {
+  "count": 2,
+  "files": [
+   "cli.py",
+   "ui/plugins/keymouse_panel.py"
   ]
  },
  "已打开的 cmd 不会自动切换，需重开窗口": {
@@ -3921,6 +4078,19 @@
   "count": 1,
   "files": [
    "ui/update_dialog.py"
+  ]
+ },
+ "已暂停": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
+ "已暂停键盘采集": {
+  "count": 2,
+  "files": [
+   "cli.py",
+   "ui/plugins/keymouse_panel.py"
   ]
  },
  "已更新 {count} 项配置，备份保留于：\n{backup}\n\n点左侧「平滑重载」即可生效（未运行时启动后生效）。": {
@@ -3985,6 +4155,13 @@
    "ui/main_window.py"
   ]
  },
+ "已清空键鼠统计记录": {
+  "count": 2,
+  "files": [
+   "cli.py",
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
  "已用 mkcert 生成证书：{path}": {
   "count": 1,
   "files": [
@@ -4019,6 +4196,12 @@
   "count": 1,
   "files": [
    "ui/download_dialog.py"
+  ]
+ },
+ "已自动探测常见安装位置、Windows 服务与 PATH；也可用 settings.mysql_dirs 指定目录。": {
+  "count": 1,
+  "files": [
+   "ui/mysql_panel.py"
   ]
  },
  "已补 include": {
@@ -4103,6 +4286,12 @@
   "count": 1,
   "files": [
    "ui/php_panel.py"
+  ]
+ },
+ "平台支持：{v}": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "平滑重载": {
@@ -4298,6 +4487,12 @@
    "core/crash_watchdog.py"
   ]
  },
+ "开机自启：{v}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "开机自启：开始启动服务": {
   "count": 1,
   "files": [
@@ -4350,6 +4545,24 @@
   "count": 1,
   "files": [
    "core/updater.py"
+  ]
+ },
+ "当前平台不支持键盘采集（仅 Windows）": {
+  "count": 2,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "当前平台不支持键盘采集（仅 Windows）。": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
+ "当前平台不支持（仅 Windows）": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
   ]
  },
  "当前平台暂不支持自动替换，请手动安装已下载的安装包。": {
@@ -4443,6 +4656,12 @@
    "cli.py"
   ]
  },
+ "恢复": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "恢复会覆盖当前配置，需加 --yes 确认（可先 --dry-run 预览）": {
   "count": 1,
   "files": [
@@ -4467,6 +4686,18 @@
   "count": 1,
   "files": [
    "core/service_group.py"
+  ]
+ },
+ "打字速度": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
+ "打字速度：均值 {avg} 次/分 · 峰值 {peak} 次/分 · 活跃 {minutes} 分钟": {
+  "count": 1,
+  "files": [
+   "core/plugins/keymouse/stats.py"
   ]
  },
  "打开": {
@@ -4649,6 +4880,24 @@
    "core/tuning.py"
   ]
  },
+ "按小时分布": {
+  "count": 1,
+  "files": [
+   "core/plugins/keymouse/stats.py"
+  ]
+ },
+ "按小时活动": {
+  "count": 2,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
+ "按小时活动（仅今日 / 本周）": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
  "按本机内存给的共享内存大小；不够时 opcache 会频繁重启缓存，命中率骤降": {
   "count": 1,
   "files": [
@@ -4665,6 +4914,12 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "按键总数：{total} 次 · 日均 {avg} 次 · 覆盖 {days} 天": {
+  "count": 1,
+  "files": [
+   "core/plugins/keymouse/stats.py"
   ]
  },
  "捕获方式：SMTP 127.0.0.1:{port}（服务{state}；随 phpvm 运行）": {
@@ -4738,6 +4993,42 @@
   "count": 1,
   "files": [
    "ui/sqlite_panel.py"
+  ]
+ },
+ "插件 key 重复：{key}（{name} 已跳过）": {
+  "count": 1,
+  "files": [
+   "core/plugins/__init__.py"
+  ]
+ },
+ "插件 {key} 已{action}，重启 phpvm 后生效": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "插件 {name} 加载失败：{err}": {
+  "count": 1,
+  "files": [
+   "core/plugins/__init__.py"
+  ]
+ },
+ "插件 {name} 缺少有效的 MANIFEST，已跳过": {
+  "count": 1,
+  "files": [
+   "core/plugins/__init__.py"
+  ]
+ },
+ "插件 {name} 面板加载失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "插件后台启动失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
   ]
  },
  "搜索": {
@@ -5059,6 +5350,12 @@
    "ui/vhost_panel.py"
   ]
  },
+ "日均 {avg} 次 · 覆盖 {days} 天": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
  "日志": {
   "count": 1,
   "files": [
@@ -5103,6 +5400,12 @@
    "ui/run_log_panel.py"
   ]
  },
+ "是": {
+  "count": 2,
+  "files": [
+   "cli.py"
+  ]
+ },
  "是（指向 127.0.0.1）": {
   "count": 1,
   "files": [
@@ -5127,6 +5430,12 @@
    "ui/vhost_panel.py"
   ]
  },
+ "显示报告": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
  "显示错误": {
   "count": 1,
   "files": [
@@ -5137,6 +5446,18 @@
   "count": 1,
   "files": [
    "ui/diag_dialog.py"
+  ]
+ },
+ "暂停": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "暂停采集": {
+  "count": 2,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
   ]
  },
  "暂无可安装的版本": {
@@ -5167,6 +5488,18 @@
   "count": 1,
   "files": [
    "cli.py"
+  ]
+ },
+ "暂无记录": {
+  "count": 2,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
+ "暂无记录（后台记录尚未产生数据）": {
+  "count": 1,
+  "files": [
+   "core/plugins/keymouse/stats.py"
   ]
  },
  "更新 /etc/hosts 需要管理员授权（已取消或失败：{err}）": {
@@ -5554,6 +5887,12 @@
    "core/cert_manager.py"
   ]
  },
+ "未指定导出路径": {
+  "count": 1,
+  "files": [
+   "core/plugins/keymouse/stats.py"
+  ]
+ },
  "未指定要移除的域名": {
   "count": 1,
   "files": [
@@ -5640,7 +5979,7 @@
   ]
  },
  "未知错误": {
-  "count": 2,
+  "count": 3,
   "files": [
    "core/nginx_manager.py"
   ]
@@ -5664,7 +6003,7 @@
   ]
  },
  "未运行": {
-  "count": 2,
+  "count": 5,
   "files": [
    "cli.py",
    "ui/mail_panel.py"
@@ -5792,11 +6131,12 @@
   ]
  },
  "检测中…": {
-  "count": 3,
+  "count": 4,
   "files": [
    "ui/mysql_panel.py",
    "ui/nginx_panel.py",
-   "ui/redis_panel.py"
+   "ui/redis_panel.py",
+   "ui/plugins/keymouse_panel.py"
   ]
  },
  "检测到 php-cgi 崩溃（{n} 次），详见状态栏告警": {
@@ -5812,9 +6152,10 @@
   ]
  },
  "检测失败": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/mysql_panel.py"
+   "ui/mysql_panel.py",
+   "ui/plugins/keymouse_panel.py"
   ]
  },
  "模块 {name} 已设为{state}，重启 phpvm 后生效": {
@@ -5827,6 +6168,12 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "次/分": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
   ]
  },
  "正在{action} [{name}] …": {
@@ -5905,6 +6252,12 @@
   "count": 1,
   "files": [
    "ui/extension_dialog.py"
+  ]
+ },
+ "正在取消…": {
+  "count": 1,
+  "files": [
+   "ui/download_dialog.py"
   ]
  },
  "正在取消下载…": {
@@ -6193,6 +6546,12 @@
    "ui/sqlite_panel.py"
   ]
  },
+ "清空失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
  "清空捕获到的邮件需加 --yes 确认": {
   "count": 1,
   "files": [
@@ -6200,9 +6559,10 @@
   ]
  },
  "清空记录": {
-  "count": 1,
+  "count": 4,
   "files": [
-   "ui/dialogs.py"
+   "ui/dialogs.py",
+   "ui/plugins/keymouse_panel.py"
   ]
  },
  "清空运行日志": {
@@ -6762,6 +7122,18 @@
    "ui/sqlite_panel.py"
   ]
  },
+ "统计库：{path}（{size} 字节）": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "继续采集": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
  "编译器": {
   "count": 1,
   "files": [
@@ -7074,6 +7446,12 @@
   "count": 1,
   "files": [
    "ui/mysql_panel.py"
+  ]
+ },
+ "该时间范围不提供按小时分布": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
   ]
  },
  "该版本在当前架构下没有可用安装包。": {
@@ -7408,7 +7786,7 @@
   ]
  },
  "运行中": {
-  "count": 6,
+  "count": 9,
   "files": [
    "cli.py",
    "ui/dialogs.py",
@@ -7754,6 +8132,12 @@
    "ui/tuning_dialog.py"
   ]
  },
+ "采集中": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
  "重启": {
   "count": 8,
   "files": [
@@ -7863,6 +8247,30 @@
    "ui/dialogs.py"
   ]
  },
+ "键位排名": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
+ "键位排名 · {label}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
+ "键位排名（Top {n}）": {
+  "count": 1,
+  "files": [
+   "core/plugins/keymouse/stats.py"
+  ]
+ },
+ "键盘按键": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
  "键空间分布（DB → key 数）": {
   "count": 1,
   "files": [
@@ -7873,6 +8281,36 @@
   "count": 1,
   "files": [
    "ui/redis_panel.py"
+  ]
+ },
+ "键鼠统计": {
+  "count": 2,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
+ "键鼠统计 · {label}（{start} ~ {end}）": {
+  "count": 1,
+  "files": [
+   "core/plugins/keymouse/stats.py"
+  ]
+ },
+ "键鼠统计报告": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
+ "键鼠统计渲染失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
+  ]
+ },
+ "键鼠统计读取失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/keymouse_panel.py"
   ]
  },
  "隐藏到托盘": {
@@ -8066,6 +8504,12 @@
   "count": 1,
   "files": [
    "ui/download_dialog.py"
+  ]
+ },
+ "（当前平台不支持）": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "（无主题）": {

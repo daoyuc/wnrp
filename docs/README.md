@@ -32,14 +32,16 @@ phpvm 的文档按「**读者意图**」分层，每份文档只解决一类问�
 3. **命令行契约以 `python cli.py schema --json` 为准**：`docs/CLI.md` 是它的渲染产物，
    改完命令跑 `python3 _docs_cli.py` 重新生成（`python3 _docs_cli.py --check` 可单独校验）。
 4. **新增界面文案**：用 `t()` 包裹后跑 `python _i18n_scan.py --report`，补 `i18n/<lang>/*.json` 词条。
-5. **不提交运行期文件**：`config.json`、`run_log.log*`、`recover_history.json`、`crash_watchdog.*`、`updates/`、`dist/`。
+5. **不提交运行期文件**：`config.json`、`run_log.log*`、`recover_history.json`、`crash_watchdog.*`、`updates/`、`dist/`、`plugins/`（插件数据，如 `plugins/keymouse/` 的 `stats.db` 与 `daemon.*`）。
 6. **正确性靠 `tests/test_docs.py` 兜底**：链接可达、引用的代码路径存在、`docs/CLI.md` 与代码同步、
    Markdown 表格列数一致（单元格里出现裸 `|` 会撑坏表格，需写成 `\|`）。改完文档跑一次：
    `python -m unittest tests.test_docs`。
 7. **文档事实基线**：本文档体系初次建立并核对代码于 `1d5c5e9`（2026-09-24）；此后按第 1 条滚动维护，不单独维护「基线」，因为每轮改动都必须同步。
+8. **新增内置插件**：在 `core/plugins/<name>/` 放 `MANIFEST`（`PluginSpec`）+ 逻辑与可选后台脚本，面板放 `ui/plugins/`；插件 key 由 `core/modules.py` 自动并入模块开关，设置页与启动快照无需改枚举；新面板要实现 `auto_refresh()` / `refresh_theme()`，并确认已进 `ui/main_window.py::_refresh_panels()` 的插件面板列表。
 
 ## 现有实现基调（写文档时请守住这些前提）
 
 - `core/*` 不依赖 tkinter，可被 CLI / 守护进程 / 测试单独使用；`ui/*` 单向依赖 `core/*`。
+- 插件是**声明式内置目录**：`core/plugins/<name>/` 只声明 `MANIFEST`、面板路径与后台脚本，界面实现由主窗口从 `ui/plugins/` 延迟导入；单个插件导入失败只 warn，不影响其余页签。
 - 所有对外部文件的写入走「备份 → 改 → 校验 → 失败回滚」，见 `core/file_backup.py`。
 - 跨平台差异集中在少数模块（`process_utils` / `path_manager` / `autostart` / `nginx_manager` / `app_paths` / `theme`），其余代码保持平台无关。

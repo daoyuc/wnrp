@@ -124,8 +124,15 @@ def build_markdown() -> str:
     groups = desc.get("subcommands", {})
     for group in sorted(groups):
         actions = groups[group].get("subcommands", {})
-        names = " · ".join(f"`{a}`" for a in sorted(actions)) or "—"
-        lines.append(f"| `{group}` | {_cell(group_help.get(group, ''))} | {names} |")
+        parts = []
+        for name in sorted(actions):
+            label = f"`{name}`"
+            subs = actions[name].get("subcommands", {})
+            if subs:
+                label += "（" + " · ".join(f"`{s}`" for s in sorted(subs)) + "）"
+            parts.append(label)
+        lines.append(f"| `{group}` | {_cell(group_help.get(group, ''))} | "
+                     f"{' · '.join(parts) or '—'} |")
 
     lines += ["", "## 分组与动作", ""]
     for group in sorted(groups):
@@ -133,11 +140,27 @@ def build_markdown() -> str:
         help_ = _cell(group_help.get(group, ""))
         lines += [f"## `{group}`" + (f" — {help_}" if help_ else ""), ""]
         action_helps = _choices_help(group_parsers[group]) if group in group_parsers else {}
+        action_parsers = _subparsers(group_parsers[group]) if group in group_parsers else {}
         for action in sorted(g.get("subcommands", {})):
             h = _cell(action_helps.get(action, ""))
             lines += [f"### `{group} {action}`" + (f" — {h}" if h else ""), ""]
-            table = _option_table(g["subcommands"][action].get("options", []))
+            node = g["subcommands"][action]
+            table = _option_table(node.get("options", []))
             lines += table + [""] if table else ["（无参数）", ""]
+            subs = node.get("subcommands", {})
+            if subs:
+                sub_parser = action_parsers.get(action)
+                sub_helps = _choices_help(sub_parser) if sub_parser else {}
+                lines += [f"**子动作**（用法：`python3 cli.py {group} {action} "
+                          "<子动作> [options]`）：", "",
+                          "| 子动作 | 说明 | 参数 |", "|---|---|---|"]
+                for sub_name in sorted(subs):
+                    params = "、".join(
+                        f"`{row[0]}`" for row in _option_rows(
+                            subs[sub_name].get("options", []))) or "—"
+                    lines.append(f"| `{sub_name}` | "
+                                 f"{_cell(sub_helps.get(sub_name, ''))} | {_cell(params)} |")
+                lines.append("")
 
     text = "\n".join(lines).rstrip() + "\n"
     return text

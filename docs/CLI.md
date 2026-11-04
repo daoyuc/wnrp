@@ -36,6 +36,7 @@
 | `diag` | 一键体检 / 502 诊断（只读） | `all` · `site` |
 | `env` | 输出全部服务快照（nginx / PHP / Redis / MySQL） | — |
 | `hosts` | hosts 映射管理 | `add` · `remove` · `restore` · `status` |
+| `keymouse` | 键鼠统计插件 | `clear` · `daemon`（`start` · `status` · `stop`） · `export` · `pause` · `resume` · `status` · `summary` |
 | `logs` | 站点与应用日志聚合（只读） | `sources` · `tail` |
 | `mail` | 邮件捕获（.eml 落盘：Unix 走 sendmail_path，Windows 走 SMTP sink） | `clear` · `disable` · `enable` · `list` · `show` · `status` |
 | `module` | 功能模块开关 | `disable` · `enable` · `list` |
@@ -44,6 +45,7 @@
 | `nginx` | Nginx 管理 | `logs` · `reload` · `start` · `status` · `stop` · `test` |
 | `overview` | 首页总览仪表盘（只读快照） | `summary` |
 | `php` | PHP 版本管理 | `check` · `ext-list` · `ext-set` · `ini` · `list` · `port` · `restart` · `start` · `status` · `stop` · `xdebug-disable` · `xdebug-enable` · `xdebug-status` |
+| `plugin` | 内置插件管理 | `disable` · `enable` · `list` · `status` |
 | `project` | 项目级配置（.phpvm.json） | `apply` · `show` |
 | `redis` | Redis 管理 | `cmd` · `list` · `ping` · `restart` · `start` · `status` · `stop` |
 | `schema` | 输出全部命令的自描述契约（供 AI 读取） | — |
@@ -154,6 +156,59 @@
 | 参数 | 必填 | 默认 | 说明 |
 |---|---|---|---|
 | `<domains>` | 是 |  | 域名列表 |
+
+## `keymouse` — 键鼠统计插件
+
+### `keymouse clear` — 清空全部统计记录（需 --yes）
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--yes` |  |  | 确认删除（必填） |
+| `--dry-run` |  |  | 只报告将做什么 |
+
+### `keymouse daemon` — 后台记录进程
+
+（无参数）
+
+**子动作**（用法：`python3 cli.py keymouse daemon <子动作> [options]`）：
+
+| 子动作 | 说明 | 参数 |
+|---|---|---|
+| `start` | 启动后台记录 | `--dry-run` |
+| `status` | 查看后台状态 | `--dry-run` |
+| `stop` | 停止后台记录 | `--dry-run` |
+
+### `keymouse export` — 导出 CSV 报告
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--range` |  | today | 时间范围（默认 today） |
+| `--out` | 是 |  | 导出的 CSV 路径 |
+| `--top` |  | 10 | 键位排名条数（默认 10） |
+| `--dry-run` |  |  | 只报告将做什么 |
+
+### `keymouse pause` — 暂停键盘采集
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--dry-run` |  |  | 只报告将做什么 |
+
+### `keymouse resume` — 恢复键盘采集
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--dry-run` |  |  | 只报告将做什么 |
+
+### `keymouse status` — 采集状态与统计库概况
+
+（无参数）
+
+### `keymouse summary` — 按范围汇总（今日 / 本周 / 本月 / 本年 / 全部）
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--range` |  | today | 时间范围（默认 today） |
+| `--top` |  | 10 | 键位排名条数（默认 10） |
 
 ## `logs` — 站点与应用日志聚合（只读）
 
@@ -395,6 +450,32 @@
 | 参数 | 必填 | 默认 | 说明 |
 |---|---|---|---|
 | `<name>` | 是 |  | 版本名 |
+
+## `plugin` — 内置插件管理
+
+### `plugin disable` — 停用插件
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `<key>` | 是 |  | 插件 key |
+| `--dry-run` |  |  | 只报告将做什么 |
+
+### `plugin enable` — 启用插件
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `<key>` | 是 |  | 插件 key |
+| `--dry-run` |  |  | 只报告将做什么 |
+
+### `plugin list` — 列出插件与启用状态
+
+（无参数）
+
+### `plugin status` — 插件详情
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `<key>` | 是 |  | 插件 key（如 keymouse） |
 
 ## `project` — 项目级配置（.phpvm.json）
 

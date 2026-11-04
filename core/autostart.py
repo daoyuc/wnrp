@@ -23,6 +23,21 @@ LAUNCH_AGENT_PATH = os.path.join(
 )
 
 
+def hidden_python_args(script: str) -> list[str]:
+    """以无控制台方式运行某个 .py 的命令行（守护进程自启 / 插件后台复用）。"""
+    if IS_WIN:
+        pyw = r"C:\Python312\pythonw.exe"
+        if not os.path.exists(pyw):
+            pyw = "pythonw"
+        return [pyw, script]
+    return [sys.executable, script]
+
+
+def quote_command(args: list[str]) -> str:
+    """命令行参数拼成 Run 项写法（每项加引号，避免路径含空格）。"""
+    return " ".join(f'"{a}"' for a in args)
+
+
 def _launch_args() -> list[str]:
     """启动 phpvm 的解释器+入口参数。Windows 优先 pythonw（无控制台）。"""
     main_py = os.path.join(APP_DIR, "main.py")
@@ -37,41 +52,66 @@ def _launch_args() -> list[str]:
 # --------------------------------------------------------------------------- #
 # Windows：注册表 Run 项
 # --------------------------------------------------------------------------- #
-def _win_read_value() -> str | None:
+def read_run_value(name: str = RUN_VALUE) -> str | None:
+    """读取 HKCU Run 项下某个值的命令行；不存在 / 无权限返回 None。
+
+    通用入口：phpvm 自身与各插件的后台守护进程各用一个值名，互不覆盖。
+    """
+    if not IS_WIN:
+        return None
     import winreg
 
     try:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_READ) as key:
-            value, _ = winreg.QueryValueEx(key, RUN_VALUE)
+            value, _ = winreg.QueryValueEx(key, name)
             return value
     except (FileNotFoundError, OSError):
         return None
 
 
-def _win_enable() -> bool:
+def enable_run_value(name: str, command: str) -> bool:
+    """写入 / 覆盖 HKCU Run 项（无需管理员）。"""
+    if not IS_WIN:
+        return False
     import winreg
 
     try:
         with winreg.CreateKeyEx(
             winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_WRITE
         ) as key:
-            winreg.SetValueEx(key, RUN_VALUE, 0, winreg.REG_SZ, " ".join(f'"{a}"' for a in _launch_args()))
+            winreg.SetValueEx(key, name, 0, winreg.REG_SZ, command)
         return True
     except OSError:
         return False
 
 
-def _win_disable() -> bool:
+def disable_run_value(name: str) -> bool:
+    """删除 HKCU Run 项（原本不存在视为成功）。"""
+    if not IS_WIN:
+        return True
     import winreg
 
     try:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_WRITE) as key:
-            winreg.DeleteValue(key, RUN_VALUE)
+            winreg.DeleteValue(key, name)
         return True
     except FileNotFoundError:
         return True
     except OSError:
         return False
+
+
+# phpvm 自身的 Run 值（保留原有语义，行为不变）
+def _win_read_value() -> str | None:
+    return read_run_value(RUN_VALUE)
+
+
+def _win_enable() -> bool:
+    return enable_run_value(RUN_VALUE, quote_command(_launch_args()))
+
+
+def _win_disable() -> bool:
+    return disable_run_value(RUN_VALUE)
 
 
 # --------------------------------------------------------------------------- #
@@ -132,7 +172,7 @@ def _posix_disable() -> bool:
 def is_enabled() -> bool:
     """当前是否已启用（且命令与 phpvm 一致）。"""
     if IS_WIN:
-        return _win_read_value() == " ".join(f'"{a}"' for a in _launch_args())
+        return _win_read_value() == quote_command(_launch_args())
     data = _posix_read_plist()
     return bool(data and data.get("ProgramArguments") == _launch_args())
 
@@ -159,7 +199,7 @@ def services_script_path() -> str:
 def _services_vbs_text() -> str:
     args = _launch_args() + ["--start-all"]
     # VBS 字符串内的双引号必须写成两个双引号
-    quoted = " ".join(f'"{a}"' for a in args).replace('"', '""')
+    quoted = quote_command(args).replace('"', '""')
     return (
         'Set ws = CreateObject("WScript.Shell")\n'
         f'ws.Run "{quoted}", 0, False\n'

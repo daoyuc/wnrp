@@ -41,3 +41,7 @@ mail/
 # 邮件捕获垫片（F11）：由 sendmail_path 指向，落在数据目录而非 mail/ 下；
 # 开发态的数据目录就是仓库根，故这里按仓库根精确忽略（历史上曾被误提交）
 /phpvm-sendmail.sh
+
+# 插件运行期数据（键鼠统计 SQLite / 守护进程状态）：
+# 只忽略仓库根的 plugins/，core/plugins/ 是插件代码，必须入库
+/plugins/

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-"""主窗口：多页签（PHP 版本管理 / Nginx 管理 / Redis 管理 / 站点映射 / SQLite 数据库 / Nginx 日志 / 关于）+ 顶部 cmd php 状态 + 底部状态栏。"""
+"""主窗口：多页签（PHP 版本管理 / Nginx 管理 / Redis 管理 / 站点映射 / SQLite 数据库 / Nginx 日志 / 插件 / 关于）+ 顶部 cmd php 状态 + 底部状态栏。"""
+import importlib
 import os
 import queue
 import subprocess
@@ -10,7 +11,7 @@ import webbrowser
 from tkinter import filedialog, messagebox, ttk
 
 from core import (adminer, app_paths, autostart, backup_bundle, crash_watchdog,
-                  path_manager, run_log, updater)
+                  path_manager, plugins, run_log, updater)
 from core import theme as theme_prefs
 from core.config import Config, IS_WIN, WNRP_ROOT
 from core.i18n import LANGS, t
@@ -110,6 +111,8 @@ class MainWindow(tk.Tk):
         self._start_tray_drain()
         # 「启动时自动启动全部服务」开启时延迟调起（结果写入运行日志）
         self.after(1200, self._maybe_start_services_on_launch)
+        # 插件后台进程（键鼠记录等）：稍后拉起，避免和主界面首屏抢 IO
+        self.after(2600, self._start_plugin_backgrounds)
         # 通用回调队列的唯一消费者：常驻自循环（空闲时自动降频）。
         # 必须在主线程挂 —— worker 侧的 _post 只入队，不碰 Tk。
         self._start_ui_drain()
@@ -304,9 +307,37 @@ class MainWindow(tk.Tk):
         # 运行日志：全局记录（应用启停 / 服务启停结果 / 异常），不受模块开关影响
         self.run_panel = RunLogPanel(nb, self.set_log)
         nb.add(self.run_panel, text=t("运行日志"))
+        # 插件页签：core/plugins 只声明「模块路径 + 类名」，这里延迟导入面板
+        self._plugin_panels: list = []
+        for spec in plugins.enabled_specs(self.config):
+            panel = self._create_plugin_panel(nb, spec)
+            if panel is not None:
+                self._plugin_panels.append(panel)
+                nb.add(panel, text=t(spec.name))
         nb.add(about, text=t("关于"))
         # 全部页签就位后再把「总览」插到最前（空 notebook 直接 insert 会抛 TclError）
         self._place_first_tab(nb, self.overview_panel, t("总览"))
+
+    def _create_plugin_panel(self, nb, spec):
+        """按插件声明延迟导入面板；单个插件加载失败只记日志、不阻断启动。"""
+        if not spec.panel:
+            return None
+        try:
+            module = importlib.import_module(spec.panel_module)
+            cls = getattr(module, spec.panel_class)
+            return cls(nb, self.config, self.set_log)
+        except Exception as e:  # noqa: BLE001
+            run_log.warn("plugin", t("插件 {name} 面板加载失败：{err}",
+                                     name=t(spec.name),
+                                     err=f"{type(e).__name__}: {e}"))
+            return None
+
+    def _start_plugin_backgrounds(self) -> None:
+        """拉起已启用插件的后台进程（幂等；失败只记日志，不影响主界面）。"""
+        try:
+            plugins.ensure_backgrounds(self.config)
+        except Exception as e:  # noqa: BLE001
+            run_log.warn("plugin", t("插件后台启动失败：{err}", err=e))
 
     @staticmethod
     def _place_first_tab(nb: ttk.Notebook, panel, text: str) -> None:
@@ -1166,9 +1197,10 @@ class MainWindow(tk.Tk):
         切回时由 <<NotebookTabChanged>> 立即补一次，不会看到陈旧数据。
         """
         # vhost_panel 必在列：新建站点 / Adminer 托管后要靠它把新站点刷出来
+        # 插件面板也在列（不登记就会「命令成功但界面没变」，见 AGENTS.md）
         for panel in (self.overview_panel, self.php_panel, self.nginx_panel,
                       self.redis_panel, self.log_panel, self.mail_panel,
-                      self.vhost_panel):
+                      self.vhost_panel, *getattr(self, "_plugin_panels", [])):
             if panel is None or not self._panel_visible(panel):
                 continue
             try:

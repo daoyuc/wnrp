@@ -7,12 +7,15 @@
 - 被禁用的模块在下次启动时**不创建面板、不实例化对应 manager**，
   因此相关功能代码不会被加载（重启后生效，因为界面在启动时构建）。
 
+插件（``core/plugins/*``）也并入本表（见 :func:`_load_modules`），因此设置页勾选框、
+启动快照、CLI ``plugin enable/disable`` 全部自动覆盖插件，无需各处单独维护。
+
 持久化：config.json → settings.disabled_modules（模块 key 列表）。
 """
 from .i18n import t
 
-# key 需与 ui/main_window.py 中的面板构建分支一致
-MODULES: list[dict] = [
+# 内置（非插件）模块：key 需与 ui/main_window.py 中的面板构建分支一致
+_BUILTIN: list[dict] = [
     {"key": "php", "name": "PHP 版本管理", "required": True},
     {"key": "nginx", "name": "Nginx 管理", "required": True},
     {"key": "vhost", "name": "站点映射", "required": True},
@@ -23,6 +26,31 @@ MODULES: list[dict] = [
     {"key": "overview", "name": "总览仪表盘", "required": False},
     {"key": "mail", "name": "邮件捕获", "required": False},
 ]
+
+
+def _load_modules() -> list[dict]:
+    """内置模块 + 插件声明投影（插件发现失败时退化为仅内置）。"""
+    items = [dict(m) for m in _BUILTIN]
+    try:
+        from . import plugins
+    except Exception:  # noqa: BLE001 - 插件子系统不可用不应阻断主程序
+        return items
+    try:
+        specs = plugins.discover()
+    except Exception:  # noqa: BLE001
+        return items
+    for spec in specs:
+        if any(str(m["key"]) == spec.key for m in items):
+            continue
+        items.append({
+            "key": spec.key,
+            "name": spec.name,
+            "required": spec.required,
+        })
+    return items
+
+
+MODULES: list[dict] = _load_modules()
 
 _KEYS = {m["key"] for m in MODULES}
 REQUIRED_KEYS = {m["key"] for m in MODULES if m["required"]}

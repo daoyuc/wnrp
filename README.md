@@ -46,6 +46,11 @@
 - **崩溃检测与自愈**：识别 php-cgi 崩溃并告警，可选独立守护进程自动拉起（防抖 + 限次）；看护列表跨重启按开机自启范围裁剪 —— 上一轮运行过的其它版本不会被「失联复活」；手动或一键停止会同步解除看护，停止后不会被守护进程拉回
 - **自动升级**（安装版）、**开机自启**、**系统托盘**（Windows）
 
+**插件**
+
+- **内置插件框架**：插件随版本分发，在「关于 → 模块」统一启用 / 停用；停用后不建页签、不加载其代码，也不再拉起后台记录进程
+- **键鼠统计**（仅 Windows）：独立后台进程记录按键次数与时间点，按今日 / 本周 / 本月 / 本年 / 全部汇总 —— 大数字卡（按键总数与日均、打字速度与峰值 / 均值）、键位 Top 10 横条榜、24 小时活动柱状图；支持暂停 / 继续、显示报告、导出 CSV、清空记录与登录后自动运行。**只记录按了哪个键，不记录输入内容、窗口标题或剪贴板**；关闭 phpvm 主窗口后仍继续记录
+
 ## 启动方式
 
 **安装包（推荐）**
@@ -76,7 +81,7 @@ python3 cli.py schema --json    # 全部命令 / 参数 / 默认值的自描述�
 - 任意命令加 `--json`：stdout 只有一个 `{"ok", "command", "data", "warnings"}` 文档（字段名英文，稳定契约）
 - 退出码：`0` 成功 / `1` 业务失败（见 `data.error`）/ `2` 参数用法错误
 - 安全默认：写操作支持 `--dry-run`；删除需 `--yes`；Redis 危险命令需 `--force`；改动前自动备份 `.bak`
-- 覆盖 PHP / Nginx / 站点 / hosts / Redis / MySQL / SQLite / 服务编排 / 体检 / 日志 / 备份 / 项目配置 / Adminer 等分组
+- 覆盖 PHP / Nginx / 站点 / hosts / Redis / MySQL / SQLite / 服务编排 / 体检 / 日志 / 备份 / 项目配置 / Adminer / 插件（`plugin`）/ 键鼠统计（`keymouse`）等分组
 
 完整命令参考见 [docs/CLI.md](docs/CLI.md)（由 `cli.py` 自动生成，不会漂移）。
 
@@ -101,6 +106,7 @@ vhost 里的 `fastcgi_pass 127.0.0.1:<端口>` 决定站点由哪个 PHP 版本�
 
 - **config.json** 保存端口映射与设置（自愈开关、语言、主题、自动启动范围与各版本勾选名单等）。程序目录可写时放在程序目录；只读安装目录（`.app` / `Program Files`）下自动改用 `~/.phpvm`，因此升级替换程序文件**不会丢配置**；`PHPVM_HOME` 可强制指定数据目录
 - 配置损坏或 JSON 解析失败时回退内置默认值并覆盖保存
+- **插件设置与数据**：插件设置统一落 `settings.plugin_settings.<插件 key>`（如保留天数 `retention_days`）；键鼠统计的数据在 `<数据目录>/plugins/keymouse/` —— `stats.db`（SQLite / WAL 聚合表）与 `daemon.lock` / `daemon.heartbeat` / `daemon.stop` / `paused` / `daemon.log`。均为运行期文件，不入库，也不上传
 - CLI 亦可读写：`cli.py config get settings.theme` / `cli.py config set settings.theme dark`
 
 ## 文档

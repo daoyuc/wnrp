@@ -15,6 +15,7 @@ phpvm 是一个**本机开发环境管理器**（PHP 多版本 + Nginx + Redis +
 | 模块可停用 | 可选功能可在配置里停用，停用后**不建页签、不实例化 manager、不加载其代码**（`core/modules.py`） |
 | 文案全 i18n | 界面与日志文案统一 `t("中文原文")`，词条表在 `i18n/<lang>/*.json`（5 语言） |
 | 跨平台收敛 | 平台差异集中在少数模块，其余代码平台无关（见 §6） |
+| 插件声明式注册 | 内置插件只导出 `MANIFEST: PluginSpec`（面板路径 + 后台脚本 + 默认设置 + 平台），框架用 `pkgutil` + `importlib` 发现；单插件导入失败只 warn、不阻断启动（`core/plugins/__init__.py`） |
 
 ## 2. 分层与依赖方向
 
@@ -23,6 +24,7 @@ phpvm 是一个**本机开发环境管理器**（PHP 多版本 + Nginx + Redis +
 │ main.py            GUI 入口：单实例锁 → 语言 → --start-all 分支 → 建窗口 │
 │ cli.py             命令行入口：argparse → core.*（不 import tkinter）   │
 │ core/crash_watchdog.py  自愈守护进程入口（可直接被 spawn 成独立进程）    │
+│ core/plugins/keymouse/daemon.py  插件后台记录进程（独立 pythonw 进程）   │
 │ phpvm.bat / phpvm.command  双击启动（Windows 用 pythonw，无控制台）      │
 │ packaging/build.py + phpvm.iss  构建 .dmg / 安装包                     │
 └───────────────────────────────┬───────────────────────────────────────┘
@@ -35,6 +37,7 @@ phpvm 是一个**本机开发环境管理器**（PHP 多版本 + Nginx + Redis +
 │ update_dialog.py · tuning_dialog.py   各类对话框与向导                  │
 │ theme.py · tray.py · window_utils.py  主题样式 / 托盘 / 窗口自适应      │
 │ layout.py                             可滚动内容区 / 长文本自动换行     │
+│ plugins/*_panel.py  插件面板（由 main_window 按 MANIFEST 延迟导入）      │
 └───────────────────────────────┬───────────────────────────────────────┘
                                 │ 单向依赖（ui → core，core 绝不反向）
 ┌── 服务层 core/ ───────────────┴───────────────────────────────────────┐
@@ -46,6 +49,7 @@ phpvm 是一个**本机开发环境管理器**（PHP 多版本 + Nginx + Redis +
 │           cert_manager · redis_manager · mysql_manager · sqlite_manager│
 │           service_group · autostart · tuning · tool_manager · icon     │
 │           health_monitor · crash_watchdog · recover_history · updater  │
+│ 插件注册表：plugins/（base · settings · <name>/MANIFEST · store · stats）│
 └───────────────────────────────┬───────────────────────────────────────┘
                                 │ 通过子进程 / 系统 API 操作
 ┌── 系统层 ─────────────────────┴───────────────────────────────────────┐
@@ -71,6 +75,7 @@ phpvm 是一个**本机开发环境管理器**（PHP 多版本 + Nginx + Redis +
 | 自愈守护进程 | `core/crash_watchdog.py`（被 `spawn()` 以 `pythonw` 拉起） | 与 GUI 生命周期解耦地轮询崩溃事件与进程失联，按防抖/限次策略重启 php-cgi | 用 `crash_watchdog.lock` 单例；关闭自愈开关后守护进程自行退出，不杀进程 |
 | 单实例保护 | `main.py` | Windows 命名互斥体 `Global\wnrp_phpvm_singleton_mutex`；posix `/tmp/phpvm_singleton.sock` | 第二实例提示后退出并写一条 warn 日志；「重启」功能用 `PHPVM_RESTART=1` 抢锁 |
 | 无界面服务启动 | `main.py --start-all` → `core/service_group.py` | 登录/启动时静默拉起 Nginx / Redis / MySQL / 按范围挑选的 PHP | 不创建窗口、不占单例锁；结果追加到 `autostart_services.log` |
+| 插件后台记录进程 | `core/plugins/keymouse/daemon.py`（`pythonw` + `CREATE_NO_WINDOW` 拉起） | Win32 `WH_KEYBOARD_LL` 钩子 → 内存聚合 → 每 2s / 600 事件批量写 SQLite；主窗口退出后继续运行 | 钩子回调零 I/O（只 `deque.append` + `CallNextHookEx`）；`daemon.lock` 的 PID + `daemon.heartbeat` 新鲜度判单例；插件停用后 ≤60s 自行退出；日志写自己的 `daemon.log`，不写共享 `run_log.log` |
 
 > 记日志的接口只有 `run_log.info/ok/warn/error(scope, message)`，`scope` 取值见 `README.md`「运行日志页」。
 
@@ -94,6 +99,7 @@ worker 只 `queue.put()`，主窗口的 `_post()` 也**只入队、不碰 `after
 | `crash_watchdog.json` / `.lock` / `.log` | 守护进程看护清单、单例锁、守护自身日志 | `core/crash_watchdog.py` | 均为运行期文件，不入库 |
 | `autostart_services.log` | 每次 `--start-all` 的逐项结果（含 `php_scope=`） | `main.py` | 排查「登录后服务没起来」的第一现场 |
 | `updates/` | 升级包下载缓存（`.part` 原子改名 + SHA-256 校验） | `core/updater.py` | 可从关于页直达 |
+| `<数据目录>/plugins/keymouse/` | `stats.db`（WAL，日桶 + 分钟桶）+ `daemon.lock`（PID）/ `daemon.heartbeat` / `daemon.stop` / `paused` / `daemon.log(.1)` | 键鼠统计后台守护进程；面板与 CLI 只读 | 运行期文件，不入库；只落 vkCode 与时间戳，不记录输入内容 / 窗口标题；保留期默认 730 天 |
 | `C:\wnrp\{php*,nginx,Redis*,mysql}` | 被管理的真实程序本体 | 用户 / 安装器 | 环境的默认事实来源；根路径可用 `WNRP_ROOT` 覆盖。MySQL 例外：除环境根 `mysql*` 外还会自动探测环境根之外的安装（Windows 服务 bin 路径 / PATH / 常见位置），并可用 `settings.mysql_dirs` 显式指定 |
 
 **强耦合提醒**：`config.json` 的端口 ↔ 各 vhost 的 `fastcgi_pass 127.0.0.1:<端口>` 必须一致，
@@ -128,6 +134,7 @@ worker 只 `queue.put()`，主窗口的 `_post()` 也**只入队、不碰 `after
 | `core/app_paths.py` | 数据目录可写性判定（包目录 → `~/.phpvm`） |
 | `core/theme.py` | 系统深浅色探测（注册表 / `defaults` / `gsettings`） |
 | `ui/tray.py` | 托盘仅 Windows 实现（macOS/Linux 以 Dock 驻留代替，`_init_tray` 直接返回） |
+| `core/plugins/keymouse/collector.py` | 键盘采集仅 Windows（`WH_KEYBOARD_LL`）；其它平台 `supported()` 返回 False，页面显示「当前平台不支持采集」而非报错 |
 
 ## 7. 新增一个功能，落点在哪
 
@@ -139,6 +146,7 @@ worker 只 `queue.put()`，主窗口的 `_post()` 也**只入队、不碰 `after
 | 新增一个桌面集成/写系统文件的能力 | 守 §5 铁律；备份走 `core/file_backup.py` |
 | 新增界面文案 | `t()` 包裹 → `python _i18n_scan.py --report` → 补 4 语言词条 |
 | 新增单元测试 | `tests/test_<模块>.py`（标准库 unittest，用 `tests/fakes.py` 的临时目录 + 假 nginx，禁止碰真实配置与 hosts） |
+| 新增一个内置插件 | `core/plugins/<name>/`（`MANIFEST: PluginSpec` + 逻辑 + 可选 `daemon.py`）+ `ui/plugins/<name>_panel.py`（实现 `auto_refresh()` / `refresh_theme()`）+ `cli.py` 命令组；`MANIFEST.key` 由 `core/modules.py` 自动并入模块开关，`ui/main_window.py` 自动把插件面板收进 `_refresh_panels()`；后台脚本经 `ensure_backgrounds()` 幂等拉起，改完命令跑 `python3 _docs_cli.py` |
 
 > 架构层的新增/变更（新层、新进程、新运行期文件、新横切约定）必须同步更新本文件；
 > 功能落点变化同步更新 [`MODULES.md`](MODULES.md)；流程变化同步更新 [`FLOWS.md`](FLOWS.md)。

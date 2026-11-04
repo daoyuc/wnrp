@@ -47,6 +47,11 @@ Each PHP version is started and stopped precisely by port, so versions never int
 - **Crash detection & self-healing**: detect php-cgi crashes and alert; optional standalone watchdog to restart automatically (debounce + rate limit); manual / stop-all also clears the watch list, so stopped versions are never pulled back up
 - **Auto-update** (installer builds), **launch at login**, **system tray** (Windows)
 
+**Plugins**
+
+- **Built-in plugin framework**: plugins ship with the app and are toggled in About -> Modules; disabling one removes its tab, stops loading its code and prevents its background worker from starting
+- **Keyboard stats** (Windows only): a standalone background process records key presses and timestamps, with today / week / month / year / all summaries — big-number cards (total & daily average presses, typing speed with peak / mean), a Top 10 key ranking, a 24-hour activity chart, pause / resume, report view, CSV export, clear data and launch-at-login. Only *which key* was pressed is stored: no typed text, window titles or clipboard content. Recording continues after the main window is closed
+
 ## Getting Started
 
 **Installer (recommended)**

@@ -18,8 +18,10 @@ python/phpvm.bat 启动
  ├─ _enable_high_dpi()                       必须在创建 Tk 根窗口之前
  ├─ 按 modules.is_enabled() 决定是否实例化 Redis / MySQL manager（停用则不 import）
  ├─ MainWindow(...)  ← 建窗口 → _build() 建页签 → 8s 轮询 _tick() → 托盘 → 启动静默检查更新
+ │     ├─ _build() 末尾按 plugins.enabled_specs() 延迟挂载插件页签（见流程 8）
+ │     ├─ after(2600ms) plugins.ensure_backgrounds()（幂等拉起插件后台进程，见流程 8）
  │     └─ after(1200ms) _maybe_start_services_on_launch()（设置开启时，见流程 2）
- └─ mainloop() 退出后：释放单实例锁 + 写「phpvm 已退出」
+ └─ mainloop() 退出后：释放单实例锁 + 写「phpvm 已退出」（插件守护进程不随之退出）
 ```
 
 **现象对照**：点了没反应 → 查 `run_log.log` 里有没有「phpvm 已在运行，本次启动已退出」。
@@ -139,6 +141,43 @@ CLI 等价：`python3 cli.py site sync-port --old 9082 --new 9083 --reload`。
 数据目录外置（包目录只读时用 ~/.phpvm），因此升级覆盖程序文件不会丢 config.json
 ```
 
+## 8. 插件框架与键鼠后台记录（`core/plugins` + `ui/plugins`）
+
+```
+启动（GUI / CLI / 开机自启）
+ ├─ plugins.discover() 扫描 core/plugins/ 各子包，importlib 读 MANIFEST: PluginSpec
+ │    └─ 单个插件导入失败 → run_log.warn + 跳过，不阻断启动
+ ├─ core/modules.py 把插件 key 并入 MODULES → 关于页模块开关自动出现该项
+ ├─ 主窗口 _build() 末尾：按 enabled_specs(config) 延迟 import ui/plugins/*_panel.py
+ │    └─ 面板进 _plugin_panels + _refresh_panels()（定时刷新 / 主题重绘）
+ ├─ after(2600ms) ensure_backgrounds(config) → keymouse.ensure_daemon()
+ │    └─ daemon.spawn()：pythonw + CREATE_NO_WINDOW；daemon.lock(PID) + daemon.heartbeat 判活，幂等
+ └─ 关闭主窗口：不杀守护进程，记录继续
+
+采集（独立进程，仅 Windows）
+ WH_KEYBOARD_LL 钩子回调 → 只 deque.append((ts, vk)) + CallNextHookEx（零 I/O）
+   ├─ 过滤 LLKHF_INJECTED 注入事件；只计「抬起→按下」跳变（排除长按自动重复）
+   └─ 主循环每 2s / 攒够 600 事件：内存聚合 → 一个事务 upsert
+        key_day(day,vk,count) + typing_minute(ts_minute,presses,peak_kpm)（WAL）
+ 暂停：写 <数据目录>/plugins/keymouse/paused（≤1s 生效，flush 后停钩子）
+ 停止：写 daemon.stop；停用插件：下一轮配置检查（≤60s）自行 flush 并退出
+ 钩子看护：每 5s 检查、每 60s 重装一次（句柄丢失立即重装、正在打字时推迟），
+           兜住回调超时被系统静默移除的低层钩子；失败只在状态翻转时记一条日志
+ 保留期：默认 730 天，每 24h 清理一次
+
+展示（GUI / CLI，与采集分离）
+ sqlite3 file:...?mode=ro → stats.summary(range, top)（today/week/month/year/all）
+   ├─ 面板 auto_refresh() 在 worker 线程查 → queue + drain 回主线程重绘
+   └─ CLI keymouse summary / export / status；keymouse clear --yes 清空
+ 开机自启：HKCU Run 值名 phpvm-keymouse（独立于 phpvm 自身），
+           写的是守护脚本的隐藏启动命令，登录即记录，无需打开主窗口
+```
+
+**失败分支**：安全软件拦截全局键盘钩子 → 守护进程写 `daemon.log` 并退出，面板显示「后台未运行」+ 诊断提示；
+插件面板导入失败 → warn + 跳过该页签；非 Windows → `supported()` 为 False，页面显示「当前平台不支持采集」而非报错。
+**隐私**：只落 vkCode 与时间戳，不记录字符 / 输入文本 / 窗口标题 / 剪贴板，数据仅在本机且不上传。
+**排查现场**：`<数据目录>/plugins/keymouse/daemon.log` 是守护进程自己的日志（不写共享 `run_log.log`，避免多进程追加截断）。
+
 ---
 
 ## 排查速查表
@@ -151,3 +190,4 @@ CLI 等价：`python3 cli.py site sync-port --old 9082 --new 9083 --reload`。
 | 改配置没生效 | php.ini 类需重启该版本；nginx 类需 reload；模块开关与语言需重启 phpvm |
 | php-cgi 反复崩溃 | 崩溃详情对话框 + `recover_history.json`；Windows 事件查看器；本机 php85 记得 JIT 必须关闭 |
 | CLI 行为与界面不一致 | 先 `python3 cli.py schema --json` 核对参数契约（文档只写典型用法） |
+| 键鼠统计一直显示「后台未运行」 | `<数据目录>/plugins/keymouse/daemon.log`（钩子是否被安全软件拦截）→ `daemon.lock` 的 PID 与 `daemon.heartbeat` 是否新鲜 → 设置页是否启用了「键鼠统计」模块（流程 8） |

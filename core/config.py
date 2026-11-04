@@ -71,6 +71,8 @@ DEFAULT_SETTINGS = {
     # 额外 MySQL 实例目录（第三方安装位置，如 ["D:\\mysql"]）。面板/CLI 已自动
     # 探测常见位置、Windows 服务与 PATH，此项用于显式补充环境根以外的安装。
     "mysql_dirs": [],
+    # 插件设置（唯一落点）：{插件 key: {设置名: 值}}，见 core/plugins/settings.py
+    "plugin_settings": {},
 }
 
 
