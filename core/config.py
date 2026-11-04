@@ -68,6 +68,9 @@ DEFAULT_SETTINGS = {
     "autostart_php_scope": "newest",
     # scope=custom 时开机自启的版本名（PHP 页「开机自启」列勾选，如 ["php82", "php85"]）
     "autostart_php_versions": [],
+    # 额外 MySQL 实例目录（第三方安装位置，如 ["D:\\mysql"]）。面板/CLI 已自动
+    # 探测常见位置、Windows 服务与 PATH，此项用于显式补充环境根以外的安装。
+    "mysql_dirs": [],
 }
 
 

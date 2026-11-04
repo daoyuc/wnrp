@@ -94,7 +94,7 @@ worker 只 `queue.put()`，主窗口的 `_post()` 也**只入队、不碰 `after
 | `crash_watchdog.json` / `.lock` / `.log` | 守护进程看护清单、单例锁、守护自身日志 | `core/crash_watchdog.py` | 均为运行期文件，不入库 |
 | `autostart_services.log` | 每次 `--start-all` 的逐项结果（含 `php_scope=`） | `main.py` | 排查「登录后服务没起来」的第一现场 |
 | `updates/` | 升级包下载缓存（`.part` 原子改名 + SHA-256 校验） | `core/updater.py` | 可从关于页直达 |
-| `C:\wnrp\{php*,nginx,Redis*,mysql}` | 被管理的真实程序本体 | 用户 / 安装器 | 环境的唯一事实来源；根路径可用 `WNRP_ROOT` 覆盖 |
+| `C:\wnrp\{php*,nginx,Redis*,mysql}` | 被管理的真实程序本体 | 用户 / 安装器 | 环境的默认事实来源；根路径可用 `WNRP_ROOT` 覆盖。MySQL 例外：除环境根 `mysql*` 外还会自动探测环境根之外的安装（Windows 服务 bin 路径 / PATH / 常见位置），并可用 `settings.mysql_dirs` 显式指定 |
 
 **强耦合提醒**：`config.json` 的端口 ↔ 各 vhost 的 `fastcgi_pass 127.0.0.1:<端口>` 必须一致，
 改端口后要走「一键同步 vhost」（`site sync-port` / 界面自动弹窗），否则站点 502。

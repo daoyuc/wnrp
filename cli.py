@@ -203,8 +203,9 @@ def _redis_dict(inst) -> dict:
     }
 
 
-def _mysql_dict(inst) -> dict:
-    mgr = MysqlManager()
+def _mysql_dict(inst, mgr: MysqlManager | None = None) -> dict:
+    """实例 → JSON 契约；复用已构造的 manager 可避免重复探测实例列表。"""
+    mgr = mgr or MysqlManager()
     running, pids = mgr.get_status(inst)
     return {
         "name": inst.name,
@@ -361,7 +362,8 @@ def cmd_env(a, r: Result) -> Result:
     if modules.is_enabled("redis", cfg):
         data["redis"] = [_redis_dict(i) for i in RedisManager().refresh_instances()]
     if modules.is_enabled("mysql", cfg):
-        data["mysql"] = [_mysql_dict(i) for i in MysqlManager().refresh_instances()]
+        mysql_mgr = MysqlManager()
+        data["mysql"] = [_mysql_dict(i, mysql_mgr) for i in mysql_mgr.instances]
     r.data = data
     r.say(f"phpvm {data['app_version']} · nginx {'运行中' if data['nginx']['running'] else '已停止'}"
           f"（{data['nginx']['version'] or '未知版本'}）")
@@ -1872,10 +1874,11 @@ def cmd_mysql_list(a, r: Result) -> Result:
     cfg = Config()
     if not modules.is_enabled("mysql", cfg):
         return r.fail("MySQL 模块已停用（settings.disabled_modules）")
-    insts = MysqlManager().refresh_instances()
-    r.data = {"count": len(insts), "instances": [_mysql_dict(i) for i in insts]}
+    mgr = MysqlManager()
+    insts = mgr.refresh_instances()
+    r.data = {"count": len(insts), "instances": [_mysql_dict(i, mgr) for i in insts]}
     for i in insts:
-        d = _mysql_dict(i)
+        d = _mysql_dict(i, mgr)
         r.say(f"{'●' if d['running'] else '○'} {d['name']} · 端口 {d['port']} · "
               f"{d['mode']} · {d['version']}")
     return r

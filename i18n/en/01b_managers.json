@@ -43,5 +43,6 @@
  "include 已补上": "include line added",
  "logs 目录无 .log 文件": "No .log files in the logs directory",
  "未找到 hosts 备份：{path}": "No hosts backup found: {path}",
- "未找到 hosts 文件：{path}": "hosts file not found: {path}"
+ "未找到 hosts 文件：{path}": "hosts file not found: {path}",
+ "已自动探测常见安装位置、Windows 服务与 PATH；也可用 settings.mysql_dirs 指定目录。": "Common install locations, Windows services and PATH were probed automatically; you can also set settings.mysql_dirs."
 }

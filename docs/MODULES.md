@@ -42,7 +42,7 @@ PHP 版本管理(php,刚需) │ Nginx 管理(nginx,刚需) │ Redis 管理(red
 | 新建站点向导 / HTTPS 证书 | `ui/site_wizard.py` | `site_service.py`、`site_templates.py`、`cert_manager.py` | vhost + hosts + 证书文件 | 5 步编排，任一步失败可整体回滚 |
 | hosts 写入 / 移除 / 还原 | `ui/vhost_panel.py` 按钮、向导 | `hosts_manager.py` | 系统 hosts + `hosts.phpvm.bak` | 只动 `# >>> phpvm-managed >>>` 块；写入需提权 |
 | Redis 多实例管理 | `ui/redis_panel.py` | `redis_manager.py` | redis 进程 / 日志 | 危险命令需二次确认 |
-| MySQL 实例管理 | `ui/mysql_panel.py` | `mysql_manager.py` | Windows 服务 / 进程 | 服务模式启停需管理员，非管理员时禁用并提示 |
+| MySQL 实例管理 | `ui/mysql_panel.py` | `mysql_manager.py` | Windows 服务 / 进程 | 实例发现：环境根 `mysql*` + 自动探测（Windows 服务 bin 路径 / PATH / 常见安装位置）+ `settings.mysql_dirs` 显式指定，`bin` 目录自动上溯；服务模式启停需管理员，非管理员时禁用并提示；「刷新状态」会重新发现实例 |
 | SQLite 只读查询 | `ui/sqlite_panel.py` | `sqlite_manager.py` | `settings.sqlite_last_db` | 只读（mode=ro + query_only + 关键字白名单） |
 | Nginx 日志查看 | `ui/nginx_log_panel.py` | `nginx_manager.py`（日志目录推导） | — | 增量 tail + 自动跟随 |
 | 运行日志 | `ui/run_log_panel.py` | `run_log.py` | `run_log.log(.1)` | 内存 2000 条 / 单文件 1MB 轮转 |

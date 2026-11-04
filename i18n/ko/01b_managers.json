@@ -43,5 +43,6 @@
  "include 已补上": "include를 추가했습니다",
  "logs 目录无 .log 文件": "logs 디렉터리에 .log 파일이 없습니다",
  "未找到 hosts 备份：{path}": "hosts 백업을 찾을 수 없습니다: {path}",
- "未找到 hosts 文件：{path}": "hosts 파일을 찾을 수 없습니다: {path}"
+ "未找到 hosts 文件：{path}": "hosts 파일을 찾을 수 없습니다: {path}",
+ "已自动探测常见安装位置、Windows 服务与 PATH；也可用 settings.mysql_dirs 指定目录。": "일반 설치 위치, Windows 서비스, PATH를 자동으로 탐색했습니다. settings.mysql_dirs로도 지정할 수 있습니다."
 }

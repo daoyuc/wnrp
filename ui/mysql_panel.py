@@ -71,7 +71,8 @@ class MysqlPanel(ttk.Frame):
         self.instance_cb["values"] = [i.name for i in self.mysql_mgr.instances]
         if self.mysql_mgr.instances:
             self.instance_var.set(self.mysql_mgr.default_instance().name)
-        ttk.Button(top, text=t("刷新状态"), command=self.refresh_status).pack(side="left")
+        ttk.Button(top, text=t("刷新状态"),
+                   command=lambda: self.refresh_status(rescan=True)).pack(side="left")
 
         body = ttk.Frame(self)
         body.pack(fill="both", expand=True)
@@ -145,7 +146,8 @@ class MysqlPanel(ttk.Frame):
     # ------------------------------------------------------------------ #
     # 状态刷新
     # ------------------------------------------------------------------ #
-    def refresh_status(self) -> None:
+    def refresh_status(self, rescan: bool = False) -> None:
+        """刷新状态；rescan=True 时重新发现实例（用户新装 MySQL 后点「刷新状态」）。"""
         if self._busy:
             return
         self._set_busy(True)
@@ -153,7 +155,7 @@ class MysqlPanel(ttk.Frame):
 
         def worker():
             try:
-                if not self.mysql_mgr.instances:
+                if rescan or not self.mysql_mgr.instances:
                     self.mysql_mgr.refresh_instances()
                 inst = self._find(name) or self.mysql_mgr.default_instance()
                 if inst is None:
@@ -174,7 +176,9 @@ class MysqlPanel(ttk.Frame):
                 self.info_vars[key].set("—")
             self.hint_label.configure(
                 text=t("未找到含 bin/mysqld 的 mysql 目录（环境根：{root}）。",
-                       root=self.mysql_mgr.root))
+                       root=self.mysql_mgr.root)
+                + "\n" + t("已自动探测常见安装位置、Windows 服务与 PATH；"
+                           "也可用 settings.mysql_dirs 指定目录。"))
             self._set_ctrl(False)
             return
         inst, running, pids = payload
@@ -278,6 +282,7 @@ class MysqlPanel(ttk.Frame):
             return
         self._set_busy(False)
         if kind == "status":
+            self._sync_instance_choices()
             self._render_status(payload)
         elif kind == "op":
             self._append_log(payload, "err" if t("失败") in payload else "ok")
@@ -300,6 +305,15 @@ class MysqlPanel(ttk.Frame):
             self.log_text.tag_add(tag, start, "end-1c")
         self.log_text.see("end")
         self.log_text.configure(state="disabled")
+
+    def _sync_instance_choices(self) -> None:
+        """重新发现实例后同步下拉框（保留仍存在的当前选中项）。"""
+        names = [i.name for i in self.mysql_mgr.instances]
+        self.instance_cb["values"] = names
+        if not names:
+            self.instance_var.set("")
+        elif self.instance_var.get() not in names:
+            self.instance_var.set(names[0])
 
     def _find(self, name: str) -> MysqlInstance | None:
         for i in self.mysql_mgr.instances:
