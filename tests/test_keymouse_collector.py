@@ -6,6 +6,7 @@
 """
 import ctypes
 import unittest
+from unittest import mock
 
 from core.plugins.keymouse import collector as mod
 
@@ -147,6 +148,73 @@ class EnsureHookTest(unittest.TestCase):
         self.assertFalse(self.c.ensure_hook(now=161.0))
         self.assertEqual(self.c.reinstall_count, 0)
         self.assertIn("失败", self.c.error)
+
+
+class _PumpUser32:
+    """假消息泵：PeekMessageW 按预设序列返回，记录消息等待调用。"""
+
+    def __init__(self, peeks):
+        self.peeks = list(peeks)
+        self.wait_calls = 0
+        self.wait_args = None
+
+    def PeekMessageW(self, *args):
+        return self.peeks.pop(0) if self.peeks else 0
+
+    def TranslateMessage(self, *args):
+        return 0
+
+    def DispatchMessageW(self, *args):
+        return 0
+
+    def MsgWaitForMultipleObjects(self, *args):
+        self.wait_calls += 1
+        self.wait_args = args
+        return 0
+
+    def CallNextHookEx(self, *args):
+        return 0
+
+
+class PumpTest(unittest.TestCase):
+    """消息泵必须「等消息」而不是 sleep —— 后者会让打字 / 输入法变粘。"""
+
+    def setUp(self):
+        self.c = mod.KeyboardCollector()
+        self.c._msg = ctypes.c_int(0)
+
+    def _pump(self, peeks, idle=0.05):
+        fake = _PumpUser32(peeks)
+        self.c._user32 = fake
+        with mock.patch.object(mod.time, "sleep") as sleep:
+            count = self.c.pump(idle_sleep=idle)
+        return fake, count, sleep
+
+    def test_idle_waits_for_message_instead_of_sleeping(self):
+        fake, count, sleep = self._pump([0, 1, 0])
+        self.assertEqual(count, 1)
+        self.assertEqual(fake.wait_calls, 1)
+        self.assertEqual(fake.wait_args[3], 50)  # 0.05s 换算成 50ms 最长等待
+        self.assertEqual(fake.wait_args[4], mod.QS_ALLINPUT)
+        sleep.assert_not_called()
+
+    def test_pending_messages_are_drained_without_waiting(self):
+        fake, count, sleep = self._pump([1, 1, 0])
+        self.assertEqual(count, 2)
+        self.assertEqual(fake.wait_calls, 0)
+        sleep.assert_not_called()
+
+    def test_timeout_still_returns_zero(self):
+        fake, count, sleep = self._pump([0, 0])
+        self.assertEqual(count, 0)
+        self.assertEqual(fake.wait_calls, 1)
+        sleep.assert_not_called()
+
+    def test_without_hook_falls_back_to_sleep(self):
+        c = mod.KeyboardCollector()
+        with mock.patch.object(mod.time, "sleep") as sleep:
+            self.assertEqual(c.pump(0.01), 0)
+        sleep.assert_called_once_with(0.01)
 
 
 if __name__ == "__main__":

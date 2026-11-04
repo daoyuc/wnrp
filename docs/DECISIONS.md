@@ -126,3 +126,9 @@
 - **影响**：新增插件 = 加一个目录 + 一个面板 + 一组 CLI，设置页 / 启动快照 / 刷新登记无需改动；
   单个插件导入失败只 warn、不阻断启动；数据只落 vkCode 与时间戳、不上传；非 Windows 平台显示
   「当前平台不支持采集」而非报错；`settings.plugin_settings` 是插件设置的唯一落点。
+
+## 15. 低层键盘钩子的消息泵必须「等消息」，不能 sleep 轮询
+
+- **背景**：用户反馈开启键鼠统计后打字 / 输入法反应变慢。定量复现（向钩子线程投递线程消息做等价测量，不向系统注入按键）：`PeekMessageW + time.sleep(50ms)` 平均 **31.6ms**、最大 32.8ms 才处理一条消息；改成消息等待后平均 **0.7ms**。根因是 `WH_KEYBOARD_LL` 回调由系统向**安装钩子的线程**投递消息触发，只有该线程检索消息时才执行，休眠期间到达的按键会整批排队；持续延迟还可能逼近 `LowLevelHooksTimeout` 被系统静默摘钩。
+- **决策**：`core/plugins/keymouse/collector.py::pump()` 先 `PeekMessageW(PM_REMOVE)` 排空；空闲时用 `MsgWaitForMultipleObjects(0, NULL, FALSE, 最长 50ms, QS_ALLINPUT)` 等待消息，返回后**立即再排空一次**；`idle_sleep` 从「每轮休眠」改为「最长维护周期」。钩子回调仍保持零 I/O。
+- **影响**：按键响应延迟从约 31ms 降到约 1ms（真实 `KeyboardCollector.pump()` 实测 1.5ms）；空闲时线程照样阻塞，不忙等烧 CPU（20 次空闲泵约 1.25s）。任何新增的低层钩子 / 高优先级消息循环都不得在该线程用 `time.sleep` 轮询；`tests/test_keymouse_collector.py::PumpTest` 守住这条契约。

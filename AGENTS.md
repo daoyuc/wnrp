@@ -44,7 +44,7 @@ python3 cli.py env --json      # 环境快照：nginx、PHP 版本与端口、Re
 
 - **取「PHP 是否在跑」必须刷新状态**：`core/php_manager.py` 的 `scan_versions()` 只探测版本二进制，**不刷新 `running`**，直接读会得到陈旧值。统一走 `resolve(refresh_status=True, fast=True)`（定时刷新的默认姿势；操作后精确校验用 `fast=False`）。任何「挑一个 PHP 来用」的逻辑（托管站点建站、TLS 自动续期、端口同步等）都必须先按 `running` 过滤，再回退到版本列表——否则站点会落到未启动的 PHP 上，表现为 `502`。
 - **新增 UI 面板必须登记**：`ui/main_window.py` 的 `_refresh_panels()` 里有个面板元组，新面板不进这个列表，就不参与定时刷新和「操作完成后立即刷新」，会出现「命令成功但界面没变」（典型：新建站点 / 安装 Adminer 后站点映射页不更新）。
-- **插件面板与后台进程按框架接线**：插件 key 由 `core/modules.py` 自动并入 `MODULES`（设置页、启动快照、CLI `plugin enable/disable` 无需另写枚举）；面板须实现 `auto_refresh()` / `refresh_theme()`，并确认 `ui/main_window.py` 的 `_plugin_panels` 已进 `_refresh_panels()`；后台进程状态文件名以 `core/plugins/keymouse/daemon.py` 顶部常量为准（`daemon.lock` / `daemon.heartbeat` / `daemon.stop` / `paused`），不要按字面猜 `daemon.pid` 或 `stop`。
+- **插件面板与后台进程按框架接线**：插件 key 由 `core/modules.py` 自动并入 `MODULES`（设置页、启动快照、CLI `plugin enable/disable` 无需另写枚举）；面板须实现 `auto_refresh()` / `refresh_theme()`，并确认 `ui/main_window.py` 的 `_plugin_panels` 已进 `_refresh_panels()`；后台进程状态文件名以 `core/plugins/keymouse/daemon.py` 顶部常量为准（`daemon.lock` / `daemon.heartbeat` / `daemon.stop` / `paused`），不要按字面猜 `daemon.pid` 或 `stop`；`WH_KEYBOARD_LL` 钩子线程必须用 `MsgWaitForMultipleObjects` 等消息、不得 `time.sleep` 轮询（实测每次按键约 30ms 延迟，见 ADR 15 与 `tests/test_keymouse_collector.py::PumpTest`）。
 
 ## 常用流程
 

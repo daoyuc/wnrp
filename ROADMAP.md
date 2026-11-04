@@ -198,6 +198,8 @@
 
 - **第十九轮（2026-11-04，状态栏新增系统内存占用槽位）**：① 新增 `core/system_memory.py`：整机物理内存快照（Windows `GlobalMemoryStatusEx` / Linux `/proc/meminfo` 的 `MemAvailable` / macOS `sysctl`+`vm_stat` 的 free+inactive+speculative 页），纯读、零第三方依赖，取不到降级为 `ok=False` 而非报错；与 `core/resource_monitor.py`（只统计 phpvm 管理进程的 RSS/CPU）明确区分，避免把进程占用误当整机占用。② 主窗口底部状态栏新增等宽字体槽位 `Memory.Status.TLabel`（弱化色，不抢告警徽标），显示「内存 42% · 6.8 GB/16.0 GB」；启动即取一次，之后 `_tick()` 每 8s 由 worker 采集、只经通用 `_post()` 回投主线程写 `StringVar`，不新建常驻轮询、不跨线程碰 Tk。③ 新增 `tests/test_system_memory.py`（解析函数纯函数化，三平台可跑），GUI 冒烟加槽位断言；四语言新增 `19b_statusbar_memory.json`。④ 文档同步 `README` / `README.en` / `MODULES` / `ARCHITECTURE` / `FLOWS` / 本文档。全量单元测试、文档一致性与 CLI 参考校验均通过。
 
+- **第二十轮（2026-11-04，修复键鼠记录拖慢打字 / 输入法）**：① **证实根因**：`core/plugins/keymouse/collector.py::pump()` 在钩子安装线程用 `PeekMessageW + time.sleep(0.05)` 轮询，而 `WH_KEYBOARD_LL` 回调靠系统向该线程投递消息触发 —— 休眠期间到达的按键要排队到下一轮。用「向钩子线程投递线程消息」做等价定量测量（不注入系统按键、不干扰用户正在输入的内容）：旧范式平均 **31.6ms** / 最大 32.8ms，消息等待范式平均 **0.7ms** / 最大 1.5ms。② **修复**：`pump()` 改为先排空、空闲时 `MsgWaitForMultipleObjects(0, NULL, FALSE, ≤50ms, QS_ALLINPUT)` 等消息、返回后立即再排空；`idle_sleep` 退化为「最长维护周期」，钩子回调仍零 I/O。真机复测修复后的真实 `KeyboardCollector.pump()` 平均 **1.5ms**，空闲 20 次泵 1248ms（确实阻塞、无忙循环烧 CPU）。③ 新增 `PumpTest` 4 例（断言不再调用 `sleep`、超时换算 50ms、待处理消息不等待、未装钩子时降级），沉淀为 [`DECISIONS.md`](docs/DECISIONS.md) ADR 15；同步 `ARCHITECTURE` / `FLOWS` / `EVOLUTION` / 本文档。④ 用户可见行为不变，纯性能修复。
+
 ---
 
 ## 附录：事实核查记录（2026-09-10，基于 `a726743`）

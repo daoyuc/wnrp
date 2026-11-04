@@ -157,6 +157,9 @@ CLI 等价：`python3 cli.py site sync-port --old 9082 --new 9083 --reload`。
  └─ 关闭主窗口：不杀守护进程，记录继续
 
 采集（独立进程，仅 Windows）
+ 消息泵：PeekMessageW 排空 → 空闲时 MsgWaitForMultipleObjects 等消息（≤50ms）
+         绝不在钩子线程 time.sleep 轮询：休眠期间到达的按键会排队 ~30ms，
+         打字 / 输入法组合输入发粘，久了还可能触发 LowLevelHooksTimeout
  WH_KEYBOARD_LL 钩子回调 → 只 deque.append((ts, vk)) + CallNextHookEx（零 I/O）
    ├─ 过滤 LLKHF_INJECTED 注入事件；只计「抬起→按下」跳变（排除长按自动重复）
    └─ 主循环每 2s / 攒够 600 事件：内存聚合 → 一个事务 upsert

@@ -91,6 +91,8 @@ worker 只 `queue.put()`，主窗口的 `_post()` 也**只入队、不碰 `after
 
 状态栏的整机内存槽位同样遵守该契约：`_tick()` 起 worker 读 `core/system_memory.py`，结果只经 `_post()` 回主线程写 `StringVar`，不新建常驻轮询；`core/resource_monitor.py` 统计的是 phpvm 管理进程的 RSS/CPU，与整机内存是两回事。
 
+键鼠插件的 `WH_KEYBOARD_LL` 守护进程还有一条专属铁律：钩子回调由系统向**安装钩子的线程**投递消息触发，该线程必须用 `MsgWaitForMultipleObjects` 等待消息，不能用 `time.sleep` 轮询 —— 后者实测给每次按键加约 30ms 排队延迟（输入法组合输入尤其明显），详见 [ADR 15](DECISIONS.md)。
+
 ## 4. 运行期状态与落点
 
 | 文件 / 位置 | 内容 | 谁写 | 备注 |

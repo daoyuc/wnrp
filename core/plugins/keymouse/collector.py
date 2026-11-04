@@ -27,6 +27,7 @@ WM_SYSKEYDOWN = 0x0104
 WM_SYSKEYUP = 0x0105
 LLKHF_INJECTED = 0x10
 PM_REMOVE = 0x0001
+QS_ALLINPUT = 0x04FF             # MsgWaitForMultipleObjects 的唤醒掩码：任意队列输入
 HOOK_REINSTALL_INTERVAL = 60.0   # 秒：定期重装，兜住被系统静默移除的低层钩子
 
 if IS_WIN:  # pragma: no cover - 非 Windows 上不定义这些结构
@@ -86,6 +87,10 @@ class KeyboardCollector:
                 ctypes.c_uint, ctypes.c_uint, ctypes.c_uint]
             self._user32.TranslateMessage.argtypes = [ctypes.POINTER(wintypes.MSG)]
             self._user32.DispatchMessageW.argtypes = [ctypes.POINTER(wintypes.MSG)]
+            self._user32.MsgWaitForMultipleObjects.argtypes = [
+                wintypes.DWORD, ctypes.c_void_p, wintypes.BOOL,
+                wintypes.DWORD, wintypes.DWORD]
+            self._user32.MsgWaitForMultipleObjects.restype = wintypes.DWORD
             self._proc = HOOKPROC(self._callback)
             self._hook = self._user32.SetWindowsHookExW(
                 WH_KEYBOARD_LL, self._proc, None, 0)
@@ -169,19 +174,39 @@ class KeyboardCollector:
     # 消息泵 / 取事件
     # ------------------------------------------------------------------ #
     def pump(self, idle_sleep: float = 0.05) -> int:
-        """处理已排队的 Windows 消息；无事可做时短暂休眠（避免忙等烧 CPU）。"""
+        """处理已排队的 Windows 消息；空闲时**等消息**而不是无条件休眠。
+
+        ``WH_KEYBOARD_LL`` 的回调由系统向安装线程投递消息触发，只有该线程
+        检索消息时才会执行。若用 ``time.sleep(idle_sleep)`` 空转，休眠期间到达的
+        按键要排队到下一轮才被处理（本机实测约 31ms），表现为打字 / 输入法
+        组合输入反应变慢，甚至触发 LowLevelHooksTimeout 把钩子静默移除。
+
+        ``MsgWaitForMultipleObjects`` 在队列有消息时立即返回（实测约 1ms），
+        空闲时同样阻塞不占 CPU；``idle_sleep`` 退化为「最长维护周期」，
+        让守护进程仍能定时做 flush / 暂停 / 配置检查。
+        """
         if not self._user32 or self._msg is None:
             time.sleep(idle_sleep)
             return 0
-        count = 0
         msg = self._msg
-        while self._user32.PeekMessageW(
-                ctypes.byref(msg), None, 0, 0, PM_REMOVE):
-            self._user32.TranslateMessage(ctypes.byref(msg))
-            self._user32.DispatchMessageW(ctypes.byref(msg))
-            count += 1
-        if not count:
-            time.sleep(idle_sleep)
+        count = 0
+
+        def drain() -> int:
+            n = 0
+            while self._user32.PeekMessageW(
+                    ctypes.byref(msg), None, 0, 0, PM_REMOVE):
+                self._user32.TranslateMessage(ctypes.byref(msg))
+                self._user32.DispatchMessageW(ctypes.byref(msg))
+                n += 1
+            return n
+
+        count += drain()
+        if count:
+            return count
+        self._user32.MsgWaitForMultipleObjects(
+            0, None, False, max(1, int(idle_sleep * 1000)), QS_ALLINPUT)
+        # 等待返回后立刻再排空：钩子回调正是在这一轮 PeekMessageW 中被触发的
+        count += drain()
         return count
 
     def take(self, limit: int = 2000) -> list[tuple[float, int]]:
