@@ -1948,6 +1948,127 @@ def cmd_mysql_log(a, r: Result) -> Result:
 # --------------------------------------------------------------------------- #
 # plugin / keymouse（内置插件）
 # --------------------------------------------------------------------------- #
+# --------------------------------------------------------------------------- #
+# launcher（项目启动器插件）：命令只来自内置白名单 / 用户自定义，绝不自动执行
+# --------------------------------------------------------------------------- #
+def _launcher_modules():
+    """延迟导入：CLI 启动时不加载插件实现（停用后也不加载其代码）。"""
+    from core.plugins.project_launcher import commands, projects
+    return projects, commands
+
+
+def _launcher_projects(a):
+    projects_mod, _ = _launcher_modules()
+    return projects_mod.scan(Config(), www_dir=getattr(a, "www", "") or "")
+
+
+def _launcher_pick(a, r: Result):
+    projects_mod, _ = _launcher_modules()
+    found = _launcher_projects(a)
+    project = projects_mod.find(found, a.project)
+    if project is None:
+        r.fail(t("未找到项目：{name}", name=a.project),
+               available=[p.name for p in found])
+        return None
+    return project
+
+
+def cmd_launcher_list(a, r: Result) -> Result:
+    found = _launcher_projects(a)
+    r.data = {"projects": [p.as_dict() for p in found], "count": len(found)}
+    r.say(t("共 {n} 个项目", n=len(found)))
+    for p in found:
+        r.say(f"  {p.name}  {p.root}" + (f"  [{p.php}]" if p.php else "")
+              + ("  " + " ".join(p.urls) if p.urls else ""))
+    return r
+
+
+def cmd_launcher_commands(a, r: Result) -> Result:
+    _, launcher_cmds = _launcher_modules()
+    project = _launcher_pick(a, r)
+    if project is None:
+        return r
+    items = launcher_cmds.for_project(Config(), project)
+    r.data = {"project": project.as_dict(),
+              "commands": [{**c, "label": t(c["label"])} for c in items]}
+    r.say(t("项目 {name} 可用命令：", name=project.name))
+    for c in items:
+        r.say(f"  {c['id']:20s} {c['command']}")
+    return r
+
+
+def cmd_launcher_add(a, r: Result) -> Result:
+    _, launcher_cmds = _launcher_modules()
+    root = ""
+    if a.project:
+        project = _launcher_pick(a, r)
+        if project is None:
+            return r
+        root = project.root
+    if a.dry_run:
+        r.data = {"dry_run": True, "label": a.label,
+                  "command_text": a.command_text, "project": root}
+        r.say("[dry-run] " + t("将添加自定义命令"))
+        return r
+    entry, err = launcher_cmds.add_custom(Config(), a.label, a.command_text, root)
+    if err:
+        return r.fail(err)
+    r.data = entry
+    r.say(t("已添加命令：{name}", name=entry["label"]))
+    return r
+
+
+def cmd_launcher_remove(a, r: Result) -> Result:
+    _, launcher_cmds = _launcher_modules()
+    if a.dry_run:
+        r.data = {"dry_run": True, "id": a.id}
+        r.say("[dry-run] " + t("将删除自定义命令"))
+        return r
+    if not a.yes:
+        return r.fail(t("删除需要 --yes"))
+    if not launcher_cmds.remove_custom(Config(), a.id):
+        return r.fail(t("未找到自定义命令：{id}", id=a.id))
+    r.data = {"id": a.id, "removed": True}
+    r.say(t("已删除命令"))
+    return r
+
+
+def cmd_launcher_open(a, r: Result) -> Result:
+    _, launcher_cmds = _launcher_modules()
+    project = _launcher_pick(a, r)
+    if project is None:
+        return r
+    result = launcher_cmds.launch(Config(), project, a.id,
+                                  dry_run=bool(a.dry_run))
+    r.data = result
+    if not result.get("ok"):
+        return r.fail(result.get("error", ""))
+    if a.dry_run:
+        r.say("[dry-run] " + t("将打开终端并运行：{cmd}",
+                               cmd=result["command"]))
+    else:
+        r.say(t("已打开终端：{cmd}", cmd=result["command"]))
+    return r
+
+
+def cmd_launcher_browse(a, r: Result) -> Result:
+    _, launcher_cmds = _launcher_modules()
+    project = _launcher_pick(a, r)
+    if project is None:
+        return r
+    result = launcher_cmds.open_site(project, getattr(a, "url", "") or "",
+                                     dry_run=bool(a.dry_run))
+    r.data = result
+    if not result.get("ok"):
+        return r.fail(result.get("error", ""),
+                      available=result.get("available", []))
+    if a.dry_run:
+        r.say("[dry-run] " + t("将打开浏览器：{url}", url=result["url"]))
+    else:
+        r.say(t("已打开站点：{url}", url=result["url"]))
+    return r
+
+
 _KM_RANGES = ("today", "week", "month", "year", "all")
 
 
@@ -2887,6 +3008,41 @@ def build_parser() -> argparse.ArgumentParser:
         q.set_defaults(func=cmd_keymouse_daemon,
                        command=f"keymouse.daemon.{act}", daemon_action=act)
         q.add_argument("--dry-run", action="store_true", help="只报告将做什么")
+
+    # launcher（项目启动器插件）
+    g = sub.add_parser("launcher",
+                       help="项目启动器（列出项目 / 打开站点 / 一键终端）",
+                       parents=[COMMON])
+    gs = g.add_subparsers(dest="action", metavar="<action>")
+    p = _leaf(gs, "list", cmd_launcher_list, "launcher.list",
+              "列出本地项目（www 目录 + vhost root 去重）")
+    p.add_argument("--www", help="覆盖 www 根目录")
+    p = _leaf(gs, "commands", cmd_launcher_commands, "launcher.commands",
+              "列出某项目可用命令")
+    p.add_argument("--project", required=True, help="项目名或路径")
+    p = _leaf(gs, "add", cmd_launcher_add, "launcher.add",
+              "添加自定义命令（不会自动执行）")
+    p.add_argument("--label", required=True, help="显示名称")
+    # dest 必须避开 command：_leaf 用 set_defaults(command="launcher.add") 记录命令 id
+    p.add_argument("--command", dest="command_text", required=True,
+                   help="命令文本")
+    p.add_argument("--project", help="仅对某项目可见（项目名或路径）")
+    p.add_argument("--dry-run", action="store_true", help="只报告将做什么")
+    p = _leaf(gs, "remove", cmd_launcher_remove, "launcher.remove",
+              "删除自定义命令（需 --yes）")
+    p.add_argument("--id", required=True, help="命令 id")
+    p.add_argument("--yes", action="store_true", help="确认删除（必填）")
+    p.add_argument("--dry-run", action="store_true", help="只报告将做什么")
+    p = _leaf(gs, "browse", cmd_launcher_browse, "launcher.browse",
+              "在浏览器打开项目站点（URL 只来自 vhost 配置）")
+    p.add_argument("--project", required=True, help="项目名或路径")
+    p.add_argument("--url", help="指定站点 URL（见 launcher list 的 urls）")
+    p.add_argument("--dry-run", action="store_true", help="只报告将做什么")
+    p = _leaf(gs, "open", cmd_launcher_open, "launcher.open",
+              "在终端打开项目并运行指定命令")
+    p.add_argument("--project", required=True, help="项目名或路径")
+    p.add_argument("--id", required=True, help="命令 id（见 launcher commands）")
+    p.add_argument("--dry-run", action="store_true", help="只报告将做什么")
 
     # sqlite
     g = sub.add_parser("sqlite", help="SQLite 只读查询", parents=[COMMON])

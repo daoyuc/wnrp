@@ -109,6 +109,19 @@ class MainWindowSmokeTest(unittest.TestCase):
         self.assertEqual(str(app._mem_label.cget("style")),
                          "Memory.Status.TLabel")
 
+    def test_project_launcher_tab_has_browser_action(self):
+        """插件页签必须挂上，且「在浏览器打开」按钮真实存在（可见入口）。"""
+        real = modules_mod.is_enabled
+        with mock.patch.object(
+                modules_mod, "is_enabled",
+                lambda key, cfg: True if key == "project_launcher"
+                else real(key, cfg)):
+            app = self._build()
+        panels = [p for p in getattr(app, "_plugin_panels", [])
+                  if type(p).__name__ == "ProjectLauncherPanel"]
+        self.assertEqual(len(panels), 1, "项目启动器页签应被挂载")
+        self.assertTrue(panels[0]._browse_btn.winfo_exists())
+
     def test_build_is_repeatable(self):
         """连续建两次（覆盖「已有页签时 insert(0)」与「空 notebook」两条分支）。"""
         app = self._build()

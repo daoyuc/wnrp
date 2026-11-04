@@ -93,6 +93,11 @@ worker 只 `queue.put()`，主窗口的 `_post()` 也**只入队、不碰 `after
 
 键鼠插件的 `WH_KEYBOARD_LL` 守护进程还有一条专属铁律：钩子回调由系统向**安装钩子的线程**投递消息触发，该线程必须用 `MsgWaitForMultipleObjects` 等待消息，不能用 `time.sleep` 轮询 —— 后者实测给每次按键加约 30ms 排队延迟（输入法组合输入尤其明显），详见 [ADR 15](DECISIONS.md)。
 
+插件不一定要有后台进程：项目启动器的 `MANIFEST` 里 `daemon_script` / `ensure_background`
+都是 None，`ensure_backgrounds()` 会跳过它；扫描同样走 worker + queue，不新建常驻进程，
+浏览器打开与命令都只经用户点击才执行一次。站点 URL 也只由 vhost 的 `server_name`
+生成，不采信 `.phpvm.json` 的 `domains`（安全边界见 [ADR 16](DECISIONS.md)）。
+
 ## 4. 运行期状态与落点
 
 | 文件 / 位置 | 内容 | 谁写 | 备注 |

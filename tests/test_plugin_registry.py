@@ -43,8 +43,14 @@ class PluginRegistryTest(unittest.TestCase):
         self.assertTrue(modules.is_enabled("keymouse", _Cfg()))
 
     def test_disabled_plugin_is_not_enabled(self):
-        cfg = _Cfg({"disabled_modules": ["keymouse"]})
-        self.assertFalse(modules.is_enabled("keymouse", cfg))
+        """停用后不返回该插件；注册表有多个插件时逐个验证，不假设只有一个。"""
+        all_keys = [spec.key for spec in plugins.discover()]
+        self.assertIn("keymouse", all_keys)
+        for key in all_keys:
+            cfg = _Cfg({"disabled_modules": [key]})
+            self.assertFalse(modules.is_enabled(key, cfg))
+            self.assertNotIn(key, [s.key for s in plugins.enabled_specs(cfg)])
+        cfg = _Cfg({"disabled_modules": all_keys})
         self.assertEqual(plugins.enabled_specs(cfg), [])
 
     def test_normalize_accepts_plugin_key(self):

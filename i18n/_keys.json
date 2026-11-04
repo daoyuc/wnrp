@@ -410,8 +410,9 @@
   ]
  },
  "PHP": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "ui/plugins/project_launcher_panel.py",
    "core/log_sources.py"
   ]
  },
@@ -598,6 +599,12 @@
   "count": 1,
   "files": [
    "ui/download_dialog.py"
+  ]
+ },
+ "URL 不在该项目的站点列表中：{url}": {
+  "count": 1,
+  "files": [
+   "core/plugins/project_launcher/commands.py"
   ]
  },
  "Windows 服务": {
@@ -1799,6 +1806,12 @@
    "ui/dialogs.py"
   ]
  },
+ "仅当前项目可用": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
  "仅支持查询语句（SELECT / WITH / PRAGMA / EXPLAIN / VALUES）。": {
   "count": 1,
   "files": [
@@ -2177,6 +2190,13 @@
    "cli.py"
   ]
  },
+ "共 {n} 个项目": {
+  "count": 2,
+  "files": [
+   "cli.py",
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
  "共 {n} 条": {
   "count": 1,
   "files": [
@@ -2303,6 +2323,18 @@
   "count": 1,
   "files": [
    "ui/run_log_panel.py"
+  ]
+ },
+ "内置": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "内置命令不可删除": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
   ]
  },
  "内置最小骨架": {
@@ -2501,8 +2533,20 @@
    "ui/php_panel.py"
   ]
  },
+ "删除命令": {
+  "count": 2,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "删除需要 --yes": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "刷新": {
-  "count": 8,
+  "count": 9,
   "files": [
    "ui/mail_panel.py",
    "ui/nginx_log_panel.py",
@@ -2510,7 +2554,8 @@
    "ui/redis_panel.py",
    "ui/run_log_panel.py",
    "ui/sqlite_panel.py",
-   "ui/vhost_panel.py"
+   "ui/vhost_panel.py",
+   "ui/plugins/project_launcher_panel.py"
   ]
  },
  "刷新状态": {
@@ -2601,6 +2646,12 @@
    "ui/redis_panel.py"
   ]
  },
+ "即将在终端运行自定义命令：\n{cmd}\n\n请确认该命令由你自己添加。": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
  "压缩包内未找到 php_{ext}.dll": {
   "count": 1,
   "files": [
@@ -2686,12 +2737,13 @@
   ]
  },
  "取消": {
-  "count": 6,
+  "count": 7,
   "files": [
    "ui/dialogs.py",
    "ui/download_dialog.py",
    "ui/main_window.py",
-   "ui/site_wizard.py"
+   "ui/site_wizard.py",
+   "ui/plugins/project_launcher_panel.py"
   ]
  },
  "取消下载": {
@@ -2810,10 +2862,17 @@
   ]
  },
  "名称": {
-  "count": 2,
+  "count": 3,
   "files": [
    "ui/extension_dialog.py",
-   "ui/sqlite_panel.py"
+   "ui/sqlite_panel.py",
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "名称不能为空且不超过 {n} 字符": {
+  "count": 1,
+  "files": [
+   "core/plugins/project_launcher/commands.py"
   ]
  },
  "后台未运行": {
@@ -3018,10 +3077,40 @@
    "cli.py"
   ]
  },
+ "命令": {
+  "count": 2,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
  "命令 {cmd} 会删除数据或影响运行，确定要执行吗？": {
   "count": 1,
   "files": [
    "ui/redis_panel.py"
+  ]
+ },
+ "命令不会自动执行，需在此面板手动点击运行。": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "命令不能为空": {
+  "count": 1,
+  "files": [
+   "core/plugins/project_launcher/commands.py"
+  ]
+ },
+ "命令包含不允许的字符：{ch}": {
+  "count": 1,
+  "files": [
+   "core/plugins/project_launcher/commands.py"
+  ]
+ },
+ "命令包含控制字符": {
+  "count": 1,
+  "files": [
+   "core/plugins/project_launcher/commands.py"
   ]
  },
  "命令执行失败（退出码 {code}）": {
@@ -3030,11 +3119,23 @@
    "core/redis_manager.py"
   ]
  },
+ "命令行": {
+  "count": 2,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
  "命令输出": {
   "count": 2,
   "files": [
    "ui/nginx_panel.py",
    "ui/redis_panel.py"
+  ]
+ },
+ "命令过长（最多 {n} 字符）": {
+  "count": 1,
+  "files": [
+   "core/plugins/project_launcher/commands.py"
   ]
  },
  "命令：": {
@@ -3055,6 +3156,12 @@
    "ui/dialogs.py"
   ]
  },
+ "在浏览器打开": {
+  "count": 2,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
  "在线安装": {
   "count": 1,
   "files": [
@@ -3073,11 +3180,18 @@
    "ui/vhost_panel.py"
   ]
  },
+ "在终端运行": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
  "域名": {
-  "count": 2,
+  "count": 3,
   "files": [
    "ui/dialogs.py",
-   "ui/vhost_panel.py"
+   "ui/vhost_panel.py",
+   "ui/plugins/project_launcher_panel.py"
   ]
  },
  "域名不合法": {
@@ -3151,6 +3265,12 @@
   "count": 1,
   "files": [
    "ui/vhost_panel.py"
+  ]
+ },
+ "复制站点 URL": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
   ]
  },
  "外观": {
@@ -3455,6 +3575,12 @@
    "ui/plugins/keymouse_panel.py"
   ]
  },
+ "将删除自定义命令": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "将删除邮件目录下的全部 .eml（{n} 封）：\n{dir}\n\n确定继续？": {
   "count": 1,
   "files": [
@@ -3497,6 +3623,18 @@
    "core/backup_bundle.py"
   ]
  },
+ "将打开浏览器：{url}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "将打开终端并运行：{cmd}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "将把 [{name}] 的 sendmail_path 指向 phpvm 的捕获脚本（改前自动备份，关闭时还原）。\nPHP 的 mail() 邮件会写入：\n{dir}\n\n确定继续？": {
   "count": 1,
   "files": [
@@ -3525,6 +3663,12 @@
   "count": 1,
   "files": [
    "ui/xdebug_dialog.py"
+  ]
+ },
+ "将添加自定义命令": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "将生成到 {dir} 目录下": {
@@ -3570,9 +3714,10 @@
   ]
  },
  "就绪": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/main_window.py"
+   "ui/main_window.py",
+   "ui/plugins/project_launcher_panel.py"
   ]
  },
  "峰值 {peak} · 均值 {avg}": {
@@ -3807,6 +3952,13 @@
    "ui/dialogs.py"
   ]
  },
+ "已删除命令": {
+  "count": 2,
+  "files": [
+   "cli.py",
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
  "已删除本次生成的证书：{dom}": {
   "count": 1,
   "files": [
@@ -3918,6 +4070,12 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "已复制 URL：{url}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
   ]
  },
  "已复制到剪贴板": {
@@ -4056,6 +4214,20 @@
    "ui/vhost_panel.py"
   ]
  },
+ "已打开站点：{url}": {
+  "count": 2,
+  "files": [
+   "cli.py",
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "已打开终端：{cmd}": {
+  "count": 2,
+  "files": [
+   "cli.py",
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
  "已打开终端：{name}（PATH 已前置该版本目录）": {
   "count": 1,
   "files": [
@@ -4152,6 +4324,13 @@
   "count": 1,
   "files": [
    "core/cert_manager.py"
+  ]
+ },
+ "已添加命令：{name}": {
+  "count": 2,
+  "files": [
+   "cli.py",
+   "ui/plugins/project_launcher_panel.py"
   ]
  },
  "已清空 {n} 封邮件": {
@@ -4559,6 +4738,12 @@
    "core/updater.py"
   ]
  },
+ "当前平台不支持": {
+  "count": 2,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
  "当前平台不支持键盘采集（仅 Windows）": {
   "count": 2,
   "files": [
@@ -4773,10 +4958,29 @@
    "ui/run_log_panel.py"
   ]
  },
- "打开目录": {
+ "打开浏览器失败": {
   "count": 1,
   "files": [
-   "ui/nginx_log_panel.py"
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "打开浏览器失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "打开目录": {
+  "count": 3,
+  "files": [
+   "ui/nginx_log_panel.py",
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "打开目录失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
   ]
  },
  "打开站点（浏览器）": {
@@ -4789,6 +4993,18 @@
   "count": 1,
   "files": [
    "ui/php_panel.py"
+  ]
+ },
+ "打开终端失败": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "打开终端失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
   ]
  },
  "打开邮件目录": {
@@ -4857,9 +5073,10 @@
   ]
  },
  "扫描失败": {
-  "count": 2,
+  "count": 3,
   "files": [
-   "ui/vhost_panel.py"
+   "ui/vhost_panel.py",
+   "ui/plugins/project_launcher_panel.py"
   ]
  },
  "扫描失败：{err}": {
@@ -5514,6 +5731,12 @@
    "core/plugins/keymouse/stats.py"
   ]
  },
+ "暂无项目": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
  "更新 /etc/hosts 需要管理员授权（已取消或失败：{err}）": {
   "count": 1,
   "files": [
@@ -5833,6 +6056,18 @@
    "core/adminer.py"
   ]
  },
+ "未找到可用的浏览器": {
+  "count": 1,
+  "files": [
+   "core/plugins/project_launcher/commands.py"
+  ]
+ },
+ "未找到可用的终端程序": {
+  "count": 1,
+  "files": [
+   "core/plugins/project_launcher/commands.py"
+  ]
+ },
  "未找到可用的终端程序。可手动执行：\n  set PATH={dir};%PATH%": {
   "count": 1,
   "files": [
@@ -5843,6 +6078,12 @@
   "count": 1,
   "files": [
    "ui/mysql_panel.py"
+  ]
+ },
+ "未找到命令：{id}": {
+  "count": 1,
+  "files": [
+   "core/plugins/project_launcher/commands.py"
   ]
  },
  "未找到生效主配置 {path}，无法自动补 include，请手动配置": {
@@ -5861,6 +6102,12 @@
   "count": 1,
   "files": [
    "core/vhost_manager.py"
+  ]
+ },
+ "未找到自定义命令：{id}": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "未找到邮件：{name}": {
@@ -5888,6 +6135,12 @@
   ]
  },
  "未找到项目配置：{path}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "未找到项目：{name}": {
   "count": 1,
   "files": [
    "cli.py"
@@ -6065,9 +6318,10 @@
   ]
  },
  "来源": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/run_log_panel.py"
+   "ui/run_log_panel.py",
+   "ui/plugins/project_launcher_panel.py"
   ]
  },
  "来源：": {
@@ -6332,6 +6586,18 @@
    "ui/sqlite_panel.py"
   ]
  },
+ "正在打开浏览器…": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "正在打开终端…": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
  "正在执行…": {
   "count": 2,
   "files": [
@@ -6536,6 +6802,18 @@
   "count": 1,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "添加命令": {
+  "count": 2,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "添加失败": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
   ]
  },
  "清单：{counts}": {
@@ -6825,15 +7103,28 @@
   ]
  },
  "确定": {
+  "count": 2,
+  "files": [
+   "ui/dialogs.py",
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "确定删除自定义命令「{name}」？": {
   "count": 1,
   "files": [
-   "ui/dialogs.py"
+   "ui/plugins/project_launcher_panel.py"
   ]
  },
  "确定清空内存中的运行日志？（落盘文件会保留）": {
   "count": 1,
   "files": [
    "ui/run_log_panel.py"
+  ]
+ },
+ "确认运行": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
   ]
  },
  "确认项目已部署到该目录": {
@@ -6900,6 +7191,12 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "站点地址来自站点映射（vhost）配置": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
   ]
  },
  "站点多了 MIME 哈希表容易撞默认 1024，日志里会出现 types_hash 告警": {
@@ -7261,6 +7558,12 @@
    "ui/run_log_panel.py"
   ]
  },
+ "自定义": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
  "自愈历史": {
   "count": 1,
   "files": [
@@ -7550,6 +7853,13 @@
    "ui/main_window.py"
   ]
  },
+ "该项目没有可访问的站点（需在站点映射里配置域名）": {
+  "count": 2,
+  "files": [
+   "ui/plugins/project_launcher_panel.py",
+   "core/plugins/project_launcher/commands.py"
+  ]
+ },
  "详情": {
   "count": 4,
   "files": [
@@ -7622,6 +7932,12 @@
   "count": 1,
   "files": [
    "ui/run_log_panel.py"
+  ]
+ },
+ "请先选择项目与命令": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
   ]
  },
  "请求体先在内存缓冲，减少写临时文件带来的磁盘 IO": {
@@ -8371,6 +8687,30 @@
   "count": 1,
   "files": [
    "core/php_installer.py"
+  ]
+ },
+ "项目": {
+  "count": 2,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "项目 {name} 可用命令：": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "项目启动器": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "项目启动器扫描失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
   ]
  },
  "项目根目录": {

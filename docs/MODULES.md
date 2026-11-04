@@ -11,7 +11,8 @@
 PHP 版本管理(php,刚需) │ Nginx 管理(nginx,刚需) │ Redis 管理(redis) │ MySQL 管理(mysql)
 │ 站点映射(vhost,刚需) │ SQLite 数据库(sqlite) │ Nginx 日志(log)
 │ 运行日志(常驻，不受开关影响) │ 关于(设置区/模块开关在此)
-│ 插件页签：由 core/plugins 的 MANIFEST 动态追加（如 键鼠统计(keymouse)）
+│ 插件页签：由 core/plugins 的 MANIFEST 动态追加
+│            （键鼠统计(keymouse) / 项目启动器(project_launcher) …）
 ```
 
 - 顶部：菜单栏（外观 / 语言 / 帮助）、状态栏（就绪消息 + 整机内存槽位 + 更新提示 + 崩溃告警）。
@@ -64,6 +65,7 @@ PHP 版本管理(php,刚需) │ Nginx 管理(nginx,刚需) │ Redis 管理(red
 | 状态栏整机内存槽位 | 主窗口底部状态栏（`ui/main_window.py::_refresh_memory()`） | `core/system_memory.py` | 只读（不写文件、不缓存进程状态） | Windows `GlobalMemoryStatusEx` / Linux `/proc/meminfo` / macOS `sysctl`+`vm_stat`；每 8s 由 worker 采集、只经 `_post()` 回主线程写 `StringVar`；取不到显示「内存 —」而非报错；与 `core/resource_monitor.py` 的「phpvm 管理进程 RSS/CPU」不是一回事 |
 | 插件框架（发现 / 开关 / 设置 / 后台拉起） | 关于页「功能模块」（自动并入） | `core/plugins/__init__.py`、`base.py`、`settings.py`、`core/modules.py` | `settings.disabled_modules`、`settings.plugin_settings` | 内置目录只声明 `MANIFEST: PluginSpec`，`pkgutil` + `importlib` 发现；单插件导入失败只 warn、不阻断启动；设置页与启动快照无需各写一遍枚举 |
 | 键鼠统计（今日 / 本周 / 本月 / 本年 / 全部） | `ui/plugins/keymouse_panel.py` / `plugin`、`keymouse` 命令组 | `core/plugins/keymouse/`（`collector`、`store`、`stats`、`daemon`、`keymap`） | `<数据目录>/plugins/keymouse/stats.db` + `daemon.*` / `paused` | 独立守护进程写库，GUI / CLI 只读 `mode=ro`；仅 Windows 采集；只落 vkCode + 时间戳；插件停用后守护进程 ≤60s 自行退出 |
+| 项目启动器（本地项目 → 站点 / 命令 → 浏览器或终端） | `ui/plugins/project_launcher_panel.py` / `launcher` 命令组 | `core/plugins/project_launcher/`（`projects`、`commands`）、`core/process_utils.py::open_terminal()` | `settings.plugin_settings.project_launcher.www_dir` / `custom_commands` | 只读扫描 `<WNRP_ROOT>/www/*` + vhost root 并去重；站点 URL 只由 vhost 的 `server_name` 生成（`launcher browse` / 面板按钮、双击、右键），命令只来自内置白名单或用户手动添加，**绝不读 `.phpvm.json` 当命令或 URL 来源**（ADR 16）；无后台进程、无自动执行 |
 
 > 跨模块约定：`core/*` 的全部 HTTPS 请求（PHP 版本/扩展列表、PHP 与 Adminer 下载、软件更新）
 > 统一经 `core/net_ssl.py::ssl_context()` 取 SSL 上下文 —— 系统默认根 + 仓库内置
@@ -85,6 +87,7 @@ PHP 版本管理(php,刚需) │ Nginx 管理(nginx,刚需) │ Redis 管理(red
 | `sqlite` | SQLite 数据库 | ❌ | 同上 |
 | `log` | Nginx 日志 | ❌ | 同上 |
 | `keymouse` | 键鼠统计 | ❌ | 不建插件页签、不拉起后台记录进程；已在运行的守护进程下一轮配置检查（≤60s）自行 flush 并退出 |
+| `project_launcher` | 项目启动器 | ❌ | 不建插件页签；无后台进程需停止，已添加的自定义命令保留在 `plugin_settings` 中 |
 
 插件的 key / 名称来自各 `core/plugins/<name>/` 的 `MANIFEST`，由 `core/modules.py` 在启动期自动并入
 `MODULES` —— 关于页勾选框、启动快照与 CLI `plugin enable/disable` 因此无需各写一遍。

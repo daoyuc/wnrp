@@ -37,6 +37,7 @@ python3 cli.py env --json      # 环境快照：nginx、PHP 版本与端口、Re
 - **不要编辑 `ui/` 下代码来做自动化**；也不要在脚本里 import `ui/*`（会拉起 tkinter）。
 - 所有写入自动备份 `.bak`；`nginx -t` 失败会自动回滚并置 `rolled_back: true`。
 - 不要提交运行期文件：`config.json`、`recover_history.json`、`crash_watchdog.*`、`run_log.log*`、`updates/`、`dist/`、`plugins/`（键鼠统计的 `stats.db` / `daemon.*`）。
+- **插件命令来源**：`.phpvm.json` 是团队可共享的项目文件，**绝不能把它的字段当命令执行**（克隆仓库即 RCE）；项目启动器的命令只来自内置白名单或用户手动添加的设置项，且仅点击 / 显式 CLI 调用才打开一次浏览器 / 终端，不自动执行（ADR 16）。「在浏览器打开」的 URL 同样只从 nginx vhost 的 `server_name` 生成，不采信 `.phpvm.json` 的 `domains`。新增 CLI 参数时避开 `command` 这个 dest，否则会覆盖 `Result.command` 的 `<group>.<action>` 契约。
 
 ## 一致性约束（改动时必须收口）
 
@@ -86,6 +87,14 @@ python3 cli.py keymouse pause --dry-run
 python3 cli.py keymouse clear --yes --dry-run
 python3 cli.py keymouse daemon start --json
 python3 cli.py keymouse daemon status --json
+
+# 项目启动器（写操作先 --dry-run，删除需 --yes）
+python3 cli.py launcher list --json
+python3 cli.py launcher browse --project demo --dry-run --json   # 站点 URL 只来自 vhost
+python3 cli.py launcher commands --project demo --json
+python3 cli.py launcher add --label "Dev server" --command "php -S 127.0.0.1:8000" --dry-run --json
+python3 cli.py launcher open --project demo --id php-v --dry-run --json
+python3 cli.py launcher remove --id custom-xxxxxxxx --yes --dry-run --json
 
 python3 cli.py nginx test                # 任何改配置后都建议先跑
 ```

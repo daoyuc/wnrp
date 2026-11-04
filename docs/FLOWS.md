@@ -178,6 +178,18 @@ CLI 等价：`python3 cli.py site sync-port --old 9082 --new 9083 --reload`。
            写的是守护脚本的隐藏启动命令，登录即记录，无需打开主窗口
 ```
 
+**第二个插件「项目启动器」是无后台进程的另一种形态**：`MANIFEST` 里
+`daemon_script` / `ensure_background` 均为 None，`ensure_backgrounds()` 直接跳过；
+`_build()` 只挂面板，`auto_refresh()` 每 8s 起 worker 扫 www 目录 + vhost root
+（按 normcase 去重）→ queue → 主线程渲染。扫描时同时从 vhost `server_name`
+生成 `Project.urls`（`valid_site_url()` 限 http/https + 合法域名，`listen 443`
+近似判 HTTPS，禁用站点不产出 URL）；点「在浏览器打开」/ 双击 / 右键选域名走
+`commands.open_site()` → `webbrowser.open()`，同样经 worker + queue 回主线程，
+无站点的项目按钮置灰。点「在终端运行」才经 `process_utils.open_terminal()`
+打开一次终端并前置项目 PHP 版本的 PATH。
+命令只来自内置白名单或用户设置，URL 只来自 vhost，不从 `.phpvm.json` 执行或取域名
+（ADR 16）；CLI 对应 `launcher browse --project <name> --dry-run`。
+
 **失败分支**：安全软件拦截全局键盘钩子 → 守护进程写 `daemon.log` 并退出，面板显示「后台未运行」+ 诊断提示；
 插件面板导入失败 → warn + 跳过该页签；非 Windows → `supported()` 为 False，页面显示「当前平台不支持采集」而非报错。
 **隐私**：只落 vkCode 与时间戳，不记录字符 / 输入文本 / 窗口标题 / 剪贴板，数据仅在本机且不上传。

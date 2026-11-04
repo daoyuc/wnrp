@@ -11,6 +11,7 @@
 """
 import os
 import re
+import shlex
 import signal
 import subprocess
 import sys
@@ -792,13 +793,17 @@ def open_terminal(cwd: str = "", path_prepend: str = "",
             )
             return True
         # 其它 Linux：常见终端二选一
+        shell_cmd = (
+            (f"export PATH={shlex.quote(path_prepend)}:$PATH; "
+             if path_prepend else "")
+            + (f"cd {shlex.quote(cwd)}; " if cwd else "")
+            + f"echo phpvm; {cmd_line}; exec bash"
+        )
         for term in ("x-terminal-emulator", "gnome-terminal", "konsole", "xterm"):
             args = [term]
             if term in ("gnome-terminal", "konsole"):
                 args += ["--"] if term == "gnome-terminal" else ["-e"]
-            args += ["bash", "-c",
-                     (f'export PATH="{path_prepend}:$PATH"; ' if path_prepend else "")
-                     + (f'cd "{cwd}"; ' if cwd else "") + "php -v; exec bash"]
+            args += ["bash", "-c", shell_cmd]
             try:
                 subprocess.Popen(args, stdout=subprocess.DEVNULL,
                                  stderr=subprocess.DEVNULL)

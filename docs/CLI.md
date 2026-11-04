@@ -37,6 +37,7 @@
 | `env` | 输出全部服务快照（nginx / PHP / Redis / MySQL） | — |
 | `hosts` | hosts 映射管理 | `add` · `remove` · `restore` · `status` |
 | `keymouse` | 键鼠统计插件 | `clear` · `daemon`（`start` · `status` · `stop`） · `export` · `pause` · `resume` · `status` · `summary` |
+| `launcher` | 项目启动器（列出项目 / 打开站点 / 一键终端） | `add` · `browse` · `commands` · `list` · `open` · `remove` |
 | `logs` | 站点与应用日志聚合（只读） | `sources` · `tail` |
 | `mail` | 邮件捕获（.eml 落盘：Unix 走 sendmail_path，Windows 走 SMTP sink） | `clear` · `disable` · `enable` · `list` · `show` · `status` |
 | `module` | 功能模块开关 | `disable` · `enable` · `list` |
@@ -209,6 +210,53 @@
 |---|---|---|---|
 | `--range` |  | today | 时间范围（默认 today） |
 | `--top` |  | 10 | 键位排名条数（默认 10） |
+
+## `launcher` — 项目启动器（列出项目 / 打开站点 / 一键终端）
+
+### `launcher add` — 添加自定义命令（不会自动执行）
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--label` | 是 |  | 显示名称 |
+| `--command` | 是 |  | 命令文本 |
+| `--project` |  |  | 仅对某项目可见（项目名或路径） |
+| `--dry-run` |  |  | 只报告将做什么 |
+
+### `launcher browse` — 在浏览器打开项目站点（URL 只来自 vhost 配置）
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--project` | 是 |  | 项目名或路径 |
+| `--url` |  |  | 指定站点 URL（见 launcher list 的 urls） |
+| `--dry-run` |  |  | 只报告将做什么 |
+
+### `launcher commands` — 列出某项目可用命令
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--project` | 是 |  | 项目名或路径 |
+
+### `launcher list` — 列出本地项目（www 目录 + vhost root 去重）
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--www` |  |  | 覆盖 www 根目录 |
+
+### `launcher open` — 在终端打开项目并运行指定命令
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--project` | 是 |  | 项目名或路径 |
+| `--id` | 是 |  | 命令 id（见 launcher commands） |
+| `--dry-run` |  |  | 只报告将做什么 |
+
+### `launcher remove` — 删除自定义命令（需 --yes）
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--id` | 是 |  | 命令 id |
+| `--yes` |  |  | 确认删除（必填） |
+| `--dry-run` |  |  | 只报告将做什么 |
 
 ## `logs` — 站点与应用日志聚合（只读）
 

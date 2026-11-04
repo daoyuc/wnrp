@@ -132,3 +132,10 @@
 - **背景**：用户反馈开启键鼠统计后打字 / 输入法反应变慢。定量复现（向钩子线程投递线程消息做等价测量，不向系统注入按键）：`PeekMessageW + time.sleep(50ms)` 平均 **31.6ms**、最大 32.8ms 才处理一条消息；改成消息等待后平均 **0.7ms**。根因是 `WH_KEYBOARD_LL` 回调由系统向**安装钩子的线程**投递消息触发，只有该线程检索消息时才执行，休眠期间到达的按键会整批排队；持续延迟还可能逼近 `LowLevelHooksTimeout` 被系统静默摘钩。
 - **决策**：`core/plugins/keymouse/collector.py::pump()` 先 `PeekMessageW(PM_REMOVE)` 排空；空闲时用 `MsgWaitForMultipleObjects(0, NULL, FALSE, 最长 50ms, QS_ALLINPUT)` 等待消息，返回后**立即再排空一次**；`idle_sleep` 从「每轮休眠」改为「最长维护周期」。钩子回调仍保持零 I/O。
 - **影响**：按键响应延迟从约 31ms 降到约 1ms（真实 `KeyboardCollector.pump()` 实测 1.5ms）；空闲时线程照样阻塞，不忙等烧 CPU（20 次空闲泵约 1.25s）。任何新增的低层钩子 / 高优先级消息循环都不得在该线程用 `time.sleep` 轮询；`tests/test_keymouse_collector.py::PumpTest` 守住这条契约。
+
+## 16. 项目启动器的命令只能来自白名单或用户设置，绝不从项目配置执行
+
+- **背景**：第二个插件要把「本地项目 → 常用命令」做成一键终端。`.phpvm.json` 的模块注释明确写着「团队可直接放进项目仓库」（`core/project_config.py`），而 `process_utils.open_terminal(command=...)` 是**立即执行**语义。若把项目配置里的字段喂给它，克隆一个仓库就等于执行任意代码；即便只做「自动推荐」，命令来源也会变成不可信输入。
+- **决策**：命令只有两类来源 —— `core/plugins/project_launcher/commands.py::BUILTIN` 固定模板（按 `composer.json` / `artisan` / `package.json` 等标志文件筛选）与用户在面板 / CLI 手动添加、只落 `settings.plugin_settings.project_launcher.custom_commands` 的自定义命令。`.phpvm.json` 只读 `php` / `domains` 作展示元信息，且**只读项目根自己的那一份**，不向上继承父目录配置。命令过元字符与长度校验；自定义命令运行前二次确认；插件无后台进程、无定时执行，只有用户点击 / 显式 CLI 调用才打开一次浏览器或终端；写操作先 `--dry-run`、删除需 `--yes`。
+- **URL 也是不可信输入**：「在浏览器打开」的地址只由 nginx vhost 的 `server_name` 生成（`projects.valid_site_url()` 限定 http/https + 合法域名、无路径 / 端口 / 凭据），`.phpvm.json` 的 `domains` 只作展示；`launcher browse --url` 也必须命中该项目的候选列表，否则带 `available` 失败，避免把任意字符串交给 `webbrowser.open`。已禁用站点（`.conf.disabled`）不产出 URL。
+- **影响**：后续扩展插件不得引入「从项目仓库读取可执行内容」的路径；CLI 的 `--command` 参数必须使用独立 `dest`（`command_text`），否则覆盖 `Result.command` 的 `<group>.<action>` 契约；顺带修好 `open_terminal` Linux 分支忽略 `command` 的既有缺陷，并用 `shlex.quote` 引用路径。
