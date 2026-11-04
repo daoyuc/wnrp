@@ -45,3 +45,7 @@ mail/
 # 插件运行期数据（键鼠统计 SQLite / 守护进程状态）：
 # 只忽略仓库根的 plugins/，core/plugins/ 是插件代码，必须入库
 /plugins/
+
+# Rust GUI 原型工程只属于 refactor/rust 分支（见该分支 spike/iced-proto/）：
+# 在 master 上它不存在，切分支后只会残留 target/ 构建缓存，不入库
+/spike/
