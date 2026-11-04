@@ -155,6 +155,9 @@ def setup_style(root: tk.Misc) -> ttk.Style:
                     foreground=p["err"], background=p["panel_alt"])
     style.configure("Link.Status.TLabel", font=font(FS_BODY, True),
                     foreground=p["primary"], background=p["panel_alt"])
+    # 状态栏整机内存槽位：等宽字体避免数值跳动时抖动，弱化色不抢告警徽标
+    style.configure("Memory.Status.TLabel", font=mono(FS_SMALL),
+                    foreground=p["text_dim"], background=p["panel_alt"])
     # 卡片上的强调/弱化文本（标题区、分组内）
     style.configure("Card.TLabel", background=p["card_bg"], foreground=p["text"])
     style.configure("CardBold.TLabel", font=font(FS_BODY, True),

@@ -102,6 +102,13 @@ class MainWindowSmokeTest(unittest.TestCase):
         self.assertEqual(nb.index(app.overview_panel), 0, "总览应是第一个页签")
         self.assertGreaterEqual(len(nb.tabs()), 3, "其余主页面签应至少存在")
 
+    def test_status_bar_shows_system_memory_slot(self):
+        app = self._build()
+        self.assertTrue(app._mem_label.winfo_exists())
+        self.assertTrue(app._mem_var.get(), "状态栏内存槽位应有初始占位文案")
+        self.assertEqual(str(app._mem_label.cget("style")),
+                         "Memory.Status.TLabel")
+
     def test_build_is_repeatable(self):
         """连续建两次（覆盖「已有页签时 insert(0)」与「空 notebook」两条分支）。"""
         app = self._build()

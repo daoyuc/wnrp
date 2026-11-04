@@ -89,6 +89,8 @@ worker 只 `queue.put()`，主窗口的 `_post()` 也**只入队、不碰 `after
 
 主窗口的通用回调队列（`_post` + `_drain_ui`）是**常驻自循环**：启动时由主线程挂一次，空闲时 400ms 一趟、忙时 80ms 排空。`tests/test_ui_stability.py` 守护以上契约。
 
+状态栏的整机内存槽位同样遵守该契约：`_tick()` 起 worker 读 `core/system_memory.py`，结果只经 `_post()` 回主线程写 `StringVar`，不新建常驻轮询；`core/resource_monitor.py` 统计的是 phpvm 管理进程的 RSS/CPU，与整机内存是两回事。
+
 ## 4. 运行期状态与落点
 
 | 文件 / 位置 | 内容 | 谁写 | 备注 |

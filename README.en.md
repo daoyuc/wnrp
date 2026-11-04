@@ -22,6 +22,7 @@ Each PHP version is started and stopped precisely by port, so versions never int
 - **One-click health check / 502 diagnosis**: per-site checks for Nginx running, include, hosts, port mapping, PHP running, docroot, certificate and error log, with readable conclusions
 - **Overview dashboard**: service status + site alerts + recent crashes / run logs on one screen, plus start-all / stop-all
 - **Log page**: Nginx / PHP / site logs in a single view (incremental follow, coloring, filtering); plus phpvm's own "Run Log", searchable and exportable
+- **System RAM in the status bar**: a slot at the bottom of the main window shows whole-machine memory usage and "used / total" (refreshed every 8s; Windows / Linux / macOS). Shows "RAM —" when unavailable. Unlike the overview page, which only tracks phpvm-managed processes
 
 **Sites**
 

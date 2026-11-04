@@ -14,7 +14,7 @@ PHP 版本管理(php,刚需) │ Nginx 管理(nginx,刚需) │ Redis 管理(red
 │ 插件页签：由 core/plugins 的 MANIFEST 动态追加（如 键鼠统计(keymouse)）
 ```
 
-- 顶部：菜单栏（外观 / 语言 / 帮助）、状态栏（就绪消息 + 更新提示 + 崩溃告警）。
+- 顶部：菜单栏（外观 / 语言 / 帮助）、状态栏（就绪消息 + 整机内存槽位 + 更新提示 + 崩溃告警）。
 - 插件页签在 `_build()` 末尾按 `plugins.enabled_specs(config)` 动态追加，面板经 `importlib` 从 `ui/plugins/` 延迟导入；单个插件导入失败只记 warn 并跳过该页签。
 - 托盘（Windows）：动态菜单 —— 一键启停整套服务、Nginx 子菜单、各 PHP 版本、Redis 子菜单、显示/隐藏/退出。
 - 页签构建在 `ui/main_window.py::_build()`；「关于」页（含设置区、模块开关、服务编排按钮）在 `_build_about()`。
@@ -61,6 +61,7 @@ PHP 版本管理(php,刚需) │ Nginx 管理(nginx,刚需) │ Redis 管理(red
 | 托盘 | `ui/tray.py`（Windows） | `icon.py` | `phpvm.ico`（生成） | 最小化即隐藏到托盘；关闭框提供「重启」 |
 | CLI（AI / 脚本通道） | `cli.py` | 全部 `core/*` | 同 GUI（共用 config.json） | 不 import tkinter；写操作支持 `--dry-run` |
 | 打包与发布 | `packaging/build.py`、`packaging/phpvm.iss` | `.github/workflows/release.yml` | `dist/` | 打 tag 自动构建双平台并发布 Release |
+| 状态栏整机内存槽位 | 主窗口底部状态栏（`ui/main_window.py::_refresh_memory()`） | `core/system_memory.py` | 只读（不写文件、不缓存进程状态） | Windows `GlobalMemoryStatusEx` / Linux `/proc/meminfo` / macOS `sysctl`+`vm_stat`；每 8s 由 worker 采集、只经 `_post()` 回主线程写 `StringVar`；取不到显示「内存 —」而非报错；与 `core/resource_monitor.py` 的「phpvm 管理进程 RSS/CPU」不是一回事 |
 | 插件框架（发现 / 开关 / 设置 / 后台拉起） | 关于页「功能模块」（自动并入） | `core/plugins/__init__.py`、`base.py`、`settings.py`、`core/modules.py` | `settings.disabled_modules`、`settings.plugin_settings` | 内置目录只声明 `MANIFEST: PluginSpec`，`pkgutil` + `importlib` 发现；单插件导入失败只 warn、不阻断启动；设置页与启动快照无需各写一遍枚举 |
 | 键鼠统计（今日 / 本周 / 本月 / 本年 / 全部） | `ui/plugins/keymouse_panel.py` / `plugin`、`keymouse` 命令组 | `core/plugins/keymouse/`（`collector`、`store`、`stats`、`daemon`、`keymap`） | `<数据目录>/plugins/keymouse/stats.db` + `daemon.*` / `paused` | 独立守护进程写库，GUI / CLI 只读 `mode=ro`；仅 Windows 采集；只落 vkCode + 时间戳；插件停用后守护进程 ≤60s 自行退出 |
 

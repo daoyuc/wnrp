@@ -11,7 +11,7 @@ import webbrowser
 from tkinter import filedialog, messagebox, ttk
 
 from core import (adminer, app_paths, autostart, backup_bundle, crash_watchdog,
-                  path_manager, plugins, run_log, updater)
+                  path_manager, plugins, run_log, system_memory, updater)
 from core import theme as theme_prefs
 from core.config import Config, IS_WIN, WNRP_ROOT
 from core.i18n import LANGS, t
@@ -80,6 +80,9 @@ class MainWindow(tk.Tk):
         self._build_menubar()
 
         self._log_var = tk.StringVar(value=t("就绪"))
+        # 状态栏整机内存槽位（worker 采集 → _post 回主线程）
+        self._mem_var = tk.StringVar(value=t("内存 —"))
+        self._mem_busy = False
         self._cli_queue: queue.Queue = queue.Queue()
         self._crash_queue: queue.Queue = queue.Queue()
         self._tray_queue: queue.Queue = queue.Queue()
@@ -116,6 +119,8 @@ class MainWindow(tk.Tk):
         # 通用回调队列的唯一消费者：常驻自循环（空闲时自动降频）。
         # 必须在主线程挂 —— worker 侧的 _post 只入队，不碰 Tk。
         self._start_ui_drain()
+        # 首屏立刻取一次整机内存，不必等第一个 8 秒 tick
+        self._refresh_memory()
 
     # ------------------------------------------------------------------ #
     def _build_menubar(self) -> None:
@@ -217,6 +222,13 @@ class MainWindow(tk.Tk):
         )
         self._update_label.pack(side="right", padx=(0, theme.PAD_SM), pady=theme.PAD_SM)
         self._update_label.bind("<Button-1>", lambda e: self.open_update_dialog())
+
+        # 整机内存占用槽位（等宽字体，数字跳动时不抖；8 秒刷新一次）
+        self._mem_label = ttk.Label(
+            bar, textvariable=self._mem_var, style="Memory.Status.TLabel",
+        )
+        self._mem_label.pack(side="right", padx=(0, theme.PAD_MD),
+                             pady=theme.PAD_SM)
         # 状态栏上沿细线：与内容区明确分界
         theme.divider(self).pack(fill="x", side="bottom")
 
@@ -1016,6 +1028,7 @@ class MainWindow(tk.Tk):
     def _tick(self) -> None:
         # 自动轻量刷新状态（面板内部自行排队异步执行）
         self._refresh_panels()
+        self._refresh_memory()
         # cmd php 版本号变化极少，降频刷新（每 4 轮 tick ≈ 32s 一次）
         self._tick_count = getattr(self, "_tick_count", 0) + 1
         if self._tick_count % 4 == 0:
@@ -1037,6 +1050,37 @@ class MainWindow(tk.Tk):
             self._poll_crash()
             self._ensure_recover_daemon()
         self.after(8000, self._tick)
+
+    def _refresh_memory(self) -> None:
+        """整机内存槽位：采集下沉 worker，结果只经 _post 回主线程（不新建轮询）。"""
+        if getattr(self, "_mem_busy", False):
+            return
+        self._mem_busy = True
+
+        def worker():
+            try:
+                snap = system_memory.snapshot()
+            except Exception as e:  # noqa: BLE001 - 取数失败只显示占位
+                run_log.warn("ui", t("系统内存采集失败：{err}", err=e))
+                snap = system_memory.MemorySnapshot()
+            self._post(lambda: self._set_memory(snap))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _set_memory(self, snap) -> None:
+        """主线程：drain 回调里更新状态栏文案（窗口已销毁时安静返回）。"""
+        self._mem_busy = False
+        if not snap.ok:
+            text = t("内存 —")
+        else:
+            text = t("内存 {pct}% · {used}/{total}",
+                     pct=int(round(snap.percent)),
+                     used=system_memory.format_gb(snap.used_bytes),
+                     total=system_memory.format_gb(snap.total_bytes))
+        try:
+            self._mem_var.set(text)
+        except tk.TclError:
+            pass
 
     def _ensure_recover_daemon(self) -> None:
         """若开启了崩溃自愈，确保独立守护进程存活（后台探测/拉起，不阻塞 UI）。"""

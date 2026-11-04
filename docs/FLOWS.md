@@ -20,6 +20,8 @@ python/phpvm.bat 启动
  ├─ MainWindow(...)  ← 建窗口 → _build() 建页签 → 8s 轮询 _tick() → 托盘 → 启动静默检查更新
  │     ├─ _build() 末尾按 plugins.enabled_specs() 延迟挂载插件页签（见流程 8）
  │     ├─ after(2600ms) plugins.ensure_backgrounds()（幂等拉起插件后台进程，见流程 8）
+ │     ├─ _build() 状态栏建整机内存槽位；启动取一次、_tick() 每 8s 再取
+ │     │    └─ worker 读 core/system_memory.py → _post() → 主线程写 StringVar
  │     └─ after(1200ms) _maybe_start_services_on_launch()（设置开启时，见流程 2）
  └─ mainloop() 退出后：释放单实例锁 + 写「phpvm 已退出」（插件守护进程不随之退出）
 ```

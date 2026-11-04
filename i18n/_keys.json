@@ -2281,6 +2281,18 @@
    "cli.py"
   ]
  },
+ "内存 {pct}% · {used}/{total}": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "内存 —": {
+  "count": 2,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
  "内存上限": {
   "count": 2,
   "files": [
@@ -2880,7 +2892,7 @@
   ]
  },
  "启动后台记录": {
-  "count": 2,
+  "count": 4,
   "files": [
    "ui/plugins/keymouse_panel.py"
   ]
@@ -4560,7 +4572,7 @@
   ]
  },
  "当前平台不支持（仅 Windows）": {
-  "count": 1,
+  "count": 2,
   "files": [
    "ui/plugins/keymouse_panel.py"
   ]
@@ -7055,6 +7067,12 @@
    "ui/sqlite_panel.py"
   ]
  },
+ "系统内存采集失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
  "约束": {
   "count": 1,
   "files": [
@@ -8133,7 +8151,7 @@
   ]
  },
  "采集中": {
-  "count": 1,
+  "count": 2,
   "files": [
    "ui/plugins/keymouse_panel.py"
   ]
