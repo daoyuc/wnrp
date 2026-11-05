@@ -41,6 +41,7 @@ CG_EVENT_TAP_DISABLED_BY_USER_INPUT = 0xFFFFFFFF
 CG_FIELD_KEYCODE = 9                  # kCGKeyboardEventKeycode
 CG_FIELD_AUTOREPEAT = 8               # kCGKeyboardEventAutorepeat
 CG_FIELD_SOURCE_STATE_ID = 45         # kCGEventSourceStateID
+CG_FIELD_SOURCE_UNIX_PID = 41         # kCGEventSourceUnixProcessID
 CG_SOURCE_HID = 1                     # kCGEventSourceStateHIDSystemState
 
 EVENT_MASK = ((1 << CG_EVENT_KEY_DOWN) | (1 << CG_EVENT_KEY_UP)
@@ -384,13 +385,17 @@ class KeyboardCollector:
                     event, CG_FIELD_AUTOREPEAT))
                 state = cg.CGEventGetIntegerValueField(
                     event, CG_FIELD_SOURCE_STATE_ID)
-                self.handle(etype, keycode, repeat=repeat, source_state=state)
+                pid = cg.CGEventGetIntegerValueField(
+                    event, CG_FIELD_SOURCE_UNIX_PID)
+                self.handle(etype, keycode, repeat=repeat, source_state=state,
+                            source_pid=pid)
         except Exception:  # noqa: BLE001 - 回调里绝不抛错
             pass
         return event
 
     def handle(self, etype: int, keycode: int, repeat: bool = False,
-               source_state: int | None = CG_SOURCE_HID) -> None:
+               source_state: int | None = CG_SOURCE_HID,
+               source_pid: int = 0) -> None:
         """按事件类型更新按键状态（纯逻辑，测试可脱离系统事件调用）。"""
         vk = vk_of(keycode)
         if vk < 0:
@@ -402,19 +407,21 @@ class KeyboardCollector:
             if vk in self._down:
                 self._down.discard(vk)
             else:
-                self.press(vk, source_state=source_state)
+                self.press(vk, source_state=source_state, source_pid=source_pid)
             return
-        self.press(vk, repeat=repeat, source_state=source_state)
+        self.press(vk, repeat=repeat, source_state=source_state,
+                   source_pid=source_pid)
 
     def press(self, vk: int, repeat: bool = False,
-              source_state: int | None = CG_SOURCE_HID) -> bool:
+              source_state: int | None = CG_SOURCE_HID,
+              source_pid: int = 0) -> bool:
         """记录一次「新按下」；返回是否真的计入统计。"""
         if repeat or vk in self._down:        # 过滤长按自动重复
             return False
         self._down.add(vk)
         if self.paused:
             return False
-        if self.filter_injected and self._injected(source_state):
+        if self.filter_injected and self._injected(source_state, source_pid):
             return False
         ts = time.time()
         self.events.append((ts, vk))
@@ -422,9 +429,17 @@ class KeyboardCollector:
         return True
 
     @staticmethod
-    def _injected(source_state: int | None) -> bool:
-        """来源是私有事件源（其它进程 CGEventPost 合成）时视为注入。"""
-        return source_state is not None and source_state < 0
+    def _injected(source_state: int | None, source_pid: int = 0) -> bool:
+        """判定事件是否为其它进程合成（注入）。
+
+        两条都要看：私有事件源（``CGEventSourceCreate``）的 state ID 是负数；
+        而最常见的 ``CGEventPost`` 直接用默认 source，此时 state ID 为 0、
+        但 ``kCGEventSourceUnixProcessID`` 会填上投递进程的 PID（硬件事件为 0）。
+        只判前者会漏掉后者（实测：合成左方向键会被当成真实按键计数）。
+        """
+        if source_state is not None and source_state < 0:
+            return True
+        return bool(source_pid)
 
     # ------------------------------------------------------------------ #
     # 取事件（接口与 Windows 端一致；事件由采集线程入队，这里只休眠）

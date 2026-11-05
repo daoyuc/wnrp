@@ -43,9 +43,10 @@ class HandleTest(unittest.TestCase):
     def setUp(self):
         self.c = mac.KeyboardCollector()
 
-    def down(self, keycode: int, repeat: bool = False, state: int = mac.CG_SOURCE_HID):
+    def down(self, keycode: int, repeat: bool = False,
+             state: int = mac.CG_SOURCE_HID, pid: int = 0):
         self.c.handle(mac.CG_EVENT_KEY_DOWN, keycode, repeat=repeat,
-                      source_state=state)
+                      source_state=state, source_pid=pid)
 
     def up(self, keycode: int):
         self.c.handle(mac.CG_EVENT_KEY_UP, keycode)
@@ -88,6 +89,19 @@ class HandleTest(unittest.TestCase):
     def test_injected_filter_can_be_disabled(self):
         c = mac.KeyboardCollector(filter_injected=False)
         c.handle(mac.CG_EVENT_KEY_DOWN, 1, source_state=-1)
+        self.assertEqual(len(c.events), 1)
+
+    def test_posted_event_with_source_pid_is_ignored(self):
+        """CGEventPost 用默认 source 时 state ID 为 0，靠 PID 字段识别。"""
+        self.down(1, pid=4242)
+        self.assertEqual(self.vks(), [])
+        self.up(1)
+        self.down(1)               # 真实按键（PID 为 0）仍然计数
+        self.assertEqual(self.vks(), [0x53])
+
+    def test_posted_event_filter_can_be_disabled(self):
+        c = mac.KeyboardCollector(filter_injected=False)
+        c.handle(mac.CG_EVENT_KEY_DOWN, 1, source_state=0, source_pid=4242)
         self.assertEqual(len(c.events), 1)
 
     def test_paused_keeps_key_state(self):
