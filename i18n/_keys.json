@@ -422,9 +422,10 @@
   ]
  },
  "PHP": {
-  "count": 2,
+  "count": 3,
   "files": [
    "ui/plugins/project_launcher_panel.py",
+   "ui/plugins/site_health_panel.py",
    "core/log_sources.py"
   ]
  },
@@ -1409,6 +1410,12 @@
    "ui/extension_dialog.py"
   ]
  },
+ "{n} 天": {
+  "count": 1,
+  "files": [
+   "ui/plugins/site_health_panel.py"
+  ]
+ },
  "{n} 行": {
   "count": 1,
   "files": [
@@ -1741,9 +1748,10 @@
   ]
  },
  "不可用": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/php_panel.py"
+   "ui/php_panel.py",
+   "ui/plugins/site_health_panel.py"
   ]
  },
  "不在响应头暴露 nginx 版本号（顺便少几十字节）": {
@@ -2593,7 +2601,7 @@
   ]
  },
  "刷新": {
-  "count": 10,
+  "count": 11,
   "files": [
    "ui/mail_panel.py",
    "ui/nginx_log_panel.py",
@@ -2603,7 +2611,8 @@
    "ui/sqlite_panel.py",
    "ui/vhost_panel.py",
    "ui/plugins/access_insights_panel.py",
-   "ui/plugins/project_launcher_panel.py"
+   "ui/plugins/project_launcher_panel.py",
+   "ui/plugins/site_health_panel.py"
   ]
  },
  "刷新状态": {
@@ -2680,6 +2689,12 @@
   "count": 1,
   "files": [
    "core/updater.py"
+  ]
+ },
+ "协议": {
+  "count": 1,
+  "files": [
+   "ui/plugins/site_health_panel.py"
   ]
  },
  "单 worker 可承载的连接数，按本机档位给；太小会排队": {
@@ -2812,6 +2827,12 @@
    "ui/update_dialog.py"
   ]
  },
+ "只探测 nginx vhost 里的域名：GET /，不跟随重定向、不带 Cookie、不经系统代理": {
+  "count": 1,
+  "files": [
+   "ui/plugins/site_health_panel.py"
+  ]
+ },
  "只能从 {options} 中选择": {
   "count": 1,
   "files": [
@@ -2835,6 +2856,12 @@
   "files": [
    "ui/download_dialog.py",
    "ui/extension_dialog.py"
+  ]
+ },
+ "可巡检站点 {n} 个：": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "可执行文件": {
@@ -3259,11 +3286,12 @@
   ]
  },
  "域名": {
-  "count": 3,
+  "count": 4,
   "files": [
    "ui/dialogs.py",
    "ui/vhost_panel.py",
-   "ui/plugins/project_launcher_panel.py"
+   "ui/plugins/project_launcher_panel.py",
+   "ui/plugins/site_health_panel.py"
   ]
  },
  "域名不合法": {
@@ -3276,6 +3304,12 @@
   "count": 3,
   "files": [
    "core/diag.py"
+  ]
+ },
+ "域名过滤": {
+  "count": 1,
+  "files": [
+   "ui/plugins/site_health_panel.py"
   ]
  },
  "域名：": {
@@ -3376,10 +3410,11 @@
   ]
  },
  "大小": {
-  "count": 2,
+  "count": 3,
   "files": [
    "ui/download_dialog.py",
-   "ui/mail_panel.py"
+   "ui/mail_panel.py",
+   "ui/plugins/site_health_panel.py"
   ]
  },
  "失败": {
@@ -3816,11 +3851,12 @@
   ]
  },
  "就绪": {
-  "count": 3,
+  "count": 4,
   "files": [
    "ui/main_window.py",
    "ui/plugins/access_insights_panel.py",
-   "ui/plugins/project_launcher_panel.py"
+   "ui/plugins/project_launcher_panel.py",
+   "ui/plugins/site_health_panel.py"
   ]
  },
  "峰值 {peak} · 均值 {avg}": {
@@ -3905,6 +3941,24 @@
   "count": 1,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "巡检 {n} 个站点：正常 {up} · 异常 {warn} · 不可用 {down}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "巡检失败": {
+  "count": 1,
+  "files": [
+   "ui/plugins/site_health_panel.py"
+  ]
+ },
+ "巡检完成 · {scheme} · 超时 {timeout}s · {n} 个站点": {
+  "count": 1,
+  "files": [
+   "ui/plugins/site_health_panel.py"
   ]
  },
  "已下载 Adminer：{path}": {
@@ -4160,6 +4214,12 @@
   "files": [
    "ui/main_window.py",
    "ui/vhost_panel.py"
+  ]
+ },
+ "已在浏览器打开：{url}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/site_health_panel.py"
   ]
  },
  "已在终端打开 {path}": {
@@ -4530,6 +4590,12 @@
    "ui/diag_dialog.py"
   ]
  },
+ "已过期": {
+  "count": 1,
+  "files": [
+   "ui/plugins/site_health_panel.py"
+  ]
+ },
  "已还原本次改动（vhost 文件、nginx.conf 与 hosts 均恢复）。": {
   "count": 1,
   "files": [
@@ -4615,9 +4681,16 @@
   ]
  },
  "平均耗时": {
+  "count": 2,
+  "files": [
+   "ui/plugins/access_insights_panel.py",
+   "ui/plugins/site_health_panel.py"
+  ]
+ },
+ "平均耗时：{ms}": {
   "count": 1,
   "files": [
-   "ui/plugins/access_insights_panel.py"
+   "cli.py"
   ]
  },
  "平滑重载": {
@@ -4832,9 +4905,10 @@
   ]
  },
  "异常": {
-  "count": 1,
+  "count": 3,
   "files": [
-   "ui/dialogs.py"
+   "ui/dialogs.py",
+   "ui/plugins/site_health_panel.py"
   ]
  },
  "异常码": {
@@ -5116,6 +5190,12 @@
   "count": 1,
   "files": [
    "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "打开站点失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/site_health_panel.py"
   ]
  },
  "打开站点（浏览器）": {
@@ -5976,6 +6056,12 @@
   "count": 1,
   "files": [
    "ui/plugins/access_insights_panel.py"
+  ]
+ },
+ "有 {n} 个站点不可用，先确认 nginx 与对应 PHP 版本已启动": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "有警告": {
@@ -6840,6 +6926,12 @@
    "ui/main_window.py"
   ]
  },
+ "正在巡检…": {
+  "count": 1,
+  "files": [
+   "ui/plugins/site_health_panel.py"
+  ]
+ },
  "正在恢复环境配置…": {
   "count": 1,
   "files": [
@@ -7003,16 +7095,23 @@
   ]
  },
  "正常": {
-  "count": 2,
+  "count": 4,
   "files": [
    "ui/diag_dialog.py",
-   "ui/dialogs.py"
+   "ui/dialogs.py",
+   "ui/plugins/site_health_panel.py"
   ]
  },
  "每次请求都检查文件时间戳（默认 2 秒），改完代码刷新即生效": {
   "count": 1,
   "files": [
    "core/tuning.py"
+  ]
+ },
+ "没有匹配的站点（检查 --domain 过滤）": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "没有匹配的项目": {
@@ -7031,6 +7130,12 @@
   "count": 1,
   "files": [
    "core/site_service.py"
+  ]
+ },
+ "没有可探测的站点（nginx vhost 里没有 server_name）": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "没有可用于签发证书的域名（仅填写了泛解析）": {
@@ -7198,9 +7303,10 @@
   ]
  },
  "状态码": {
-  "count": 2,
+  "count": 3,
   "files": [
-   "ui/plugins/access_insights_panel.py"
+   "ui/plugins/access_insights_panel.py",
+   "ui/plugins/site_health_panel.py"
   ]
  },
  "状态码分布": {
@@ -7526,6 +7632,24 @@
    "core/tuning.py"
   ]
  },
+ "站点巡检": {
+  "count": 1,
+  "files": [
+   "ui/plugins/site_health_panel.py"
+  ]
+ },
+ "站点巡检失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/site_health_panel.py"
+  ]
+ },
+ "站点巡检渲染失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/site_health_panel.py"
+  ]
+ },
  "站点已处于启用状态": {
   "count": 1,
   "files": [
@@ -7542,6 +7666,12 @@
   "count": 1,
   "files": [
    "core/site_service.py"
+  ]
+ },
+ "站点数": {
+  "count": 1,
+  "files": [
+   "ui/plugins/site_health_panel.py"
   ]
  },
  "站点映射": {
@@ -7752,10 +7882,11 @@
   ]
  },
  "结果": {
-  "count": 2,
+  "count": 3,
   "files": [
    "ui/dialogs.py",
-   "ui/sqlite_panel.py"
+   "ui/sqlite_panel.py",
+   "ui/plugins/site_health_panel.py"
   ]
  },
  "统计失败": {
@@ -7884,6 +8015,12 @@
    "core/updater.py"
   ]
  },
+ "耗时": {
+  "count": 1,
+  "files": [
+   "ui/plugins/site_health_panel.py"
+  ]
+ },
  "自动": {
   "count": 1,
   "files": [
@@ -7979,6 +8116,12 @@
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "自签": {
+  "count": 1,
+  "files": [
+   "ui/plugins/site_health_panel.py"
   ]
  },
  "获取 xdebug.org 文件列表…": {
@@ -8094,6 +8237,12 @@
   "count": 1,
   "files": [
    "ui/plugins/access_insights_panel.py"
+  ]
+ },
+ "证书": {
+  "count": 1,
+  "files": [
+   "ui/plugins/site_health_panel.py"
   ]
  },
  "证书删除失败：{err}": {
@@ -8273,10 +8422,11 @@
   ]
  },
  "说明": {
-  "count": 2,
+  "count": 3,
   "files": [
    "ui/extension_dialog.py",
-   "ui/vhost_panel.py"
+   "ui/vhost_panel.py",
+   "ui/plugins/site_health_panel.py"
   ]
  },
  "说明：开启 / 关闭都只改 php.ini（自动备份 .bak 并自检，失败自动还原），重启该 PHP 版本后生效。": {
@@ -8487,6 +8637,12 @@
   "count": 1,
   "files": [
    "core/tuning.py"
+  ]
+ },
+ "跳转到 {url}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/site_health_panel.py"
   ]
  },
  "跳过 PHP 版本：{names}（策略：{scope}）": {

@@ -1004,6 +1004,58 @@ def cmd_insights_report(a, r: Result) -> Result:
 
 
 # --------------------------------------------------------------------------- #
+# health（站点巡检：只读 HTTP(S) 探测 nginx vhost 域名）
+# --------------------------------------------------------------------------- #
+def _site_health():
+    from core.plugins.site_health import probe
+
+    return probe
+
+
+def cmd_health_sites(a, r: Result) -> Result:
+    probe = _site_health()
+    items = probe.sites(Config())
+    r.data = {"total": len(items), "sites": items}
+    if not items:
+        r.say(t("没有可探测的站点（nginx vhost 里没有 server_name）"))
+        return r
+    r.say(t("可巡检站点 {n} 个：", n=len(items)))
+    for it in items:
+        php = f"  [{it['php_version']}]" if it.get("php_version") else ""
+        r.say(f"  {it['domain']}{php}")
+    return r
+
+
+def cmd_health_probe(a, r: Result) -> Result:
+    probe = _site_health()
+    data = probe.report(Config(), scheme=a.scheme, timeout=a.timeout,
+                        only=getattr(a, "domain", "") or "",
+                        limit=getattr(a, "limit", 0) or 0)
+    r.data = data
+    if not data["total"]:
+        r.say(t("没有匹配的站点（检查 --domain 过滤）"))
+        return r
+    r.say(t("巡检 {n} 个站点：正常 {up} · 异常 {warn} · 不可用 {down}",
+            n=data["total"], up=data["up"], warn=data["warn"],
+            down=data["down"]))
+    avg = data.get("avg_ms")
+    r.say(t("平均耗时：{ms}", ms="—" if avg is None else f"{avg} ms"))
+    for it in data["sites"]:
+        status = "—" if it.get("status") is None else str(it["status"])
+        if it.get("error"):
+            note = t(probe.ERROR_MESSAGES.get(it["error"], "网络错误"))
+        else:
+            note = str(it.get("location") or "")
+        size = int(it.get("bytes") or 0)
+        r.say(f"  {it['domain']:<28}{status:>5}  {it['ms']:>6} ms  "
+              f"{size:>7} B  {note}")
+    if data["down"]:
+        r.note(t("有 {n} 个站点不可用，先确认 nginx 与对应 PHP 版本已启动",
+                 n=data["down"]))
+    return r
+
+
+# --------------------------------------------------------------------------- #
 # overview（首页总览仪表盘，只读快照）
 # --------------------------------------------------------------------------- #
 def cmd_overview_summary(a, r: Result) -> Result:
@@ -2944,6 +2996,22 @@ def build_parser() -> argparse.ArgumentParser:
     _p.add_argument("--top", type=int, default=10, help="Top N（默认 10）")
     _p.add_argument("--errors", action="store_true",
                     help="只输出错误请求（4xx / 5xx）")
+
+    # health（站点巡检：只读 HTTP(S) 探测 vhost 域名，不跟随重定向）
+    g = sub.add_parser("health", help="站点巡检（只读 HTTP(S) 探测 vhost 域名）",
+                       parents=[COMMON])
+    gs = g.add_subparsers(dest="action", metavar="<action>")
+    _leaf(gs, "sites", cmd_health_sites, "health.sites",
+          "列出可巡检的站点域名（不发起请求）")
+    _p = _leaf(gs, "probe", cmd_health_probe, "health.probe",
+               "探测站点可用性（状态码 / 耗时 / 证书剩余天数）")
+    _p.add_argument("--domain", default="", help="按域名子串过滤")
+    _p.add_argument("--scheme", choices=("http", "https"), default="http",
+                    help="探测协议（默认 http）")
+    _p.add_argument("--timeout", type=float, default=5.0,
+                    help="单站点超时秒数（默认 5）")
+    _p.add_argument("--limit", type=int, default=0,
+                    help="最多探测多少个站点（默认全部）")
 
     # overview（首页总览仪表盘，只读快照）
     g = sub.add_parser("overview", help="首页总览仪表盘（只读快照）", parents=[COMMON])

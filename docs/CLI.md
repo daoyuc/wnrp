@@ -35,6 +35,7 @@
 | `config` | 配置读写（config.json） | `get` · `list` · `set` |
 | `diag` | 一键体检 / 502 诊断（只读） | `all` · `site` |
 | `env` | 输出全部服务快照（nginx / PHP / Redis / MySQL） | — |
+| `health` | 站点巡检（只读 HTTP(S) 探测 vhost 域名） | `probe` · `sites` |
 | `hosts` | hosts 映射管理 | `add` · `remove` · `restore` · `status` |
 | `insights` | 访问日志聚合（只读解析 nginx access.log） | `files` · `report` |
 | `keymouse` | 键鼠统计插件 | `clear` · `daemon`（`start` · `status` · `stop`） · `export` · `pause` · `resume` · `status` · `summary` |
@@ -128,6 +129,21 @@
 | `<target>` | 是 |  | 域名 / 配置文件名 / 配置文件路径 |
 
 ## `env` — 输出全部服务快照（nginx / PHP / Redis / MySQL）
+
+## `health` — 站点巡检（只读 HTTP(S) 探测 vhost 域名）
+
+### `health probe` — 探测站点可用性（状态码 / 耗时 / 证书剩余天数）
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--domain` |  |  | 按域名子串过滤 |
+| `--scheme` |  | http | 探测协议（默认 http） |
+| `--timeout` |  | 5.0 | 单站点超时秒数（默认 5） |
+| `--limit` |  |  | 最多探测多少个站点（默认全部） |
+
+### `health sites` — 列出可巡检的站点域名（不发起请求）
+
+（无参数）
 
 ## `hosts` — hosts 映射管理
 
