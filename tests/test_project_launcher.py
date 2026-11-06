@@ -426,6 +426,16 @@ class EditorTest(unittest.TestCase):
     def test_argv_appends_path_when_placeholder_missing(self):
         self.assertEqual(editor.argv_of("code", "/x/y"), ["code", "/x/y"])
 
+    def test_argv_strips_quotes_around_path(self):
+        # Windows 走 posix=False，引号会留在 token 里，必须剥掉
+        self.assertEqual(editor.argv_of('code "{path}"', "/x y"),
+                         ["code", "/x y"])
+
+    def test_argv_unquotes_windows_style_exe(self):
+        self.assertEqual(
+            editor.argv_of('"C:/Program Files/VSCode/code.exe" {path}', "/x"),
+            ["C:/Program Files/VSCode/code.exe", "/x"])
+
     def test_argv_rejects_broken_quotes(self):
         self.assertEqual(editor.argv_of("code 'unclosed", "/x"), [])
 

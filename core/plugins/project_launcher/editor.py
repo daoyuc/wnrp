@@ -74,6 +74,18 @@ def resolve(config=None, override: str = "") -> str:
     return found[0]["exe"] if found else ""
 
 
+def _unquote(token: str) -> str:
+    """去掉 token 两端成对的引号。
+
+    Windows 用 ``posix=False``（否则反斜杠会被当转义符吃掉），而该模式会把
+    引号原样留在 token 里（``'VS Code'`` / ``"C:\\Program Files\\X"``），
+    交给 ``Popen`` 时反而不是合法路径，因此需要手工剥一层。
+    """
+    if len(token) >= 2 and token[0] == token[-1] and token[0] in ("'", '"'):
+        return token[1:-1]
+    return token
+
+
 def argv_of(tpl: str, path: str) -> list[str]:
     """把模板拆成 argv；``{path}`` 做字面替换，缺省则把目录追加到末尾。"""
     try:
@@ -83,11 +95,12 @@ def argv_of(tpl: str, path: str) -> list[str]:
     out: list[str] = []
     used = False
     for part in parts:
-        if PLACEHOLDER in part:
-            out.append(part.replace(PLACEHOLDER, path))
+        token = _unquote(part)
+        if PLACEHOLDER in token:
+            out.append(token.replace(PLACEHOLDER, path))
             used = True
         else:
-            out.append(part)
+            out.append(token)
     if out and not used:
         out.append(path)
     return out
