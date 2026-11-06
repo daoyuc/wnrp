@@ -93,6 +93,8 @@ python3 cli.py launcher list --json
 python3 cli.py launcher browse --project demo --dry-run --json   # 站点 URL 只来自 vhost
 python3 cli.py launcher commands --project demo --json
 python3 cli.py insights report --file access.log --errors --json   # 只读 nginx access.log
+python3 cli.py health sites --json                                  # 只列 vhost 域名，不发起请求
+python3 cli.py health probe --domain gmlbm --json                   # 只读 GET /，不跟随重定向
 python3 cli.py launcher add --label "Dev server" --command "php -S 127.0.0.1:8000" --dry-run --json
 python3 cli.py launcher open --project demo --id php-v --dry-run --json
 python3 cli.py launcher remove --id custom-xxxxxxxx --yes --dry-run --json

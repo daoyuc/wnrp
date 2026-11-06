@@ -12,7 +12,7 @@
 服务  总览(overview) │ PHP 版本管理(php,刚需) │ Nginx 管理(nginx,刚需) │ Redis 管理(redis) │ MySQL 管理(mysql)
 站点  站点映射(vhost,刚需) │ SQLite 数据库(sqlite)
 诊断  Nginx 日志(log) │ 邮件(mail) │ 运行日志(常驻，不受开关影响) │ 访问日志聚合(access_insights)
-其他  键鼠统计(keymouse) │ 项目启动器(project_launcher) │ 关于(设置区/模块开关在此)
+其他  键鼠统计(keymouse) │ 项目启动器(project_launcher) │ 站点巡检(site_health) │ 关于(设置区/模块开关在此)
 ```
 
 - 顶部：菜单栏（外观 / 语言 / 帮助）、状态栏（就绪消息 + 整机内存槽位 + 更新提示 + 崩溃告警）。
@@ -75,6 +75,7 @@
 | 键鼠统计（今日 / 本周 / 本月 / 本年 / 全部） | `ui/plugins/keymouse_panel.py` / `plugin`、`keymouse` 命令组 | `core/plugins/keymouse/`（`collector`、`store`、`stats`、`daemon`、`keymap`） | `<数据目录>/plugins/keymouse/stats.db` + `daemon.*` / `paused` | 独立守护进程写库，GUI / CLI 只读 `mode=ro`；Windows / macOS 采集（macOS 需「输入监控」授权）；只落 vkCode + 时间戳；插件停用后守护进程 ≤60s 自行退出 |
 | 项目启动器（本地项目 → 站点 / 命令 / 编辑器 → 浏览器、终端或 IDE） | `ui/plugins/project_launcher_panel.py` / `launcher` 命令组 | `core/plugins/project_launcher/`（`projects`、`commands`、`editor`）、`core/process_utils.py::open_terminal()` | `settings.plugin_settings.project_launcher.www_dir` / `custom_commands` / `editor` / `recent` / `recent_first` | 只读扫描 `www_dir`（默认 `<WNRP_ROOT>/www`，可在面板或 `launcher set-www` 改）+ vhost root 并去重；站点 URL 只由 vhost 的 `server_name` 生成（`launcher browse` / 面板按钮、双击、右键），命令只来自内置白名单或用户手动添加，编辑器只来自内置探测或用户模板且按 argv 启动（不拼 shell），**绝不读 `.phpvm.json` 当命令或 URL 来源**（ADR 16 / ADR 19）；无后台进程、无自动执行 |
 | 访问日志聚合（access.log → 状态码 / 热门路径 / 错误请求） | `ui/plugins/access_insights_panel.py` / `insights` 命令组 | `core/plugins/access_insights/aggregate.py` | 无（不落库、不写任何文件） | 只读 nginx 自身日志目录里的 `*access*.log`（含轮转），文件名只能从候选列表里选、`realpath` 前缀校验；解析失败的行计入 `skipped`；**不读项目内任何文件**；无后台进程、无自动执行（ADR 17） |
+| 站点巡检（vhost 域名 → 状态码 / 耗时 / 证书剩余天数） | `ui/plugins/site_health_panel.py` / `health` 命令组 | `core/plugins/site_health/probe.py` | 无（不落库、不写任何文件） | 待探测地址只由 nginx vhost 的 `server_name` 生成（泛解析 / `_` / 非法域名 / 禁用站点跳过），只发 `GET /`、**不跟随重定向**、不带 Cookie、**不经系统代理**（`http.client` 直连），响应体最多读 64 KB；HTTPS 证书校验失败（本地自签）降级不校验并标 `insecure`；无后台进程；面板自动刷新按 60s 节流（ADR 20） |
 
 > 跨模块约定：`core/*` 的全部 HTTPS 请求（PHP 版本/扩展列表、PHP 与 Adminer 下载、软件更新）
 > 统一经 `core/net_ssl.py::ssl_context()` 取 SSL 上下文 —— 系统默认根 + 仓库内置
@@ -98,6 +99,7 @@
 | `keymouse` | 键鼠统计 | ❌ | 不建插件导航项、不拉起后台记录进程；已在运行的守护进程下一轮配置检查（≤60s）自行 flush 并退出 |
 | `project_launcher` | 项目启动器 | ❌ | 不建插件导航项；无后台进程需停止，已添加的自定义命令保留在 `plugin_settings` 中 |
 | `access_insights` | 访问日志聚合 | ❌ | 不建插件导航项；无后台进程与数据文件，停用不影响 nginx 日志本身 |
+| `site_health` | 站点巡检 | ❌ | 不建插件导航项；无后台进程、无数据文件，停用不影响 nginx / 站点本身 |
 
 插件的 key / 名称来自各 `core/plugins/<name>/` 的 `MANIFEST`，由 `core/modules.py` 在启动期自动并入
 `MODULES` —— 关于页勾选框、启动快照与 CLI `plugin enable/disable` 因此无需各写一遍。

@@ -219,6 +219,35 @@ CLI 等价：`python3 cli.py site sync-port --old 9082 --new 9083 --reload`。
 `skipped`，不会抛错打断统计。结果不落库、不上传；停用插件只是不建导航项
 （ADR 17）；CLI 对应 `insights report --file <name> --errors`。
 
+**第四个插件「站点巡检」是只读 HTTP(S) 探测**：同样的无后台进程形态。面板 `auto_refresh()`
+由主窗口 8s tick 调用，但内部按 **60s 节流**（真实请求不能跟 tick 同频）：
+
+```
+探测（worker 线程，ThreadPoolExecutor 默认 6）
+ ├─ sites()：VhostManager().scan() → 每个 server_name 展开为域名
+ │    ├─ 跳过 *.x 泛解析、`_` 默认 server、非法域名、已禁用站点（.conf.disabled）
+ │    └─ 去重 + 按域名排序 → http(s)://<domain>/
+ ├─ probe(url, timeout=5)
+ │    ├─ http.client 直连（不经系统代理），connect → GET /（UA 固定、Connection: close）
+ │    ├─ 不跟随重定向：3xx 原样记 status + Location
+ │    ├─ 响应体最多读 64 KB 用于计数，读完立即 close
+ │    ├─ HTTPS：先按系统根校验 → 失败（本地自签）降级不校验重试，标 insecure
+ │    │        校验通过时读 getpeercert().notAfter → cert_days
+ │    └─ 任何异常归一为 bad_url / timeout / refused / dns / tls / network
+ ├─ state：ok(<400) / warn(4xx) / down(5xx 或连不上)
+ └─ report()：total / up / warn / down / avg_ms（avg 只统计有响应的站点）
+     └─ 面板 queue → 主线程渲染四张卡 + 八列表格（双击浏览器打开）
+```
+
+**为什么不是 8s 一轮**：面板探测的是真实站点（含 Laravel 冷启动），跟主窗口 tick 同频会把
+本机站点持续打满；60s 节流 + 手动「刷新」按钮，既能看到最新状态，也不制造负载。首次探测
+遇到站点冷启动（>3s）会如实记为超时，属站点侧问题，不是探测缺陷。
+
+**失败分支**：域名没进 hosts → `dns`；nginx 未启动 → `refused` / `timeout`；HTTPS 自签 →
+正常出结果但证书列显示「自签」；vhost 里没有 `server_name` → `health sites` 提示无站点。
+**边界**：地址只来自 vhost（不接受任意 URL），只读、不落库、不写文件、无定时任务（ADR 20）；
+CLI 对应 `health sites` / `health probe --domain <substr> --scheme https`。
+
 **失败分支**：安全软件拦截全局键盘钩子 → 守护进程写 `daemon.log` 并退出，面板显示「后台未运行」+ 诊断提示；
 插件面板导入失败 → warn + 跳过该导航项；非 Windows → `supported()` 为 False，页面显示「当前平台不支持采集」而非报错。
 **隐私**：只落 vkCode 与时间戳，不记录字符 / 输入文本 / 窗口标题 / 剪贴板，数据仅在本机且不上传。
