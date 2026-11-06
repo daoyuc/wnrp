@@ -6,7 +6,7 @@
 > **不写什么**（一份事实只写一遍，其余一律链接引用，避免抄写即腐烂）：
 > - 功能怎么用 → [`../README.md`](../README.md)
 > - 架构约束与横切铁律 → [`ARCHITECTURE.md`](ARCHITECTURE.md)
-> - 为什么这样取舍（ADR 01–18）→ [`DECISIONS.md`](DECISIONS.md)
+> - 为什么这样取舍（ADR 01–19）→ [`DECISIONS.md`](DECISIONS.md)
 > - 能力落在哪些文件 → [`MODULES.md`](MODULES.md)
 > - 关键动作的完整链路 → [`FLOWS.md`](FLOWS.md)
 > - **逐轮流水账与未做清单** → [`../ROADMAP.md`](../ROADMAP.md)（本文档不复述「第 N 轮改了什么」）

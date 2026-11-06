@@ -9,7 +9,11 @@ import tempfile
 import types
 import unittest
 
-from core.plugins.project_launcher import MANIFEST, commands, projects, supported
+from unittest import mock
+
+from core.i18n import t
+from core.plugins.project_launcher import (MANIFEST, commands, editor, projects,
+                                          supported)
 
 
 class _Cfg:
@@ -311,6 +315,167 @@ class BrowseTest(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertFalse(result["opened"])
         self.assertIn("error", result)
+
+
+class WwwDirTest(unittest.TestCase):
+    """扫描根目录可持久化：设置值优先，空串回落默认。"""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.cfg = _Cfg()
+
+    def test_default_without_setting(self):
+        self.assertEqual(projects.resolve_www_dir(self.cfg),
+                         projects.default_www_dir())
+
+    def test_set_then_resolve(self):
+        saved, err = projects.set_www_dir(self.cfg, self.tmp.name)
+        self.assertEqual(err, "")
+        self.assertEqual(saved, os.path.abspath(self.tmp.name))
+        self.assertEqual(projects.resolve_www_dir(self.cfg), saved)
+
+    def test_missing_dir_is_rejected(self):
+        missing = os.path.join(self.tmp.name, "nope")
+        saved, err = projects.set_www_dir(self.cfg, missing)
+        self.assertEqual(saved, "")
+        self.assertEqual(err, t("目录不存在：{path}", path=missing))
+        self.assertEqual(projects.resolve_www_dir(self.cfg),
+                         projects.default_www_dir())
+
+    def test_empty_resets_to_default(self):
+        projects.set_www_dir(self.cfg, self.tmp.name)
+        saved, err = projects.set_www_dir(self.cfg, "")
+        self.assertEqual(err, "")
+        self.assertEqual(saved, projects.default_www_dir())
+        self.assertEqual(projects.resolve_www_dir(self.cfg), saved)
+
+
+class QuerySortTest(unittest.TestCase):
+    def test_query_covers_path_domains_and_markers(self):
+        project = projects.Project(
+            name="App", root=os.path.join(os.sep, "srv", "shop"),
+            php="php83", domains=("shop.test",), markers=("composer.json",))
+        self.assertTrue(projects.match_query(project, ""))
+        self.assertTrue(projects.match_query(project, "srv"))
+        self.assertTrue(projects.match_query(project, "SHOP.TEST"))
+        self.assertTrue(projects.match_query(project, "composer"))
+        self.assertTrue(projects.match_query(project, "php83"))
+        self.assertFalse(projects.match_query(project, "zzz"))
+
+    def test_arrange_by_columns(self):
+        a = _fake_project(name="beta", root=os.path.join(os.sep, "b"), php="php82")
+        b = _fake_project(name="alpha", root=os.path.join(os.sep, "a"), php="php83")
+        self.assertEqual([p.name for p in projects.arrange([a, b])],
+                         ["alpha", "beta"])
+        self.assertEqual([p.php for p in projects.arrange([a, b], "php")],
+                         ["php82", "php83"])
+        self.assertEqual([p.name for p in projects.arrange([a, b], "name", True)],
+                         ["beta", "alpha"])
+
+    def test_arrange_recent_puts_used_first(self):
+        a = _fake_project(name="alpha", root=os.path.join(os.sep, "a"))
+        b = _fake_project(name="beta", root=os.path.join(os.sep, "b"))
+        order = projects.arrange([a, b], "recent", recent=(b.key,))
+        self.assertEqual([p.name for p in order], ["beta", "alpha"])
+
+
+class RecentTest(unittest.TestCase):
+    def setUp(self):
+        self.cfg = _Cfg()
+
+    def test_touch_moves_to_front_without_duplicates(self):
+        a = _fake_project(name="a", root=os.path.join(os.sep, "a"))
+        b = _fake_project(name="b", root=os.path.join(os.sep, "b"))
+        projects.touch_recent(self.cfg, a)
+        projects.touch_recent(self.cfg, b)
+        projects.touch_recent(self.cfg, a)
+        self.assertEqual(projects.recent_keys(self.cfg), [a.key, b.key])
+        self.assertEqual(projects.recent_keys(self.cfg), [a.key, b.key])
+
+    def test_limit_is_enforced_and_clear_empties(self):
+        for i in range(projects.RECENT_LIMIT + 5):
+            project = _fake_project(name=f"p{i}",
+                                    root=os.path.join(os.sep, f"p{i}"))
+            projects.touch_recent(self.cfg, project)
+        keys = projects.recent_keys(self.cfg)
+        self.assertEqual(len(keys), projects.RECENT_LIMIT)
+        self.assertEqual(keys[0], os.path.normcase(os.path.abspath(os.sep + "p24")))
+        projects.clear_recent(self.cfg)
+        self.assertEqual(projects.recent_keys(self.cfg), [])
+
+    def test_garbage_setting_is_tolerated(self):
+        self.cfg.set_setting("plugin_settings",
+                             {"project_launcher": {"recent": "oops"}})
+        self.assertEqual(projects.recent_keys(self.cfg), [])
+
+
+class EditorTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.cfg = _Cfg()
+        self.project = projects.Project(name="app", root=self.tmp.name)
+
+    def test_argv_substitutes_placeholder(self):
+        self.assertEqual(editor.argv_of("code {path}", "/x/y"),
+                         ["code", "/x/y"])
+        self.assertEqual(editor.argv_of("open -a 'VS Code' {path}", "/x y"),
+                         ["open", "-a", "VS Code", "/x y"])
+
+    def test_argv_appends_path_when_placeholder_missing(self):
+        self.assertEqual(editor.argv_of("code", "/x/y"), ["code", "/x/y"])
+
+    def test_argv_rejects_broken_quotes(self):
+        self.assertEqual(editor.argv_of("code 'unclosed", "/x"), [])
+
+    def test_dry_run_does_not_spawn(self):
+        calls = []
+        result = editor.open_project(self.project, self.cfg, "code {path}",
+                                     dry_run=True,
+                                     spawn=lambda argv, cwd: calls.append(argv))
+        self.assertTrue(result["ok"])
+        self.assertFalse(result["opened"])
+        self.assertEqual(calls, [])
+        self.assertEqual(result["argv"], ["code", self.tmp.name])
+
+    def test_spawn_receives_argv(self):
+        calls = []
+        result = editor.open_project(self.project, self.cfg, "code {path}",
+                                     spawn=lambda argv, cwd: calls.append((argv, cwd)))
+        self.assertTrue(result["opened"])
+        self.assertEqual(calls, [(["code", self.tmp.name], self.tmp.name)])
+
+    def test_missing_root_is_reported(self):
+        project = projects.Project(name="gone",
+                                   root=os.path.join(self.tmp.name, "gone"))
+        result = editor.open_project(project, self.cfg, "code {path}")
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["error"],
+                         t("项目目录不存在：{path}", path=project.root))
+
+    def test_no_editor_configured_fails(self):
+        with mock.patch.object(editor, "detected", return_value=[]):
+            result = editor.open_project(self.project, self.cfg)
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["error"],
+                         t("未找到可用的编辑器（可在设置里填写编辑器命令）"))
+
+    def test_set_template_validates(self):
+        _, err = editor.set_template(self.cfg, "x" * (editor.MAX_TEMPLATE_LEN + 1))
+        self.assertNotEqual(err, "")
+        _, err = editor.set_template(self.cfg, "code\nrm -rf /")
+        self.assertNotEqual(err, "")
+        saved, err = editor.set_template(self.cfg, "  code {path}  ")
+        self.assertEqual((saved, err), ("code {path}", ""))
+        self.assertEqual(editor.template(self.cfg), "code {path}")
+
+    def test_choices_put_custom_template_first(self):
+        editor.set_template(self.cfg, "myeditor {path}")
+        with mock.patch.object(editor, "detected",
+                               return_value=[{"id": "code", "label": "VS Code",
+                                              "exe": "code"}]):
+            self.assertEqual(editor.choices(self.cfg), ["myeditor {path}", "code"])
 
 
 if __name__ == "__main__":

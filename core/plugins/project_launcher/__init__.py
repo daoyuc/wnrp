@@ -13,13 +13,14 @@
 import sys
 
 from ..base import PluginSpec
-from . import commands, projects
+from . import commands, editor, projects
 
 MANIFEST = PluginSpec(
     key="project_launcher",
     name="项目启动器",
     panel=("ui.plugins.project_launcher_panel", "ProjectLauncherPanel"),
-    default_settings={"www_dir": "", "custom_commands": []},
+    default_settings={"www_dir": "", "custom_commands": [], "editor": "",
+                      "recent": [], "recent_first": False},
     platforms=("win32", "darwin", "linux"),
     description="列出本地项目与常用命令，一键打开站点或终端",
 )
@@ -30,4 +31,4 @@ def supported(platform: str = "") -> bool:
     return MANIFEST.platform_supported(platform or sys.platform)
 
 
-__all__ = ["MANIFEST", "supported", "commands", "projects"]
+__all__ = ["MANIFEST", "supported", "commands", "editor", "projects"]

@@ -2221,9 +2221,14 @@
   ]
  },
  "共 {n} 个项目": {
-  "count": 2,
+  "count": 1,
   "files": [
-   "cli.py",
+   "cli.py"
+  ]
+ },
+ "共 {n} 个项目（{dir}）": {
+  "count": 1,
+  "files": [
    "ui/plugins/project_launcher_panel.py"
   ]
  },
@@ -3235,6 +3240,12 @@
    "ui/plugins/project_launcher_panel.py"
   ]
  },
+ "在编辑器打开": {
+  "count": 2,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
  "域名": {
   "count": 3,
   "files": [
@@ -3317,6 +3328,12 @@
   ]
  },
  "复制站点 URL": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "复制项目路径": {
   "count": 1,
   "files": [
    "ui/plugins/project_launcher_panel.py"
@@ -3696,6 +3713,18 @@
    "core/project_config.py"
   ]
  },
+ "将把扫描目录设为：{path}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "将把编辑器命令设为：{cmd}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "将按 {path} 对齐：\n  PHP 版本：{php}\n  域名：{doms}\n\n会把匹配站点的 fastcgi_pass 切到该 PHP 端口（改前自动备份）。\n确定继续？": {
   "count": 1,
   "files": [
@@ -3736,6 +3765,12 @@
   "count": 1,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "将用编辑器打开：{name}": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "将移除 {name} 的 443 server 块；改前自动备份，校验失败会回滚。\n确定继续？": {
@@ -3996,6 +4031,12 @@
    "ui/dialogs.py"
   ]
  },
+ "已切换扫描目录：{path}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
  "已切换终端 php 命令 → [{name}]（PHP {display}）\n\n注意：已打开的终端不会自动感知，请新开窗口执行 php -v 验证。": {
   "count": 1,
   "files": [
@@ -4122,12 +4163,6 @@
    "ui/site_wizard.py"
   ]
  },
- "已复制 URL：{url}": {
-  "count": 1,
-  "files": [
-   "ui/plugins/project_launcher_panel.py"
-  ]
- },
  "已复制到剪贴板": {
   "count": 1,
   "files": [
@@ -4135,9 +4170,10 @@
   ]
  },
  "已复制：{text}": {
-  "count": 2,
+  "count": 3,
   "files": [
-   "ui/vhost_panel.py"
+   "ui/vhost_panel.py",
+   "ui/plugins/project_launcher_panel.py"
   ]
  },
  "已存在证书，直接复用：{path}": {
@@ -4199,6 +4235,18 @@
   "count": 1,
   "files": [
    "core/vhost_manager.py"
+  ]
+ },
+ "已将扫描目录设为：{path}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "已将编辑器命令设为：{cmd}": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "已开启": {
@@ -4419,6 +4467,13 @@
   "count": 1,
   "files": [
    "core/cert_manager.py"
+  ]
+ },
+ "已用编辑器打开：{name}": {
+  "count": 2,
+  "files": [
+   "cli.py",
+   "ui/plugins/project_launcher_panel.py"
   ]
  },
  "已禁用": {
@@ -5069,6 +5124,18 @@
    "ui/plugins/project_launcher_panel.py"
   ]
  },
+ "打开编辑器失败": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "打开编辑器失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
  "打开邮件目录": {
   "count": 1,
   "files": [
@@ -5342,9 +5409,10 @@
   ]
  },
  "搜索": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/vhost_panel.py"
+   "ui/vhost_panel.py",
+   "ui/plugins/project_launcher_panel.py"
   ]
  },
  "搜索：": {
@@ -5839,7 +5907,7 @@
   ]
  },
  "暂无项目": {
-  "count": 1,
+  "count": 2,
   "files": [
    "ui/plugins/project_launcher_panel.py"
   ]
@@ -5878,6 +5946,12 @@
   "count": 1,
   "files": [
    "core/diag.py"
+  ]
+ },
+ "最近使用优先": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
   ]
  },
  "最近错误请求": {
@@ -6205,6 +6279,12 @@
    "ui/php_panel.py"
   ]
  },
+ "未找到可用的编辑器（可在设置里填写编辑器命令）": {
+  "count": 1,
+  "files": [
+   "core/plugins/project_launcher/editor.py"
+  ]
+ },
  "未找到含 bin/mysqld 的 mysql 目录（环境根：{root}）。": {
   "count": 1,
   "files": [
@@ -6391,6 +6471,12 @@
   "count": 1,
   "files": [
    "core/service_group.py"
+  ]
+ },
+ "未知的面板消息：{kind}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
   ]
  },
  "未知错误": {
@@ -6754,6 +6840,12 @@
    "ui/plugins/project_launcher_panel.py"
   ]
  },
+ "正在打开编辑器…": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
  "正在执行…": {
   "count": 2,
   "files": [
@@ -6897,6 +6989,12 @@
   "count": 1,
   "files": [
    "core/tuning.py"
+  ]
+ },
+ "没有匹配的项目": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
   ]
  },
  "没有可写入 hosts 的域名。": {
@@ -7265,9 +7363,10 @@
   ]
  },
  "目录不存在：{path}": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/mysql_panel.py"
+   "ui/mysql_panel.py",
+   "core/plugins/project_launcher/projects.py"
   ]
  },
  "目录：{dir}（{n} 封）": {
@@ -7659,6 +7758,36 @@
    "ui/download_dialog.py"
   ]
  },
+ "编辑器": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "编辑器命令不能为空": {
+  "count": 1,
+  "files": [
+   "core/plugins/project_launcher/editor.py"
+  ]
+ },
+ "编辑器命令不能包含换行": {
+  "count": 1,
+  "files": [
+   "core/plugins/project_launcher/editor.py"
+  ]
+ },
+ "编辑器命令过长（最多 {n} 字符）": {
+  "count": 1,
+  "files": [
+   "core/plugins/project_launcher/editor.py"
+  ]
+ },
+ "编辑器已设为：{name}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
  "编辑常用配置项 · {file}": {
   "count": 1,
   "files": [
@@ -7723,6 +7852,12 @@
   "count": 1,
   "files": [
    "core/updater.py"
+  ]
+ },
+ "自动": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
   ]
  },
  "自动写入 hosts，使下列域名指向本机 127.0.0.1": {
@@ -8506,6 +8641,12 @@
    "ui/sqlite_panel.py"
   ]
  },
+ "选择目录": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
  "选择站点项目目录": {
   "count": 1,
   "files": [
@@ -8516,6 +8657,12 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "选择项目扫描目录": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
   ]
  },
  "邮件": {
@@ -8978,6 +9125,12 @@
    "ui/plugins/project_launcher_panel.py"
   ]
  },
+ "项目扫描超时，已解锁刷新": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
+  ]
+ },
  "项目根目录": {
   "count": 5,
   "files": [
@@ -9001,6 +9154,13 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "项目目录不存在：{path}": {
+  "count": 2,
+  "files": [
+   "ui/plugins/project_launcher_panel.py",
+   "core/plugins/project_launcher/editor.py"
   ]
  },
  "项目目录：": {
@@ -9213,6 +9373,12 @@
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "（目录缺失）": {
+  "count": 1,
+  "files": [
+   "ui/plugins/project_launcher_panel.py"
   ]
  },
  "（空）": {

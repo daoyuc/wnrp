@@ -2029,6 +2029,11 @@ def _launcher_modules():
     return projects, commands
 
 
+def _launcher_editor():
+    from core.plugins.project_launcher import editor
+    return editor
+
+
 def _launcher_projects(a):
     projects_mod, _ = _launcher_modules()
     return projects_mod.scan(Config(), www_dir=getattr(a, "www", "") or "")
@@ -2046,12 +2051,69 @@ def _launcher_pick(a, r: Result):
 
 
 def cmd_launcher_list(a, r: Result) -> Result:
+    projects_mod, _ = _launcher_modules()
     found = _launcher_projects(a)
-    r.data = {"projects": [p.as_dict() for p in found], "count": len(found)}
+    recent = projects_mod.recent_keys(Config())
+    found = projects_mod.arrange(found, getattr(a, "sort", "name") or "name",
+                                 False, recent)
+    if getattr(a, "limit", 0):
+        found = found[:a.limit]
+    r.data = {"projects": [p.as_dict() for p in found], "count": len(found),
+              "www_dir": projects_mod.resolve_www_dir(Config()),
+              "recent": recent}
     r.say(t("共 {n} 个项目", n=len(found)))
     for p in found:
         r.say(f"  {p.name}  {p.root}" + (f"  [{p.php}]" if p.php else "")
               + ("  " + " ".join(p.urls) if p.urls else ""))
+    return r
+
+
+def cmd_launcher_set_www(a, r: Result) -> Result:
+    projects_mod, _ = _launcher_modules()
+    target = "" if getattr(a, "reset", False) else str(a.dir or "")
+    path = target or projects_mod.default_www_dir()
+    if a.dry_run:
+        r.data = {"dry_run": True, "www_dir": path}
+        r.say("[dry-run] " + t("将把扫描目录设为：{path}", path=path))
+        return r
+    saved, err = projects_mod.set_www_dir(Config(), target)
+    if err:
+        return r.fail(err)
+    r.data = {"www_dir": saved}
+    r.say(t("已将扫描目录设为：{path}", path=saved))
+    return r
+
+
+def cmd_launcher_set_editor(a, r: Result) -> Result:
+    editor_mod = _launcher_editor()
+    text = "" if getattr(a, "reset", False) else str(a.command_text or "")
+    if a.dry_run:
+        r.data = {"dry_run": True, "editor": text}
+        r.say("[dry-run] " + t("将把编辑器命令设为：{cmd}", cmd=text or "—"))
+        return r
+    saved, err = editor_mod.set_template(Config(), text)
+    if err:
+        return r.fail(err)
+    r.data = {"editor": saved}
+    r.say(t("已将编辑器命令设为：{cmd}", cmd=saved or "—"))
+    return r
+
+
+def cmd_launcher_editor(a, r: Result) -> Result:
+    editor_mod = _launcher_editor()
+    project = _launcher_pick(a, r)
+    if project is None:
+        return r
+    result = editor_mod.open_project(project, Config(),
+                                     getattr(a, "editor", "") or "",
+                                     dry_run=bool(a.dry_run))
+    r.data = result
+    if not result.get("ok"):
+        return r.fail(result.get("error", ""))
+    if a.dry_run:
+        r.say("[dry-run] " + t("将用编辑器打开：{name}", name=project.name))
+    else:
+        r.say(t("已用编辑器打开：{name}", name=project.name))
     return r
 
 
@@ -3108,6 +3170,26 @@ def build_parser() -> argparse.ArgumentParser:
     p = _leaf(gs, "list", cmd_launcher_list, "launcher.list",
               "列出本地项目（www 目录 + vhost root 去重）")
     p.add_argument("--www", help="覆盖 www 根目录")
+    p.add_argument("--sort", choices=["name", "php", "domains", "recent"],
+                   default="name", help="排序方式（recent = 最近使用优先）")
+    p.add_argument("--limit", type=int, default=0, help="只输出前 N 个")
+    p = _leaf(gs, "set-www", cmd_launcher_set_www, "launcher.set-www",
+              "把扫描根目录持久化到插件设置")
+    p.add_argument("--dir", help="项目扫描目录（绝对路径）")
+    p.add_argument("--reset", action="store_true",
+                   help="恢复默认（<phpvm>/www）")
+    p.add_argument("--dry-run", action="store_true", help="只报告将做什么")
+    p = _leaf(gs, "set-editor", cmd_launcher_set_editor, "launcher.set-editor",
+              "设置打开项目用的编辑器命令（留空恢复自动探测）")
+    # dest 必须避开 command：_leaf 用 set_defaults(command=...) 记录命令 id
+    p.add_argument("--command", dest="command_text", help="如 code {path}")
+    p.add_argument("--reset", action="store_true", help="恢复自动探测")
+    p.add_argument("--dry-run", action="store_true", help="只报告将做什么")
+    p = _leaf(gs, "editor", cmd_launcher_editor, "launcher.editor",
+              "用编辑器 / IDE 打开项目目录")
+    p.add_argument("--project", required=True, help="项目名或路径")
+    p.add_argument("--editor", help="临时指定编辑器命令（不落盘）")
+    p.add_argument("--dry-run", action="store_true", help="只报告将做什么")
     p = _leaf(gs, "commands", cmd_launcher_commands, "launcher.commands",
               "列出某项目可用命令")
     p.add_argument("--project", required=True, help="项目名或路径")

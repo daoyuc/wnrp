@@ -38,7 +38,7 @@
 | `hosts` | hosts 映射管理 | `add` · `remove` · `restore` · `status` |
 | `insights` | 访问日志聚合（只读解析 nginx access.log） | `files` · `report` |
 | `keymouse` | 键鼠统计插件 | `clear` · `daemon`（`start` · `status` · `stop`） · `export` · `pause` · `resume` · `status` · `summary` |
-| `launcher` | 项目启动器（列出项目 / 打开站点 / 一键终端） | `add` · `browse` · `commands` · `list` · `open` · `remove` |
+| `launcher` | 项目启动器（列出项目 / 打开站点 / 一键终端） | `add` · `browse` · `commands` · `editor` · `list` · `open` · `remove` · `set-editor` · `set-www` |
 | `logs` | 站点与应用日志聚合（只读） | `sources` · `tail` |
 | `mail` | 邮件捕获（.eml 落盘：Unix 走 sendmail_path，Windows 走 SMTP sink） | `clear` · `disable` · `enable` · `list` · `show` · `status` |
 | `module` | 功能模块开关 | `disable` · `enable` · `list` |
@@ -252,11 +252,21 @@
 |---|---|---|---|
 | `--project` | 是 |  | 项目名或路径 |
 
+### `launcher editor` — 用编辑器 / IDE 打开项目目录
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--project` | 是 |  | 项目名或路径 |
+| `--editor` |  |  | 临时指定编辑器命令（不落盘） |
+| `--dry-run` |  |  | 只报告将做什么 |
+
 ### `launcher list` — 列出本地项目（www 目录 + vhost root 去重）
 
 | 参数 | 必填 | 默认 | 说明 |
 |---|---|---|---|
 | `--www` |  |  | 覆盖 www 根目录 |
+| `--sort` |  | name | 排序方式（recent = 最近使用优先） |
+| `--limit` |  |  | 只输出前 N 个 |
 
 ### `launcher open` — 在终端打开项目并运行指定命令
 
@@ -272,6 +282,22 @@
 |---|---|---|---|
 | `--id` | 是 |  | 命令 id |
 | `--yes` |  |  | 确认删除（必填） |
+| `--dry-run` |  |  | 只报告将做什么 |
+
+### `launcher set-editor` — 设置打开项目用的编辑器命令（留空恢复自动探测）
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--command` |  |  | 如 code {path} |
+| `--reset` |  |  | 恢复自动探测 |
+| `--dry-run` |  |  | 只报告将做什么 |
+
+### `launcher set-www` — 把扫描根目录持久化到插件设置
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--dir` |  |  | 项目扫描目录（绝对路径） |
+| `--reset` |  |  | 恢复默认（<phpvm>/www） |
 | `--dry-run` |  |  | 只报告将做什么 |
 
 ## `logs` — 站点与应用日志聚合（只读）

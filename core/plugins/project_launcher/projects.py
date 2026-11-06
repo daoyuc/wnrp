@@ -13,10 +13,15 @@ from urllib.parse import urlsplit
 
 from ... import php_manager, project_config, vhost_manager
 from ...config import WNRP_ROOT
+from ...i18n import t
 from .. import settings as plugin_settings
 
 KEY = "project_launcher"
 PROJECT_FILE = project_config.PROJECT_FILE
+WWW_KEY = "www_dir"
+RECENT_KEY = "recent"
+RECENT_LIMIT = 20
+SORT_KEYS = ("name", "php", "domains", "recent")
 _URL_SCHEMES = ("http", "https")
 _RE_LISTEN_443 = re.compile(r"^\s*listen\s+443\b", re.M)
 
@@ -34,6 +39,94 @@ def norm_key(path: str) -> str:
 
 def default_www_dir() -> str:
     return os.path.join(WNRP_ROOT, "www")
+
+
+def resolve_www_dir(config=None) -> str:
+    """当前生效的扫描根目录：插件设置优先，其次 ``<WNRP_ROOT>/www``。"""
+    configured = str(plugin_settings.get(config, KEY, WWW_KEY, "") or "").strip()
+    return configured or default_www_dir()
+
+
+def set_www_dir(config, path: str) -> tuple[str, str]:
+    """持久化扫描根目录；返回 ``(保存后的路径, 错误说明)``。
+
+    空串表示恢复默认（``<WNRP_ROOT>/www``），便于「选错了再清空」。
+    """
+    raw = str(path or "").strip()
+    if not raw:
+        plugin_settings.set(config, KEY, WWW_KEY, "")
+        return default_www_dir(), ""
+    full = os.path.abspath(os.path.expanduser(raw))
+    if not os.path.isdir(full):
+        return "", t("目录不存在：{path}", path=full)
+    plugin_settings.set(config, KEY, WWW_KEY, full)
+    return full, ""
+
+
+def root_exists(project) -> bool:
+    """项目目录还在不在（移动/删除后置灰提示用）。"""
+    root = str(getattr(project, "root", "") or "")
+    return bool(root) and os.path.isdir(root)
+
+
+def match_query(project, query: str) -> bool:
+    """搜索：覆盖名称、路径、PHP 版本、域名、站点 URL、标志文件。"""
+    q = str(query or "").strip().lower()
+    if not q:
+        return True
+    fields = [project.name, project.root, project.php, *project.domains,
+              *project.urls, *project.markers]
+    if project.has_project_config:
+        fields.append(PROJECT_FILE)
+    return any(q in str(field).lower() for field in fields)
+
+
+def arrange(items, sort_key: str = "name", reverse: bool = False,
+            recent=()) -> list:
+    """按列排序；``sort_key="recent"`` 时按最近使用顺序（未用过的按名称）。"""
+    out = list(items)
+    if sort_key == "recent":
+        rank = {key: i for i, key in enumerate(recent or ())}
+        out.sort(key=lambda p: (rank.get(p.key, len(rank)), p.name.lower(),
+                                p.root.lower()), reverse=reverse)
+    elif sort_key == "php":
+        out.sort(key=lambda p: ((p.php or ""), p.name.lower(), p.root.lower()),
+                 reverse=reverse)
+    elif sort_key == "domains":
+        out.sort(key=lambda p: (" ".join(p.domains), p.name.lower(),
+                                p.root.lower()), reverse=reverse)
+    else:
+        out.sort(key=lambda p: (p.name.lower(), p.root.lower()), reverse=reverse)
+    return out
+
+
+def recent_keys(config) -> list[str]:
+    """最近使用过的项目键（最近的在最前，最多 ``RECENT_LIMIT`` 条）。"""
+    raw = plugin_settings.get(config, KEY, RECENT_KEY, [])
+    if not isinstance(raw, list):
+        return []
+    out: list[str] = []
+    for item in raw:
+        key = str(item or "").strip()
+        if key and key not in out:
+            out.append(key)
+    return out[:RECENT_LIMIT]
+
+
+def touch_recent(config, project) -> list[str]:
+    """把一个项目提到「最近使用」最前面（打开站点 / 终端 / 编辑器后调用）。"""
+    key = getattr(project, "key", "") or norm_key(getattr(project, "root", ""))
+    if not key:
+        return recent_keys(config)
+    items = [item for item in recent_keys(config) if item != key]
+    items.insert(0, key)
+    items = items[:RECENT_LIMIT]
+    plugin_settings.set(config, KEY, RECENT_KEY, items)
+    return items
+
+
+def clear_recent(config) -> None:
+    plugin_settings.set(config, KEY, RECENT_KEY, [])
 
 
 @dataclass(frozen=True)
@@ -151,9 +244,7 @@ def _entry_urls(entry) -> list[str]:
 
 def scan(config=None, www_dir: str = "", vhost_entries=None) -> list[Project]:
     """扫描项目；``www_dir`` / ``vhost_entries`` 可注入，便于测试与离线使用。"""
-    effective_www = (www_dir
-                     or plugin_settings.get(config, KEY, "www_dir", "")
-                     or default_www_dir())
+    effective_www = www_dir or resolve_www_dir(config)
     if vhost_entries is None and config is not None:
         try:
             vhost_entries = vhost_manager.VhostManager(config).scan()

@@ -193,6 +193,24 @@ CLI 等价：`python3 cli.py site sync-port --old 9082 --new 9083 --reload`。
 命令只来自内置白名单或用户设置，URL 只来自 vhost，不从 `.phpvm.json` 执行或取域名
 （ADR 16）；CLI 对应 `launcher browse --project <name> --dry-run`。
 
+**扫描根目录可改**：`projects.resolve_www_dir()` 取 `plugin_settings.project_launcher.www_dir`，
+空串回落 `<WNRP_ROOT>/www`；面板「选择目录」走 `askdirectory` → `set_www_dir()` 校验目录存在后落盘
+（`launcher set-www --dir/--reset`），主窗口照常在 `auto_refresh()` 里重扫，不需要重启。
+
+**打开编辑器**：`core/plugins/project_launcher/editor.py` 先看用户模板
+（`plugin_settings.project_launcher.editor`，如 `code {path}`），没有就用 `shutil.which()`
+在 `EDITORS` 白名单里挑第一个可用项；模板经 `shlex.split()` 拆成 **argv 列表**再交给
+`subprocess.Popen`（`{path}` 字面替换，缺省把它追加到末尾），**不拼 shell 字符串**，
+目录名带空格 / 括号也不会被解释；Windows 的 `code.cmd` 走 `cmd /c` 包装，POSIX 用
+`start_new_session`。面板按钮 / 右键 / `launcher editor --project <name>` 同一入口，
+`--dry-run` 只回 argv 不启动。
+
+**搜索 / 排序 / 最近使用**：同一个搜索框同时过滤项目与命令列表，项目侧匹配
+名称、路径、PHP 版本、域名、站点 URL 与标志文件（`projects.match_query()`）；
+点列头切排序（名称 / PHP / 域名，再点反向），勾「最近使用优先」按
+`plugin_settings.project_launcher.recent`（最多 20 条，打开站点 / 终端 / 编辑器 / 目录后写入）
+排在最前，列表里星标显示。目录被移走的项目名字后带「（目录缺失）」，打开目录直接拒绝并提示。
+
 **第三个插件「访问日志聚合」是纯只读分析**：`MANIFEST` 同样没有后台进程，面板
 `auto_refresh()` 起 worker 读 `NginxManager().logs_dir` 下的 access 日志（默认
 `access.log`，最多回溯 8MB / 20 万行）→ 逐行正则解析 combined 格式（兼容末尾
