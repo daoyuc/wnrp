@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-"""GUI 启动冒烟：主窗口能真正构建出来，且「总览」页签被放在第一位。
+"""GUI 启动冒烟：主窗口能真正构建出来，且「总览」在左侧导航里是第一个页面。
 
-为什么要有这份测试：`ttk.Notebook.insert(0, ...)` 对**空** notebook 会抛
-``TclError: Slave index 0 out of bounds``（Tk 8.6，Windows/Linux 均可复现），
-而 `overview` 模块默认启用 → 主窗口构造即崩、应用完全无法启动。
-core 层测试覆盖不到这类问题，故这里真正建一次窗口。
+为什么要有这份测试：主窗口 14 个页面全部由模块开关动态构建，任一面板构造
+失败就是「应用直接起不来」，core 层测试覆盖不到；同时导航从横向页签改成
+竖向导航后，必须保证「只有当前页被映射」（否则各面板的自动刷新会全部跑起来，
+既卡界面又会让 _panel_visible() 的可见性判断失效）。
 
 无显示环境（CI / Linux 无 X）自动跳过。
 """
@@ -73,6 +73,11 @@ class MainWindowSmokeTest(unittest.TestCase):
             lambda key, cfg: True if key in forced else real_is_enabled(key, cfg))
         patcher.start()
         self.addCleanup(patcher.stop)
+        # 「记住上次页面」会在 800ms 后落盘：测试里屏蔽真实写盘，避免污染本机
+        # config.json（运行期文件）；需要断言时直接看 config.settings 内存值
+        flush = mock.patch.object(MainWindow, "_flush_page_setting", lambda self: None)
+        flush.start()
+        self.addCleanup(flush.stop)
 
     def tearDown(self):
         if self.app is not None:
@@ -98,9 +103,51 @@ class MainWindowSmokeTest(unittest.TestCase):
     def test_window_builds_and_overview_tab_is_first(self):
         app = self._build()
         self.assertIsNotNone(app.overview_panel, "overview 模块启用时应创建总览面板")
-        nb = app.overview_panel.master
-        self.assertEqual(nb.index(app.overview_panel), 0, "总览应是第一个页签")
+        nb = app.nav
+        self.assertEqual(nb.index(app.overview_panel), 0, "总览应是第一个导航页")
         self.assertGreaterEqual(len(nb.tabs()), 3, "其余主页面签应至少存在")
+
+    def test_only_current_page_is_mapped(self):
+        """导航切换后必须**只有一个**页面处于映射状态。
+
+        回归点：旧实现用 Notebook，不可见页由 Tk 隐藏；换成竖向导航后若忘记
+        ``pack_forget()``，所有页面会叠在一起，``_panel_visible()`` 恒为真 →
+        每个 8 秒 tick 都会把所有面板的扫描跑一遍（子进程/线程成倍）。
+        """
+        app = self._build()
+        nav = app.nav
+        pages = nav.tabs()
+        self.assertGreaterEqual(len(pages), 3)
+        for page in pages:
+            nav.select(page)
+            for _ in range(2):
+                app.update()
+            mapped = [p for p in pages if p.winfo_ismapped()]
+            self.assertEqual(len(mapped), 1,
+                             "同时有 %d 个页面被映射（应只在当前页）" % len(mapped))
+            self.assertIs(mapped[0], page)
+
+    def test_last_page_is_remembered_and_restored(self):
+        """切页记住 key，下次启动回到该页；页面被停用时回落第一页。"""
+        app = self._build()
+        mail = getattr(app, "mail_panel", None)
+        self.assertIsNotNone(mail, "mail 模块在本用例被强制开启")
+        app.nav.select(mail)
+        app.update()
+        self.assertEqual(app.nav.current_key(), "mail")
+        self.assertEqual(app.config.settings.get("last_page"), "mail")
+        self.tearDown()
+
+        # 重建：应当直接停在 mail
+        app2 = self._build()
+        self.assertEqual(app2.nav.current_key(), "mail")
+        self.tearDown()
+
+        # 页面被停用（把 last_page 指向一个不存在的 key）→ 回落第一个页面
+        self.cfg.settings["last_page"] = "disabled-page"
+        app3 = self._build()
+        self.assertEqual(app3.nav.index(app3.nav.current_page()), 0,
+                         "上次页面已停用时应回落到第一个页面")
 
     def test_status_bar_shows_system_memory_slot(self):
         app = self._build()
@@ -139,12 +186,12 @@ class MainWindowSmokeTest(unittest.TestCase):
         self.assertIn(panel._lines, (2000, 20000, 100000))
 
     def test_build_is_repeatable(self):
-        """连续建两次（覆盖「已有页签时 insert(0)」与「空 notebook」两条分支）。"""
+        """连续建两次：导航分组树与页面顺序都必须能重建（不能残留上一次的 item）。"""
         app = self._build()
-        self.assertEqual(app.overview_panel.master.index(app.overview_panel), 0)
+        self.assertEqual(app.nav.index(app.overview_panel), 0)
         self.tearDown()
         app2 = self._build()
-        self.assertEqual(app2.overview_panel.master.index(app2.overview_panel), 0)
+        self.assertEqual(app2.nav.index(app2.overview_panel), 0)
 
     def test_about_tab_scrolls_instead_of_being_clipped(self):
         """关于页必须「可滚动看全 + 横向不溢出」。
@@ -153,7 +200,7 @@ class MainWindowSmokeTest(unittest.TestCase):
         不换行会横向撑破布局 —— 用户只能手动拉大窗口才看得到，且边角被裁切。
         """
         app = self._build()
-        nb = app.overview_panel.master
+        nb = app.nav
         nb.select(nb.tabs()[-1])          # 关于页是最后一个页签
         for _ in range(5):
             app.update()
@@ -190,7 +237,7 @@ class MainWindowSmokeTest(unittest.TestCase):
         threading.excepthook = lambda args: thread_errors.append(args.exc_value)
         self.addCleanup(setattr, threading, "excepthook", old_hook)
 
-        nb = app.overview_panel.master
+        nb = app.nav
         nb.select(app.mail_panel)          # 邮件页：Windows 下要渲染 SMTP 提示行
         end = time.time() + 3.0
         while time.time() < end:

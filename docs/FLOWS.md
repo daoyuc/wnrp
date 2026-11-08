@@ -216,11 +216,11 @@ CLI 等价：`python3 cli.py site sync-port --old 9082 --new 9083 --reload`。
 `access.log`，最多回溯 8MB / 20 万行）→ 逐行正则解析 combined 格式（兼容末尾
 `$request_time`）→ 聚合 → queue → 主线程渲染。日志文件只能从 `access_logs()`
 的候选里按名字选，`realpath` 前缀校验保证读不到日志目录之外；解析失败的行计入
-`skipped`，不会抛错打断统计。结果不落库、不上传；停用插件只是不建页签
+`skipped`，不会抛错打断统计。结果不落库、不上传；停用插件只是不建导航项
 （ADR 17）；CLI 对应 `insights report --file <name> --errors`。
 
 **失败分支**：安全软件拦截全局键盘钩子 → 守护进程写 `daemon.log` 并退出，面板显示「后台未运行」+ 诊断提示；
-插件面板导入失败 → warn + 跳过该页签；非 Windows → `supported()` 为 False，页面显示「当前平台不支持采集」而非报错。
+插件面板导入失败 → warn + 跳过该导航项；非 Windows → `supported()` 为 False，页面显示「当前平台不支持采集」而非报错。
 **隐私**：只落 vkCode 与时间戳，不记录字符 / 输入文本 / 窗口标题 / 剪贴板，数据仅在本机且不上传。
 **排查现场**：`<数据目录>/plugins/keymouse/daemon.log` 是守护进程自己的日志（不写共享 `run_log.log`，避免多进程追加截断）。
 

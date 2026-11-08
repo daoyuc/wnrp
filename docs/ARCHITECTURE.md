@@ -12,7 +12,7 @@ phpvm 是一个**本机开发环境管理器**（PHP 多版本 + Nginx + Redis +
 | 核心层无界面 | `core/*` 不 import tkinter，CLI / 守护进程 / 测试都能直接复用（`cli.py` 的硬约束） |
 | 单一实现 | 同一件事只有一份实现：建站走 `core/site_service.py`，备份走 `core/file_backup.py`，否则 CLI 与 GUI 必然漂移 |
 | 写前必备份、失败必回滚 | 改 ini / vhost / nginx.conf / hosts 前先备份，改完跑校验（`nginx -t`），失败自动还原（见 §5） |
-| 模块可停用 | 可选功能可在配置里停用，停用后**不建页签、不实例化 manager、不加载其代码**（`core/modules.py`） |
+| 模块可停用 | 可选功能可在配置里停用，停用后**不建导航项（左侧导航）、不实例化 manager、不加载其代码**（`core/modules.py`） |
 | 文案全 i18n | 界面与日志文案统一 `t("中文原文")`，词条表在 `i18n/<lang>/*.json`（5 语言） |
 | 跨平台收敛 | 平台差异集中在少数模块，其余代码平台无关（见 §6） |
 | 插件声明式注册 | 内置插件只导出 `MANIFEST: PluginSpec`（面板路径 + 后台脚本 + 默认设置 + 平台），框架用 `pkgutil` + `importlib` 发现；单插件导入失败只 warn、不阻断启动（`core/plugins/__init__.py`） |
@@ -30,7 +30,8 @@ phpvm 是一个**本机开发环境管理器**（PHP 多版本 + Nginx + Redis +
 └───────────────────────────────┬───────────────────────────────────────┘
                                 │ 单向依赖
 ┌── 界面层 ui/ ─────────────────┴───────────────────────────────────────┐
-│ main_window.py  主窗口（页签 + 菜单栏 + 状态栏 + 设置区 + 8s 轮询）      │
+│ main_window.py  主窗口（左侧导航 + 菜单栏 + 状态栏 + 设置区 + 8s 轮询）  │
+│ nav.py          左侧竖向分组导航（分组树 / 状态圆点 / 记忆页面）        │
 │ *_panel.py      各功能页（php / nginx / vhost / redis / mysql / sqlite │
 │                 / nginx 日志 / 运行日志）                              │
 │ dialogs.py · site_wizard.py · download_dialog.py · extension_dialog.py │
@@ -153,7 +154,7 @@ worker 只 `queue.put()`，主窗口的 `_post()` 也**只入队、不碰 `after
 
 | 要做的事 | 落点 |
 |---|---|
-| 新增一个服务管理器（如 Memcached） | `core/<name>_manager.py`（纯逻辑）+ `ui/<name>_panel.py`（页签）+ 在 `core/modules.py` 注册可选模块 + `main.py` 按开关实例化 |
+| 新增一个服务管理器（如 Memcached） | `core/<name>_manager.py`（纯逻辑）+ `ui/<name>_panel.py`（导航页）+ 在 `core/modules.py` 注册可选模块 + `main.py` 按开关实例化 |
 | 新增一个 CLI 命令 | `cli.py` 内加 `cmd_*` + `build_parser()` 里 `_leaf(...)`；随后跑 `python3 _docs_cli.py` 重新生成 `docs/CLI.md`（`tests/test_docs.py` 会校验一致性），契约以 `schema --json` 为准 |
 | 新增一个设置项 | `core/config.py` 的 `DEFAULT_SETTINGS`（否则 `config set` 会拒绝）+ 界面/自启路径读取 |
 | 新增一个桌面集成/写系统文件的能力 | 守 §5 铁律；备份走 `core/file_backup.py` |

@@ -5,20 +5,28 @@
 
 ## 1. 主窗口结构
 
-页签按 `core/modules.py` 的模块开关动态构建，顺序固定为（括号为对应的模块 key，`ui/main_window.py::_build()`）：
+页面由 `core/modules.py` 的模块开关动态构建，**左侧竖向导航**（`ui/nav.py::SideNav`）按固定分组与顺序排列
+（括号为模块 key / 分组来源，`ui/main_window.py::_build()`）：
 
 ```
-PHP 版本管理(php,刚需) │ Nginx 管理(nginx,刚需) │ Redis 管理(redis) │ MySQL 管理(mysql)
-│ 站点映射(vhost,刚需) │ SQLite 数据库(sqlite) │ Nginx 日志(log)
-│ 运行日志(常驻，不受开关影响) │ 关于(设置区/模块开关在此)
-│ 插件页签：由 core/plugins 的 MANIFEST 动态追加
-│            （键鼠统计(keymouse) / 项目启动器(project_launcher) / 访问日志聚合(access_insights) …）
+服务  总览(overview) │ PHP 版本管理(php,刚需) │ Nginx 管理(nginx,刚需) │ Redis 管理(redis) │ MySQL 管理(mysql)
+站点  站点映射(vhost,刚需) │ SQLite 数据库(sqlite)
+诊断  Nginx 日志(log) │ 邮件(mail) │ 运行日志(常驻，不受开关影响) │ 访问日志聚合(access_insights)
+其他  键鼠统计(keymouse) │ 项目启动器(project_launcher) │ 关于(设置区/模块开关在此)
 ```
 
 - 顶部：菜单栏（外观 / 语言 / 帮助）、状态栏（就绪消息 + 整机内存槽位 + 更新提示 + 崩溃告警）。
-- 插件页签在 `_build()` 末尾按 `plugins.enabled_specs(config)` 动态追加，面板经 `importlib` 从 `ui/plugins/` 延迟导入；单个插件导入失败只记 warn 并跳过该页签。
+- 分组定义在 `core/modules.py::GROUPS`（服务 / 站点 / 诊断 / 其他）；内置模块的归属写在 `_BUILTIN` 的
+  `group` 字段，插件用 `PluginSpec.nav_group` 声明（默认 `other`）。页面按分组归位、组内保持登记顺序。
+- 插件页在 `_build()` 末尾按 `plugins.enabled_specs(config)` 动态追加，面板经 `importlib` 从 `ui/plugins/`
+  延迟导入；单个插件导入失败只记 warn 并跳过该导航项。
+- 切页只 `pack` 当前页、其余 `pack_forget()`：`_panel_visible()` 依赖的 `winfo_ismapped()` 语义与旧页签一致，
+  不可见页的自动刷新照旧暂停。
+- 当前页面记在 `settings.last_page`，重启回到上次停留页；该页已停用（模块/插件被关）时回落第一页。
+- 服务状态圆点（PHP / Nginx / Redis / MySQL）：`MainWindow._refresh_nav_states()` 在 worker 线程探测、主线程
+  写 UI，复用 `_tick()` 的 4 轮降频（≈32s）；状态未变化不重绘。
 - 托盘（Windows）：动态菜单 —— 一键启停整套服务、Nginx 子菜单、各 PHP 版本、Redis 子菜单、显示/隐藏/退出。
-- 页签构建在 `ui/main_window.py::_build()`；「关于」页（含设置区、模块开关、服务编排按钮）在 `_build_about()`。
+- 导航构建在 `ui/main_window.py::_build()`；「关于」页（含设置区、模块开关、服务编排按钮）在 `_build_about()`。
 
 ## 2. 能力 → 落点对照表
 
@@ -83,13 +91,13 @@ PHP 版本管理(php,刚需) │ Nginx 管理(nginx,刚需) │ Redis 管理(red
 | `php` | PHP 版本管理 | ✅ | 不可停用 |
 | `nginx` | Nginx 管理 | ✅ | 不可停用 |
 | `vhost` | 站点映射 | ✅ | 不可停用 |
-| `redis` | Redis 管理 | ❌ | 不建页签、不实例化 `RedisManager`、不导入该模块代码 |
+| `redis` | Redis 管理 | ❌ | 不建导航项、不实例化 `RedisManager`、不导入该模块代码 |
 | `mysql` | MySQL 管理 | ❌ | 同上 |
 | `sqlite` | SQLite 数据库 | ❌ | 同上 |
 | `log` | Nginx 日志 | ❌ | 同上 |
-| `keymouse` | 键鼠统计 | ❌ | 不建插件页签、不拉起后台记录进程；已在运行的守护进程下一轮配置检查（≤60s）自行 flush 并退出 |
-| `project_launcher` | 项目启动器 | ❌ | 不建插件页签；无后台进程需停止，已添加的自定义命令保留在 `plugin_settings` 中 |
-| `access_insights` | 访问日志聚合 | ❌ | 不建插件页签；无后台进程与数据文件，停用不影响 nginx 日志本身 |
+| `keymouse` | 键鼠统计 | ❌ | 不建插件导航项、不拉起后台记录进程；已在运行的守护进程下一轮配置检查（≤60s）自行 flush 并退出 |
+| `project_launcher` | 项目启动器 | ❌ | 不建插件导航项；无后台进程需停止，已添加的自定义命令保留在 `plugin_settings` 中 |
+| `access_insights` | 访问日志聚合 | ❌ | 不建插件导航项；无后台进程与数据文件，停用不影响 nginx 日志本身 |
 
 插件的 key / 名称来自各 `core/plugins/<name>/` 的 `MANIFEST`，由 `core/modules.py` 在启动期自动并入
 `MODULES` —— 关于页勾选框、启动快照与 CLI `plugin enable/disable` 因此无需各写一遍。

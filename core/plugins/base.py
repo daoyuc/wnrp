@@ -31,6 +31,9 @@ class PluginSpec:
     platforms: tuple[str, ...] = ("win32",)
     required: bool = False
     description: str = ""                  # 一句话说明 msgid（设置页/CLI 用）
+    # 左侧导航分组：service / site / diag / other（见 core/modules.py::GROUPS）。
+    # 默认 other：插件作者不必关心分组，未声明时落在「其他」组。
+    nav_group: str = "other"
 
     # ---- 便捷访问 -------------------------------------------------------
     @property

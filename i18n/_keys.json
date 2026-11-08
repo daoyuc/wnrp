@@ -1926,6 +1926,12 @@
    "ui/dialogs.py"
   ]
  },
+ "保存上次页面失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
  "保存前自动备份原文件（.bak）；修改后需重启对应版本（FastCGI）才生效。": {
   "count": 1,
   "files": [
@@ -2328,6 +2334,12 @@
   "count": 2,
   "files": [
    "ui/xdebug_dialog.py"
+  ]
+ },
+ "其他": {
+  "count": 1,
+  "files": [
+   "ui/nav.py"
   ]
  },
  "内存 {mem} · CPU {cpu}": {
@@ -3588,6 +3600,12 @@
   ]
  },
  "导出配置…": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "导航状态探测失败：{err}": {
   "count": 1,
   "files": [
    "ui/main_window.py"
@@ -5972,6 +5990,12 @@
    "ui/diag_dialog.py"
   ]
  },
+ "服务": {
+  "count": 1,
+  "files": [
+   "ui/nav.py"
+  ]
+ },
  "服务编排：": {
   "count": 1,
   "files": [
@@ -7472,6 +7496,12 @@
    "ui/update_dialog.py"
   ]
  },
+ "站点": {
+  "count": 1,
+  "files": [
+   "ui/nav.py"
+  ]
+ },
  "站点信息": {
   "count": 1,
   "files": [
@@ -8100,6 +8130,12 @@
   "count": 1,
   "files": [
    "cli.py"
+  ]
+ },
+ "诊断": {
+  "count": 1,
+  "files": [
+   "ui/nav.py"
   ]
  },
  "该 server 块位于主配置（nginx.conf）中，无法自动启用 HTTPS；请先为它单独建立站点配置。": {

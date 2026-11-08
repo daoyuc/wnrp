@@ -207,6 +207,20 @@ def setup_style(root: tk.Misc) -> ttk.Style:
               bordercolor=[("selected", p["primary"])],
               lightcolor=[("selected", p["card_bg"])])
 
+    # 左侧竖向导航（见 ui/nav.py）：侧栏用 panel_alt 与右侧页面分层，
+    # 行高比表格（30）略窄；选中项用 select_bg 底色 + 强调色文字。
+    style.configure("Nav.TFrame", background=p["panel_alt"])
+    style.configure("Nav.TLabel", font=font(FS_SMALL), background=p["panel_alt"],
+                    foreground=p["text_dim"])
+    style.configure("NavGroup.TLabel", font=font(FS_SMALL, True),
+                    background=p["panel_alt"], foreground=p["text_dim"])
+    style.configure("Nav.Treeview", font=font(FS_BODY), rowheight=28,
+                    background=p["panel_alt"], fieldbackground=p["panel_alt"],
+                    foreground=p["text"], borderwidth=0, relief="flat")
+    style.map("Nav.Treeview",
+              background=[("selected", p["select_bg"])],
+              foreground=[("selected", p["primary"])])
+
     # 表格：表头独立底色 + 底部描边，行高略放宽；斑马纹由各面板用 odd/even tag 实现
     style.configure("Treeview", font=font(FS_BODY), rowheight=30,
                     background=p["card_bg"], fieldbackground=p["card_bg"],

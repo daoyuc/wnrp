@@ -42,6 +42,6 @@ phpvm 的文档按「**读者意图**」分层，每份文档只解决一类问�
 ## 现有实现基调（写文档时请守住这些前提）
 
 - `core/*` 不依赖 tkinter，可被 CLI / 守护进程 / 测试单独使用；`ui/*` 单向依赖 `core/*`。
-- 插件是**声明式内置目录**：`core/plugins/<name>/` 只声明 `MANIFEST`、面板路径与后台脚本，界面实现由主窗口从 `ui/plugins/` 延迟导入；单个插件导入失败只 warn，不影响其余页签。
+- 插件是**声明式内置目录**：`core/plugins/<name>/` 只声明 `MANIFEST`、面板路径与后台脚本，界面实现由主窗口从 `ui/plugins/` 延迟导入；单个插件导入失败只 warn，不影响其余导航项。
 - 所有对外部文件的写入走「备份 → 改 → 校验 → 失败回滚」，见 `core/file_backup.py`。
 - 跨平台差异集中在少数模块（`process_utils` / `path_manager` / `autostart` / `nginx_manager` / `app_paths` / `theme`），其余代码保持平台无关。

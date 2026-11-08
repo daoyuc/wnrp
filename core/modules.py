@@ -14,17 +14,28 @@
 """
 from .i18n import t
 
+# 左侧导航的分组（顺序即显示顺序；名称是 msgid，由界面用 t() 翻译）
+GROUPS: tuple[tuple[str, str], ...] = (
+    ("service", "服务"),
+    ("site", "站点"),
+    ("diag", "诊断"),
+    ("other", "其他"),
+)
+GROUP_KEYS: tuple[str, ...] = tuple(k for k, _ in GROUPS)
+GROUP_NAMES: dict[str, str] = dict(GROUPS)
+
 # 内置（非插件）模块：key 需与 ui/main_window.py 中的面板构建分支一致
+# group：所属导航分组（见 GROUPS），决定页面挂在左侧导航的哪一组下
 _BUILTIN: list[dict] = [
-    {"key": "php", "name": "PHP 版本管理", "required": True},
-    {"key": "nginx", "name": "Nginx 管理", "required": True},
-    {"key": "vhost", "name": "站点映射", "required": True},
-    {"key": "redis", "name": "Redis 管理", "required": False},
-    {"key": "mysql", "name": "MySQL 管理", "required": False},
-    {"key": "sqlite", "name": "SQLite 数据库", "required": False},
-    {"key": "log", "name": "Nginx 日志", "required": False},
-    {"key": "overview", "name": "总览仪表盘", "required": False},
-    {"key": "mail", "name": "邮件捕获", "required": False},
+    {"key": "php", "name": "PHP 版本管理", "required": True, "group": "service"},
+    {"key": "nginx", "name": "Nginx 管理", "required": True, "group": "service"},
+    {"key": "vhost", "name": "站点映射", "required": True, "group": "site"},
+    {"key": "redis", "name": "Redis 管理", "required": False, "group": "service"},
+    {"key": "mysql", "name": "MySQL 管理", "required": False, "group": "service"},
+    {"key": "sqlite", "name": "SQLite 数据库", "required": False, "group": "site"},
+    {"key": "log", "name": "Nginx 日志", "required": False, "group": "diag"},
+    {"key": "overview", "name": "总览仪表盘", "required": False, "group": "service"},
+    {"key": "mail", "name": "邮件捕获", "required": False, "group": "diag"},
 ]
 
 
@@ -46,6 +57,7 @@ def _load_modules() -> list[dict]:
             "key": spec.key,
             "name": spec.name,
             "required": spec.required,
+            "group": spec.nav_group,
         })
     return items
 
@@ -54,6 +66,13 @@ MODULES: list[dict] = _load_modules()
 
 _KEYS = {m["key"] for m in MODULES}
 REQUIRED_KEYS = {m["key"] for m in MODULES if m["required"]}
+_GROUPS = {m["key"]: m.get("group", "other") for m in MODULES}
+
+
+def group_of(key: str) -> str:
+    """模块所属的导航分组 key（未知 key 归入 other，避免页面消失）。"""
+    group = _GROUPS.get(str(key), "other")
+    return group if group in GROUP_NAMES else "other"
 
 
 def normalize(disabled) -> list[str]:

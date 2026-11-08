@@ -1,0 +1,8 @@
+{
+  "服务": "Services",
+  "站点": "Sites",
+  "诊断": "Diagnostics",
+  "其他": "Other",
+  "导航状态探测失败：{err}": "Failed to probe navigation status: {err}",
+  "保存上次页面失败：{err}": "Failed to save the last page: {err}"
+}

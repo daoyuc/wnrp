@@ -27,6 +27,7 @@ from core.vhost_manager import VhostManager
 from .dialogs import CliSwitchDialog, CrashDialog
 from .layout import ScrolledFrame, auto_wrap, scrolled_frame
 from .mysql_panel import MysqlPanel
+from .nav import SideNav
 from .nginx_log_panel import LogPanel
 from .nginx_panel import NginxPanel
 from .php_panel import PhpPanel
@@ -93,9 +94,14 @@ class MainWindow(tk.Tk):
         self.health = HealthMonitor()
         self._crash_alert_active = False
         self._crash_tick = 0
+        # 上次停留的页面（导航 restore 用）：先取旧值，避免启动时把默认页写回配置
+        self._last_page_saved = str(config.get_setting("last_page", "") or "")
+        self._page_save_job = None
+        self._nav_states_busy = False   # 上一轮状态探测是否还在跑（避免堆积）
         self._build()
-        # 按屏幕可用工作区收敛窗口尺寸：保证底部状态栏与各页签操作按钮不被 Dock/任务栏遮挡
-        fit_window(self, None, width=1080, height=680, min_width=960, min_height=600)
+        # 按屏幕可用工作区收敛窗口尺寸：保证底部状态栏与各页操作按钮不被 Dock/任务栏遮挡。
+        # 左侧导航固定占 184px，故比原来的纯页签布局整体加宽 100px（内容区不变窄）
+        fit_window(self, None, width=1180, height=720, min_width=1040, min_height=600)
         self._refresh_cli()
         self.after(8000, self._tick)
         # 启动后稍作延迟，回溯最近 24h 的 php-cgi 崩溃（不弹窗，仅状态栏/托盘提示）
@@ -121,6 +127,8 @@ class MainWindow(tk.Tk):
         self._start_ui_drain()
         # 首屏立刻取一次整机内存，不必等第一个 8 秒 tick
         self._refresh_memory()
+        # 导航状态圆点：稍后取一次（避开首屏构建与首轮面板刷新的 IO 高峰）
+        self.after(1200, self._refresh_nav_states)
 
     # ------------------------------------------------------------------ #
     def _build_menubar(self) -> None:
@@ -256,24 +264,35 @@ class MainWindow(tk.Tk):
         self.btn_cli = ttk.Button(cli_box, text=t("切换"), command=self._open_cli_switch)
         self.btn_cli.pack(side="left")
 
-        # 页签：按模块开关构建（停用的模块不实例化、不导入其面板代码）
-        nb = ttk.Notebook(self)
-        nb.pack(fill="both", expand=True, padx=theme.PAD_LG, pady=(0, theme.PAD_SM))
-        self.notebook = nb
-        # 切回某个页签时立即补一次刷新（不可见页签的自动刷新是暂停的）
-        nb.bind("<<NotebookTabChanged>>", lambda e: self._refresh_panels())
-        self.php_panel = PhpPanel(nb, self.php_mgr, self.config, self.set_log,
+        # 左侧竖向导航：按模块开关构建（停用的模块不实例化、不导入其面板代码）。
+        # 横向页签在模块/插件全开时（14 页）会溢出窗口宽度、右侧页面无法到达，
+        # 竖向导航把「标题宽度」换成「行数」，页面再多也只需滚动（见 ui/nav.py）。
+        nav = SideNav(self)
+        nav.pack(fill="both", expand=True, padx=theme.PAD_LG, pady=(0, theme.PAD_SM))
+        self.nav = nav
+        host = nav.content          # 页面宿主：面板的 master（原 notebook 位置）
+        self.vhost_mgr = VhostManager(self.config)
+        # —— 服务组：总览必须最先登记（它是导航首项，且要读各 manager 状态）——
+        self.overview_panel = None
+        if modules.is_enabled("overview", self.config):
+            from .overview_panel import OverviewPanel
+            self.overview_panel = OverviewPanel(
+                host, self.set_log, self.php_mgr, self.nginx_mgr,
+                self.redis_mgr, self.mysql_mgr, self.vhost_mgr,
+                self.config, self.services)
+        self.php_panel = PhpPanel(host, self.php_mgr, self.config, self.set_log,
                                   on_autostart_change=self._on_php_autostart_change)
-        self.nginx_panel = NginxPanel(nb, self.nginx_mgr, self.set_log,
+        self.nginx_panel = NginxPanel(host, self.nginx_mgr, self.set_log,
                                       on_new_site=self._open_site_wizard)
         self.redis_panel = None
         if self.redis_mgr is not None:
-            self.redis_panel = RedisPanel(nb, self.redis_mgr, self.set_log)
+            self.redis_panel = RedisPanel(host, self.redis_mgr, self.set_log)
         self.mysql_panel = None
         if self.mysql_mgr is not None:
-            self.mysql_panel = MysqlPanel(nb, self.mysql_mgr, self.set_log)
-        self.vhost_mgr = VhostManager(self.config)
-        self.vhost_panel = VhostPanel(nb, self.vhost_mgr, self.set_log, php_mgr=self.php_mgr)
+            self.mysql_panel = MysqlPanel(host, self.mysql_mgr, self.set_log)
+        # —— 站点组 ——
+        self.vhost_panel = VhostPanel(host, self.vhost_mgr, self.set_log,
+                                     php_mgr=self.php_mgr)
         self.sqlite_panel = None
         if modules.is_enabled("sqlite", self.config):
             # 延迟导入：停用时不加载 sqlite 面板与管理器
@@ -281,63 +300,60 @@ class MainWindow(tk.Tk):
             from .sqlite_panel import SqlitePanel
 
             # SQLite 查询页：复用 vhost 管理器，从站点 root 里发现站点自带的数据库
-            self.sqlite_panel = SqlitePanel(nb, SqliteManager(self.config),
+            self.sqlite_panel = SqlitePanel(host, SqliteManager(self.config),
                                             self.vhost_mgr, self.set_log)
+        # —— 诊断组 ——
         self.log_panel = None
         if modules.is_enabled("log", self.config):
-            self.log_panel = LogPanel(nb, self.set_log, self.nginx_mgr,
+            self.log_panel = LogPanel(host, self.set_log, self.nginx_mgr,
                                       self.config, self.vhost_mgr)
         # 邮件页（可选模块）：查看 PHP mail() 捕获到的 .eml
         self.mail_panel = None
         if modules.is_enabled("mail", self.config):
             from .mail_panel import MailPanel
-            self.mail_panel = MailPanel(nb, self.set_log, self.php_mgr, self.config)
-        # 总览仪表盘（可选模块）：面板先建好，页签位置在最后统一前插
-        # （Tk 不允许对空 notebook 调 insert(0, ...)，见 _place_first_tab）
-        self.overview_panel = None
-        if modules.is_enabled("overview", self.config):
-            from .overview_panel import OverviewPanel
-            self.overview_panel = OverviewPanel(
-                nb, self.set_log, self.php_mgr, self.nginx_mgr,
-                self.redis_mgr, self.mysql_mgr, self.vhost_mgr,
-                self.config, self.services)
-        about = self._build_about(nb)
-        # 页签文字两侧留白由 TNotebook.Tab 的 padding 控制（不再用空格凑宽度）
-        nb.add(self.php_panel, text=t("PHP 版本管理"))
-        nb.add(self.nginx_panel, text=t("Nginx 管理"))
-        if self.redis_panel is not None:
-            nb.add(self.redis_panel, text=t("Redis 管理"))
-        if self.mysql_panel is not None:
-            nb.add(self.mysql_panel, text=t("MySQL 管理"))
-        nb.add(self.vhost_panel, text=t("站点映射"))
-        if self.sqlite_panel is not None:
-            nb.add(self.sqlite_panel, text=t("SQLite 数据库"))
-        if self.log_panel is not None:
-            nb.add(self.log_panel, text=t("日志"))
-        if self.mail_panel is not None:
-            nb.add(self.mail_panel, text=t("邮件"))
+            self.mail_panel = MailPanel(host, self.set_log, self.php_mgr, self.config)
         # 运行日志：全局记录（应用启停 / 服务启停结果 / 异常），不受模块开关影响
-        self.run_panel = RunLogPanel(nb, self.set_log)
-        nb.add(self.run_panel, text=t("运行日志"))
-        # 插件页签：core/plugins 只声明「模块路径 + 类名」，这里延迟导入面板
+        self.run_panel = RunLogPanel(host, self.set_log)
+        about = self._build_about(host)
+        # 登记（顺序即同组内的显示顺序；分组由 core.modules.GROUPS 决定）
+        if self.overview_panel is not None:
+            nav.add(self.overview_panel, text=t("总览"), key="overview")
+        nav.add(self.php_panel, text=t("PHP 版本管理"), key="php")
+        nav.add(self.nginx_panel, text=t("Nginx 管理"), key="nginx")
+        if self.redis_panel is not None:
+            nav.add(self.redis_panel, text=t("Redis 管理"), key="redis")
+        if self.mysql_panel is not None:
+            nav.add(self.mysql_panel, text=t("MySQL 管理"), key="mysql")
+        nav.add(self.vhost_panel, text=t("站点映射"), key="vhost")
+        if self.sqlite_panel is not None:
+            nav.add(self.sqlite_panel, text=t("SQLite 数据库"), key="sqlite")
+        if self.log_panel is not None:
+            nav.add(self.log_panel, text=t("日志"), key="log")
+        if self.mail_panel is not None:
+            nav.add(self.mail_panel, text=t("邮件"), key="mail")
+        # 运行日志不是模块（没有注册表条目），显式归入诊断组
+        nav.add(self.run_panel, text=t("运行日志"), key="run_log", group="diag")
+        # 插件页：core/plugins 只声明「模块路径 + 类名 + 导航分组」，这里延迟导入面板
         self._plugin_panels: list = []
         for spec in plugins.enabled_specs(self.config):
-            panel = self._create_plugin_panel(nb, spec)
+            panel = self._create_plugin_panel(host, spec)
             if panel is not None:
                 self._plugin_panels.append(panel)
-                nb.add(panel, text=t(spec.name))
-        nb.add(about, text=t("关于"))
-        # 全部页签就位后再把「总览」插到最前（空 notebook 直接 insert 会抛 TclError）
-        self._place_first_tab(nb, self.overview_panel, t("总览"))
+                nav.add(panel, text=t(spec.name), key=spec.key,
+                        group=modules.group_of(spec.key))
+        nav.add(about, text=t("关于"), key="about")
+        # 切页：立即补一次刷新（不可见页面的自动刷新是暂停的）+ 记住当前页
+        nav.bind("<<NavChanged>>", lambda e: self._on_nav_changed())
+        nav.restore(self._last_page_saved)
 
-    def _create_plugin_panel(self, nb, spec):
+    def _create_plugin_panel(self, host, spec):
         """按插件声明延迟导入面板；单个插件加载失败只记日志、不阻断启动。"""
         if not spec.panel:
             return None
         try:
             module = importlib.import_module(spec.panel_module)
             cls = getattr(module, spec.panel_class)
-            return cls(nb, self.config, self.set_log)
+            return cls(host, self.config, self.set_log)
         except Exception as e:  # noqa: BLE001
             run_log.warn("plugin", t("插件 {name} 面板加载失败：{err}",
                                      name=t(spec.name),
@@ -351,21 +367,41 @@ class MainWindow(tk.Tk):
         except Exception as e:  # noqa: BLE001
             run_log.warn("plugin", t("插件后台启动失败：{err}", err=e))
 
-    @staticmethod
-    def _place_first_tab(nb: ttk.Notebook, panel, text: str) -> None:
-        """把可选页签放到第一位。
+    # ------------------------------------------------------------------ #
+    # 导航：切页 / 记忆页面
+    # ------------------------------------------------------------------ #
+    def _on_nav_changed(self) -> None:
+        """导航切页：立即补一次刷新（不可见页不轮询）+ 记住当前页。"""
+        self._refresh_panels()
+        self._remember_page()
 
-        Tk 的 ``ttk::notebook insert`` 会把下标与**已有**从属项数量比较，
-        对空 notebook 调 ``insert(0, ...)`` 会抛
-        ``TclError: Slave index 0 out of bounds``（Windows/Linux 的 Tk 8.6 均可复现），
-        因此这里在没有其它页签时退化为 ``add``。
+    def _remember_page(self) -> None:
+        """记录当前页面（``settings.last_page``）。
+
+        写盘合并：连续切页只在 800ms 后落一次盘，避免 ``config.save()``
+        在快速翻页时反复重写整个 config.json。值变化过才写。
         """
-        if panel is None:
+        key = self.nav.current_key()
+        if not key or key == self._last_page_saved:
             return
-        if nb.tabs():
-            nb.insert(0, panel, text=text)
-        else:
-            nb.add(panel, text=text)
+        self._last_page_saved = key
+        # 直接写内存里的 settings 再延迟落盘（set_setting 会立刻 save，
+        # 连续切页时会反复重写整个 config.json）
+        self.config.settings["last_page"] = key
+        if self._page_save_job is not None:
+            try:
+                self.after_cancel(self._page_save_job)
+            except Exception:  # noqa: BLE001 - 定时器已触发/窗口销毁
+                pass
+        self._page_save_job = self.after(800, self._flush_page_setting)
+
+    def _flush_page_setting(self) -> None:
+        """把延迟合并的「上次页面」真正落盘（失败只记日志）。"""
+        self._page_save_job = None
+        try:
+            self.config.save()
+        except Exception as e:  # noqa: BLE001 - 记忆失败不应打断界面
+            run_log.warn("ui", t("保存上次页面失败：{err}", err=e))
 
     def _build_about(self, master) -> ttk.Frame:
         # 整页可滚动 + 长文本自动换行：内容（环境信息 + 模块开关 + 一堆设置项）远超一屏，
@@ -1033,6 +1069,8 @@ class MainWindow(tk.Tk):
         self._tick_count = getattr(self, "_tick_count", 0) + 1
         if self._tick_count % 4 == 0:
             self._refresh_cli()
+            # 导航状态圆点与 cmd php 同频（≈32s）：PHP/Nginx/Redis/MySQL 各探一次
+            self._refresh_nav_states()
             # 跟随系统外观时，探测系统是否切了浅色/深色
             self._check_system_theme()
             # MySQL 状态查询涉及服务枚举，同样降频（且只在页签可见时）
@@ -1228,7 +1266,7 @@ class MainWindow(tk.Tk):
         self._refresh_panels()
 
     def _panel_visible(self, panel) -> bool:
-        """面板是否可见（notebook 非当前页 / 窗口最小化时 widget 未映射）。"""
+        """面板是否可见（导航未选中该页 / 窗口最小化时 widget 未映射）。"""
         try:
             return bool(panel.winfo_ismapped())
         except Exception:  # noqa: BLE001
@@ -1237,8 +1275,8 @@ class MainWindow(tk.Tk):
     def _refresh_panels(self) -> None:
         """刷新已启用的面板（停用的模块不刷新、不触碰其代码）。
 
-        只刷新当前可见的页签：不可见面板的状态扫描纯属白跑子进程/线程，
-        切回时由 <<NotebookTabChanged>> 立即补一次，不会看到陈旧数据。
+        只刷新当前可见的页面：不可见面板的状态扫描纯属白跑子进程/线程，
+        切回时由 <<NavChanged>> 立即补一次，不会看到陈旧数据。
         """
         # vhost_panel 必在列：新建站点 / Adminer 托管后要靠它把新站点刷出来
         # 插件面板也在列（不登记就会「命令成功但界面没变」，见 AGENTS.md）
@@ -1251,6 +1289,92 @@ class MainWindow(tk.Tk):
                 panel.auto_refresh()
             except Exception:  # noqa: BLE001
                 pass
+
+    # ------------------------------------------------------------------ #
+    # 导航状态圆点
+    # ------------------------------------------------------------------ #
+    def _refresh_nav_states(self) -> None:
+        """采集 PHP / Nginx / Redis / MySQL 运行状态 → 导航圆点。
+
+        为什么下沉线程：四个状态各自要枚举进程 / 查服务，主线程做会卡界面
+        （与 ``_refresh_memory`` 同一套 worker → ``_post`` 机制）。
+        复用 ``_tick`` 的 4 轮降频分支（≈32s），不新增计时器。
+        """
+        nav = getattr(self, "nav", None)
+        if nav is None or getattr(self, "_nav_states_busy", False):
+            return  # 上一轮还没回来就跳过，避免状态探测堆积
+        self._nav_states_busy = True
+
+        def worker():
+            states: dict[str, str] = {}
+            try:
+                states.update(self._nav_state_snapshot())
+            except Exception as e:  # noqa: BLE001 - 状态探测失败只降级不弹窗
+                run_log.warn("ui", t("导航状态探测失败：{err}", err=e))
+            self._post(lambda: self._apply_nav_states(states))
+
+        threading.Thread(target=worker, daemon=True, name="nav-states").start()
+
+    def _nav_state_snapshot(self) -> dict[str, str]:
+        """（worker 线程）逐个探测服务状态，返回 ``{模块 key: on/off/warn}``。
+
+        判定口径与总览页一致：该服务**任一实例在运行**即为 on；
+        探测抛异常记为 warn（橙），"没装/没实例" 记为 off（灰）。
+        """
+        states: dict[str, str] = {}
+        # PHP：任一版本在跑 → on
+        try:
+            versions = list(self.php_mgr.versions or [])
+            if not versions:
+                versions = list(self.php_mgr.scan_versions() or [])
+                self.php_mgr.versions = versions
+            self.php_mgr.refresh_all_status(versions, fast=True)
+            if not versions:
+                states["php"] = "off"
+            else:
+                states["php"] = "on" if any(getattr(v, "running", False)
+                                             for v in versions) else "off"
+        except Exception:  # noqa: BLE001
+            states["php"] = "warn"
+        # Nginx
+        try:
+            ok, _pids = self.nginx_mgr.get_status()
+            states["nginx"] = "on" if ok else "off"
+        except Exception:  # noqa: BLE001
+            states["nginx"] = "warn"
+        # Redis（模块停用时不建面板，也就不画点）
+        if self.redis_panel is not None and self.redis_mgr is not None:
+            try:
+                insts = self.redis_mgr.get_status_all()
+                states["redis"] = "on" if any(i.running for i in insts) else "off"
+            except Exception:  # noqa: BLE001
+                states["redis"] = "warn"
+        # MySQL：枚举服务较慢，只在有实例时逐个查
+        if self.mysql_panel is not None and self.mysql_mgr is not None:
+            try:
+                insts = list(self.mysql_mgr.instances or [])
+                if not insts:
+                    insts = list(self.mysql_mgr.refresh_instances() or [])
+                running = False
+                for inst in insts:
+                    try:
+                        ok, _pids = self.mysql_mgr.get_status(inst)
+                    except Exception:  # noqa: BLE001 - 单个实例失败不影响其它
+                        continue
+                    running = running or ok
+                states["mysql"] = "on" if running else "off"
+            except Exception:  # noqa: BLE001
+                states["mysql"] = "warn"
+        return states
+
+    def _apply_nav_states(self, states: dict) -> None:
+        """（主线程）把探测结果写进导航圆点；状态未变时 set_state 内部直接返回。"""
+        self._nav_states_busy = False
+        nav = getattr(self, "nav", None)
+        if nav is None or not self.winfo_exists():
+            return
+        for key, state in (states or {}).items():
+            nav.set_state(key, state)
 
     # ------------------------------------------------------------------ #
     # 托盘动态菜单：PHP 版本 + Nginx + Redis + MySQL 快捷启停

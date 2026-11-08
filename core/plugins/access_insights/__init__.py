@@ -21,6 +21,7 @@ MANIFEST = PluginSpec(
     default_settings={"lines": 20000, "top_n": 10},
     platforms=("win32", "darwin", "linux"),
     description="只读解析 nginx access.log，汇总状态码、热门路径与异常请求",
+    nav_group="diag",  # 与 nginx 日志同属「诊断」组：都是排障时看的只读视图
 )
 
 
