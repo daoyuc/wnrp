@@ -7,6 +7,7 @@
 """
 import queue
 import threading
+import time
 import tkinter as tk
 import tkinter.ttk as ttk
 from tkinter import messagebox
@@ -27,6 +28,22 @@ from .window_utils import fit_window, rearm_poll
 STATE_INSTALLED = t("已安装")
 STATE_UPDATE = t("可更新")
 STATE_READY = t("可安装")
+
+
+def state_for(installed_display: str, cand_version: str) -> tuple[str, str]:
+    """已装版本号 + 候选版本号 → (状态文案, treeview tag)。
+
+    目录已存在但解析出的版本号低于候选 → 「可更新」；display 为空（php -v
+    解析失败）或比较失败时保守判「已安装」，绝不误导成可更新。
+    """
+    disp = (installed_display or "").strip()
+    if disp:
+        try:
+            if version_key(disp) < version_key(cand_version):
+                return STATE_UPDATE, "update"
+        except TypeError:  # 版本串含非数字段，无法可靠比较
+            pass
+    return STATE_INSTALLED, "installed"
 
 # 进度阶段 → 界面文案
 _STAGE_TEXT = {
@@ -56,6 +73,8 @@ class DownloadDialog(tk.Toplevel):
         self._selected = None       # 当前选中的 SeriesCandidate
         self._selected_state = STATE_READY
         self._busy = False
+        self._busy_t0 = 0.0             # 本轮安装开始时刻（进度文本显示耗时）
+        self._last_progress = None      # 最近一次进度消息（poll 空转时重绘以刷新耗时）
         self._stop = threading.Event()   # 置位后 worker 中断下载
         self._pending_close = False      # 取消后自动关窗
         self._indeterminate = False      # 进度条是否处于不确定模式
@@ -178,8 +197,9 @@ class DownloadDialog(tk.Toplevel):
 
     # ---------------------------------------------------------- 加载候选列表 #
     def _start_load(self):
-        t = threading.Thread(target=self._load_worker, daemon=True)
-        t.start()
+        # 线程变量不能叫 t：会遮蔽模块级的 i18n 函数 t()（整个函数域内变局部变量）
+        th = threading.Thread(target=self._load_worker, daemon=True)
+        th.start()
 
     def _on_retry(self):
         self._retry_btn.pack_forget()
@@ -189,11 +209,20 @@ class DownloadDialog(tk.Toplevel):
     def _load_worker(self):
         try:
             candidates = build_candidates(include_legacy=True)
-            versions = self.php_mgr.scan_versions()  # 轻量扫描，不解析版本号
+            versions = self.php_mgr.scan_versions()
+            # 解析已装版本号（php -v，带 mtime 缓存 + 并发）：scan_versions 不解析，
+            # display 恒为空串会让旧版本永远显示「已安装」而看不到「可更新」
+            self.php_mgr.resolve(refresh_status=False)
             installed = {v.name: v.display for v in versions}
             self.queue.put(("loaded", candidates, installed))
         except Exception as e:  # noqa: BLE001
             self.queue.put(("load_error", f"{type(e).__name__}: {e}"))
+
+    def _state_for(self, cand) -> tuple[str, str]:
+        name = install_dir_for(cand.series)
+        if name not in self._installed:
+            return STATE_READY, "ready"
+        return state_for(self._installed.get(name, ""), cand.version)
 
     def _render_candidates(self):
         self._tree.delete(*self._tree.get_children())
@@ -202,13 +231,7 @@ class DownloadDialog(tk.Toplevel):
             pkg = cand.package("nts", self.arch) or cand.package("ts", self.arch)
             if pkg is None:
                 continue
-            installed_disp = self._installed.get(name, "")
-            state, tag = STATE_READY, "ready"
-            if name in self._installed:
-                if installed_disp and version_key(installed_disp) < version_key(cand.version):
-                    state, tag = STATE_UPDATE, "update"
-                else:
-                    state, tag = STATE_INSTALLED, "installed"
+            state, tag = self._state_for(cand)
             ts = "NTS" if pkg.ts_mode == "nts" else "TS"
             self._tree.insert(
                 "", "end",
@@ -233,8 +256,7 @@ class DownloadDialog(tk.Toplevel):
         if cand is None:
             return
         self._selected = cand
-        name = install_dir_for(cand.series)
-        self._selected_state = STATE_INSTALLED if name in self._installed else STATE_READY
+        self._selected_state = self._state_for(cand)[0]
         if self._selected_state == STATE_INSTALLED:
             self._btn_install.state(["disabled"])
         else:
@@ -282,14 +304,16 @@ class DownloadDialog(tk.Toplevel):
             messagebox.showerror(t("错误"), t("该版本在当前架构下没有可用安装包。"), parent=self)
             return
         self._set_busy(True)
+        self._busy_t0 = time.monotonic()
         self._stop.clear()
         self._pending_close = False
         self._reset_progress()
         self._prog_text.config(text=f"{t('正在下载')}… 0%")
         self._btn_cancel.pack(side="right", padx=(8, 0))
         self._btn_cancel.state(["!disabled"])
-        t = threading.Thread(target=self._install_worker, args=(pkg,), daemon=True)
-        t.start()
+        # 同上：不能叫 t（遮蔽 i18n 函数会让前面对话框文案的 t() 报 UnboundLocalError）
+        th = threading.Thread(target=self._install_worker, args=(pkg,), daemon=True)
+        th.start()
 
     def _install_worker(self, pkg):
         try:
@@ -355,22 +379,28 @@ class DownloadDialog(tk.Toplevel):
                 self._reset_progress()
                 self._hint.config(text=t("内部错误：{err}", err=e))
                 run_log.error("ui", t("内部错误：{err}", err=e))
+        # 队列空转时也按最近一条消息重绘：耗时持续跳动，连接 / 停滞期不再是死寂的 0%
+        if self._busy and self._last_progress:
+            self._render_progress(*self._last_progress)
         rearm_poll(self, self._poll)
 
     def _render_progress(self, stage: str, ratio: float | None, detail: str = ""):
         if self._stop.is_set():
             return  # 已请求取消：保留「正在取消…」提示，不被残留进度覆盖
+        self._last_progress = (stage, ratio, detail)
+        elapsed = (f" · {time.monotonic() - self._busy_t0:.0f}s"
+                   if self._busy_t0 else "")
         base = _STAGE_TEXT.get(stage, stage)
         suffix = f" {detail}" if detail else ""
         if ratio is None:
             # 大小未知 / 不确定阶段：用滚动条表示「仍在进行」，不再伪装成 100%
             self._set_indeterminate(True)
-            self._prog_text.config(text=f"{base}…{suffix}")
+            self._prog_text.config(text=f"{base}…{elapsed}{suffix}")
         else:
             self._set_indeterminate(False)
             pct = max(0.0, min(100.0, ratio * 100))
             self._prog.configure(value=pct)
-            self._prog_text.config(text=f"{base}… {pct:.1f}%{suffix}")
+            self._prog_text.config(text=f"{base}… {pct:.1f}%{elapsed}{suffix}")
 
     def _set_indeterminate(self, on: bool):
         """切换进度条确定 / 滚动模式（避免总大小未知时进度条卡在 100%）。"""

@@ -10,9 +10,10 @@
 import os
 import re
 import shutil
+import time
 from dataclasses import dataclass
 
-from . import process_utils as pu
+from . import process_utils as pu, run_log
 from .config import DEFAULT_PORTS, WNRP_ROOT, Config
 from .i18n import t
 from .php_downloader import (
@@ -180,11 +181,27 @@ def install(pkg: PhpPackage, config: Config, progress=None,
 
     name = install_dir_for(pkg.series)
     target_dir = os.path.join(WNRP_ROOT, name)
-    if os.path.exists(target_dir):
-        return InstallResult(False, t("目标目录 {dir} 已存在，请勿重复安装。",
-                                      dir=target_dir), name=name)
-
     port = default_port_for(name, config)
+    # 目标目录已存在：是 PHP 版本目录 → 版本内升级（同目录换新小版本，保留 php.ini）；
+    # 不是 PHP 目录 → 拒绝覆盖，绝不误删用户数据
+    upgrade = False
+    moved_old = ""   # 升级时旧版本目录整体挪去的位置（失败原样搬回）
+    saved_ini = ""   # 用户自定义 php.ini 暂存位置
+    if os.path.exists(target_dir):
+        has_php = os.path.isfile(os.path.join(target_dir, CLI_NAME)) or \
+            os.path.isfile(os.path.join(target_dir, "php-cgi.exe"))
+        if not has_php:
+            return InstallResult(
+                False, t("目标目录 {dir} 已存在且不是 PHP 版本目录，拒绝覆盖。",
+                          dir=target_dir), name=name)
+        pids = [p for p in pu.port_to_pid_fast(port) if pu.is_pid_alive_fast(p)]
+        if pids:
+            return InstallResult(
+                False, t("{name} 正在运行（PID {pids}），请先停止该版本再升级。",
+                          name=name, pids="、".join(map(str, pids))),
+                name=name, port=port)
+        upgrade = True
+
     conflict = config.validate_unique(name, port)
     if conflict:
         return InstallResult(
@@ -201,15 +218,27 @@ def install(pkg: PhpPackage, config: Config, progress=None,
     extract_dir = os.path.join(tmp_root, f"{name}_src")
     target_ready = False
     try:
-        # 1. 下载（带进度；无 Content-Length 时 ratio 为 None，但 detail 仍有字节数）
-        report("下载", 0.0)
-        download_with_progress(
-            pkg.url, zip_path,
-            lambda done, total: report(
-                "下载", (done / total) if total else None,
-                f"{_mb(done)} / {_mb(total)}" if total else _mb(done)),
-            stop_event=stop_event,
-        )
+        # 1. 下载：先报「连接中」占位（Range 探测 + 建连可能数秒），首字节到达后
+        #    才有字节进度；detail 附平均速度，运行日志留痕便于排查「到底在不在下」
+        report("下载", None, t("正在连接服务器…"))
+        run_log.info("php", t("开始下载 PHP 安装包：{url}", url=pkg.url))
+        dl = {"t0": time.monotonic(), "t_first": 0.0, "done0": 0}
+
+        def dl_progress(done: int, total: int):
+            now = time.monotonic()
+            if done and not dl["t_first"]:
+                dl["t_first"], dl["done0"] = now, done
+            detail = f"{_mb(done)} / {_mb(total)}" if total else _mb(done)
+            if dl["t_first"] and now > dl["t_first"]:
+                speed = (done - dl["done0"]) / (now - dl["t_first"]) / 1048576
+                detail += f" · {speed:.1f} MB/s"
+            report("下载", (done / total) if total else None, detail)
+
+        download_with_progress(pkg.url, zip_path, dl_progress, stop_event=stop_event)
+        dl_secs = time.monotonic() - dl["t0"]
+        run_log.info("php", t("下载完成：{size}，耗时 {s} 秒",
+                              size=_mb(max(os.path.getsize(zip_path), 0)),
+                              s=f"{dl_secs:.0f}"))
 
         # 2. SHA-256 校验（archives 无元数据时跳过，空串 verify_sha256 返回 True）
         report("校验", None)
@@ -231,16 +260,28 @@ def install(pkg: PhpPackage, config: Config, progress=None,
                 not os.path.exists(os.path.join(root, CLI_NAME)):
             raise RuntimeError(t("解压内容异常：未找到 php.exe / php-cgi.exe"))
 
-        # 4. 落盘到 C:\wnrp\php{XX}
+        # 4. 落盘到 C:\wnrp\php{XX}；升级时先整体挪走旧目录（失败可原样恢复）
         report("落盘", None)
+        if upgrade:
+            moved_old = os.path.join(tmp_root, f"{name}_old")
+            if os.path.exists(moved_old):
+                shutil.rmtree(moved_old, ignore_errors=True)
+            old_ini = os.path.join(target_dir, INI_NAME)
+            if os.path.isfile(old_ini):
+                saved_ini = os.path.join(tmp_root, f"{name}_php.ini.keep")
+                shutil.copy2(old_ini, saved_ini)
+            shutil.move(target_dir, moved_old)
         os.makedirs(target_dir, exist_ok=True)
         for item in os.listdir(root):
             shutil.move(os.path.join(root, item), os.path.join(target_dir, item))
         target_ready = True
 
-        # 5. 生成 php.ini（CLI 与 FastCGI 共用）
+        # 5. php.ini：升级时保留用户自定义配置；全新安装按模板生成（CLI 与 FastCGI 共用）
         report("生成配置", None)
-        generate_ini(target_dir)
+        if saved_ini and os.path.isfile(saved_ini):
+            shutil.copy2(saved_ini, os.path.join(target_dir, INI_NAME))
+        else:
+            generate_ini(target_dir)
 
         # 6. 端口持久化
         config.set_port(name, port)
@@ -278,8 +319,8 @@ def install(pkg: PhpPackage, config: Config, progress=None,
         return InstallResult(False, t("安装失败：{err}",
                                       err=f"{type(e).__name__}: {e}"), name=name)
     finally:
-        # 清理临时文件（下载包 + 解压目录）
-        for p in (zip_path, extract_dir):
+        # 清理临时文件（下载包 + 解压目录 + php.ini 暂存）
+        for p in (zip_path, extract_dir, saved_ini):
             try:
                 if os.path.isfile(p):
                     os.remove(p)
@@ -287,6 +328,17 @@ def install(pkg: PhpPackage, config: Config, progress=None,
                     shutil.rmtree(p, ignore_errors=True)
             except OSError:
                 pass
-        # 落盘未完成时清理目标目录，避免残留半成品
-        if not target_ready and os.path.exists(target_dir):
+        # 升级：成功（或新版已落盘）清掉旧版本备份；失败把旧版本原样搬回去
+        if moved_old:
+            if target_ready:
+                shutil.rmtree(moved_old, ignore_errors=True)
+            elif os.path.isdir(moved_old):
+                shutil.rmtree(target_dir, ignore_errors=True)
+                try:
+                    shutil.move(moved_old, target_dir)
+                except OSError:
+                    pass
+        # 全新安装落盘未完成时清理目标目录，避免残留半成品。
+        # 升级场景绝不走这里：目标目录是旧版本本体，恢复由上面 moved_old 分支负责
+        if not target_ready and not upgrade and os.path.exists(target_dir):
             shutil.rmtree(target_dir, ignore_errors=True)

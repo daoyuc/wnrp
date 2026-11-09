@@ -12,6 +12,7 @@
 import hashlib
 import http.server
 import os
+import re
 import tempfile
 import threading
 import unittest
@@ -21,11 +22,14 @@ from core import php_downloader
 
 def _make_server(payload: bytes, *, send_length: bool = True,
                  truncate_first: bool = False):
-    """起一个一次性 HTTP 服务：支持 Range、可选择性省略 Content-Length / 首包截断。
+    """起一个一次性 HTTP 服务：支持 Range、可选择性省略 Content-Length / 截断。
 
-    返回 (server, state)：state 记录请求次数与每次的 Range 头。
+    Range 请求按规范回 206 + Content-Range（bytes=start-end/total），
+    ``bytes=0-0`` 这类探测请求因此能拿到总大小。
+    ``truncate_first=True`` 时截断**第一个数据请求**（Range 探测不算），
+    模拟网络中断；返回 (server, state)：hits / ranges 记录全部请求。
     """
-    state = {"hits": 0, "ranges": []}
+    state = {"hits": 0, "data_hits": 0, "ranges": []}
 
     class Handler(http.server.BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.0"
@@ -37,19 +41,25 @@ def _make_server(payload: bytes, *, send_length: bool = True,
             state["hits"] += 1
             rng = self.headers.get("Range")
             state["ranges"].append(rng)
-            start = 0
-            if rng and rng.startswith("bytes="):
-                start = int(rng[6:].split("-")[0])
-            body = payload[start:]
-            self.send_response(206 if start else 200)
-            if start:
+            start, end = 0, len(payload) - 1
+            partial = False
+            m = re.match(r"bytes=(\d+)-(\d*)", rng or "")
+            if m:
+                start = int(m.group(1))
+                if m.group(2):
+                    end = min(int(m.group(2)), len(payload) - 1)
+                partial = True
+            body = payload[start:end + 1]
+            self.send_response(206 if partial else 200)
+            if partial:
                 self.send_header(
-                    "Content-Range",
-                    f"bytes {start}-{len(payload) - 1}/{len(payload)}")
+                    "Content-Range", f"bytes {start}-{end}/{len(payload)}")
             if send_length:
                 self.send_header("Content-Length", str(len(body)))
             self.end_headers()
-            if truncate_first and state["hits"] == 1:
+            if rng != "bytes=0-0":
+                state["data_hits"] += 1  # Range 探测请求不算数据请求
+            if truncate_first and state["data_hits"] == 1:
                 # 声明完整长度却只发一半就断开，模拟网络中断
                 self.wfile.write(body[: max(1, len(body) // 2)])
                 self.wfile.flush()
@@ -105,9 +115,11 @@ class DownloadRobustnessTest(unittest.TestCase):
             got = f.read()
         self.assertEqual(hashlib.sha256(got).hexdigest(),
                          hashlib.sha256(payload).hexdigest())
-        self.assertEqual(state["hits"], 2)
-        self.assertIsNone(state["ranges"][0])
-        self.assertTrue(state["ranges"][1].startswith("bytes="))
+        # hits：探测 + 首个数据请求（截断）+ 重试轮探测 + 续传请求
+        self.assertEqual(state["hits"], 4)
+        self.assertEqual(state["ranges"][0], "bytes=0-0")
+        self.assertIsNone(state["ranges"][1])
+        self.assertTrue(state["ranges"][3].startswith("bytes="))
 
     def test_cancel_raises_immediately(self):
         """stop_event 已置位时立刻取消，不触碰磁盘、不重试。"""
@@ -127,7 +139,32 @@ class DownloadRobustnessTest(unittest.TestCase):
         url, state = self._serve(payload, truncate_first=True)
         with self.assertRaises(RuntimeError):
             php_downloader.download_with_progress(url, self._dest(), retries=0)
-        self.assertEqual(state["hits"], 1)
+        # 1 次 Range 探测 + 1 次被截断的数据请求
+        self.assertEqual(state["hits"], 2)
+
+    def test_parallel_chunks_large_file(self):
+        """大文件走多连接分块并行，内容逐字节一致，分片文件不残留。"""
+        payload = os.urandom(8 * 1024 * 1024)
+        url, state = self._serve(payload)
+        php_downloader.download_with_progress(url, self._dest())
+        with open(self._dest(), "rb") as f:
+            self.assertEqual(hashlib.sha256(f.read()).hexdigest(),
+                             hashlib.sha256(payload).hexdigest())
+        self.assertEqual(state["hits"], 1 + php_downloader.PARALLEL_CONNECTIONS)
+        self.assertEqual(
+            len([p for p in os.listdir(self._dir.name)
+                 if ".part" in p]), 0)
+
+    def test_parallel_resume_after_truncated_chunk(self):
+        """并行分块遇到截断连接：整体重试时各分片从断点继续，结果完整。"""
+        payload = os.urandom(5 * 1024 * 1024)
+        url, state = self._serve(payload, truncate_first=True)
+        php_downloader.download_with_progress(url, self._dest())
+        with open(self._dest(), "rb") as f:
+            self.assertEqual(hashlib.sha256(f.read()).hexdigest(),
+                             hashlib.sha256(payload).hexdigest())
+        # 探测 + 首轮 4 个分片（其一被截断）+ 重试轮的续传请求 ≥ 2 轮
+        self.assertGreater(state["hits"], 1 + php_downloader.PARALLEL_CONNECTIONS)
 
 
 if __name__ == "__main__":

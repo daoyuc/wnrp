@@ -8,16 +8,20 @@
 功能：
 - 按当前系统架构 / 线程安全模式自动匹配官方包键（兼容编译器演进 vs17/vs16/vc15）
 - 流式下载 + 进度回调、SHA-256 完整性校验、防路径穿越安全解压
+- 大文件多连接并行分块下载（服务器支持 Range 时自动启用，不支持退回单流），
+  分片与单流都支持断点续传，最终以 SHA-256 兜底完整性
 """
 import hashlib
 import os
 import platform
 import re
 import shutil
+import threading
 import time
 import urllib.error
 import urllib.request
 import zipfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 
 from .i18n import t
@@ -33,10 +37,14 @@ TIMEOUT = 20
 # 中断本次传输并带着 Range 续传重试（避免「进度条不动也不报错」的永久卡住）
 DOWNLOAD_TIMEOUT = 20
 # 下载失败自动重试次数（续传，不是从头再来）
-RETRIES = 2
-CHUNK = 64 * 1024
+RETRIES = 4
+CHUNK = 256 * 1024
 # 进度回调节流间隔（秒）：过密会把 UI 消息队列刷爆，过疏则进度条看起来卡住
 PROGRESS_INTERVAL = 0.15
+# 并行分块下载：文件不小于该字节数且服务器支持 Range 才启用
+PARALLEL_MIN_SIZE = 2 * 1024 * 1024
+# 并行分块下载的最大连接数
+PARALLEL_CONNECTIONS = 4
 
 # 编译器优先级：新编译器优先（部分版本过渡期同时提供 vs16/vs17）
 _COMPILER_ORDER = ("vs17", "vs16", "vc15", "vc14", "vc11", "vc9")
@@ -277,6 +285,158 @@ class DownloadCancelled(RuntimeError):
     """调用方通过 stop_event 主动取消下载（GUI「取消」按钮）。"""
 
 
+def _probe_total(url: str) -> int:
+    """Range 探测：服务器支持 Range（206 + Content-Range）返回总字节数，否则 0。
+
+    探测失败一律返回 0 走单流路径，绝不因为探测把下载判死。
+    """
+    try:
+        req = urllib.request.Request(url, headers={
+            "User-Agent": USER_AGENT, "Range": "bytes=0-0",
+            "Accept-Encoding": "identity"})
+        with urllib.request.urlopen(req, timeout=TIMEOUT,
+                                    context=ssl_context()) as resp:
+            if int(getattr(resp, "status", 200) or 200) != 206:
+                return 0
+            m = re.search(r"/\s*(\d+)\s*$",
+                          (resp.headers.get("Content-Range") or "").strip())
+            resp.read(64)  # 读掉分片体（1 字节），释放连接
+            return int(m.group(1)) if m else 0
+    except (urllib.error.URLError, OSError, ValueError):
+        return 0
+
+
+def _chunk_plan(total: int) -> list[tuple[int, int]] | None:
+    """文件大小 → 并行分块的 [(start, end)]（含端点）；不满足并行条件返回 None。"""
+    if total < PARALLEL_MIN_SIZE:
+        return None
+    n = max(2, min(PARALLEL_CONNECTIONS, -(-total // PARALLEL_MIN_SIZE)))
+    size, extra = divmod(total, n)
+    ranges: list[tuple[int, int]] = []
+    start = 0
+    for i in range(n):
+        end = start + size - 1 + (1 if i < extra else 0)
+        ranges.append((start, end))
+        start = end + 1
+    return ranges
+
+
+class _ProgressAgg:
+    """跨线程聚合各分片的已下载字节并节流回调（同单流回调节奏）。"""
+
+    def __init__(self, total: int, cb):
+        self._lock = threading.Lock()
+        self._total = total
+        self._cb = cb
+        self._done = 0
+        self._last = 0.0
+
+    def add(self, n: int) -> None:
+        if n <= 0:
+            return
+        with self._lock:
+            self._done += n
+            now = time.time()
+            if self._cb and (now - self._last >= PROGRESS_INTERVAL
+                             or self._done >= self._total):
+                self._last = now
+                self._cb(self._done, self._total)
+
+
+def _download_chunk_once(url: str, path: str, start: int, end: int,
+                         agg: _ProgressAgg, stop_event) -> None:
+    """传输一个分片 [start, end]（含端点）到 path；分片文件本身可续传。"""
+    expected = end - start + 1
+    offset = os.path.getsize(path) if os.path.isfile(path) else 0
+    if offset > expected:
+        # 分片比预期还长（服务器内容可能已变）：丢弃重来
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+        offset = 0
+    if offset >= expected:
+        return
+    req = urllib.request.Request(url, headers={
+        "User-Agent": USER_AGENT, "Accept-Encoding": "identity",
+        "Range": f"bytes={start + offset}-{end}"})
+    with urllib.request.urlopen(req, timeout=DOWNLOAD_TIMEOUT,
+                                context=ssl_context()) as resp:
+        status = int(getattr(resp, "status", 200) or 200)
+        # 服务器没按分片范围回 206，绝不能把整份内容写进分片
+        if status != 206:
+            raise RuntimeError(t("服务器不支持分块下载（HTTP {code}）", code=status))
+        m = re.match(r"bytes\s+(\d+)-",
+                     (resp.headers.get("Content-Range") or "").strip())
+        if not m or int(m.group(1)) != start + offset:
+            raise RuntimeError(t("服务器不支持分块下载（HTTP {code}）", code=status))
+        read_chunk = getattr(resp, "read1", None) or resp.read
+        got = offset
+        with open(path, "ab") as f:
+            while got < expected:
+                if stop_event is not None and stop_event.is_set():
+                    raise DownloadCancelled(t("已取消下载"))
+                chunk = read_chunk(CHUNK)
+                if not chunk:
+                    break
+                if got + len(chunk) > expected:  # 服务端多发时按分片边界截断
+                    chunk = chunk[:expected - got]
+                f.write(chunk)
+                got += len(chunk)
+                agg.add(len(chunk))
+    size = os.path.getsize(path)
+    if size < expected:
+        raise RuntimeError(t("下载不完整：已收到 {done} 字节，应为 {total} 字节",
+                             done=size, total=expected))
+
+
+def _download_parallel(url: str, tmp: str, ranges: list[tuple[int, int]],
+                       progress_cb, stop_event) -> None:
+    """并行下载全部分片到 ``tmp.<i>``，全部到位后按顺序合并为 tmp。
+
+    任一分片失败即抛错（保留全部分片，外层重试时各分片从断点继续）；
+    取消同样保留分片，下次续传。
+    """
+    paths = [f"{tmp}.{i}" for i in range(len(ranges))]
+    total = sum(e - s + 1 for s, e in ranges)
+    agg = _ProgressAgg(total, progress_cb)
+    for path, (s, e) in zip(paths, ranges):
+        # 已就位的分片补报进度，避免续传时进度条从 0 开始
+        done = os.path.getsize(path) if os.path.isfile(path) else 0
+        if done > e - s + 1:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+        elif done:
+            agg.add(done)
+    last_err: Exception | None = None
+    with ThreadPoolExecutor(max_workers=len(ranges)) as ex:
+        futures = [ex.submit(_download_chunk_once, url, p, s, e, agg, stop_event)
+                   for p, (s, e) in zip(paths, ranges)]
+        for fut in as_completed(futures):
+            try:
+                fut.result()
+            except DownloadCancelled:
+                raise
+            except Exception as e:  # noqa: BLE001 - 记首个错误，其余分片跑完收尾
+                if last_err is None:
+                    last_err = e
+    if last_err is not None:
+        raise last_err
+    with open(tmp, "wb") as out:
+        for p in paths:
+            with open(p, "rb") as f:
+                shutil.copyfileobj(f, out)
+    for p in paths:
+        try:
+            os.remove(p)
+        except OSError:
+            pass
+    if progress_cb:
+        progress_cb(total, total)
+
+
 def _download_request(url: str, offset: int = 0):
     """构造下载请求；offset>0 时带 Range 头做断点续传。"""
     headers = {"User-Agent": USER_AGENT, "Accept-Encoding": "identity"}
@@ -344,13 +504,16 @@ def _download_once(url: str, tmp: str, progress_cb, stop_event) -> None:
 
 def download_with_progress(url: str, dest: str, progress_cb=None,
                            stop_event=None, retries: int = RETRIES) -> None:
-    """流式下载到 dest（先写 .part 再原子改名）。进度回调 (done_bytes, total_bytes)。
+    """下载到 dest（先写 .part / 分片再原子改名）。进度回调 (done_bytes, total_bytes)。
 
+    服务器支持 Range 且文件不小于 ``PARALLEL_MIN_SIZE`` 时自动走**多连接并行
+    分块**（提速；服务器不支持或不满足条件退回单流），分片与单流都支持断点续传。
     Content-Length 未知时 total 为 0（进度回调仍按已下载字节数持续上报）。
-    抗「卡住」的三层保护：
+    抗「卡住」的四层保护：
     - 停滞即断：单次读取超过 ``DOWNLOAD_TIMEOUT`` 秒没字节 → 中断本次传输；
-    - 断点续传：失败保留 ``.part``，重试带 Range 从断点继续，不必从头再来；
-    - 有界重试：最多重试 ``retries`` 次，之后抛错由上层提示，绝不无限等待。
+    - 断点续传：失败保留 ``.part`` / 分片，重试带 Range 从断点继续，不必从头再来；
+    - 有界重试：最多重试 ``retries`` 次，之后抛错由上层提示，绝不无限等待；
+    - SHA-256 兜底：合并/落盘后由上层按官方校验和验证，防拼接与篡改错误。
     ``stop_event``（threading.Event）置位后立即抛 ``DownloadCancelled``。
     """
     tmp = dest + ".part"
@@ -359,7 +522,11 @@ def download_with_progress(url: str, dest: str, progress_cb=None,
         if stop_event is not None and stop_event.is_set():
             raise DownloadCancelled(t("已取消下载"))
         try:
-            _download_once(url, tmp, progress_cb, stop_event)
+            ranges = _chunk_plan(_probe_total(url))
+            if ranges:
+                _download_parallel(url, tmp, ranges, progress_cb, stop_event)
+            else:
+                _download_once(url, tmp, progress_cb, stop_event)
             os.replace(tmp, dest)
             return
         except DownloadCancelled:

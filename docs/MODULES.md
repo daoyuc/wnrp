@@ -35,7 +35,7 @@
 | PHP 版本扫描与启停 | `ui/php_panel.py` | `php_manager.py`、`process_utils.py` | `config.json → ports` | 按端口 + PID + 命令行三重校验，不误杀其它版本 |
 | php.ini 查看 / 编辑 / 初始化 | `ui/php_panel.py`、`ui/dialogs.py` | `ini_editor.py`、`php_manager.ini_target/init_ini` | `<版本目录>/php.ini` + `.bak` | CLI 与 FastCGI 共用同一份 `php.ini`（`php-web.ini` 已废弃） |
 | PHP 扩展启停 / 在线安装 | `ui/extension_dialog.py` | `php_extension.py`、`php_downloader.py` | ini 写回 + `.bak` | PECL / xdebug.org 按「主版本 + NTS/TS + 编译器 + 架构」匹配 |
-| 下载安装新版 PHP | `ui/download_dialog.py` | `php_installer.py`、`php_downloader.py` | 新版本目录 + `config.ports` | SHA-256 校验、防穿越解压、端口按 `9000+版本号` 推导 |
+| 下载安装新版 PHP | `ui/download_dialog.py` | `php_installer.py`、`php_downloader.py` | 新版本目录 + `config.ports` | SHA-256 校验、防穿越解压、端口按 `9000+版本号` 推导；下载走多连接分块并行（服务器支持 Range 时自动启用，单流兜底），分片与单流均断点续传；目标已是 PHP 版本目录时**版本内升级**：整体替换文件、保留用户 `php.ini`、运行中拒绝、失败恢复旧版 |
 | 终端 `php` 版本切换 | 主窗口顶部下拉 / 对话框 | `path_manager.py` | Win 用户 PATH / posix shell rc | 仅影响新开的终端窗口 |
 | 版本自检 | `ui/dialogs.py` | `health_monitor.py` | — | 3 项：版本解析 / 关键扩展 / 配置加载 |
 | Nginx 启停 / 重载 / 配置检查 | `ui/nginx_panel.py` | `nginx_manager.py`、`nginx_conf.py` | nginx 进程；改 `nginx.conf` 前 `.bak` | 改配置后必须 `nginx -t` 通过才 reload，失败回滚 |
