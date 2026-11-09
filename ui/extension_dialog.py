@@ -7,6 +7,7 @@
 """
 import queue
 import threading
+import time
 import tkinter as tk
 from tkinter import messagebox, ttk
 
@@ -31,6 +32,7 @@ class ExtensionDialog(tk.Toplevel):
         self._runtime: ext_mod.RuntimeInfo | None = None
         self._busy = False
         self._draining = False  # 队列 drain 是否已启动（唯一消费者）
+        self._stop = threading.Event()  # 对话框关闭时中断后台下载
 
         ver_txt = f"PHP {version.display}" if version.display else t("PHP 版本未知")
         title = t("安装扩展 · {name} ({ver})", name=version.name, ver=ver_txt)
@@ -55,11 +57,30 @@ class ExtensionDialog(tk.Toplevel):
         self._build_local_tab()
         self._build_online_tab()
 
-        btns = ttk.Frame(self, padding=(16, 0, 16, 14))
+        # 进度区（下载安装时展开：进度条 + 阶段/速度/耗时文本），位于底部按钮之上
+        self.progress_box = ttk.Frame(self, padding=(16, 6, 16, 0))
+        self.progress_bar = ttk.Progressbar(self.progress_box, mode="determinate",
+                                            maximum=100)
+        self.progress_bar.pack(fill="x")
+        self.progress_label = ttk.Label(self.progress_box, text="",
+                                        style="SubTitle.TLabel")
+        self.progress_label.pack(anchor="w", pady=(4, 0))
+
+        btns = ttk.Frame(self, padding=(16, 8, 16, 14))
         # 先于页签内容分配空间（side=bottom），保证右下角按钮始终可见
         btns.pack(side="bottom", fill="x", before=nb)
-        self.progress_label = ttk.Label(btns, text="", style="SubTitle.TLabel")
-        self.progress_label.pack(side="left")
+        self._btns = btns
+        # 进度条默认收起，安装时才展开，避免占一整行高度
+        self.progress_box.pack(side="bottom", fill="x", before=btns)
+        self.progress_box.pack_forget()
+        # 底部操作区：左侧 = 在线安装入口（按钮 + 提示），右侧 = 保存 / 关闭
+        self.btn_install = ttk.Button(btns, text=t("下载并安装"), style="Accent.TButton",
+                                      state="disabled", command=self._install_online)
+        self.btn_install.pack(side="left")
+        self.online_tip = ttk.Label(btns, text=t("选中扩展后点击「下载并安装」，"
+                                                 "下载完成后自动写入 php.ini。"),
+                                    style="SubTitle.TLabel")
+        self.online_tip.pack(side="left", padx=(10, 0))
         ttk.Button(btns, text=t("关闭"), command=self.destroy).pack(side="right")
         self.btn_save = ttk.Button(btns, text=t("保存扩展启用状态"),
                                    style="Accent.TButton", command=self._save)
@@ -98,6 +119,10 @@ class ExtensionDialog(tk.Toplevel):
             style="SubTitle.TLabel", wraplength=760,
         )
         hint.pack(anchor="w", pady=(0, 6))
+        # 匹配目标独立成行放在表格上方（信息行与操作行分离，不再挤在一行）
+        self.online_status = ttk.Label(self.online_tab, text="",
+                                       style="SubTitle.TLabel", wraplength=760)
+        self.online_status.pack(anchor="w", pady=(0, 6))
         self.online_tree = ttk.Treeview(
             self.online_tab, columns=("ext", "name", "desc", "status"),
             show="headings", selectmode="browse", height=9,
@@ -114,14 +139,6 @@ class ExtensionDialog(tk.Toplevel):
         self.online_tree.tag_configure("warn", foreground=theme.WARN)
         self.online_tree.tag_configure("err", foreground=theme.ERR)
         self.online_tree.bind("<<TreeviewSelect>>", lambda e: self._update_online_btn())
-
-        bar = ttk.Frame(self.online_tab)
-        bar.pack(fill="x", pady=(4, 0))
-        self.online_status = ttk.Label(bar, text="", style="SubTitle.TLabel")
-        self.online_status.pack(side="left")
-        self.btn_install = ttk.Button(bar, text=t("下载并安装"), style="Accent.TButton",
-                                      state="disabled", command=self._install_online)
-        self.btn_install.pack(side="right")
 
     # ------------------------------------------------------------------ #
     # 加载 / 渲染
@@ -177,6 +194,17 @@ class ExtensionDialog(tk.Toplevel):
             self._on_loaded(payload)
         elif kind == "prog":
             self.progress_label.configure(text=payload)
+        elif kind == "dl":
+            ratio, detail = payload
+            if ratio is None:
+                # 大小未知 / 连接期：滚动条表示仍在进行
+                self._set_indeterminate(True)
+                self.progress_label.configure(text=detail)
+            else:
+                self._set_indeterminate(False)
+                pct = max(0.0, min(100.0, ratio * 100))
+                self.progress_bar.configure(value=pct)
+                self.progress_label.configure(text=f"{pct:.1f}% · {detail}")
         elif kind in ("saved", "save_err"):
             self._on_saved(kind, payload)
         elif kind == "installed":
@@ -331,6 +359,10 @@ class ExtensionDialog(tk.Toplevel):
             return
         self._busy = True
         self.btn_install.configure(state="disabled")
+        # 展开进度区：连接 / 匹配阶段用滚动条，下载期切百分比
+        self.progress_box.pack(side="bottom", fill="x", before=self._btns)
+        self._set_indeterminate(True)
+        self.progress_bar.configure(value=0)
         self.progress_label.configure(text=t("正在安装 {name} …", name=item["name"]))
 
         def worker():
@@ -338,7 +370,22 @@ class ExtensionDialog(tk.Toplevel):
                 def progress(msg):
                     self._queue.put(("prog", msg))
 
-                ok, msg, dll = ext_mod.install_online(item, self.version.dir, self._runtime, progress)
+                dl = {"t0": time.monotonic(), "t1": 0.0, "d0": 0}
+
+                def dl_progress(done: int, total: int):
+                    now = time.monotonic()
+                    if done and not dl["t1"]:
+                        dl["t1"], dl["d0"] = now, done
+                    detail = (f"{done / 1048576:.1f} / {total / 1048576:.1f} MB"
+                              if total else f"{done / 1048576:.1f} MB")
+                    if dl["t1"] and now > dl["t1"]:
+                        speed = (done - dl["d0"]) / (now - dl["t1"]) / 1048576
+                        detail += f" · {speed:.1f} MB/s"
+                    self._queue.put(("dl", (done / total) if total else None, detail))
+
+                ok, msg, dll = ext_mod.install_online(
+                    item, self.version.dir, self._runtime, progress,
+                    dl_progress=dl_progress, stop_event=self._stop)
                 self._queue.put(("installed", (item["key"], ok, msg, dll)))
             except Exception as e:  # noqa: BLE001
                 self._queue.put(("installed", (item["key"], False, str(e), "")))
@@ -349,6 +396,8 @@ class ExtensionDialog(tk.Toplevel):
     def _on_installed(self, payload: tuple) -> None:
         key, ok, msg, dll = payload
         self._busy = False
+        self._set_indeterminate(False)
+        self.progress_box.pack_forget()
         self.progress_label.configure(text="")
         self._update_online_btn()
         if not ok:
@@ -373,6 +422,18 @@ class ExtensionDialog(tk.Toplevel):
     # ------------------------------------------------------------------ #
     # 辅助
     # ------------------------------------------------------------------ #
+    def _set_indeterminate(self, on: bool) -> None:
+        """滚动 / 确定模式切换（连接与匹配阶段大小未知，用滚动条表示进行中）。"""
+        try:
+            if on:
+                self.progress_bar.configure(mode="indeterminate")
+                self.progress_bar.start(15)
+            else:
+                self.progress_bar.stop()
+                self.progress_bar.configure(mode="determinate")
+        except tk.TclError:
+            pass
+
     def _on_wheel(self, event) -> None:
         if not self.winfo_exists():
             return
@@ -387,6 +448,7 @@ class ExtensionDialog(tk.Toplevel):
                    min_width=680, min_height=560)
 
     def destroy(self) -> None:
+        self._stop.set()  # 中断后台下载（下载器收到后立即抛 DownloadCancelled）
         try:
             self.local_canvas.unbind("<MouseWheel>")
         except Exception:  # noqa: BLE001

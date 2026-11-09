@@ -1422,6 +1422,12 @@
    "cli.py"
   ]
  },
+ "{name} 正在运行（PID {pids}），请先停止该版本再升级。": {
+  "count": 1,
+  "files": [
+   "core/php_installer.py"
+  ]
+ },
  "{name}（FastCGI 端口 {port}）": {
   "count": 1,
   "files": [
@@ -1707,7 +1713,7 @@
   ]
  },
  "下载不完整：已收到 {done} 字节，应为 {total} 字节": {
-  "count": 1,
+  "count": 2,
   "files": [
    "core/php_downloader.py"
   ]
@@ -1746,6 +1752,12 @@
   "count": 1,
   "files": [
    "ui/download_dialog.py"
+  ]
+ },
+ "下载完成：{size}，耗时 {s} 秒": {
+  "count": 1,
+  "files": [
+   "core/php_installer.py"
   ]
  },
  "下载并安装": {
@@ -4222,7 +4234,7 @@
   ]
  },
  "已取消下载": {
-  "count": 4,
+  "count": 5,
   "files": [
    "core/php_downloader.py",
    "core/updater.py"
@@ -4905,6 +4917,12 @@
   "count": 1,
   "files": [
    "ui/download_dialog.py"
+  ]
+ },
+ "开始下载 PHP 安装包：{url}": {
+  "count": 1,
+  "files": [
+   "core/php_installer.py"
   ]
  },
  "开机启动服务": {
@@ -6203,6 +6221,12 @@
    "ui/nav.py"
   ]
  },
+ "服务器不支持分块下载（HTTP {code}）": {
+  "count": 2,
+  "files": [
+   "core/php_downloader.py"
+  ]
+ },
  "服务编排：": {
   "count": 1,
   "files": [
@@ -7239,6 +7263,12 @@
    "ui/download_dialog.py"
   ]
  },
+ "正在连接服务器…": {
+  "count": 1,
+  "files": [
+   "core/php_installer.py"
+  ]
+ },
  "正在重启 phpvm（拉起新进程后退出当前实例）": {
   "count": 1,
   "files": [
@@ -7680,7 +7710,7 @@
    "core/vhost_manager.py"
   ]
  },
- "目标目录 {dir} 已存在，请勿重复安装。": {
+ "目标目录 {dir} 已存在且不是 PHP 版本目录，拒绝覆盖。": {
   "count": 1,
   "files": [
    "core/php_installer.py"
@@ -9001,6 +9031,12 @@
   "count": 1,
   "files": [
    "ui/php_panel.py"
+  ]
+ },
+ "选中扩展后点击「下载并安装」，下载完成后自动写入 php.ini。": {
+  "count": 1,
+  "files": [
+   "ui/extension_dialog.py"
   ]
  },
  "选中版本后操作 · 双击行查看配置 · 点击「开机自启」列切换勾选": {

@@ -10,7 +10,7 @@
 import os
 import re
 import shutil
-import urllib.request
+import threading
 import zipfile
 from dataclasses import dataclass
 
@@ -18,12 +18,12 @@ from . import file_backup
 
 from . import process_utils as pu
 from .i18n import t
-from .net_ssl import ssl_context
 from .php_downloader import (
     USER_AGENT,
     _http_get,
     detect_arch,
     detect_os_compiler,
+    download_with_progress,
     extract_zip_safe,
 )
 
@@ -281,10 +281,13 @@ def _ver_key(v: str) -> tuple:
 
 
 def install_online(catalog_item: dict, php_dir: str, rt: RuntimeInfo,
-                   progress=None) -> tuple[bool, str, str]:
+                   progress=None, dl_progress=None,
+                   stop_event: threading.Event | None = None) -> tuple[bool, str, str]:
     """在线安装单个扩展。返回 (ok, message, dll 文件名)。
 
-    progress(msg: str) 阶段文本回调。dll 下载/解压到临时区后原子落入 ext/。
+    progress(msg: str) 阶段文本回调；dl_progress(done, total) 下载字节进度
+    （走 php_downloader：大文件并行分块 / 断点续传 / 有界重试，小文件单流）。
+    dll 下载/解压到临时区后原子落入 ext/。
     """
     def report(msg):
         if progress:
@@ -319,12 +322,12 @@ def install_online(catalog_item: dict, php_dir: str, rt: RuntimeInfo,
             url = XDEBUG_URL + fname
             tmp_file = os.path.join(tmp, fname)
             report(t("下载 {file} …", file=fname))
-            _download(url, tmp_file)
+            _download(url, tmp_file, dl_progress, stop_event)
         else:
             url, fname = _pick_pecl(ext_key, rt, report)
             tmp_file = os.path.join(tmp, fname)
             report(t("下载 {file} …", file=fname))
-            _download(url, tmp_file)
+            _download(url, tmp_file, dl_progress, stop_event)
 
         # 从 zip 中提取 dll（PECL）；dll 模式直接使用
         dll_name = fname
@@ -366,8 +369,10 @@ def install_online(catalog_item: dict, php_dir: str, rt: RuntimeInfo,
                 pass
 
 
-def _download(url: str, dest: str) -> None:
-    """简单下载（无进度条，小体积扩展）。"""
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(req, timeout=60, context=ssl_context()) as resp, open(dest, "wb") as f:
-        shutil.copyfileobj(resp, f)
+def _download(url: str, dest: str, dl_progress=None,
+              stop_event: threading.Event | None = None) -> None:
+    """下载扩展包：复用 php_downloader（Range 探测 / 并行分块 / 断点续传 / 重试）。
+
+    dl_progress(done, total) 字节进度回调；stop_event 置位后立即取消下载。
+    """
+    download_with_progress(url, dest, dl_progress, stop_event=stop_event)
