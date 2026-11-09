@@ -51,6 +51,7 @@
 | `plugin` | 内置插件管理 | `disable` · `enable` · `list` · `status` |
 | `project` | 项目级配置（.phpvm.json） | `apply` · `show` |
 | `redis` | Redis 管理 | `cmd` · `list` · `ping` · `restart` · `start` · `status` · `stop` |
+| `repos` | Git 工作区（只读 status / log） | `list` · `show` |
 | `schema` | 输出全部命令的自描述契约（供 AI 读取） | — |
 | `services` | 整套服务编排 | `start-all` · `stop-all` |
 | `site` | 站点（vhost）管理 | `create` · `disable` · `enable` · `list` · `php` · `remove` · `render` · `secure` · `show` · `sync-port` · `unsecure` |
@@ -645,6 +646,23 @@
 | 参数 | 必填 | 默认 | 说明 |
 |---|---|---|---|
 | `<name>` | 是 |  | 实例名（默认第一个） |
+
+## `repos` — Git 工作区（只读 status / log）
+
+### `repos list` — 汇总各项目的分支 / 未提交 / 领先落后
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--only` |  |  | 按项目名或路径子串过滤 |
+| `--limit` |  |  | 最多查询多少个项目（默认全部） |
+| `--timeout` |  | 6.0 | 单仓库超时秒数（默认 6） |
+
+### `repos show` — 查看单个项目的详情与变更文件
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `<name>` | 是 |  | 项目名（或路径） |
+| `--files` |  | 20 | 最多列出多少个变更文件（默认 20，0 = 不列） |
 
 ## `schema` — 输出全部命令的自描述契约（供 AI 读取）
 

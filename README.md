@@ -54,6 +54,7 @@
 - **项目启动器**：自动汇总本地项目（`<WNRP_ROOT>/www/*` + 站点 root 去重，读取 `.phpvm.json` 里的 PHP 版本 / 域名等元信息），从站点映射（vhost）的 `server_name` 生成访问地址：选中项目后点「在浏览器打开」、双击项目行，或右键选择具体域名 / 复制 URL；也可按 `composer.json` / `artisan` / `package.json` 等标志文件推荐常用命令，一键在终端打开并前置对应 PHP 版本的 PATH。命令只来自内置白名单或你自己添加的设置项，**不会自动执行，也绝不读取项目里的配置当命令运行**；URL 同样不采信 `.phpvm.json` 的域名。支持添加 / 删除自定义命令（可限定单个项目）；没有建站点的项目只能打开目录 / 终端，浏览器按钮会置灰
 - **访问日志聚合**：只读解析 nginx `access.log`（含 `.log.N` 轮转文件），汇总状态码分布、Top 路径 / IP / UA、按小时请求量与最近 4xx/5xx 明细，支持「只看错误请求」快速排查。日志只能从候选文件名里选，不读项目内任何文件，结果不落库、不上传（ADR 17）
 - **站点巡检**：从 nginx vhost 的 `server_name` 生成待探测域名，只发 `GET /` 做一次可用性探测，给出状态码、耗时、页面大小与证书剩余天数（本地自签站点降级探测并标注「自签」）；自动刷新按 60 秒节流。地址只来自 vhost、不跟随重定向、不带 Cookie、不经系统代理，结果不落库（ADR 20）
+- **Git 工作区**：把本地项目的 Git 状态汇总到一屏 —— 当前分支、未提交文件数（暂存 / 修改 / 未跟踪 / 冲突）、与上游的领先 / 落后、最后提交时间与标题，双击直接在该目录打开终端。仓库来源是「项目启动器」的扫描目录加上环境根下的仓库，**只跑 `git status` / `git log` 两条只读命令**：不 fetch、不 pull、不提交，也不写 index；自动刷新按 60 秒节流（ADR 22）
 
 ## 启动方式
 
@@ -85,7 +86,7 @@ python3 cli.py schema --json    # 全部命令 / 参数 / 默认值的自描述�
 - 任意命令加 `--json`：stdout 只有一个 `{"ok", "command", "data", "warnings"}` 文档（字段名英文，稳定契约）
 - 退出码：`0` 成功 / `1` 业务失败（见 `data.error`）/ `2` 参数用法错误
 - 安全默认：写操作支持 `--dry-run`；删除需 `--yes`；Redis 危险命令需 `--force`；改动前自动备份 `.bak`
-- 覆盖 PHP / Nginx / 站点 / hosts / Redis / MySQL / SQLite / 服务编排 / 体检 / 日志 / 备份 / 项目配置 / Adminer / 插件（`plugin`）/ 键鼠统计（`keymouse`）/ 项目启动器（`launcher`）/ 访问日志聚合（`insights`）/ 站点巡检（`health`）等分组
+- 覆盖 PHP / Nginx / 站点 / hosts / Redis / MySQL / SQLite / 服务编排 / 体检 / 日志 / 备份 / 项目配置 / Adminer / 插件（`plugin`）/ 键鼠统计（`keymouse`）/ 项目启动器（`launcher`）/ 访问日志聚合（`insights`）/ 站点巡检（`health`）/ Git 工作区（`repos`）等分组
 
 完整命令参考见 [docs/CLI.md](docs/CLI.md)（由 `cli.py` 自动生成，不会漂移）。
 

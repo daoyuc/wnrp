@@ -45,6 +45,7 @@ python3 cli.py env --json      # 环境快照：nginx、PHP 版本与端口、Re
 
 - **取「PHP 是否在跑」必须刷新状态**：`core/php_manager.py` 的 `scan_versions()` 只探测版本二进制，**不刷新 `running`**，直接读会得到陈旧值。统一走 `resolve(refresh_status=True, fast=True)`（定时刷新的默认姿势；操作后精确校验用 `fast=False`）。任何「挑一个 PHP 来用」的逻辑（托管站点建站、TLS 自动续期、端口同步等）都必须先按 `running` 过滤，再回退到版本列表——否则站点会落到未启动的 PHP 上，表现为 `502`。
 - **新增 UI 面板必须登记**：`ui/main_window.py` 的 `_refresh_panels()` 里有个面板元组，新面板不进这个列表，就不参与定时刷新和「操作完成后立即刷新」，会出现「命令成功但界面没变」（典型：新建站点 / 安装 Adminer 后站点映射页不更新）。
+- **插件不写用户仓库**：Git 工作区只跑 `git status` / `git log`，命令必须带 `--no-optional-locks` 且不 fetch / pull / commit；新增 git 调用先回答「会不会写仓库、会不会联网、会不会等凭据输入」，别把 `fetch` 塞进刷新路径（ADR 22）。
 - **插件面板与后台进程按框架接线**：插件 key 由 `core/modules.py` 自动并入 `MODULES`（设置页、启动快照、CLI `plugin enable/disable` 无需另写枚举）；面板须实现 `auto_refresh()` / `refresh_theme()`，并确认 `ui/main_window.py` 的 `_plugin_panels` 已进 `_refresh_panels()`；后台进程状态文件名以 `core/plugins/keymouse/daemon.py` 顶部常量为准（`daemon.lock` / `daemon.heartbeat` / `daemon.stop` / `paused`），不要按字面猜 `daemon.pid` 或 `stop`；`WH_KEYBOARD_LL` 钩子线程必须用 `MsgWaitForMultipleObjects` 等消息、不得 `time.sleep` 轮询（实测每次按键约 30ms 延迟，见 ADR 15 与 `tests/test_keymouse_collector.py::PumpTest`）；macOS 端 tap 与 `CFRunLoop` 必须同线程，且授权看 `CGPreflightListenEventAccess`（「输入监控」），不是「辅助功能」—— 未授权时 tap 仍建得出来但收不到任何事件（见 ADR 18）。
 
 ## 常用流程
@@ -95,6 +96,8 @@ python3 cli.py launcher commands --project demo --json
 python3 cli.py insights report --file access.log --errors --json   # 只读 nginx access.log
 python3 cli.py health sites --json                                  # 只列 vhost 域名，不发起请求
 python3 cli.py health probe --domain gmlbm --json                   # 只读 GET /，不跟随重定向
+python3 cli.py repos list --json                                    # 只读 git status / log，不 fetch
+python3 cli.py repos show phpvm --files 10 --json                   # 单仓库详情与变更文件
 python3 cli.py launcher add --label "Dev server" --command "php -S 127.0.0.1:8000" --dry-run --json
 python3 cli.py launcher open --project demo --id php-v --dry-run --json
 python3 cli.py launcher remove --id custom-xxxxxxxx --yes --dry-run --json

@@ -8,10 +8,38 @@
     "php8": 9080,
     "php81": 9081,
     "php82": 9000,
-    "php85": 9085
+    "php85": 9085,
+    "php84": 9084,
+    "php83": 9083
   },
   "settings": {
-    "auto_recover_crash": false,
-    "auto_recover_limit": 3
+    "auto_recover_crash": true,
+    "auto_recover_limit": 3,
+    "lang": "zh_CN",
+    "sqlite_last_db": "D:\\www9\\gml_bm\\database\\database.sqlite",
+    "disabled_modules": [
+      "sqlite",
+      "mail"
+    ],
+    "check_update_on_start": false,
+    "skipped_version": "",
+    "theme": "system",
+    "mail_sink_port": 1025,
+    "start_services_on_launch": true,
+    "autostart_php_scope": "used",
+    "autostart_php_versions": [
+      "php82",
+      "php85"
+    ],
+    "mysql_dirs": [],
+    "plugin_settings": {
+      "project_launcher": {
+        "recent_first": true,
+        "recent": [
+          "d:\\www5\\lotteryapi\\public",
+          "c:\\wnrp\\phpvm\\adminer"
+        ]
+      }
+    }
   }
 }

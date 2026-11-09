@@ -17,6 +17,12 @@
    "core/health_monitor.py"
   ]
  },
+ "  …另有 {n} 个未显示": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  " · 全部站点": {
   "count": 1,
   "files": [
@@ -166,6 +172,24 @@
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "Git 工作区": {
+  "count": 1,
+  "files": [
+   "ui/plugins/git_status_panel.py"
+  ]
+ },
+ "Git 工作区查询失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/git_status_panel.py"
+  ]
+ },
+ "Git 工作区渲染失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/git_status_panel.py"
   ]
  },
  "HTTPS 证书": {
@@ -1293,6 +1317,13 @@
   "count": 1,
   "files": [
    "ui/php_panel.py"
+  ]
+ },
+ "{branch}（无上游）": {
+  "count": 2,
+  "files": [
+   "cli.py",
+   "ui/plugins/git_status_panel.py"
   ]
  },
  "{conflict}\n请在安装完成后到「编辑端口」中为该版本调整端口，并同步修改 nginx vhost 的 fastcgi_pass。": {
@@ -2504,6 +2535,18 @@
    "ui/site_wizard.py"
   ]
  },
+ "分支": {
+  "count": 1,
+  "files": [
+   "ui/plugins/git_status_panel.py"
+  ]
+ },
+ "分支：{branch}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "切换": {
   "count": 1,
   "files": [
@@ -2601,7 +2644,7 @@
   ]
  },
  "刷新": {
-  "count": 11,
+  "count": 12,
   "files": [
    "ui/mail_panel.py",
    "ui/nginx_log_panel.py",
@@ -2611,6 +2654,7 @@
    "ui/sqlite_panel.py",
    "ui/vhost_panel.py",
    "ui/plugins/access_insights_panel.py",
+   "ui/plugins/git_status_panel.py",
    "ui/plugins/project_launcher_panel.py",
    "ui/plugins/site_health_panel.py"
   ]
@@ -2827,6 +2871,18 @@
    "ui/update_dialog.py"
   ]
  },
+ "变更": {
+  "count": 1,
+  "files": [
+   "ui/plugins/git_status_panel.py"
+  ]
+ },
+ "变更文件（{n}）：": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "只探测 nginx vhost 里的域名：GET /，不跟随重定向、不带 Cookie、不经系统代理": {
   "count": 1,
   "files": [
@@ -2837,6 +2893,12 @@
   "count": 1,
   "files": [
    "core/ini_editor.py"
+  ]
+ },
+ "只读查询：git status / git log，不 fetch、不 pull、不提交": {
+  "count": 1,
+  "files": [
+   "ui/plugins/git_status_panel.py"
   ]
  },
  "可分析的 access 日志：": {
@@ -3379,6 +3441,12 @@
    "ui/plugins/project_launcher_panel.py"
   ]
  },
+ "复制路径": {
+  "count": 1,
+  "files": [
+   "ui/plugins/git_status_panel.py"
+  ]
+ },
  "复制项目路径": {
   "count": 1,
   "files": [
@@ -3851,10 +3919,11 @@
   ]
  },
  "就绪": {
-  "count": 4,
+  "count": 5,
   "files": [
    "ui/main_window.py",
    "ui/plugins/access_insights_panel.py",
+   "ui/plugins/git_status_panel.py",
    "ui/plugins/project_launcher_panel.py",
    "ui/plugins/site_health_panel.py"
   ]
@@ -4248,9 +4317,10 @@
   ]
  },
  "已复制：{text}": {
-  "count": 3,
+  "count": 4,
   "files": [
    "ui/vhost_panel.py",
+   "ui/plugins/git_status_panel.py",
    "ui/plugins/project_launcher_panel.py"
   ]
  },
@@ -4408,6 +4478,12 @@
   "count": 1,
   "files": [
    "ui/php_panel.py"
+  ]
+ },
+ "已打开终端：{path}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/git_status_panel.py"
   ]
  },
  "已打开：{path}": {
@@ -4672,6 +4748,12 @@
   "count": 1,
   "files": [
    "ui/php_panel.py"
+  ]
+ },
+ "干净": {
+  "count": 1,
+  "files": [
+   "ui/plugins/git_status_panel.py"
   ]
  },
  "平台支持：{v}": {
@@ -5026,6 +5108,18 @@
    "ui/dialogs.py"
   ]
  },
+ "待拉取": {
+  "count": 1,
+  "files": [
+   "ui/plugins/git_status_panel.py"
+  ]
+ },
+ "待推送": {
+  "count": 1,
+  "files": [
+   "ui/plugins/git_status_panel.py"
+  ]
+ },
  "必须为 -1 或正整数": {
   "count": 1,
   "files": [
@@ -5180,9 +5274,10 @@
   ]
  },
  "打开目录": {
-  "count": 3,
+  "count": 4,
   "files": [
    "ui/nginx_log_panel.py",
+   "ui/plugins/git_status_panel.py",
    "ui/plugins/project_launcher_panel.py"
   ]
  },
@@ -5205,14 +5300,16 @@
   ]
  },
  "打开终端": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/php_panel.py"
+   "ui/php_panel.py",
+   "ui/plugins/git_status_panel.py"
   ]
  },
  "打开终端失败": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "ui/plugins/git_status_panel.py",
    "ui/plugins/project_launcher_panel.py"
   ]
  },
@@ -5559,6 +5656,12 @@
   "count": 1,
   "files": [
    "ui/mail_panel.py"
+  ]
+ },
+ "改动：暂存 {staged} · 修改 {modified} · 未跟踪 {untracked} · 冲突 {conflict}": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "故障模块": {
@@ -6028,6 +6131,18 @@
    "ui/update_dialog.py"
   ]
  },
+ "最后提交": {
+  "count": 1,
+  "files": [
+   "ui/plugins/git_status_panel.py"
+  ]
+ },
+ "最后提交：{time}  {hash}  {subject}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "最大上传文件数": {
   "count": 1,
   "files": [
@@ -6059,6 +6174,12 @@
   ]
  },
  "有 {n} 个站点不可用，先确认 nginx 与对应 PHP 版本已启动": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "有 {n} 个项目存在未推送提交": {
   "count": 1,
   "files": [
    "cli.py"
@@ -6205,6 +6326,12 @@
   "count": 1,
   "files": [
    "cli.py"
+  ]
+ },
+ "未安装 git": {
+  "count": 1,
+  "files": [
+   "ui/plugins/git_status_panel.py"
   ]
  },
  "未开启": {
@@ -6469,7 +6596,7 @@
   ]
  },
  "未找到项目：{name}": {
-  "count": 1,
+  "count": 2,
   "files": [
    "cli.py"
   ]
@@ -6508,6 +6635,12 @@
   "count": 1,
   "files": [
    "ui/plugins/keymouse_panel.py"
+  ]
+ },
+ "未提交": {
+  "count": 1,
+  "files": [
+   "ui/plugins/git_status_panel.py"
   ]
  },
  "未提供 Nginx 管理器，跳过启动 Nginx": {
@@ -6692,6 +6825,18 @@
   "count": 1,
   "files": [
    "ui/mysql_panel.py"
+  ]
+ },
+ "查询失败": {
+  "count": 1,
+  "files": [
+   "ui/plugins/git_status_panel.py"
+  ]
+ },
+ "查询完成 · {n} 个项目 · {repos} 个仓库": {
+  "count": 1,
+  "files": [
+   "ui/plugins/git_status_panel.py"
   ]
  },
  "查询超时（超过 {sec} 秒），已中断。请添加 LIMIT 或优化查询条件。": {
@@ -7004,6 +7149,12 @@
    "ui/nginx_log_panel.py"
   ]
  },
+ "正在查询…": {
+  "count": 1,
+  "files": [
+   "ui/plugins/git_status_panel.py"
+  ]
+ },
  "正在校验 SHA-256": {
   "count": 1,
   "files": [
@@ -7118,6 +7269,12 @@
   "count": 1,
   "files": [
    "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "没有匹配的项目（检查 --only 过滤）": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "没有可写入 hosts 的域名。": {
@@ -7326,6 +7483,12 @@
   "files": [
    "ui/nginx_panel.py",
    "ui/redis_panel.py"
+  ]
+ },
+ "状态：{state}": {
+  "count": 2,
+  "files": [
+   "cli.py"
   ]
  },
  "状态：已停止": {
@@ -8142,6 +8305,12 @@
    "ui/download_dialog.py"
   ]
  },
+ "落后": {
+  "count": 1,
+  "files": [
+   "ui/plugins/git_status_panel.py"
+  ]
+ },
  "行数：{n}": {
   "count": 1,
   "files": [
@@ -8422,10 +8591,11 @@
   ]
  },
  "说明": {
-  "count": 3,
+  "count": 4,
   "files": [
    "ui/extension_dialog.py",
    "ui/vhost_panel.py",
+   "ui/plugins/git_status_panel.py",
    "ui/plugins/site_health_panel.py"
   ]
  },
@@ -8481,6 +8651,12 @@
   "count": 1,
   "files": [
    "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "请检查系统终端是否可用": {
+  "count": 1,
+  "files": [
+   "ui/plugins/git_status_panel.py"
   ]
  },
  "请求 {n} · 独立 IP {ips} · 5xx 占比 {rate}": {
@@ -8637,6 +8813,12 @@
   "count": 1,
   "files": [
    "core/tuning.py"
+  ]
+ },
+ "路径：{path}": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "跳转到 {url}": {
@@ -9287,6 +9469,12 @@
    "core/diag.py"
   ]
  },
+ "非仓库": {
+  "count": 1,
+  "files": [
+   "ui/plugins/git_status_panel.py"
+  ]
+ },
  "非法版本系列：{series}": {
   "count": 1,
   "files": [
@@ -9294,12 +9482,19 @@
   ]
  },
  "项目": {
-  "count": 2,
+  "count": 3,
   "files": [
+   "ui/plugins/git_status_panel.py",
    "ui/plugins/project_launcher_panel.py"
   ]
  },
  "项目 {name} 可用命令：": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "项目 {n} 个：仓库 {repos} · 未提交 {dirty} · 待推送 {ahead} · 待拉取 {behind}": {
   "count": 1,
   "files": [
    "cli.py"
@@ -9321,6 +9516,12 @@
   "count": 1,
   "files": [
    "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "项目数": {
+  "count": 1,
+  "files": [
+   "ui/plugins/git_status_panel.py"
   ]
  },
  "项目根目录": {
@@ -9367,6 +9568,12 @@
    "ui/site_wizard.py"
   ]
  },
+ "项目过滤": {
+  "count": 1,
+  "files": [
+   "ui/plugins/git_status_panel.py"
+  ]
+ },
  "项目配置不是合法 JSON：{err}": {
   "count": 1,
   "files": [
@@ -9404,6 +9611,24 @@
   ]
  },
  "项目配置：{path}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "项目：{name}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "领先": {
+  "count": 1,
+  "files": [
+   "ui/plugins/git_status_panel.py"
+  ]
+ },
+ "领先 / 落后：↑{ahead} ↓{behind}": {
   "count": 1,
   "files": [
    "cli.py"
@@ -9457,6 +9682,12 @@
    "ui/php_panel.py"
   ]
  },
+ "（上游 {up}）": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "（全新安装）": {
   "count": 1,
   "files": [
@@ -9482,6 +9713,12 @@
   ]
  },
  "（当前平台不支持）": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "（无上游）": {
   "count": 1,
   "files": [
    "cli.py"

@@ -87,7 +87,7 @@ python3 cli.py schema --json    # self-describing contract for every command / a
 - Add `--json` to any command: stdout carries a single `{"ok", "command", "data", "warnings"}` document (English field names, stable contract)
 - Exit codes: `0` success / `1` business failure (see `data.error`) / `2` usage error
 - Safe defaults: write operations support `--dry-run`; deletion requires `--yes`; dangerous Redis commands require `--force`; files are backed up (`.bak`) before changes
-- Groups cover PHP / Nginx / sites / hosts / Redis / MySQL / SQLite / service orchestration / diagnostics / logs / backup / project config / Adminer / plugins (`plugin`) / keyboard stats (`keymouse`) / project launcher (`launcher`) / access log insights (`insights`) / site health (`health`)
+- Groups cover PHP / Nginx / sites / hosts / Redis / MySQL / SQLite / service orchestration / diagnostics / logs / backup / project config / Adminer / plugins (`plugin`) / keyboard stats (`keymouse`) / project launcher (`launcher`) / access log insights (`insights`) / site health (`health`) / git workspaces (`repos`)
 
 Full command reference: [docs/CLI.md](docs/CLI.md) (generated from `cli.py`, so it never drifts).
 

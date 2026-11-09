@@ -248,6 +248,37 @@ CLI 等价：`python3 cli.py site sync-port --old 9082 --new 9083 --reload`。
 **边界**：地址只来自 vhost（不接受任意 URL），只读、不落库、不写文件、无定时任务（ADR 20）；
 CLI 对应 `health sites` / `health probe --domain <substr> --scheme https`。
 
+**第五个插件「Git 工作区」是只读子进程查询**：无后台进程，也**不碰仓库内容**，
+只把每个项目根的 `git` 状态读出来：
+
+```
+查询（worker 线程，ThreadPoolExecutor 默认 4）
+ ├─ 仓库来源：project_launcher.projects.scan()（www 一层 + vhost root 去重）
+ │    └─ 补 WNRP_ROOT 下一层里含 .git 的目录（只收真仓库，php82 之类不进来）
+ ├─ describe(root)：不带 .git → 回退上一级再找一次（站点 root 常指 public 子目录），
+ │    两级都没有 → none；目录已删 → missing；没有 git 命令 → no_git
+ │    ├─ git --no-optional-locks -C <root> status --porcelain=v2 --branch
+ │    │    ├─ # branch.head / # branch.upstream / # branch.ab +A -B → 分支 / 上游 / 领先落后
+ │    │    ├─ 1/2 行：X 位非 . → staged；Y 位非 . → modified；u 行 → conflict
+ │    │    └─ ? 行 → untracked；路径只留前 200 条、每条截断 300 字符
+ │    ├─ git log -1 --pretty=%h%x1f%ct%x1f%s → 最后提交（空仓库静默跳过）
+ │    └─ 状态：dirty > ahead > clean；异常归一为 timeout / failed / no_git
+ └─ report()：total / repos / clean / dirty / ahead / behind / none / errors
+     └─ 面板 queue → 主线程渲染五张卡 + 七列表格（双击 / 右键打开终端）
+```
+
+**为什么 60s 节流**：每个仓库要起 2 个 `git` 子进程，几十个项目就是上百次进程创建；
+主窗口 tick 是 8s，跟同频会让磁盘和 CPU 一直有负载。面板改为 60s 节流 + 手动「刷新」。
+
+**为什么不用 `git status` 之外的命令**：`fetch` / `pull` 会联网并改 `refs`，`add` / `commit`
+更不用说；`--no-optional-locks` + `GIT_OPTIONAL_LOCKS=0` 连 `status` 顺带刷新 index 的行为也关掉，
+`GIT_TERMINAL_PROMPT=0` 保证不会卡在凭据输入。因此本插件对仓库是**纯读者**（ADR 22）。
+
+**失败分支**：没装 git → `repos list` 给出提示、面板状态显示「未安装 git」；仓库加了
+`core.fsmonitor` 之类的钩子导致 `status` 很慢 → 单仓库 6s 超时记为 `timeout`，其余仓库照常
+出结果；分支没有上游 → 显示「（无上游）」，不会去猜 `origin/HEAD`。
+CLI 对应 `repos list --only <substr>` / `repos show <name> --files 20`。
+
 **失败分支**：安全软件拦截全局键盘钩子 → 守护进程写 `daemon.log` 并退出，面板显示「后台未运行」+ 诊断提示；
 插件面板导入失败 → warn + 跳过该导航项；非 Windows → `supported()` 为 False，页面显示「当前平台不支持采集」而非报错。
 **隐私**：只落 vkCode 与时间戳，不记录字符 / 输入文本 / 窗口标题 / 剪贴板，数据仅在本机且不上传。

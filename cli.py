@@ -60,6 +60,7 @@ from core import (  # noqa: E402
 )
 from core import config as config_mod  # noqa: E402
 from core.plugins.access_insights import aggregate as access_insights  # noqa: E402
+from core.plugins.git_status import repos as git_repos  # noqa: E402
 from core.config import Config, WNRP_ROOT  # noqa: E402
 from core.i18n import t  # noqa: E402  (统一文案入口；此前缺失导致 t() 调用崩溃)
 from core.health_monitor import HealthMonitor  # noqa: E402
@@ -1052,6 +1053,85 @@ def cmd_health_probe(a, r: Result) -> Result:
     if data["down"]:
         r.note(t("有 {n} 个站点不可用，先确认 nginx 与对应 PHP 版本已启动",
                  n=data["down"]))
+    return r
+
+
+# --------------------------------------------------------------------------- #
+# repos（Git 工作区：只读 status / log，不 fetch / pull / 提交）
+# --------------------------------------------------------------------------- #
+def _git_repos():
+    return git_repos
+
+
+def cmd_repos_list(a, r: Result) -> Result:
+    repos = _git_repos()
+    data = repos.report(Config(), only=getattr(a, "only", "") or "",
+                        limit=getattr(a, "limit", 0) or 0,
+                        timeout=getattr(a, "timeout", repos.DEFAULT_TIMEOUT))
+    r.data = data
+    if not data["git"]:
+        r.note(t(repos.ERROR_MESSAGES["no_git"]))
+    if not data["total"]:
+        r.say(t("没有匹配的项目（检查 --only 过滤）"))
+        return r
+    r.say(t("项目 {n} 个：仓库 {repos} · 未提交 {dirty} · 待推送 {ahead} · "
+            "待拉取 {behind}",
+            n=data["total"], repos=data["repos"], dirty=data["dirty"],
+            ahead=data["ahead"], behind=data["behind"]))
+    for it in data["items"]:
+        name = it.get("name") or ""
+        if it.get("error"):
+            r.say(f"  {name}  —  {t(repos.ERROR_MESSAGES.get(it['error'], '查询失败'))}")
+            continue
+        branch = it.get("branch") or "—"
+        if not it.get("upstream"):
+            branch = t("{branch}（无上游）", branch=branch)
+        r.say(f"  {name}  [{branch}]  "
+              f"{t(repos.STATE_MESSAGES.get(it.get('status'), '查询失败'))}  "
+              f"↑{int(it.get('ahead') or 0)} ↓{int(it.get('behind') or 0)}  "
+              f"{it.get('last_time') or '—'}  {it.get('last_subject') or ''}")
+    if data["ahead"]:
+        r.note(t("有 {n} 个项目存在未推送提交", n=data["ahead"]))
+    return r
+
+
+def cmd_repos_show(a, r: Result) -> Result:
+    repos = _git_repos()
+    data = repos.report(Config())
+    row = repos.find(data.get("items") or [], a.name)
+    if row is None:
+        return r.fail(t("未找到项目：{name}", name=a.name))
+    r.data = row
+    r.say(t("项目：{name}", name=row.get("name") or ""))
+    r.say(t("路径：{path}", path=row.get("root") or ""))
+    if row.get("error"):
+        r.say(t("状态：{state}", state=t(
+            repos.ERROR_MESSAGES.get(row["error"], "查询失败"))))
+        return r
+    upstream = row.get("upstream") or ""
+    branch = row.get("branch") or "—"
+    r.say(t("分支：{branch}", branch=branch + (
+        t("（上游 {up}）", up=upstream) if upstream else t("（无上游）"))))
+    r.say(t("状态：{state}", state=t(
+        repos.STATE_MESSAGES.get(row.get("status"), "查询失败"))))
+    r.say(t("改动：暂存 {staged} · 修改 {modified} · 未跟踪 {untracked} · 冲突 {conflict}",
+            staged=row.get("staged") or 0, modified=row.get("modified") or 0,
+            untracked=row.get("untracked") or 0, conflict=row.get("conflict") or 0))
+    r.say(t("领先 / 落后：↑{ahead} ↓{behind}",
+            ahead=row.get("ahead") or 0, behind=row.get("behind") or 0))
+    if row.get("last_hash"):
+        r.say(t("最后提交：{time}  {hash}  {subject}",
+                time=row.get("last_time") or "—", hash=row["last_hash"],
+                subject=row.get("last_subject") or ""))
+    changes = list(row.get("changes") or [])
+    if changes:
+        limit = max(0, int(getattr(a, "files", 20) or 0))
+        shown = changes[:limit] if limit else []
+        r.say(t("变更文件（{n}）：", n=len(changes)))
+        for path in shown:
+            r.say("  " + path)
+        if limit and len(changes) > limit:
+            r.say(t("  …另有 {n} 个未显示", n=len(changes) - limit))
     return r
 
 
@@ -3012,6 +3092,23 @@ def build_parser() -> argparse.ArgumentParser:
                     help="单站点超时秒数（默认 5）")
     _p.add_argument("--limit", type=int, default=0,
                     help="最多探测多少个站点（默认全部）")
+
+    # repos（Git 工作区：只读 status / log）
+    g = sub.add_parser("repos", help="Git 工作区（只读 status / log）",
+                       parents=[COMMON])
+    gs = g.add_subparsers(dest="action", metavar="<action>")
+    _p = _leaf(gs, "list", cmd_repos_list, "repos.list",
+               "汇总各项目的分支 / 未提交 / 领先落后")
+    _p.add_argument("--only", default="", help="按项目名或路径子串过滤")
+    _p.add_argument("--limit", type=int, default=0,
+                    help="最多查询多少个项目（默认全部）")
+    _p.add_argument("--timeout", type=float, default=git_repos.DEFAULT_TIMEOUT,
+                    help=f"单仓库超时秒数（默认 {git_repos.DEFAULT_TIMEOUT:g}）")
+    _p = _leaf(gs, "show", cmd_repos_show, "repos.show",
+               "查看单个项目的详情与变更文件")
+    _p.add_argument("name", help="项目名（或路径）")
+    _p.add_argument("--files", type=int, default=20,
+                    help="最多列出多少个变更文件（默认 20，0 = 不列）")
 
     # overview（首页总览仪表盘，只读快照）
     g = sub.add_parser("overview", help="首页总览仪表盘（只读快照）", parents=[COMMON])

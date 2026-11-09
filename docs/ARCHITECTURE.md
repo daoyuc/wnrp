@@ -109,6 +109,11 @@ worker 只 `queue.put()`，主窗口的 `_post()` 也**只入队、不碰 `after
 最多读 64 KB；HTTPS 证书校验失败（本地自签）降级为不校验并标 `insecure`
 （边界见 [ADR 20](DECISIONS.md)）。
 
+Git 工作区插件同样不起后台进程，但它是唯一会**起子进程**的插件：每个仓库两次
+`git` 调用（`status --porcelain=v2 --branch` + `log -1`），4 线程并发、单仓库 6s 超时，
+面板同样 60s 节流。命令一律 argv 直传、`--no-optional-locks`、`GIT_TERMINAL_PROMPT=0`，
+只读不写、不 fetch（边界见 [ADR 22](DECISIONS.md)）。
+
 ## 4. 运行期状态与落点
 
 | 文件 / 位置 | 内容 | 谁写 | 备注 |
