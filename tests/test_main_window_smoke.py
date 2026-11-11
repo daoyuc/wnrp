@@ -78,6 +78,12 @@ class MainWindowSmokeTest(unittest.TestCase):
         flush = mock.patch.object(MainWindow, "_flush_page_setting", lambda self: None)
         flush.start()
         self.addCleanup(flush.stop)
+        # SSH 面板构造时会预置内置命令片段（写 settings.ssh_snippets）：测试里
+        # 屏蔽掉，别把 20 条预置片段写进本机 config.json
+        seed = mock.patch("core.ssh_store.ensure_builtin_snippets",
+                          lambda cfg: [])
+        seed.start()
+        self.addCleanup(seed.stop)
 
     def tearDown(self):
         if self.app is not None:

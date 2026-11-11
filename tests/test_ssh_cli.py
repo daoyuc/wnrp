@@ -32,7 +32,10 @@ class SshCliTest(unittest.TestCase):
         })
         env.start()
         self.addCleanup(env.stop)
-        self.cfg = FakeConfig()
+        # 标记「已播种」：内置运维片段只在首次使用时写入，别让它干扰片段断言；
+        # 播种行为本身由 test_snippet_list_seeds_builtin_snippets_on_first_use 守。
+        self.cfg = FakeConfig(
+            settings={"ssh_snippets_builtin": ssh_store.BUILTIN_SNIPPETS_VERSION})
         patches = [
             mock.patch.object(cli, "Config", return_value=self.cfg),
             mock.patch.object(ssh_store, "set_secret_permissions", return_value=True),
@@ -335,6 +338,23 @@ class SshCliTest(unittest.TestCase):
         self.seed_snippet(other, command="uptime", name="负载")
         res = self.run_cli(["ssh", "snippet", "list", "--host", "demo"])
         self.assertEqual([s["name"] for s in res.data["snippets"]], ["磁盘"])
+
+    def test_snippet_list_seeds_builtin_snippets_on_first_use(self):
+        """第一次看片段表就有一批常用运维命令，且只提示一次。"""
+        fresh = FakeConfig()
+        with mock.patch.object(cli, "Config", return_value=fresh):
+            res = self.run_cli(["ssh", "snippet", "list"])
+            again = self.run_cli(["ssh", "snippet", "list"])
+        self.assertTrue(res.ok)
+        expected = len(ssh_store.builtin_snippets())
+        self.assertEqual(res.data["count"], expected)
+        self.assertIn("系统负载与运行时长",
+                      [s["name"] for s in res.data["snippets"]])
+        self.assertEqual(fresh.get_setting(ssh_store.BUILTIN_SEED_KEY),
+                         ssh_store.BUILTIN_SNIPPETS_VERSION)
+        self.assertTrue(any("已预置" in n for n in res.notes))
+        self.assertEqual(again.data["count"], expected)
+        self.assertFalse(any("已预置" in n for n in again.notes))
 
     def test_snippet_run_requires_yes(self):
         host = self.seed_host()

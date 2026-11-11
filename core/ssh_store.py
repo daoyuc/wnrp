@@ -343,9 +343,9 @@ def update_host(target: str, patch: dict) -> tuple[dict | None, str]:
     if patch.get("password"):
         merged["password"] = str(patch["password"])
     auth = str(merged.get("auth", "password"))
-    if auth == "password" and not merged.get("password"):
-        return None, t("请填写登录密码（或改用私钥认证）")
-    if auth == "key" and not merged.get("password"):
+    if auth == "key":
+        # 改成私钥认证后不再用密码，顺手清掉旧的明文口令（与保存时的宽松校验一致：
+        # 这里不要求密码必须先有，缺什么由 missing_secret() 报）
         merged["password"] = ""
     err = validate_host(merged)
     if err:
@@ -394,6 +394,111 @@ def all_tags(hosts: list[dict]) -> list[str]:
 # --------------------------------------------------------------------------- #
 # 命令片段（config.json → settings.ssh_snippets）
 # --------------------------------------------------------------------------- #
+# 预置片段：首次用到命令片段时浇一次种子，只放只读探测命令（不写远端、输出有界）。
+# ``settings.ssh_snippets_builtin`` 记住「已播种到第几版」——同一版本里用户删掉的
+# 片段不会因为重启又冒出来，升版本时只补当时还不存在的那些（见 ADR 24 ⑥）。
+BUILTIN_SEED_KEY = "ssh_snippets_builtin"
+BUILTIN_SNIPPETS_VERSION = 1
+
+
+def _builtin(slug: str, name: str, command: str, tags: tuple) -> dict:
+    return {
+        "id": "builtin-" + slug,
+        "name": name,
+        "command": command,
+        "host_ids": [],
+        "tags": [t(tag) for tag in tags],
+        "note": "",
+    }
+
+
+def builtin_snippets() -> list[dict]:
+    """预置的常用运维命令（名称与标签按调用时的界面语言生成）。
+
+    全部是只读探测：不看凭据、不改远端文件、不带 ``sudo`` 提权、输出都截断到
+    十几到几十行，所以可以直接在「在远端执行」里跑；不想要就删掉。
+    """
+    return [
+        _builtin("uptime", t("系统负载与运行时长"), "uptime", ("系统",)),
+        _builtin("os", t("系统与发行版信息"),
+                 "uname -sr; cat /etc/os-release 2>/dev/null | head -n 5",
+                 ("系统",)),
+        _builtin("clock", t("时间与时区"),
+                 "date; timedatectl status 2>/dev/null | head -n 6", ("系统",)),
+        _builtin("cpu", t("CPU 占用前十"),
+                 "ps -eo pid,user,pcpu,pmem,etime,args --sort=-pcpu 2>/dev/null"
+                 " | head -n 11", ("资源",)),
+        _builtin("mem", t("内存占用前十"),
+                 "ps -eo pid,user,pcpu,pmem,rss,etime,args --sort=-rss 2>/dev/null"
+                 " | head -n 11", ("资源",)),
+        _builtin("free", t("内存与交换分区"), "free -h 2>/dev/null || vm_stat",
+                 ("资源",)),
+        _builtin("disk", t("磁盘空间"),
+                 "df -hT -x tmpfs -x devtmpfs 2>/dev/null || df -h", ("磁盘",)),
+        _builtin("du", t("目录占用前十五"),
+                 "du -xh --max-depth=1 / 2>/dev/null | sort -h | tail -n 15",
+                 ("磁盘",)),
+        _builtin("bigfiles", t("超过 100MB 的文件"),
+                 "find /var /home /opt -xdev -type f -size +100M"
+                 " -exec ls -lh {} + 2>/dev/null | awk '{print $5, $9}'"
+                 " | head -n 20", ("磁盘",)),
+        _builtin("ports", t("监听端口"),
+                 "ss -lntp 2>/dev/null || netstat -lntp 2>/dev/null", ("网络",)),
+        _builtin("users", t("在线用户"), "who; echo; w", ("安全",)),
+        _builtin("last", t("最近登录记录"), "last -n 10", ("安全",)),
+        _builtin("nginx-test", t("Nginx 配置检查"), "nginx -t 2>&1", ("服务",)),
+        _builtin("nginx-status", t("Nginx 服务状态"),
+                 "systemctl status nginx --no-pager -l 2>/dev/null | head -n 20",
+                 ("服务",)),
+        _builtin("nginx-error", t("Nginx 错误日志"),
+                 "tail -n 80 /var/log/nginx/error.log 2>/dev/null",
+                 ("服务", "日志")),
+        _builtin("php-fpm", t("PHP-FPM 状态"),
+                 "systemctl status 'php*-fpm' --no-pager -l 2>/dev/null"
+                 " | head -n 30 || ps -eo pid,args | grep -E '[p]hp-fpm'",
+                 ("服务",)),
+        _builtin("redis", t("Redis 连通性"), "redis-cli ping 2>/dev/null",
+                 ("服务",)),
+        _builtin("mysql", t("MySQL 状态"),
+                 "systemctl status mysql --no-pager 2>/dev/null | head -n 15"
+                 " || systemctl status mysqld --no-pager 2>/dev/null | head -n 15",
+                 ("服务",)),
+        _builtin("docker", t("Docker 容器"),
+                 "docker ps --format 'table {{.Names}}\\t{{.Image}}"
+                 "\\t{{.Status}}\\t{{.Ports}}' 2>/dev/null", ("服务",)),
+        _builtin("journal", t("系统错误日志"),
+                 "journalctl -p err -n 50 --no-pager 2>/dev/null", ("日志",)),
+    ]
+
+
+def ensure_builtin_snippets(config) -> list[str]:
+    """首次用到片段时预置常用命令；返回本次新增的片段名（已播种过返回空表）。
+
+    只写一次：把 ``settings.ssh_snippets_builtin`` 记为当前版本号。之后用户删掉
+    内置片段不会再自动回来；想恢复就删掉该标记（或把值改小）再进一次 SSH 页。
+    """
+    try:
+        seeded = int(config.get_setting(BUILTIN_SEED_KEY, 0) or 0)
+    except (TypeError, ValueError):
+        seeded = 0
+    if seeded >= BUILTIN_SNIPPETS_VERSION:
+        return []
+    items = load_snippets(config)
+    taken = {str(s.get("id")) for s in items} | {str(s.get("name")) for s in items}
+    added: list[str] = []
+    for snip in builtin_snippets():
+        if snip["id"] in taken or snip["name"] in taken:
+            continue
+        items.append(snip)
+        taken.add(snip["id"])
+        taken.add(snip["name"])
+        added.append(snip["name"])
+    if added:
+        save_snippets(config, items)
+    config.set_setting(BUILTIN_SEED_KEY, BUILTIN_SNIPPETS_VERSION)
+    return added
+
+
 def load_snippets(config) -> list[dict]:
     """读取片段列表；结构不合法时返回空表。"""
     items = config.get_setting(SNIPPETS_KEY, [])

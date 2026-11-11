@@ -73,6 +73,9 @@ DEFAULT_SETTINGS = {
     "mysql_dirs": [],
     # SSH 命令片段（不含凭据；主机与密码单独存 ssh_hosts.json，见 core/ssh_store.py）
     "ssh_snippets": [],
+    # 内置片段播种到第几版（0=还没播过，见 ssh_store.ensure_builtin_snippets）。
+    # 用它而不是「片段表为空」来判断，用户把预置片段删光后不会再被塞回来。
+    "ssh_snippets_builtin": 0,
     # 插件设置（唯一落点）：{插件 key: {设置名: 值}}，见 core/plugins/settings.py
     "plugin_settings": {},
 }

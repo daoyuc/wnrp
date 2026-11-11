@@ -159,12 +159,17 @@ class SshPanel(ttk.Frame):
     # ------------------------------------------------------------------ #
     def reload(self) -> None:
         self._hosts = ssh_store.load_hosts()
+        # 首次进 SSH 页时预置一批常用运维命令（只读探测），只写一次
+        seeded = ssh_store.ensure_builtin_snippets(self.config)
         self._snippets = ssh_store.load_snippets(self.config)
         tags = ssh_store.all_tags(self._hosts)
         self._tag_box.configure(values=[""] + tags)
         if self._tag.get() and self._tag.get() not in tags:
             self._tag.set("")
         self._render_hosts()
+        if seeded:
+            self._status.set(t("已预置 {n} 条常用命令片段，可编辑或删除",
+                               n=len(seeded)))
 
     def auto_refresh(self) -> None:
         self.reload()

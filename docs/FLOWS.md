@@ -333,6 +333,15 @@ CLI 对应 `repos list --only <substr>` / `repos show <name> --files 20`。
 （`auth` / `host_key` / `timeout` / `network` / `missing_dependency` / `credential` / `remote` / `error`），供界面翻译。
 **片段永不自动执行**：必须用户点击或 `ssh snippet run --host X --yes`；`--dry-run` 只回显将要执行的命令。
 
+**预置片段**：首次用到片段（面板 `SshPanel.reload()`、CLI `ssh snippet list` / `run`）时调用
+`ssh_store.ensure_builtin_snippets()` 浇一次种子，把 `builtin_snippets()` 里的 20 条常用命令写进
+`settings.ssh_snippets`：系统负载 / 系统信息 / 时间时区 / CPU 与内存 Top10 / 内存与 swap / 磁盘空间 /
+目录占用 / 大文件 / 监听端口 / 在线用户 / 最近登录 / Nginx 配置与状态与错误日志 / PHP-FPM / Redis /
+MySQL / Docker / 系统错误日志。全部是只读探测：不提权、不带 `sudo`、不写远端、输出都截断到几十行，
+名称与标签按播种时的界面语言落盘（之后同普通片段一样可改可删）。是否播过由
+`settings.ssh_snippets_builtin` 记版本号决定 —— 用户删掉的内置片段不会因为重启又冒出来，升版本时
+只补当时还不存在的那些（同名片段以用户的为准）。
+
 **失败分支**：没装 paramiko → `available()` 为 False，面板顶部显示 `install_hint()`、CLI 返回
 `data.error`（含安装命令），其余功能不受影响；主机名 / 用户名含非法字符或端口越界 → 在
 `ssh_store.validate_host()` 阶段就被拒（不发起连接）；连接超时 → `error_kind=timeout`，不自动重试。

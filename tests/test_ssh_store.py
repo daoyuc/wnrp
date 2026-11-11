@@ -131,6 +131,23 @@ class HostStoreTest(_StoreBase):
                 self.assertFalse(ssh_store.public(host)["credential_ready"])
                 ssh_store.remove_host(host["name"])
 
+    def test_update_without_password_keeps_host_editable(self):
+        """先登记、后补凭据：没有密码的主机也要能继续改其它字段。"""
+        host, err = ssh_store.add_host(self.data(password=""))
+        self.assertEqual(err, "")
+        updated, err = ssh_store.update_host(host["id"], {"note": "先占位"})
+        self.assertEqual(err, "")
+        self.assertEqual(updated["note"], "先占位")
+        self.assertEqual(ssh_store.missing_secret(updated), "password")
+
+    def test_switch_to_key_drops_stored_password(self):
+        host = self.add()
+        updated, err = ssh_store.update_host(
+            host["id"], {"auth": "key", "key_path": self.key})
+        self.assertEqual(err, "")
+        self.assertEqual(updated["password"], "")
+        self.assertEqual(ssh_store.missing_secret(updated), "")
+
     def test_credential_ready_when_configured(self):
         host = self.add()
         self.assertEqual(ssh_store.missing_secret(host), "")
@@ -304,6 +321,54 @@ class SnippetStoreTest(_StoreBase):
         updated, err = ssh_store.update_snippet(self.cfg, snip["id"], {"host_ids": []})
         self.assertEqual(err, "")
         self.assertEqual(updated["host_ids"], [])
+
+
+class BuiltinSnippetTest(unittest.TestCase):
+    """预置片段：首次浇一次种子，删掉的不复活，与用户同名的不覆盖。"""
+
+    def test_seeds_once_and_remembers_version(self):
+        cfg = FakeConfig()
+        added = ssh_store.ensure_builtin_snippets(cfg)
+        self.assertEqual(len(added), len(ssh_store.builtin_snippets()))
+        self.assertEqual(cfg.get_setting(ssh_store.BUILTIN_SEED_KEY),
+                         ssh_store.BUILTIN_SNIPPETS_VERSION)
+        items = ssh_store.load_snippets(cfg)
+        self.assertEqual([s["name"] for s in items], added)
+        self.assertTrue(all(s["host_ids"] == [] for s in items))
+        self.assertEqual(ssh_store.ensure_builtin_snippets(cfg), [])
+
+    def test_deleted_builtin_does_not_come_back(self):
+        cfg = FakeConfig()
+        ssh_store.ensure_builtin_snippets(cfg)
+        self.assertTrue(ssh_store.remove_snippet(cfg, "builtin-uptime"))
+        self.assertEqual(ssh_store.ensure_builtin_snippets(cfg), [])
+        self.assertNotIn("builtin-uptime",
+                         [s["id"] for s in ssh_store.load_snippets(cfg)])
+
+    def test_user_snippet_with_same_name_wins(self):
+        cfg = FakeConfig()
+        ssh_store.add_snippet(cfg, {"name": "系统负载与运行时长",
+                                    "command": "uptime -p"})
+        added = ssh_store.ensure_builtin_snippets(cfg)
+        self.assertNotIn("系统负载与运行时长", added)
+        items = ssh_store.load_snippets(cfg)
+        self.assertEqual(len(items), 1 + len(added))
+        self.assertEqual(
+            ssh_store.find_snippet(items, "系统负载与运行时长")["command"],
+            "uptime -p")
+
+    def test_builtin_commands_are_read_only(self):
+        """预置片段是「看一眼就走」的探测命令：不提权、不跨行、不绑主机。"""
+        for snip in ssh_store.builtin_snippets():
+            with self.subTest(snip["id"]):
+                self.assertTrue(snip["id"].startswith("builtin-"))
+                self.assertEqual(snip["host_ids"], [])
+                self.assertTrue(snip["name"].strip())
+                self.assertTrue(snip["command"].strip())
+                self.assertFalse(snip["command"].lstrip().startswith("sudo"))
+                self.assertNotIn("\n", snip["command"])
+                self.assertNotIn("rm ", snip["command"])
+                self.assertLessEqual(len(snip["command"]), ssh_store.MAX_COMMAND)
 
 
 class PermissionsTest(unittest.TestCase):

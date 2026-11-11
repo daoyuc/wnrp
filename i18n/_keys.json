@@ -138,6 +138,12 @@
    "cli.py"
   ]
  },
+ "CPU 占用前十": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
+  ]
+ },
  "CSV 文件": {
   "count": 1,
   "files": [
@@ -160,6 +166,12 @@
   "count": 1,
   "files": [
    "ui/redis_panel.py"
+  ]
+ },
+ "Docker 容器": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
   ]
  },
  "FastCGI 监听": {
@@ -288,6 +300,12 @@
    "core/mysql_manager.py"
   ]
  },
+ "MySQL 状态": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
+  ]
+ },
  "MySQL 管理": {
   "count": 1,
   "files": [
@@ -379,6 +397,12 @@
    "ui/nginx_panel.py"
   ]
  },
+ "Nginx 服务状态": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
+  ]
+ },
  "Nginx 未在运行": {
   "count": 1,
   "files": [
@@ -415,6 +439,12 @@
    "core/diag.py"
   ]
  },
+ "Nginx 配置检查": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
+  ]
+ },
  "Nginx 重载失败且重启未成功：{text}": {
   "count": 1,
   "files": [
@@ -425,6 +455,12 @@
   "count": 1,
   "files": [
    "core/nginx_manager.py"
+  ]
+ },
+ "Nginx 错误日志": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
   ]
  },
  "OPcache": {
@@ -560,6 +596,12 @@
    "ui/dialogs.py"
   ]
  },
+ "PHP-FPM 状态": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
+  ]
+ },
  "PID {p}": {
   "count": 1,
   "files": [
@@ -588,6 +630,12 @@
   "count": 1,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "Redis 连通性": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
   ]
  },
  "Redis：未发现实例": {
@@ -2587,6 +2635,18 @@
    "ui/php_panel.py"
   ]
  },
+ "内存与交换分区": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
+  ]
+ },
+ "内存占用前十": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
+  ]
+ },
  "内容": {
   "count": 1,
   "files": [
@@ -3591,6 +3651,12 @@
   "count": 1,
   "files": [
    "ui/extension_dialog.py"
+  ]
+ },
+ "在线用户": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
   ]
  },
  "在终端打开": {
@@ -5173,6 +5239,13 @@
    "ui/diag_dialog.py"
   ]
  },
+ "已预置 {n} 条常用命令片段，可编辑或删除": {
+  "count": 2,
+  "files": [
+   "cli.py",
+   "ui/ssh_panel.py"
+  ]
+ },
  "帮助": {
   "count": 1,
   "files": [
@@ -6491,6 +6564,12 @@
    "ui/plugins/access_insights_panel.py"
   ]
  },
+ "时间与时区": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
+  ]
+ },
  "是": {
   "count": 2,
   "files": [
@@ -6657,6 +6736,12 @@
   "count": 1,
   "files": [
    "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "最近登录记录": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
   ]
  },
  "最近错误请求": {
@@ -8277,6 +8362,12 @@
    "ui/main_window.py"
   ]
  },
+ "监听端口": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
+  ]
+ },
  "目录不存在": {
   "count": 3,
   "files": [
@@ -8290,6 +8381,12 @@
   "files": [
    "ui/mysql_panel.py",
    "core/plugins/project_launcher/projects.py"
+  ]
+ },
+ "目录占用前十五": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
   ]
  },
  "目录：{dir}（{n} 封）": {
@@ -8364,6 +8461,12 @@
   "count": 1,
   "files": [
    "core/diag.py"
+  ]
+ },
+ "磁盘空间": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
   ]
  },
  "示例 myapp.test 或 www.example.com；多个域名用空格分隔；\n支持 *.dev 泛解析（通配项不会写入 hosts）。": {
@@ -8654,10 +8757,28 @@
    "ui/sqlite_panel.py"
   ]
  },
+ "系统与发行版信息": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
+  ]
+ },
  "系统内存采集失败：{err}": {
   "count": 1,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "系统负载与运行时长": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
+  ]
+ },
+ "系统错误日志": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
   ]
  },
  "约束": {
@@ -9413,12 +9534,6 @@
    "core/ssh_store.py"
   ]
  },
- "请填写登录密码（或改用私钥认证）": {
-  "count": 1,
-  "files": [
-   "core/ssh_store.py"
-  ]
- },
  "请填写登录用户名": {
   "count": 1,
   "files": [
@@ -9579,6 +9694,12 @@
   "count": 1,
   "files": [
    "cli.py"
+  ]
+ },
+ "超过 100MB 的文件": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
   ]
  },
  "路径": {

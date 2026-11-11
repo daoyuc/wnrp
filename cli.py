@@ -3202,6 +3202,8 @@ def cmd_ssh_snippet_list(a, r: Result) -> Result:
     if not _ssh_guard(r):
         return r
     cfg = Config()
+    # 首次「看片段」时预置一批常用运维命令（只读探测），只写一次
+    seeded = store.ensure_builtin_snippets(cfg)
     host = None
     if a.host:
         host = _ssh_pick_host(store, a.host, r)
@@ -3209,6 +3211,8 @@ def cmd_ssh_snippet_list(a, r: Result) -> Result:
             return r
     items = store.snippets_for(cfg, host=host, query=a.query or "", tag=a.tag or "")
     r.data = {"count": len(items), "snippets": items}
+    if seeded:
+        r.note(t("已预置 {n} 条常用命令片段，可编辑或删除", n=len(seeded)))
     for s in items:
         scope = (t("通用") if not s["host_ids"]
                  else t("{n} 台主机", n=len(s["host_ids"])))
@@ -3299,6 +3303,8 @@ def cmd_ssh_snippet_run(a, r: Result) -> Result:
     if not _ssh_guard(r):
         return r
     cfg = Config()
+    # 与 list 一致：首次直接按内置片段名 run 时也能找到
+    store.ensure_builtin_snippets(cfg)
     snip = store.find_snippet(store.load_snippets(cfg), a.target)
     if snip is None:
         return r.fail(t("未找到命令片段：{name}", name=a.target))
