@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """core/net_ssl.py 回归测试。
 
-守护三件事：证书校验不降级、新 CA 包确实被加载、core/ 下四个 HTTPS 入口
-都显式带上了共享 SSL 上下文（否则会退回系统过期根，复现
-'certificate has expired'）。
+守护三件事：证书校验不降级、新 CA 包确实被加载、core/ 下各 HTTPS 入口
+（含扩展安装委托 php_downloader 的链路）都带上了共享 SSL 上下文（否则会
+退回系统过期根，复现 'certificate has expired'）。
 """
 import os
 import ssl
@@ -53,7 +53,7 @@ class _FakeResponse:
 
 
 class HttpsCallSitesPassContext(unittest.TestCase):
-    """四个 urlopen 调用点都必须传入共享 SSL 上下文。"""
+    """各下载入口的 urlopen 调用都必须传入共享 SSL 上下文。"""
 
     def _assert_context(self, module, call, *args, **kwargs):
         with mock.patch.object(module.urllib.request, "urlopen",
@@ -76,8 +76,9 @@ class HttpsCallSitesPassContext(unittest.TestCase):
                 "https://example.test", os.path.join(d, "f"))
 
     def test_extension_download(self):
+        # _download 已委托 php_downloader，urlopen 调用点也在该模块
         with tempfile.TemporaryDirectory() as d:
-            self._assert_context(php_extension, php_extension._download,
+            self._assert_context(php_downloader, php_extension._download,
                                  "https://example.test", os.path.join(d, "f.dll"))
 
     def test_updater_open(self):
