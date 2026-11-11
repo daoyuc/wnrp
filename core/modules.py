@@ -36,6 +36,7 @@ _BUILTIN: list[dict] = [
     {"key": "log", "name": "Nginx 日志", "required": False, "group": "diag"},
     {"key": "overview", "name": "总览仪表盘", "required": False, "group": "service"},
     {"key": "mail", "name": "邮件捕获", "required": False, "group": "diag"},
+    {"key": "ssh", "name": "SSH 管理", "required": False, "group": "other"},
 ]
 
 

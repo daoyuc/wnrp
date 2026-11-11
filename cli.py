@@ -16,6 +16,10 @@
    Redis 高危命令需 ``--force``；所有改动前自动备份 ``.bak``。
 6. **自描述**：``python3 cli.py schema`` 输出全部命令 / 参数 / 示例的机器可读契约，
    AI 可先读 schema 再决定调用（推荐 ``schema --json``）。
+7. **第三方依赖可选**：只有 ``ssh`` 命令组需要 ``paramiko``（``requirements.txt``），
+   且在 ``core/ssh_manager.py`` 内延迟导入 —— 未安装时其余命令照常运行，``ssh`` 返回
+   ``data.error`` 并给出安装方式。密码 / 私钥口令只从 stdin 读（``--password-stdin`` /
+   ``--passphrase-stdin``），绝不进命令行。
 
 常用示例
 --------
@@ -2950,6 +2954,383 @@ def _describe_parser(parser: argparse.ArgumentParser) -> dict:
 # --------------------------------------------------------------------------- #
 # 解析器
 # --------------------------------------------------------------------------- #
+# --------------------------------------------------------------------------- #
+# ssh（SSH 主机与命令片段）
+# --------------------------------------------------------------------------- #
+def _ssh_libs():
+    """延迟导入 SSH 模块：未装 paramiko 时其余命令仍可正常使用。"""
+    from core import ssh_manager, ssh_store
+
+    return ssh_store, ssh_manager
+
+
+def _ssh_guard(r: Result) -> bool:
+    if not modules.is_enabled("ssh", Config()):
+        r.fail(t("SSH 模块已停用（settings.disabled_modules）"))
+        return False
+    return True
+
+
+def _ssh_stdin_secret(enabled: bool) -> str:
+    """密文只从 stdin 读：避免进命令行历史与进程列表（顺序：先密码、后口令）。"""
+    if enabled:
+        return sys.stdin.readline().rstrip("\r\n")
+    return ""
+
+
+def _ssh_password(a) -> str:
+    return _ssh_stdin_secret(getattr(a, "password_stdin", False))
+
+
+def _ssh_autofill_key(data: dict, store) -> str:
+    """私钥认证没填路径时，用本机 ``~/.ssh`` 里的常用私钥兜底；返回补上的路径。
+
+    只是给表单填默认值：路径会写进主机配置、CLI 与面板都看得见、可随时改掉，
+    连接时仍显式传 ``key_filename``（不启 ssh-agent、不隐式试其它密钥）。
+    """
+    if str(data.get("auth", "password")) != "key":
+        return ""
+    if str(data.get("key_path") or "").strip():
+        return ""
+    path = store.default_key_path()
+    if path:
+        data["key_path"] = path
+    return path
+
+
+def _ssh_host_data(a) -> dict:
+    data = {"name": a.name, "host": a.host, "port": a.port, "user": a.user,
+            "auth": a.auth or "password", "key_path": a.key_path or "",
+            "passphrase": _ssh_stdin_secret(getattr(a, "passphrase_stdin", False)),
+            "tags": a.tags, "note": a.note or ""}
+    password = _ssh_password(a)
+    if password:
+        data["password"] = password
+    return data
+
+
+def _ssh_host_args(p, require: bool = False) -> None:
+    """host add / update 共用字段（update 不传即不改）。"""
+    p.add_argument("--name", default=None, required=require, help="主机名称")
+    p.add_argument("--host", metavar="ADDR", default=None, required=require,
+                   help="地址（IP 或域名）")
+    p.add_argument("--port", type=int, default=22 if require else None,
+                   help="端口（默认 22）")
+    p.add_argument("--user", default=None, required=require, help="登录用户名")
+    p.add_argument("--auth", choices=["password", "key"],
+                   default="password" if require else None, help="认证方式")
+    p.add_argument("--key-path", default=None, help="私钥文件路径（--auth key）")
+    p.add_argument("--passphrase-stdin", action="store_true",
+                   help="从 stdin 读取一行作为私钥口令（--auth key，可选；不进命令行）")
+    p.add_argument("--tags", default=None, help="标签，逗号分隔")
+    p.add_argument("--note", default=None, help="备注")
+    p.add_argument("--password-stdin", action="store_true",
+                   help="从 stdin 读取一行作为密码（避免进命令行历史）")
+
+
+def cmd_ssh_host_list(a, r: Result) -> Result:
+    store, _mgr = _ssh_libs()
+    if not _ssh_guard(r):
+        return r
+    hosts = store.search_hosts(store.load_hosts(), a.query or "", a.tag or "")
+    r.data = {"count": len(hosts), "hosts": [store.public(h) for h in hosts]}
+    for h in hosts:
+        r.say(f"{h['name']} · {h['user']}@{h['host']}:{h['port']} · {h['auth']}")
+    if not hosts:
+        r.say(t("没有匹配的主机"))
+    return r
+
+
+def cmd_ssh_host_add(a, r: Result) -> Result:
+    store, _mgr = _ssh_libs()
+    if not _ssh_guard(r):
+        return r
+    data = _ssh_host_data(a)
+    picked = _ssh_autofill_key(data, store)
+    err = store.validate_host(data)
+    if err:
+        return r.fail(err)
+    if a.dry_run:
+        r.data = {"dry_run": True, "host": store.public(data)}
+        r.say(t("[dry-run] 将添加主机：{name}（{user}@{host}:{port}）",
+                name=data["name"], user=data["user"],
+                host=data["host"], port=data["port"]))
+        if picked:
+            r.say(t("未指定私钥，将自动选用默认私钥：{path}", path=picked))
+        return r
+    host, err = store.add_host(data)
+    if err:
+        return r.fail(err)
+    r.data = {"host": store.public(host)}
+    r.say(t("已添加主机：{name}", name=host["name"]))
+    if picked:
+        r.note(t("未指定私钥，已自动选用默认私钥：{path}", path=picked))
+    if store.missing_secret(host):
+        # 保存与连通性解耦：先登记、后补凭据，不算失败
+        r.note(t("已保存，但还没有密码或私钥，连接前补齐即可"))
+    return r
+
+
+def cmd_ssh_host_update(a, r: Result) -> Result:
+    store, _mgr = _ssh_libs()
+    if not _ssh_guard(r):
+        return r
+    patch = {}
+    for key in ("name", "host", "port", "user", "auth", "key_path",
+                "note", "tags"):
+        val = getattr(a, key, None)
+        if val not in (None, ""):
+            patch[key] = val
+    # 密码 / 口令只走 stdin，且永不回显
+    password = _ssh_password(a)
+    if password:
+        patch["password"] = password
+    passphrase = _ssh_stdin_secret(getattr(a, "passphrase_stdin", False))
+    if passphrase:
+        patch["passphrase"] = passphrase
+    if not patch:
+        return r.fail(t("没有要更新的字段"))
+    # 只改认证方式、没给私钥路径时同样兜底（只改备注等字段则不碰已有路径）
+    picked = _ssh_autofill_key(patch, store) if "auth" in patch else ""
+    safe = {k: v for k, v in patch.items() if k not in ("password", "passphrase")}
+    if "password" in patch:
+        safe["password_changed"] = True
+    if "passphrase" in patch:
+        safe["passphrase_changed"] = True
+    if a.dry_run:
+        r.data = {"dry_run": True, "target": a.target, "patch": safe}
+        r.say(t("[dry-run] 将更新主机：{target}", target=a.target))
+        if picked:
+            r.say(t("未指定私钥，将自动选用默认私钥：{path}", path=picked))
+        return r
+    host, err = store.update_host(a.target, patch)
+    if err:
+        return r.fail(err)
+    r.data = {"host": store.public(host), "patch": safe}
+    r.say(t("已更新主机：{name}", name=host["name"]))
+    if picked:
+        r.note(t("未指定私钥，已自动选用默认私钥：{path}", path=picked))
+    if store.missing_secret(host):
+        r.note(t("已保存，但还没有密码或私钥，连接前补齐即可"))
+    return r
+
+
+def cmd_ssh_host_remove(a, r: Result) -> Result:
+    store, _mgr = _ssh_libs()
+    if not _ssh_guard(r):
+        return r
+    if not a.yes:
+        return r.fail(t("删除主机需要 --yes 确认"))
+    if a.dry_run:
+        r.data = {"dry_run": True, "target": a.target}
+        r.say(t("[dry-run] 将删除主机：{target}", target=a.target))
+        return r
+    if not store.remove_host(a.target):
+        return r.fail(t("未找到主机：{name}", name=a.target))
+    r.data = {"removed": a.target}
+    r.say(t("已删除主机：{target}", target=a.target))
+    return r
+
+
+def _ssh_pick_host(store, ref: str, r: Result):
+    host = store.find_host(store.load_hosts(), ref)
+    if host is None:
+        r.fail(t("未找到主机：{name}", name=ref),
+               available=[h["name"] for h in store.load_hosts()])
+    return host
+
+
+def cmd_ssh_host_test(a, r: Result) -> Result:
+    store, mgr = _ssh_libs()
+    if not _ssh_guard(r):
+        return r
+    host = _ssh_pick_host(store, a.target, r)
+    if host is None:
+        return r
+    res = mgr.test_connection(host, timeout=a.timeout, trust=a.trust_host)
+    r.data = res
+    r.ok = bool(res["ok"])
+    if r.ok:
+        r.say(t("连接成功：{target} · {ms} ms · {server}",
+                target=res["target"], ms=res["latency_ms"],
+                server=res["server"] or "—"))
+        if res["fingerprint"]:
+            r.say(t("服务端指纹：{fp}", fp=res["fingerprint"]))
+    else:
+        r.say(t("失败：{err}", err=res.get("error") or t("未知错误")))
+        if res.get("error_kind") == "host_key" and res.get("fingerprint"):
+            r.note(t("确认指纹无误后加 --trust-host 再试一次"))
+    return r
+
+
+def cmd_ssh_host_connect(a, r: Result) -> Result:
+    store, mgr = _ssh_libs()
+    if not _ssh_guard(r):
+        return r
+    host = _ssh_pick_host(store, a.target, r)
+    if host is None:
+        return r
+    command = mgr.terminal_command(host)
+    if a.dry_run:
+        r.data = {"dry_run": True, "command": command}
+        r.say("[dry-run] " + command)
+        return r
+    ok = mgr.open_terminal(host)
+    r.data = {"opened": ok, "command": command, "auth": host["auth"]}
+    if not ok:
+        return r.fail(t("未能打开终端（请确认系统自带 ssh 客户端）"))
+    r.say(t("已打开终端：{cmd}", cmd=command))
+    if host["auth"] == "password":
+        r.note(t("密码认证需在终端窗口内输入"))
+    return r
+
+def _ssh_snippet_host_ids(store, refs) -> tuple:
+    """把主机名 / id 解析成 host_ids；任一未知即失败（避免静默丢关联）。"""
+    hosts = store.load_hosts()
+    ids = []
+    for ref in refs or []:
+        host = store.find_host(hosts, ref)
+        if host is None:
+            return [], t("未找到主机：{name}", name=ref)
+        if host["id"] not in ids:
+            ids.append(host["id"])
+    return ids, ""
+
+
+def cmd_ssh_snippet_list(a, r: Result) -> Result:
+    store, _mgr = _ssh_libs()
+    if not _ssh_guard(r):
+        return r
+    cfg = Config()
+    host = None
+    if a.host:
+        host = _ssh_pick_host(store, a.host, r)
+        if host is None:
+            return r
+    items = store.snippets_for(cfg, host=host, query=a.query or "", tag=a.tag or "")
+    r.data = {"count": len(items), "snippets": items}
+    for s in items:
+        scope = (t("通用") if not s["host_ids"]
+                 else t("{n} 台主机", n=len(s["host_ids"])))
+        head = s["command"].strip().splitlines()[0][:60] if s["command"].strip() else ""
+        r.say(f"{s['name']} · {scope} · {head}")
+    if not items:
+        r.say(t("没有匹配的命令片段"))
+    return r
+
+
+def cmd_ssh_snippet_add(a, r: Result) -> Result:
+    store, _mgr = _ssh_libs()
+    if not _ssh_guard(r):
+        return r
+    ids, err = _ssh_snippet_host_ids(store, a.host)
+    if err:
+        return r.fail(err)
+    data = {"name": a.name, "command": a.command_text, "host_ids": ids,
+            "tags": a.tags, "note": a.note or ""}
+    err = store.validate_snippet(data)
+    if err:
+        return r.fail(err)
+    if a.dry_run:
+        r.data = {"dry_run": True, "snippet": data}
+        r.say(t("[dry-run] 将添加命令片段：{name}", name=a.name))
+        return r
+    snip, err = store.add_snippet(Config(), data)
+    if err:
+        return r.fail(err)
+    r.data = {"snippet": snip}
+    r.say(t("已添加命令片段：{name}", name=snip["name"]))
+    return r
+
+
+def cmd_ssh_snippet_update(a, r: Result) -> Result:
+    store, _mgr = _ssh_libs()
+    if not _ssh_guard(r):
+        return r
+    patch = {}
+    for key in ("name", "note"):
+        val = getattr(a, key, None)
+        if val:
+            patch[key] = val
+    if a.command_text:
+        patch["command"] = a.command_text
+    if a.tags:
+        patch["tags"] = a.tags
+    if a.host:
+        ids, err = _ssh_snippet_host_ids(store, a.host)
+        if err:
+            return r.fail(err)
+        patch["host_ids"] = ids
+    elif a.clear_hosts:
+        patch["host_ids"] = []
+    if not patch:
+        return r.fail(t("没有要更新的字段"))
+    if a.dry_run:
+        r.data = {"dry_run": True, "target": a.target, "patch": patch}
+        r.say(t("[dry-run] 将更新命令片段：{target}", target=a.target))
+        return r
+    snip, err = store.update_snippet(Config(), a.target, patch)
+    if err:
+        return r.fail(err)
+    r.data = {"snippet": snip}
+    r.say(t("已更新命令片段：{name}", name=snip["name"]))
+    return r
+
+
+def cmd_ssh_snippet_remove(a, r: Result) -> Result:
+    store, _mgr = _ssh_libs()
+    if not _ssh_guard(r):
+        return r
+    if not a.yes:
+        return r.fail(t("删除命令片段需要 --yes 确认"))
+    if a.dry_run:
+        r.data = {"dry_run": True, "target": a.target}
+        r.say(t("[dry-run] 将删除命令片段：{target}", target=a.target))
+        return r
+    if not store.remove_snippet(Config(), a.target):
+        return r.fail(t("未找到命令片段：{name}", name=a.target))
+    r.data = {"removed": a.target}
+    r.say(t("已删除命令片段：{target}", target=a.target))
+    return r
+
+
+def cmd_ssh_snippet_run(a, r: Result) -> Result:
+    store, mgr = _ssh_libs()
+    if not _ssh_guard(r):
+        return r
+    cfg = Config()
+    snip = store.find_snippet(store.load_snippets(cfg), a.target)
+    if snip is None:
+        return r.fail(t("未找到命令片段：{name}", name=a.target))
+    host = _ssh_pick_host(store, a.host, r)
+    if host is None:
+        return r
+    label = mgr.target_label(host)
+    if a.dry_run:
+        r.data = {"dry_run": True, "snippet": snip["name"], "host": host["name"],
+                  "target": label, "command": snip["command"]}
+        r.say(t("[dry-run] 将在 {target} 执行：{cmd}",
+                target=label, cmd=snip["command"]))
+        return r
+    if not a.yes:
+        return r.fail(t("在远端执行命令属有副作用操作，需要 --yes 确认"
+                        "（可先用 --dry-run 预览）"), target=label)
+    res = mgr.exec_command(host, snip["command"], timeout=a.timeout,
+                           trust=a.trust_host)
+    r.data = res
+    r.ok = bool(res["ok"])
+    if res["stdout"].strip():
+        r.say(res["stdout"].rstrip())
+    if res["stderr"].strip():
+        r.say("[stderr] " + res["stderr"].rstrip())
+    if res["truncated"]:
+        r.note(t("输出超过上限已截断"))
+    if not r.ok:
+        err = res.get("error") or t("远端命令退出码为 {code}", code=res["exit_status"])
+        r.say(t("失败：{err}", err=err))
+    return r
+
+
 COMMON = argparse.ArgumentParser(add_help=False)
 COMMON.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
                     help="以 JSON 输出（stdout 只有一个 JSON 文档，供程序解析）")
@@ -3122,6 +3503,78 @@ def build_parser() -> argparse.ArgumentParser:
     gs = g.add_subparsers(dest="action", metavar="<action>")
     _leaf(gs, "snapshot", cmd_monitor_snapshot, "monitor.snapshot",
           "输出各服务（Nginx / PHP / Redis / MySQL）的 CPU 与内存占用快照")
+
+    # ssh（主机与命令片段；凭据独立存 ssh_hosts.json，不进备份包）
+    g = sub.add_parser("ssh", help="SSH 主机与命令片段管理", parents=[COMMON])
+    objs = g.add_subparsers(dest="object", metavar="<object>")
+
+    hg = objs.add_parser("host", help="主机配置 / 测试连接 / 打开终端")
+    hs = hg.add_subparsers(dest="action", metavar="<action>")
+    p = _leaf(hs, "list", cmd_ssh_host_list, "ssh.host.list", "列出主机")
+    p.add_argument("--query", default="", help="按名称 / 地址 / 用户 / 标签过滤")
+    p.add_argument("--tag", default="", help="按标签过滤")
+    p = _leaf(hs, "add", cmd_ssh_host_add, "ssh.host.add",
+              "新增主机（密码从 stdin 读，不进命令行历史）")
+    _ssh_host_args(p, require=True)
+    p.add_argument("--dry-run", action="store_true", help="只校验不写入")
+    p = _leaf(hs, "update", cmd_ssh_host_update, "ssh.host.update", "更新主机字段")
+    p.add_argument("target", help="主机名或 id")
+    _ssh_host_args(p, require=False)
+    p.add_argument("--dry-run", action="store_true", help="只报告将改什么")
+    p = _leaf(hs, "remove", cmd_ssh_host_remove, "ssh.host.remove",
+              "删除主机（需 --yes）")
+    p.add_argument("target", help="主机名或 id")
+    p.add_argument("--yes", action="store_true", help="确认删除")
+    p.add_argument("--dry-run", action="store_true", help="只报告将做什么")
+    p = _leaf(hs, "test", cmd_ssh_host_test, "ssh.host.test", "测试连接（真实握手）")
+    p.add_argument("target", help="主机名或 id")
+    p.add_argument("--timeout", type=float, default=10.0, help="超时秒数（默认 10）")
+    p.add_argument("--trust-host", action="store_true",
+                   help="首次连接时信任并记录该主机指纹")
+    p = _leaf(hs, "connect", cmd_ssh_host_connect, "ssh.host.connect",
+              "用系统终端打开 SSH 会话（密码在终端内输入）")
+    p.add_argument("target", help="主机名或 id")
+    p.add_argument("--dry-run", action="store_true", help="只打印将执行的命令")
+
+    sg = objs.add_parser("snippet", help="命令片段管理 / 远端执行")
+    ss = sg.add_subparsers(dest="action", metavar="<action>")
+    p = _leaf(ss, "list", cmd_ssh_snippet_list, "ssh.snippet.list", "列出命令片段")
+    p.add_argument("--host", default=None, help="只看该主机可用的片段（含通用片段）")
+    p.add_argument("--query", default="", help="按名称 / 命令 / 标签过滤")
+    p.add_argument("--tag", default="", help="按标签过滤")
+    p = _leaf(ss, "add", cmd_ssh_snippet_add, "ssh.snippet.add", "新增命令片段")
+    p.add_argument("--name", required=True, help="片段名称")
+    p.add_argument("--command-text", dest="command_text", required=True,
+                   help="要执行的命令（用引号包住；不要叫 --command，会覆盖命令标识）")
+    p.add_argument("--host", action="append", default=None,
+                   help="关联主机名或 id（可重复；留空为通用片段）")
+    p.add_argument("--tags", default=None, help="标签，逗号分隔")
+    p.add_argument("--note", default=None, help="备注")
+    p.add_argument("--dry-run", action="store_true", help="只校验不写入")
+    p = _leaf(ss, "update", cmd_ssh_snippet_update, "ssh.snippet.update", "更新命令片段")
+    p.add_argument("target", help="片段名或 id")
+    p.add_argument("--name", default=None, help="新名称")
+    p.add_argument("--command-text", dest="command_text", default=None, help="新命令")
+    p.add_argument("--host", action="append", default=None,
+                   help="替换关联主机（可重复）")
+    p.add_argument("--clear-hosts", action="store_true",
+                   help="清空关联（改为通用片段）")
+    p.add_argument("--tags", default=None, help="标签，逗号分隔")
+    p.add_argument("--note", default=None, help="备注")
+    p.add_argument("--dry-run", action="store_true", help="只报告将改什么")
+    p = _leaf(ss, "remove", cmd_ssh_snippet_remove, "ssh.snippet.remove",
+              "删除命令片段（需 --yes）")
+    p.add_argument("target", help="片段名或 id")
+    p.add_argument("--yes", action="store_true", help="确认删除")
+    p.add_argument("--dry-run", action="store_true", help="只报告将做什么")
+    p = _leaf(ss, "run", cmd_ssh_snippet_run, "ssh.snippet.run",
+              "在远端执行片段（需 --yes，可先 --dry-run 预览）")
+    p.add_argument("target", help="片段名或 id")
+    p.add_argument("--host", required=True, help="目标主机名或 id")
+    p.add_argument("--timeout", type=float, default=30.0, help="执行超时秒数（默认 30）")
+    p.add_argument("--trust-host", action="store_true", help="首次连接时信任该主机指纹")
+    p.add_argument("--dry-run", action="store_true", help="只打印将执行的命令")
+    p.add_argument("--yes", action="store_true", help="确认执行")
 
     # backup（环境备份与迁移，仅配置）
     g = sub.add_parser("backup", help="环境备份与迁移（仅配置，不含数据库数据）",

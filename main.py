@@ -13,7 +13,15 @@ import time
 import traceback
 
 # 保证无论从哪个目录启动都能正确导入包
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+_HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _HERE)
+
+# 安装包把第三方依赖（paramiko 等，见 requirements.txt）放在 vendor/：
+# 构建脚本 packaging/build.py 按平台 pip install --target 装入，源码运行时不存
+# 在该目录，则忽略（依赖装在当前解释器里）。
+_VENDOR = os.path.join(_HERE, "vendor")
+if os.path.isdir(_VENDOR):
+    sys.path.insert(0, _VENDOR)
 
 MUTEX_NAME = "Global\\wnrp_phpvm_singleton_mutex"
 ERROR_ALREADY_EXISTS = 183

@@ -632,6 +632,19 @@
    "ui/sqlite_panel.py"
   ]
  },
+ "SSH 模块已停用（settings.disabled_modules）": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "SSH 管理": {
+  "count": 2,
+  "files": [
+   "ui/main_window.py",
+   "ui/ssh_panel.py"
+  ]
+ },
  "TS（线程安全）": {
   "count": 1,
   "files": [
@@ -722,7 +735,49 @@
    "cli.py"
   ]
  },
+ "[dry-run] 将删除主机：{target}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "[dry-run] 将删除命令片段：{target}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "[dry-run] 将在 {target} 执行：{cmd}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "[dry-run] 将把 {range} 的统计导出到 {out}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "[dry-run] 将更新主机：{target}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "[dry-run] 将更新命令片段：{target}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "[dry-run] 将添加主机：{name}（{user}@{host}:{port}）": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "[dry-run] 将添加命令片段：{name}": {
   "count": 1,
   "files": [
    "cli.py"
@@ -998,6 +1053,24 @@
   "count": 1,
   "files": [
    "core/crash_watchdog.py"
+  ]
+ },
+ "[执行失败] {err}": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "[连接失败] {target}：{err}": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "[连接成功] {target} · {ms} ms · {server}": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
   ]
  },
  "[重载] {msg}": {
@@ -1447,6 +1520,19 @@
    "ui/extension_dialog.py"
   ]
  },
+ "{n} 台": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "{n} 台主机": {
+  "count": 2,
+  "files": [
+   "cli.py",
+   "ui/ssh_panel.py"
+  ]
+ },
  "{n} 天": {
   "count": 1,
   "files": [
@@ -1664,6 +1750,12 @@
    "core/diag.py"
   ]
  },
+ "上一个操作还未完成，请稍候": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
  "上一步": {
   "count": 1,
   "files": [
@@ -1857,6 +1949,60 @@
    "core/diag.py"
   ]
  },
+ "主机": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "主机 {name} 已保存，但还没有密码或私钥，连接前补齐即可": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "主机 {target} 的指纹\n{fp}\n\n确认无误并信任吗？": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "主机名称已存在：{name}": {
+  "count": 2,
+  "files": [
+   "core/ssh_store.py"
+  ]
+ },
+ "主机名称过长（最多 {n} 个字符）": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
+  ]
+ },
+ "主机地址含有不允许的字符（只允许字母、数字与 . _ : - [ ]）": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
+  ]
+ },
+ "主机指纹尚未信任：{fp}": {
+  "count": 2,
+  "files": [
+   "core/ssh_manager.py"
+  ]
+ },
+ "主机指纹尚未信任：{host}": {
+  "count": 1,
+  "files": [
+   "core/ssh_manager.py"
+  ]
+ },
+ "主机配置格式不正确": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
+  ]
+ },
  "主配置 {path} 中未找到 http 块，无法确认站点加载": {
   "count": 1,
   "files": [
@@ -1983,6 +2129,12 @@
    "ui/main_window.py"
   ]
  },
+ "保存主机失败：{err}": {
+  "count": 2,
+  "files": [
+   "core/ssh_store.py"
+  ]
+ },
  "保存前自动备份原文件（.bak）；修改后需重启对应版本（FastCGI）才生效。": {
   "count": 1,
   "files": [
@@ -2036,6 +2188,12 @@
   "count": 1,
   "files": [
    "core/tuning.py"
+  ]
+ },
+ "信任主机指纹": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
   ]
  },
  "修复": {
@@ -2319,6 +2477,18 @@
    "ui/main_window.py"
   ]
  },
+ "关联主机": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "关联主机不存在": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
  "关键扩展": {
   "count": 1,
   "files": [
@@ -2547,6 +2717,18 @@
    "ui/site_wizard.py"
   ]
  },
+ "凭据已配置": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "凭据未配置": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
  "分支": {
   "count": 1,
   "files": [
@@ -2643,10 +2825,46 @@
    "ui/php_panel.py"
   ]
  },
+ "删除": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "删除主机": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "删除主机需要 --yes 确认": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "删除命令": {
   "count": 2,
   "files": [
    "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "删除命令片段需要 --yes 确认": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "删除失败": {
+  "count": 2,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "删除片段": {
+  "count": 2,
+  "files": [
+   "ui/ssh_panel.py"
   ]
  },
  "删除需要 --yes": {
@@ -2656,7 +2874,7 @@
   ]
  },
  "刷新": {
-  "count": 12,
+  "count": 13,
   "files": [
    "ui/mail_panel.py",
    "ui/nginx_log_panel.py",
@@ -2664,6 +2882,7 @@
    "ui/redis_panel.py",
    "ui/run_log_panel.py",
    "ui/sqlite_panel.py",
+   "ui/ssh_panel.py",
    "ui/vhost_panel.py",
    "ui/plugins/access_insights_panel.py",
    "ui/plugins/git_status_panel.py",
@@ -2868,12 +3087,13 @@
   ]
  },
  "取消": {
-  "count": 7,
+  "count": 9,
   "files": [
    "ui/dialogs.py",
    "ui/download_dialog.py",
    "ui/main_window.py",
    "ui/site_wizard.py",
+   "ui/ssh_panel.py",
    "ui/plugins/project_launcher_panel.py"
   ]
  },
@@ -2962,6 +3182,12 @@
    "cli.py"
   ]
  },
+ "可留空，连接前再补": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
  "可缓存文件数上限需覆盖 vendor 规模，默认 10000 以下会漏缓存大量依赖文件": {
   "count": 1,
   "files": [
@@ -3029,10 +3255,11 @@
   ]
  },
  "名称": {
-  "count": 3,
+  "count": 5,
   "files": [
    "ui/extension_dialog.py",
    "ui/sqlite_panel.py",
+   "ui/ssh_panel.py",
    "ui/plugins/project_launcher_panel.py"
   ]
  },
@@ -3245,8 +3472,9 @@
   ]
  },
  "命令": {
-  "count": 2,
+  "count": 3,
   "files": [
+   "ui/ssh_panel.py",
    "ui/plugins/project_launcher_panel.py"
   ]
  },
@@ -3268,6 +3496,12 @@
    "core/plugins/project_launcher/commands.py"
   ]
  },
+ "命令不能包含空字符": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
+  ]
+ },
  "命令包含不允许的字符：{ch}": {
   "count": 1,
   "files": [
@@ -3286,6 +3520,18 @@
    "core/redis_manager.py"
   ]
  },
+ "命令片段": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "命令片段格式不正确": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
+  ]
+ },
  "命令行": {
   "count": 2,
   "files": [
@@ -3297,6 +3543,12 @@
   "files": [
    "ui/nginx_panel.py",
    "ui/redis_panel.py"
+  ]
+ },
+ "命令过长（最多 {n} 个字符）": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
   ]
  },
  "命令过长（最多 {n} 字符）": {
@@ -3359,6 +3611,24 @@
    "ui/plugins/project_launcher_panel.py"
   ]
  },
+ "在远端执行": {
+  "count": 2,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "在远端执行命令属有副作用操作，需要 --yes 确认（可先用 --dry-run 预览）": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "地址": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
  "域名": {
   "count": 4,
   "files": [
@@ -3398,6 +3668,12 @@
    "ui/site_wizard.py"
   ]
  },
+ "填主机名，逗号分隔；留空为通用片段": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
  "备份 hosts 失败：{err}": {
   "count": 1,
   "files": [
@@ -3429,6 +3705,12 @@
    "core/backup_bundle.py"
   ]
  },
+ "备注": {
+  "count": 2,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
  "复制": {
   "count": 1,
   "files": [
@@ -3439,6 +3721,12 @@
   "count": 1,
   "files": [
    "ui/vhost_panel.py"
+  ]
+ },
+ "复制命令": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
   ]
  },
  "复制域名": {
@@ -3505,6 +3793,12 @@
    "ui/nginx_panel.py",
    "ui/redis_panel.py",
    "ui/site_wizard.py"
+  ]
+ },
+ "失败：{err}": {
+  "count": 2,
+  "files": [
+   "cli.py"
   ]
  },
  "套用项目配置": {
@@ -3665,6 +3959,24 @@
    "ui/redis_panel.py"
   ]
  },
+ "密码": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "密码认证": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "密码认证需在终端窗口内输入": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "导出 CSV": {
   "count": 3,
   "files": [
@@ -3804,6 +4116,12 @@
    "core/project_config.py"
   ]
  },
+ "将在 {target} 执行：\n\n{cmd}\n\n确认执行吗？": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
  "将域名：{doms}": {
   "count": 1,
   "files": [
@@ -3900,6 +4218,12 @@
    "ui/main_window.py"
   ]
  },
+ "将用系统终端连接 {target}，密码需在终端窗口内输入。继续吗？": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
  "将用编辑器打开：{name}": {
   "count": 1,
   "files": [
@@ -3931,9 +4255,10 @@
   ]
  },
  "就绪": {
-  "count": 5,
+  "count": 6,
   "files": [
    "ui/main_window.py",
+   "ui/ssh_panel.py",
    "ui/plugins/access_insights_panel.py",
    "ui/plugins/git_status_panel.py",
    "ui/plugins/project_launcher_panel.py",
@@ -4078,6 +4403,12 @@
    "ui/plugins/keymouse_panel.py"
   ]
  },
+ "已保存，但还没有密码或私钥，连接前补齐即可": {
+  "count": 2,
+  "files": [
+   "cli.py"
+  ]
+ },
  "已保留生成文件，请手动修正后用「配置检查 + 平滑重载」验证。": {
   "count": 1,
   "files": [
@@ -4196,6 +4527,18 @@
    "ui/dialogs.py"
   ]
  },
+ "已删除主机": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "已删除主机：{target}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "已删除命令": {
   "count": 2,
   "files": [
@@ -4203,10 +4546,22 @@
    "ui/plugins/project_launcher_panel.py"
   ]
  },
+ "已删除命令片段：{target}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "已删除本次生成的证书：{dom}": {
   "count": 1,
   "files": [
    "core/site_service.py"
+  ]
+ },
+ "已删除片段": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
   ]
  },
  "已勾选 [{name}] 的开机自启": {
@@ -4244,6 +4599,12 @@
   "count": 1,
   "files": [
    "core/php_installer.py"
+  ]
+ },
+ "已取消：指纹未信任": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
   ]
  },
  "已同步移除 hosts 映射：{doms}": {
@@ -4326,6 +4687,12 @@
   "count": 1,
   "files": [
    "ui/run_log_panel.py"
+  ]
+ },
+ "已复制命令到剪贴板": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
   ]
  },
  "已复制：{text}": {
@@ -4480,7 +4847,7 @@
   ]
  },
  "已打开终端：{cmd}": {
-  "count": 2,
+  "count": 3,
   "files": [
    "cli.py",
    "ui/plugins/project_launcher_panel.py"
@@ -4496,6 +4863,12 @@
   "count": 1,
   "files": [
    "ui/plugins/git_status_panel.py"
+  ]
+ },
+ "已打开终端：{target}": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
   ]
  },
  "已打开：{path}": {
@@ -4560,6 +4933,25 @@
    "ui/php_panel.py"
   ]
  },
+ "已更新主机：{name}": {
+  "count": 2,
+  "files": [
+   "cli.py",
+   "ui/ssh_panel.py"
+  ]
+ },
+ "已更新命令片段：{name}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "已更新片段": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
  "已替换 {count} 处": {
   "count": 1,
   "files": [
@@ -4596,11 +4988,30 @@
    "core/cert_manager.py"
   ]
  },
+ "已添加主机：{name}": {
+  "count": 2,
+  "files": [
+   "cli.py",
+   "ui/ssh_panel.py"
+  ]
+ },
+ "已添加命令片段：{name}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "已添加命令：{name}": {
   "count": 2,
   "files": [
    "cli.py",
    "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "已添加片段：{name}": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
   ]
  },
  "已清空 {n} 封邮件": {
@@ -4614,6 +5025,12 @@
   "count": 1,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "已清空私钥路径": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
   ]
  },
  "已清空键鼠统计记录": {
@@ -4670,6 +5087,12 @@
   "count": 1,
   "files": [
    "ui/mysql_panel.py"
+  ]
+ },
+ "已自动选用默认私钥": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
   ]
  },
  "已补 include": {
@@ -5194,10 +5617,11 @@
   ]
  },
  "所有文件": {
-  "count": 2,
+  "count": 3,
   "files": [
    "ui/run_log_panel.py",
-   "ui/sqlite_panel.py"
+   "ui/sqlite_panel.py",
+   "ui/ssh_panel.py"
   ]
  },
  "所有服务均已在运行，无需启动": {
@@ -5318,9 +5742,10 @@
   ]
  },
  "打开终端": {
-  "count": 2,
+  "count": 4,
   "files": [
    "ui/php_panel.py",
+   "ui/ssh_panel.py",
    "ui/plugins/git_status_panel.py"
   ]
  },
@@ -5386,6 +5811,18 @@
   "count": 1,
   "files": [
    "ui/redis_panel.py"
+  ]
+ },
+ "执行失败": {
+  "count": 2,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "执行完成：{target} · 退出码 {code}": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
   ]
  },
  "执行日志": {
@@ -5455,6 +5892,12 @@
   "count": 1,
   "files": [
    "core/tuning.py"
+  ]
+ },
+ "指纹：{fp}": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
   ]
  },
  "按小时分布": {
@@ -5622,8 +6065,9 @@
   ]
  },
  "搜索": {
-  "count": 2,
+  "count": 3,
   "files": [
+   "ui/ssh_panel.py",
    "ui/vhost_panel.py",
    "ui/plugins/project_launcher_panel.py"
   ]
@@ -5668,6 +6112,12 @@
   "count": 1,
   "files": [
    "core/service_group.py"
+  ]
+ },
+ "操作超时，已解锁": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
   ]
  },
  "收件人": {
@@ -5750,6 +6200,18 @@
    "core/tuning.py"
   ]
  },
+ "新增主机": {
+  "count": 2,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "新增片段": {
+  "count": 2,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
  "新建 Nginx 站点": {
   "count": 1,
   "files": [
@@ -5821,6 +6283,12 @@
   "count": 1,
   "files": [
    "core/diag.py"
+  ]
+ },
+ "无标签": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
   ]
  },
  "无法创建下载目录：{err}": {
@@ -5920,6 +6388,12 @@
   "count": 1,
   "files": [
    "core/diag.py"
+  ]
+ },
+ "无法连接 {target}：{err}": {
+  "count": 1,
+  "files": [
+   "core/ssh_manager.py"
   ]
  },
  "无法连接发布源：{reason}": {
@@ -6227,6 +6701,12 @@
    "core/php_downloader.py"
   ]
  },
+ "服务端指纹：{fp}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "服务编排：": {
   "count": 1,
   "files": [
@@ -6356,6 +6836,12 @@
   "count": 1,
   "files": [
    "ui/plugins/git_status_panel.py"
+  ]
+ },
+ "未安装依赖 paramiko，连接与执行不可用；可先用 CLI 管理配置：{cmd}": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
   ]
  },
  "未开启": {
@@ -6498,6 +6984,14 @@
    "core/nginx_manager.py"
   ]
  },
+ "未找到主机：{name}": {
+  "count": 5,
+  "files": [
+   "cli.py",
+   "ui/ssh_panel.py",
+   "core/ssh_store.py"
+  ]
+ },
  "未找到主配置": {
   "count": 1,
   "files": [
@@ -6550,6 +7044,13 @@
   "count": 1,
   "files": [
    "ui/mysql_panel.py"
+  ]
+ },
+ "未找到命令片段：{name}": {
+  "count": 3,
+  "files": [
+   "cli.py",
+   "core/ssh_store.py"
   ]
  },
  "未找到命令：{id}": {
@@ -6625,6 +7126,12 @@
    "cli.py"
   ]
  },
+ "未找到默认私钥，请手动选择": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
  "未指定域名": {
   "count": 1,
   "files": [
@@ -6635,6 +7142,18 @@
   "count": 1,
   "files": [
    "core/plugins/keymouse/stats.py"
+  ]
+ },
+ "未指定私钥，将自动选用默认私钥：{path}": {
+  "count": 2,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "未指定私钥，已自动选用默认私钥：{path}": {
+  "count": 2,
+  "files": [
+   "cli.py"
   ]
  },
  "未指定要移除的域名": {
@@ -6747,8 +7266,9 @@
   ]
  },
  "未知错误": {
-  "count": 3,
+  "count": 4,
   "files": [
+   "cli.py",
    "core/nginx_manager.py"
   ]
  },
@@ -6756,6 +7276,13 @@
   "count": 1,
   "files": [
    "ui/vhost_panel.py"
+  ]
+ },
+ "未能打开终端（请确认系统自带 ssh 客户端）": {
+  "count": 2,
+  "files": [
+   "cli.py",
+   "ui/ssh_panel.py"
   ]
  },
  "未设置": {
@@ -6867,6 +7394,12 @@
   "count": 1,
   "files": [
    "core/sqlite_manager.py"
+  ]
+ },
+ "标签": {
+  "count": 3,
+  "files": [
+   "ui/ssh_panel.py"
   ]
  },
  "校验失败": {
@@ -7132,9 +7665,10 @@
   ]
  },
  "正在执行…": {
-  "count": 2,
+  "count": 3,
   "files": [
-   "ui/sqlite_panel.py"
+   "ui/sqlite_panel.py",
+   "ui/ssh_panel.py"
   ]
  },
  "正在扫描 PHP 版本…": {
@@ -7209,6 +7743,12 @@
    "ui/vhost_panel.py"
   ]
  },
+ "正在测试 {target}…": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
  "正在生成 php.ini": {
   "count": 1,
   "files": [
@@ -7275,6 +7815,12 @@
    "ui/main_window.py"
   ]
  },
+ "正在重新连接…": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
  "正常": {
   "count": 4,
   "files": [
@@ -7287,6 +7833,18 @@
   "count": 1,
   "files": [
    "core/tuning.py"
+  ]
+ },
+ "没有匹配的主机": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "没有匹配的命令片段": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "没有匹配的站点（检查 --domain 过滤）": {
@@ -7337,6 +7895,12 @@
    "core/service_group.py"
   ]
  },
+ "没有要更新的字段": {
+  "count": 2,
+  "files": [
+   "cli.py"
+  ]
+ },
  "没有配置文件引用旧端口，无需同步。": {
   "count": 1,
   "files": [
@@ -7355,10 +7919,22 @@
    "ui/site_wizard.py"
   ]
  },
+ "测试连接": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
  "测试连接 (PING)": {
   "count": 1,
   "files": [
    "ui/redis_panel.py"
+  ]
+ },
+ "浏览": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
   ]
  },
  "浏览…": {
@@ -7447,6 +8023,18 @@
   "count": 1,
   "files": [
    "cli.py"
+  ]
+ },
+ "片段名称已存在：{name}": {
+  "count": 2,
+  "files": [
+   "core/ssh_store.py"
+  ]
+ },
+ "片段名称过长（最多 {n} 个字符）": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
   ]
  },
  "版本": {
@@ -7641,6 +8229,18 @@
    "core/vhost_manager.py"
   ]
  },
+ "用户名": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "用户名含有不允许的字符（只允许字母、数字与 . _ -）": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
+  ]
+ },
  "用户退出 phpvm": {
   "count": 1,
   "files": [
@@ -7717,10 +8317,23 @@
   ]
  },
  "确定": {
-  "count": 2,
+  "count": 4,
   "files": [
    "ui/dialogs.py",
+   "ui/ssh_panel.py",
    "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "确定删除主机 {name}？关联片段会变成通用片段。": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "确定删除片段 {name}？": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
   ]
  },
  "确定删除自定义命令「{name}」？": {
@@ -7733,6 +8346,12 @@
   "count": 1,
   "files": [
    "ui/run_log_panel.py"
+  ]
+ },
+ "确认指纹无误后加 --trust-host 再试一次": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "确认运行": {
@@ -7769,6 +8388,30 @@
   "count": 2,
   "files": [
    "ui/vhost_panel.py"
+  ]
+ },
+ "私钥口令": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "私钥文件": {
+  "count": 2,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "私钥文件不存在：{path}": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
+  ]
+ },
+ "私钥认证": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
   ]
  },
  "移除 hosts 映射": {
@@ -7904,10 +8547,11 @@
   ]
  },
  "端口": {
-  "count": 3,
+  "count": 4,
   "files": [
    "ui/dialogs.py",
    "ui/php_panel.py",
+   "ui/ssh_panel.py",
    "ui/vhost_panel.py"
   ]
  },
@@ -7955,15 +8599,17 @@
   ]
  },
  "端口必须在 1-65535 之间": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "core/config.py"
+   "core/config.py",
+   "core/ssh_store.py"
   ]
  },
  "端口必须是整数": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "core/config.py"
+   "core/config.py",
+   "core/ssh_store.py"
   ]
  },
  "端口必须是整数。": {
@@ -8112,6 +8758,18 @@
    "ui/download_dialog.py"
   ]
  },
+ "编辑": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "编辑主机": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
  "编辑器": {
   "count": 1,
   "files": [
@@ -8148,6 +8806,18 @@
    "ui/dialogs.py"
   ]
  },
+ "编辑时留空表示不修改": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "编辑片段": {
+  "count": 2,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
  "编辑端口": {
   "count": 1,
   "files": [
@@ -8182,6 +8852,18 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "缺少依赖 paramiko，请先安装：{cmd}": {
+  "count": 1,
+  "files": [
+   "core/ssh_manager.py"
+  ]
+ },
+ "缺少依赖 paramiko：{cmd}": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
   ]
  },
  "缺少动态库：{lib}": {
@@ -8388,6 +9070,24 @@
   "files": [
    "ui/nginx_log_panel.py",
    "ui/run_log_panel.py"
+  ]
+ },
+ "认证失败：用户名或凭据不正确（{target}）": {
+  "count": 1,
+  "files": [
+   "core/ssh_manager.py"
+  ]
+ },
+ "认证方式": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "认证方式只能是密码或私钥": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
   ]
  },
  "让 composer / artisan / phpunit 等命令行也走缓存，明显加快依赖脚本": {
@@ -8671,6 +9371,18 @@
    "ui/dialogs.py"
   ]
  },
+ "请先选择一个命令片段": {
+  "count": 4,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "请先选择一台主机": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
  "请先选择一条日志": {
   "count": 1,
   "files": [
@@ -8681,6 +9393,42 @@
   "count": 1,
   "files": [
    "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "请填写主机名称": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
+  ]
+ },
+ "请填写主机地址": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
+  ]
+ },
+ "请填写片段名称": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
+  ]
+ },
+ "请填写登录密码（或改用私钥认证）": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
+  ]
+ },
+ "请填写登录用户名": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
+  ]
+ },
+ "请填写要执行的命令": {
+  "count": 1,
+  "files": [
+   "core/ssh_store.py"
   ]
  },
  "请检查系统终端是否可用": {
@@ -8899,6 +9647,18 @@
    "ui/php_panel.py"
   ]
  },
+ "输出": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "输出超过上限已截断": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "过滤：": {
   "count": 1,
   "files": [
@@ -8984,6 +9744,18 @@
    "core/site_service.py"
   ]
  },
+ "这台主机还没有保存密码，请先在「编辑主机」里补上": {
+  "count": 1,
+  "files": [
+   "core/ssh_manager.py"
+  ]
+ },
+ "这台主机还没有选择私钥文件，请先在「编辑主机」里补上": {
+  "count": 1,
+  "files": [
+   "core/ssh_manager.py"
+  ]
+ },
  "进程": {
   "count": 1,
   "files": [
@@ -9002,10 +9774,47 @@
    "core/health_monitor.py"
   ]
  },
+ "远端命令退出码为 {code}": {
+  "count": 2,
+  "files": [
+   "cli.py",
+   "core/ssh_manager.py"
+  ]
+ },
  "连接发布源失败：{err}": {
   "count": 1,
   "files": [
    "core/updater.py"
+  ]
+ },
+ "连接失败": {
+  "count": 2,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "连接失败：{err}": {
+  "count": 1,
+  "files": [
+   "core/ssh_manager.py"
+  ]
+ },
+ "连接成功：{target} · {ms} ms": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "连接成功：{target} · {ms} ms · {server}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "连接超时（{n} 秒）": {
+  "count": 1,
+  "files": [
+   "core/ssh_manager.py"
   ]
  },
  "连续 {n} 次失败，已解除看护，请手动检查 php.ini/端口": {
@@ -9051,10 +9860,22 @@
    "ui/sqlite_panel.py"
   ]
  },
+ "选择左侧主机查看详情": {
+  "count": 3,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
  "选择目录": {
   "count": 1,
   "files": [
    "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "选择私钥文件": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
   ]
  },
  "选择站点项目目录": {
@@ -9073,6 +9894,13 @@
   "count": 1,
   "files": [
    "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "通用": {
+  "count": 2,
+  "files": [
+   "cli.py",
+   "ui/ssh_panel.py"
   ]
  },
  "邮件": {
@@ -9868,6 +10696,12 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "（输出超过上限，已截断）": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
   ]
  },
  "＋ 新建站点…": {

@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""phpvm 安装包构建脚本（仅用标准库，可在 macOS / Linux / Windows 运行）。
+"""phpvm 安装包构建脚本（构建脚本本身仅用标准库，可在 macOS / Linux / Windows 运行）。
+
+第三方运行依赖（当前只有 SSH 管理用的 paramiko，见 ``requirements.txt``）由
+:func:`_install_vendor` 在构建时 ``pip install --target <包>/vendor`` 装进安装包，
+入口脚本 ``main.py`` 会把 ``vendor`` 插入 ``sys.path``。因此**按平台各自构建**：
+macOS 产出的 vendor 是 macOS wheel，Windows 产出的才是 Windows wheel，不可混用。
 
 用法::
 
@@ -46,8 +51,13 @@ from core.version import APP_ID, APP_NAME, APP_VERSION, SUMS_ASSET, asset_name  
 # 运行所需源码
 ENTRY_FILES = ["main.py"]
 PACKAGES = ["core", "ui", "i18n"]
-POSIX_EXTRA = ["phpvm.command", "README.md"]
-WIN_EXTRA = ["phpvm.bat", "README.md"]
+# README 与 requirements.txt 一并附上：vendor 安装失败时可按提示就地补装
+POSIX_EXTRA = ["phpvm.command", "README.md", "requirements.txt"]
+WIN_EXTRA = ["phpvm.bat", "README.md", "requirements.txt"]
+
+# 第三方运行依赖：清单 + 安装包内的落点（打包进 sys.path，见 main.py）
+REQUIREMENTS = "requirements.txt"
+VENDOR_DIR = "vendor"
 
 # 复制时一律排除（缓存 / 开发工具产物 / 开发机运行时状态）
 EXCLUDE_NAMES = {
@@ -55,6 +65,8 @@ EXCLUDE_NAMES = {
     "_keys.json", "config.json", "crash_watchdog.json", "crash_watchdog.lock",
     "crash_watchdog.log", "recover_history.json", "autostart_services.log",
     "run_log.log", "run_log.log.1",
+    # SSH 管理：主机凭据与主机指纹属开发机私有数据，绝不能进安装包
+    "ssh_hosts.json", "ssh_hosts.json.bak", "ssh_known_hosts", "ssh_known_hosts.bak",
     "phpvm.ico", "phpvm.icns", "build", "dist",
 }
 
@@ -87,6 +99,40 @@ def _copy_sources(dest: str, extra: list[str]) -> None:
             src, os.path.join(dest, pkg), dirs_exist_ok=True,
             ignore=lambda _d, names: [n for n in names if _should_skip(n)],
         )
+
+
+def _install_vendor(dest: str) -> str:
+    """把 requirements.txt 的第三方依赖装进 ``<dest>/vendor``（按平台各自构建）。
+
+    返回 vendor 目录（失败返回空串）。失败**不阻断构建**：SSH 模块在缺少
+    paramiko 时会给出安装提示，其余功能不受影响，因此与图标生成等步骤同属
+    「可降级」环节，只告警不抛错。
+    """
+    req = os.path.join(ROOT, REQUIREMENTS)
+    if not os.path.isfile(req):
+        _log(f"警告：缺少 {REQUIREMENTS}，跳过第三方依赖（SSH 模块将不可用）")
+        return ""
+    vendor = os.path.join(dest, VENDOR_DIR)
+    shutil.rmtree(vendor, ignore_errors=True)
+    cmd = [sys.executable, "-m", "pip", "install", "--target", vendor,
+           "-r", req, "--no-compile", "--disable-pip-version-check", "--quiet"]
+    _log("安装第三方依赖到 " + VENDOR_DIR + "：" + " ".join(cmd))
+    try:
+        result = subprocess.run(cmd, capture_output=True, check=False)
+    except OSError as e:
+        _log(f"警告：无法执行 pip（{e}），SSH 模块在安装包内不可用")
+        return ""
+    if result.returncode != 0:
+        tail = result.stderr.decode("utf-8", "replace").strip().splitlines()[-3:]
+        _log("警告：第三方依赖安装失败，SSH 模块在安装包内不可用：" + " / ".join(tail))
+        shutil.rmtree(vendor, ignore_errors=True)
+        return ""
+    if not os.path.isdir(os.path.join(vendor, "paramiko")):
+        _log("警告：vendor 中未找到 paramiko，SSH 模块在安装包内不可用")
+    # --no-compile 已避免 .pyc；再清掉 pip 可能留下的脚本包装目录
+    shutil.rmtree(os.path.join(vendor, "bin"), ignore_errors=True)
+    _log(f"已安装第三方依赖到 {vendor}")
+    return vendor
 
 
 def _inject_version(dest: str, ver: str) -> None:
@@ -222,6 +268,7 @@ def build_macos(ver: str, out_dir: str, with_dmg: bool = True) -> list[str]:
     os.makedirs(os.path.join(contents, "Resources"), exist_ok=True)
 
     _copy_sources(res_pkg, POSIX_EXTRA)
+    _install_vendor(res_pkg)
     _inject_version(res_pkg, ver)
 
     launcher = os.path.join(contents, "MacOS", APP_NAME)
@@ -283,6 +330,7 @@ def build_windows(ver: str, out_dir: str) -> list[str]:
     stage = os.path.join(BUILD, "windows")
     _reset_dir(stage)
     _copy_sources(stage, WIN_EXTRA)
+    _install_vendor(stage)
     _inject_version(stage, ver)
     # 全新安装的配置模板（升级时由 Inno Setup 的 onlyifdoesntexist 保护）
     with open(os.path.join(stage, "config.json"), "w", encoding="utf-8") as f:

@@ -16,6 +16,7 @@ phpvm 是一个**本机开发环境管理器**（PHP 多版本 + Nginx + Redis +
 | 文案全 i18n | 界面与日志文案统一 `t("中文原文")`，词条表在 `i18n/<lang>/*.json`（5 语言） |
 | 跨平台收敛 | 平台差异集中在少数模块，其余代码平台无关（见 §6） |
 | 插件声明式注册 | 内置插件只导出 `MANIFEST: PluginSpec`（面板路径 + 后台脚本 + 默认设置 + 平台），框架用 `pkgutil` + `importlib` 发现；单插件导入失败只 warn、不阻断启动（`core/plugins/__init__.py`） |
+| 第三方依赖最小化 | 只有 SSH 管理需要 `paramiko`（`requirements.txt` 是唯一清单），且**全部在函数内延迟导入**：未安装时 GUI 与其余命令照常运行，SSH 相关命令返回可读的缺依赖错误；打包时按平台装进安装包 `vendor/`，由 `main.py` 注入 `sys.path`（[ADR 23](DECISIONS.md)） |
 
 ## 2. 分层与依赖方向
 
@@ -33,7 +34,7 @@ phpvm 是一个**本机开发环境管理器**（PHP 多版本 + Nginx + Redis +
 │ main_window.py  主窗口（左侧导航 + 菜单栏 + 状态栏 + 设置区 + 8s 轮询）  │
 │ nav.py          左侧竖向分组导航（分组树 / 状态圆点 / 记忆页面）        │
 │ *_panel.py      各功能页（php / nginx / vhost / redis / mysql / sqlite │
-│                 / nginx 日志 / 运行日志）                              │
+│                 / nginx 日志 / 运行日志 / SSH 管理）                   │
 │ dialogs.py · site_wizard.py · download_dialog.py · extension_dialog.py │
 │ update_dialog.py · tuning_dialog.py   各类对话框与向导                  │
 │ theme.py · tray.py · window_utils.py  主题样式 / 托盘 / 窗口自适应      │
@@ -50,6 +51,7 @@ phpvm 是一个**本机开发环境管理器**（PHP 多版本 + Nginx + Redis +
 │           cert_manager · redis_manager · mysql_manager · sqlite_manager│
 │           service_group · autostart · tuning · tool_manager · icon     │
 │           health_monitor · crash_watchdog · recover_history · updater  │
+│           ssh_store（凭据与片段持久化）· ssh_manager（paramiko 传输）  │
 │ 插件注册表：plugins/（base · settings · <name>/MANIFEST · store · stats）│
 └───────────────────────────────┬───────────────────────────────────────┘
                                 │ 通过子进程 / 系统 API 操作
@@ -63,6 +65,8 @@ phpvm 是一个**本机开发环境管理器**（PHP 多版本 + Nginx + Redis +
 
 - `ui/` 可以 import `core/`；`core/` **不得** import `ui/`，也不得 import `tkinter`。
 - `cli.py` 只依赖标准库与 `core/*`；测试（`tests/`）同样只碰 `core/*` + 临时目录。
+- 第三方包只允许出现在 `core/ssh_manager.py` 的**函数内**导入（`paramiko`），顶层 import
+  会破坏「缺依赖也能启动」的承诺；打包后的 `vendor/` 由 `main.py` 注入 `sys.path`，源码运行时无需该目录。
 - 新增跨平台分支时，优先放进 `process_utils.py` / `path_manager.py` / `autostart.py` /
   `nginx_manager.py` / `app_paths.py` / `theme.py`，不要散落到业务模块。
 
@@ -114,6 +118,13 @@ Git 工作区插件同样不起后台进程，但它是唯一会**起子进程**
 面板同样 60s 节流。命令一律 argv 直传、`--no-optional-locks`、`GIT_TERMINAL_PROMPT=0`，
 只读不写、不 fetch（边界见 [ADR 22](DECISIONS.md)）。
 
+SSH 管理面板（`ui/ssh_panel.py`）是唯一做**外向网络连接**的页面，同样不起后台进程、
+不在刷新路径上探测：`auto_refresh()` 只重读本地数据（`ssh_hosts.json` 与片段），
+连接 / 执行由用户显式点击后起一个 daemon 线程，结果经 `queue.Queue` + `rearm_poll()`
+回主线程；同一时刻只允许一个动作（`_busy` 期间按钮禁用），避免重复点击堆出并发连接。
+`paramiko` 在 `core/ssh_manager.py` 的函数内延迟导入，未安装时面板顶部给安装提示、
+CLI 返回 `data.error`，不影响其余页面（边界见 [ADR 23](DECISIONS.md)、[ADR 24](DECISIONS.md)）。
+
 ## 4. 运行期状态与落点
 
 | 文件 / 位置 | 内容 | 谁写 | 备注 |
@@ -124,6 +135,8 @@ Git 工作区插件同样不起后台进程，但它是唯一会**起子进程**
 | `crash_watchdog.json` / `.lock` / `.log` | 守护进程看护清单、单例锁、守护自身日志 | `core/crash_watchdog.py` | 均为运行期文件，不入库 |
 | `autostart_services.log` | 每次 `--start-all` 的逐项结果（含 `php_scope=`） | `main.py` | 排查「登录后服务没起来」的第一现场 |
 | `updates/` | 升级包下载缓存（`.part` 原子改名 + SHA-256 校验） | `core/updater.py` | 可从关于页直达 |
+| `ssh_hosts.json` / `.bak` | SSH 主机清单（含密码 / 私钥口令） | `core/ssh_store.py` | POSIX `0600`、Windows `icacls` 仅当前用户；**不进 `config.json`、不进备份导出包**（ADR 24） |
+| `ssh_known_hosts` | 已显式确认的主机指纹（OpenSSH known_hosts 格式） | `core/ssh_manager.py` | 首次连接一律拒绝，用户确认指纹后才写入；`PHPVM_SSH_HOSTS` 可把主机清单指向别处（测试用） |
 | `<数据目录>/plugins/keymouse/` | `stats.db`（WAL，日桶 + 分钟桶）+ `daemon.lock`（PID）/ `daemon.heartbeat` / `daemon.stop` / `paused` / `daemon.log(.1)` | 键鼠统计后台守护进程；面板与 CLI 只读 | 运行期文件，不入库；只落 vkCode 与时间戳，不记录输入内容 / 窗口标题；保留期默认 730 天 |
 | `C:\wnrp\{php*,nginx,Redis*,mysql}` | 被管理的真实程序本体 | 用户 / 安装器 | 环境的默认事实来源；根路径可用 `WNRP_ROOT` 覆盖。MySQL 例外：除环境根 `mysql*` 外还会自动探测环境根之外的安装（Windows 服务 bin 路径 / PATH / 常见位置），并可用 `settings.mysql_dirs` 显式指定 |
 
@@ -170,6 +183,7 @@ Git 工作区插件同样不起后台进程，但它是唯一会**起子进程**
 | 新增一个设置项 | `core/config.py` 的 `DEFAULT_SETTINGS`（否则 `config set` 会拒绝）+ 界面/自启路径读取 |
 | 新增一个桌面集成/写系统文件的能力 | 守 §5 铁律；备份走 `core/file_backup.py` |
 | 新增界面文案 | `t()` 包裹 → `python _i18n_scan.py --report` → 补 4 语言词条 |
+| 新增第三方依赖 | 写进根目录 `requirements.txt`（构建时 `packaging/build.py::_install_vendor()` 装进安装包 `vendor/`）→ 只在函数内 import → 缺失时给出 `install_hint()` 文案而不是抛栈；任何涉及凭据的依赖都要重新审 `EXCLUDE_NAMES` |
 | 新增单元测试 | `tests/test_<模块>.py`（标准库 unittest，用 `tests/fakes.py` 的临时目录 + 假 nginx，禁止碰真实配置与 hosts） |
 | 新增一个内置插件 | `core/plugins/<name>/`（`MANIFEST: PluginSpec` + 逻辑 + 可选 `daemon.py`）+ `ui/plugins/<name>_panel.py`（实现 `auto_refresh()` / `refresh_theme()`）+ `cli.py` 命令组；`MANIFEST.key` 由 `core/modules.py` 自动并入模块开关，`ui/main_window.py` 自动把插件面板收进 `_refresh_panels()`；后台脚本经 `ensure_backgrounds()` 幂等拉起，改完命令跑 `python3 _docs_cli.py` |
 

@@ -56,6 +56,7 @@
 | `services` | 整套服务编排 | `start-all` · `stop-all` |
 | `site` | 站点（vhost）管理 | `create` · `disable` · `enable` · `list` · `php` · `remove` · `render` · `secure` · `show` · `sync-port` · `unsecure` |
 | `sqlite` | SQLite 只读查询 | `columns` · `query` · `tables` |
+| `ssh` | SSH 主机与命令片段管理 | `host`（`add` · `connect` · `list` · `remove` · `test` · `update`） · `snippet`（`add` · `list` · `remove` · `run` · `update`） |
 | `tune` | 开发环境配置推荐（PHP / Nginx） | `apply` · `suggest` |
 | `update` | 软件更新 | `check` · `download` |
 | `version` | 输出版本与环境路径信息 | — |
@@ -799,6 +800,37 @@
 | 参数 | 必填 | 默认 | 说明 |
 |---|---|---|---|
 | `<path>` | 是 |  | 数据库文件路径 |
+
+## `ssh` — SSH 主机与命令片段管理
+
+### `ssh host` — 主机配置 / 测试连接 / 打开终端
+
+（无参数）
+
+**子动作**（用法：`python3 cli.py ssh host <子动作> [options]`）：
+
+| 子动作 | 说明 | 参数 |
+|---|---|---|
+| `add` | 新增主机（密码从 stdin 读，不进命令行历史） | `--name`、`--host`、`--port`、`--user`、`--auth`、`--key-path`、`--passphrase-stdin`、`--tags`、`--note`、`--password-stdin`、`--dry-run` |
+| `connect` | 用系统终端打开 SSH 会话（密码在终端内输入） | `<target>`、`--dry-run` |
+| `list` | 列出主机 | `--query`、`--tag` |
+| `remove` | 删除主机（需 --yes） | `<target>`、`--yes`、`--dry-run` |
+| `test` | 测试连接（真实握手） | `<target>`、`--timeout`、`--trust-host` |
+| `update` | 更新主机字段 | `<target>`、`--name`、`--host`、`--port`、`--user`、`--auth`、`--key-path`、`--passphrase-stdin`、`--tags`、`--note`、`--password-stdin`、`--dry-run` |
+
+### `ssh snippet` — 命令片段管理 / 远端执行
+
+（无参数）
+
+**子动作**（用法：`python3 cli.py ssh snippet <子动作> [options]`）：
+
+| 子动作 | 说明 | 参数 |
+|---|---|---|
+| `add` | 新增命令片段 | `--name`、`--command-text`、`--host`、`--tags`、`--note`、`--dry-run` |
+| `list` | 列出命令片段 | `--host`、`--query`、`--tag` |
+| `remove` | 删除命令片段（需 --yes） | `<target>`、`--yes`、`--dry-run` |
+| `run` | 在远端执行片段（需 --yes，可先 --dry-run 预览） | `<target>`、`--host`、`--timeout`、`--trust-host`、`--dry-run`、`--yes` |
+| `update` | 更新命令片段 | `<target>`、`--name`、`--command-text`、`--host`、`--clear-hosts`、`--tags`、`--note`、`--dry-run` |
 
 ## `tune` — 开发环境配置推荐（PHP / Nginx）
 

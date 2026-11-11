@@ -21,6 +21,13 @@ recover_history.json
 # 精确忽略，避免误伤其它目录的同名文件；已追踪的需 git rm --cached 才会生效
 /config.json
 
+# SSH 管理：主机凭据与主机指纹都是本机私有数据，不入库、不进备份包
+# 开发态的数据目录就是仓库根，故按仓库根精确忽略（含 .bak 备份）
+/ssh_hosts.json
+/ssh_hosts.json.bak
+/ssh_known_hosts
+/ssh_known_hosts.bak
+
 # 崩溃自愈守护进程运行时状态
 crash_watchdog.json
 crash_watchdog.lock

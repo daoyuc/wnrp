@@ -312,6 +312,11 @@ class MainWindow(tk.Tk):
         if modules.is_enabled("mail", self.config):
             from .mail_panel import MailPanel
             self.mail_panel = MailPanel(host, self.set_log, self.php_mgr, self.config)
+        # SSH 管理（可选模块）：主机清单 / 测试连接 / 命令片段，凭据独立存放
+        self.ssh_panel = None
+        if modules.is_enabled("ssh", self.config):
+            from .ssh_panel import SshPanel
+            self.ssh_panel = SshPanel(host, self.config, self.set_log)
         # 运行日志：全局记录（应用启停 / 服务启停结果 / 异常），不受模块开关影响
         self.run_panel = RunLogPanel(host, self.set_log)
         about = self._build_about(host)
@@ -331,6 +336,8 @@ class MainWindow(tk.Tk):
             nav.add(self.log_panel, text=t("日志"), key="log")
         if self.mail_panel is not None:
             nav.add(self.mail_panel, text=t("邮件"), key="mail")
+        if self.ssh_panel is not None:
+            nav.add(self.ssh_panel, text=t("SSH 管理"), key="ssh")
         # 运行日志不是模块（没有注册表条目），显式归入诊断组
         nav.add(self.run_panel, text=t("运行日志"), key="run_log", group="diag")
         # 插件页：core/plugins 只声明「模块路径 + 类名 + 导航分组」，这里延迟导入面板
@@ -1282,7 +1289,8 @@ class MainWindow(tk.Tk):
         # 插件面板也在列（不登记就会「命令成功但界面没变」，见 AGENTS.md）
         for panel in (self.overview_panel, self.php_panel, self.nginx_panel,
                       self.redis_panel, self.log_panel, self.mail_panel,
-                      self.vhost_panel, *getattr(self, "_plugin_panels", [])):
+                      self.ssh_panel, self.vhost_panel,
+                      *getattr(self, "_plugin_panels", [])):
             if panel is None or not self._panel_visible(panel):
                 continue
             try:

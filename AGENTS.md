@@ -10,6 +10,8 @@ python3 cli.py <group> <action> [options] --json
 ```
 
 `cli.py` 无 GUI、完全非交互（只依赖标准库与 `core/*`，不 import tkinter），可在 SSH / CI 下运行。
+唯一第三方依赖是 SSH 命令组用的 `paramiko`（`requirements.txt`，`core/ssh_manager.py` 内延迟导入）：
+未安装时除 `ssh *` 之外的命令全部照常，`ssh *` 返回带安装命令的 `data.error`。
 
 ## 必读第一步
 
@@ -36,7 +38,8 @@ python3 cli.py env --json      # 环境快照：nginx、PHP 版本与端口、Re
 - **写 hosts 必须显式 `--hosts`**（会触发系统授权弹窗，无 TTY 时可能失败）。
 - **不要编辑 `ui/` 下代码来做自动化**；也不要在脚本里 import `ui/*`（会拉起 tkinter）。
 - 所有写入自动备份 `.bak`；`nginx -t` 失败会自动回滚并置 `rolled_back: true`。
-- 不要提交运行期文件：`config.json`、`recover_history.json`、`crash_watchdog.*`、`run_log.log*`、`updates/`、`dist/`、`plugins/`（键鼠统计的 `stats.db` / `daemon.*`）。
+- 不要提交运行期文件：`config.json`、`recover_history.json`、`crash_watchdog.*`、`run_log.log*`、`updates/`、`dist/`、`plugins/`（键鼠统计的 `stats.db` / `daemon.*`）、`ssh_hosts.json*` 与 `ssh_known_hosts*`（SSH 凭据与指纹，本机私有）。
+- **SSH 凭据纪律**：密码 / 私钥口令只能经 `--password-stdin` / `--passphrase-stdin` 或面板输入，**任何情况下都不要拼进命令行**（会进进程列表与历史）；交互式终端只拼 `ssh -p/-i user@host`；首次连接必须显式确认指纹（`--trust-host`），不要为了「跑通」改成静默信任。**保存与连通性无关**：`ssh host add/update` 与面板「确定」都只做本地字段校验，密码 / 私钥可暂缺（`data.host.credential_ready=false` 且 `notes` 有提示），不要为了存进去而编造凭据，也不要给保存路径加连通性校验。私钥留空会自动填 `~/.ssh` 里的 `id_ed25519`/`id_ecdsa`/`id_rsa`/`id_dsa`（`ssh_store.default_key_path()`，目录可用 `PHPVM_SSH_KEY_DIR` 覆盖）——这是「表单默认值」，填的是具体路径、用户可见可改，**不要**以此为由打开 ssh-agent 或自动尝试其它密钥。
 - **插件命令来源**：`.phpvm.json` 是团队可共享的项目文件，**绝不能把它的字段当命令执行**（克隆仓库即 RCE）；项目启动器的命令只来自内置白名单或用户手动添加的设置项，且仅点击 / 显式 CLI 调用才打开一次浏览器 / 终端，不自动执行（ADR 16）。「在浏览器打开」的 URL 同样只从 nginx vhost 的 `server_name` 生成，不采信 `.phpvm.json` 的 `domains`。新增 CLI 参数时避开 `command` 这个 dest，否则会覆盖 `Result.command` 的 `<group>.<action>` 契约。
 
 ## 一致性约束（改动时必须收口）
@@ -102,6 +105,18 @@ python3 cli.py launcher add --label "Dev server" --command "php -S 127.0.0.1:800
 python3 cli.py launcher open --project demo --id php-v --dry-run --json
 python3 cli.py launcher remove --id custom-xxxxxxxx --yes --dry-run --json
 
+# SSH 主机与命令片段（密码 / 口令只从 stdin 读；首次连接需显式信任指纹）
+python3 cli.py ssh host list --json
+python3 cli.py ssh host add --name demo --host 10.0.0.8 --user deploy --auth key \
+    --key-path ~/.ssh/id_ed25519 --tags prod --dry-run --json
+python3 cli.py ssh host test demo --json                    # 未信任时因指纹校验失败
+python3 cli.py ssh host test demo --trust-host --json       # 确认指纹无误后才信任
+python3 cli.py ssh host connect demo --dry-run --json       # 只看将执行的 ssh 命令行
+python3 cli.py ssh snippet add --name "磁盘" --command-text "df -h" --host demo --dry-run --json
+python3 cli.py ssh snippet list --host demo --json
+python3 cli.py ssh snippet run snip-xxxx --host demo --dry-run --json
+python3 cli.py ssh snippet run snip-xxxx --host demo --yes --json   # 远端执行必须有副作用确认
+
 python3 cli.py nginx test                # 任何改配置后都建议先跑
 ```
 
@@ -111,6 +126,7 @@ python3 cli.py nginx test                # 任何改配置后都建议先跑
 - `core/` 服务层（nginx / php / redis / mysql / vhost / hosts / sqlite / updater / modules …），CLI 与 GUI 共用
   - 建站流程只有一个实现：`core/site_service.py`（证书 → 写 vhost → 补 include → `nginx -t` → hosts → 重载 + 回滚），CLI 与 GUI 向导都调它
   - 文件备份统一走 `core/file_backup.py`（写配置前必 `.bak`，还原默认删备份）
+  - SSH 管理：`core/ssh_store.py`（主机凭据 + 片段持久化，不碰 paramiko）与 `core/ssh_manager.py`（paramiko 传输，函数内导入），面板 `ui/ssh_panel.py`；凭据在 `ssh_hosts.json`（0600），片段在 `settings.ssh_snippets`
   - `core/plugins/` 插件注册表与内置插件（声明式 `MANIFEST`，只声明面板路径、不 import `ui/*`）；运行期数据在 `<数据目录>/plugins/keymouse/`，不入库
 - `ui/plugins/` 插件面板（由主窗口延迟导入）：新增面板必须实现 `auto_refresh()` / `refresh_theme()`，`core` 不得反向依赖它
 - `tests/` 单元测试（标准库 unittest）：`python -m unittest discover -s tests -t .`；其中 `tests/test_docs.py` 守护文档（链接 / 引用的代码路径 / `docs/CLI.md` 与代码一致性 / Markdown 表格列数）、`tests/test_main_window_smoke.py` 真建一次主窗口（守 GUI 启动崩溃，无显示环境自动跳过）

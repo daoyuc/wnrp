@@ -32,7 +32,7 @@ phpvm 的文档按「**读者意图**」分层，每份文档只解决一类问�
 3. **命令行契约以 `python cli.py schema --json` 为准**：`docs/CLI.md` 是它的渲染产物，
    改完命令跑 `python3 _docs_cli.py` 重新生成（`python3 _docs_cli.py --check` 可单独校验）。
 4. **新增界面文案**：用 `t()` 包裹后跑 `python _i18n_scan.py --report`，补 `i18n/<lang>/*.json` 词条。
-5. **不提交运行期文件**：`config.json`、`run_log.log*`、`recover_history.json`、`crash_watchdog.*`、`updates/`、`dist/`、`plugins/`（插件数据，如 `plugins/keymouse/` 的 `stats.db` 与 `daemon.*`）。
+5. **不提交运行期文件**：`config.json`、`run_log.log*`、`recover_history.json`、`crash_watchdog.*`、`updates/`、`dist/`、`plugins/`（插件数据，如 `plugins/keymouse/` 的 `stats.db` 与 `daemon.*`）、`ssh_hosts.json*` 与 `ssh_known_hosts*`（SSH 凭据与指纹，本机私有）。
 6. **正确性靠 `tests/test_docs.py` 兜底**：链接可达、引用的代码路径存在、`docs/CLI.md` 与代码同步、
    Markdown 表格列数一致（单元格里出现裸 `|` 会撑坏表格，需写成 `\|`）。改完文档跑一次：
    `python -m unittest tests.test_docs`。

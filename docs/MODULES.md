@@ -12,7 +12,7 @@
 服务  总览(overview) │ PHP 版本管理(php,刚需) │ Nginx 管理(nginx,刚需) │ Redis 管理(redis) │ MySQL 管理(mysql)
 站点  站点映射(vhost,刚需) │ SQLite 数据库(sqlite)
 诊断  Nginx 日志(log) │ 邮件(mail) │ 运行日志(常驻，不受开关影响) │ 访问日志聚合(access_insights)
-其他  键鼠统计(keymouse) │ 项目启动器(project_launcher) │ 站点巡检(site_health) │ Git 工作区(git_status) │ 关于(设置区/模块开关在此)
+其他  SSH 管理(ssh) │ 键鼠统计(keymouse) │ 项目启动器(project_launcher) │ 站点巡检(site_health) │ Git 工作区(git_status) │ 关于(设置区/模块开关在此)
 ```
 
 - 顶部：菜单栏（外观 / 语言 / 帮助）、状态栏（就绪消息 + 整机内存槽位 + 更新提示 + 崩溃告警）。
@@ -77,6 +77,7 @@
 | 访问日志聚合（access.log → 状态码 / 热门路径 / 错误请求） | `ui/plugins/access_insights_panel.py` / `insights` 命令组 | `core/plugins/access_insights/aggregate.py` | 无（不落库、不写任何文件） | 只读 nginx 自身日志目录里的 `*access*.log`（含轮转），文件名只能从候选列表里选、`realpath` 前缀校验；解析失败的行计入 `skipped`；**不读项目内任何文件**；无后台进程、无自动执行（ADR 17） |
 | 站点巡检（vhost 域名 → 状态码 / 耗时 / 证书剩余天数） | `ui/plugins/site_health_panel.py` / `health` 命令组 | `core/plugins/site_health/probe.py` | 无（不落库、不写任何文件） | 待探测地址只由 nginx vhost 的 `server_name` 生成（泛解析 / `_` / 非法域名 / 禁用站点跳过），只发 `GET /`、**不跟随重定向**、不带 Cookie、**不经系统代理**（`http.client` 直连），响应体最多读 64 KB；HTTPS 证书校验失败（本地自签）降级不校验并标 `insecure`；无后台进程；面板自动刷新按 60s 节流（ADR 20） |
 | Git 工作区（本地项目 → 分支 / 未提交 / 领先落后 / 最近提交） | `ui/plugins/git_status_panel.py` / `repos` 命令组 | `core/plugins/git_status/repos.py` | 无（不 fetch / pull / commit，不写任何文件） | 只跑 `git status --porcelain=v2 --branch` 与 `git log -1`，argv 调用不经 shell，`--no-optional-locks` + `GIT_TERMINAL_PROMPT=0` 保证不写 index、不等凭据；仓库来源复用项目启动器的发现口径（www 一层 + vhost root）并补环境根下含 `.git` 的目录，不递归磁盘；`ThreadPoolExecutor` 4 线程、单仓库 6s 超时；无后台进程；面板自动刷新按 60s 节流（ADR 22） |
+| SSH 管理（主机清单 → 连接测试 / 交互式终端 / 命令片段远端执行） | `ui/ssh_panel.py` / `ssh` 命令组 | `core/ssh_store.py`（主机与片段持久化）、`core/ssh_manager.py`（paramiko 传输） | `ssh_hosts.json`（凭据，权限收紧）+ `ssh_known_hosts`（显式确认过的指纹）+ `config.json → settings.ssh_snippets`（片段） | 凭据不进 `config.json`、不进备份导出包与安装包；**保存只做本地字段校验、不要求连通**（密码 / 私钥可先空着，详情标「凭据未配置」，连接时由 `MissingCredential` 提示补齐，`error_kind=credential`）；私钥认证留空时按 OpenSSH 惯例自动选用 `~/.ssh` 里的 `id_ed25519` / `id_ecdsa` / `id_rsa` / `id_dsa`（目录可用 `PHPVM_SSH_KEY_DIR` 覆盖），只是表单默认值、路径可见可改，不启 ssh-agent；首次连接一律拒绝并要求确认指纹（`RejectPolicy` + `--trust-host`）；密码只经 `--password-stdin` 或终端窗口输入，绝不进命令行；远端执行需 `--yes` 且支持 `--dry-run`，stdout / stderr 各限 256 KB 并标 `truncated`；片段永不自动执行；缺少 `paramiko` 时降级为安装提示（ADR 23 / 24） |
 
 > 跨模块约定：`core/*` 的全部 HTTPS 请求（PHP 版本/扩展列表、PHP 与 Adminer 下载、软件更新）
 > 统一经 `core/net_ssl.py::ssl_context()` 取 SSL 上下文 —— 系统默认根 + 仓库内置
@@ -102,6 +103,7 @@
 | `access_insights` | 访问日志聚合 | ❌ | 不建插件导航项；无后台进程与数据文件，停用不影响 nginx 日志本身 |
 | `site_health` | 站点巡检 | ❌ | 不建插件导航项；无后台进程、无数据文件，停用不影响 nginx / 站点本身 |
 | `git_status` | Git 工作区 | ❌ | 不建插件导航项；无后台进程、无数据文件，停用不影响任何仓库（本插件从不写仓库） |
+| `ssh` | SSH 管理 | ❌ | 不建导航项、不实例化 `SshPanel`、不 import `core/ssh_manager`；已保存的主机与片段保留在 `ssh_hosts.json` / `settings.ssh_snippets`，`ssh` 命令组返回「模块已停用」错误 |
 
 插件的 key / 名称来自各 `core/plugins/<name>/` 的 `MANIFEST`，由 `core/modules.py` 在启动期自动并入
 `MODULES` —— 关于页勾选框、启动快照与 CLI `plugin enable/disable` 因此无需各写一遍。

@@ -1,0 +1,16 @@
+# phpvm 的第三方运行依赖（仅 SSH 管理模块需要；其余功能全部使用标准库）。
+#
+# 安装（开发态，装进当前解释器）：
+#     pip install -r requirements.txt
+#
+# 打包（packaging/build.py 会自动执行，装进安装包的 vendor/ 目录，
+# 不改动构建机的系统 Python；入口脚本 main.py 会把 vendor 加入 sys.path）：
+#     pip install --target <安装包>/vendor -r requirements.txt
+#
+# 未安装时 GUI 与其它 CLI 命令照常运行，只有「SSH 管理」页签与 `ssh` 命令组
+# 会返回可读的缺依赖提示（见 core/ssh_manager.py 的 INSTALL_HINT）。
+#
+# 版本范围：paramiko 3.4 起支持 pkeys/协议回退的现状用法，4.0 视为破坏性升级，
+# 需要重新验证 core/ssh_manager.py 后再放开。传递依赖（cryptography / bcrypt /
+# pynacl）由 pip 按平台 wheel 解析，不在此处锁定实现细节。
+paramiko>=3.4,<4.0

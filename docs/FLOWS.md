@@ -286,6 +286,60 @@ CLI 对应 `repos list --only <substr>` / `repos show <name> --files 20`。
 
 ---
 
+## 9. SSH 管理：测试连接 / 信任指纹 / 远端执行（`core/ssh_manager.py`）
+
+**入口**：面板 `ui/ssh_panel.py`（点「测试连接」「打开终端」「在远端执行」）与 `ssh` 命令组
+（`ssh host test|connect`、`ssh snippet run`）。两者都只做参数解析与结果渲染，握手逻辑只有 `core/ssh_manager.py` 一份。
+
+```
+读主机（core/ssh_store.load_hosts，凭据在 ssh_hosts.json）
+   → paramiko.SSHClient + 拒绝策略（等价 RejectPolicy，另回传指纹）+ <数据目录>/ssh_known_hosts
+   → connect(hostname, port, username, password | pkey, timeout=10)
+   → 测试连接：回显 latency / server banner / fingerprint
+   → 远端执行：exec_command(cmd, timeout) → 边读边限流（stdout / stderr 各 256 KB）
+   → 交互式终端：build_ssh_argv() → core/process_utils.open_terminal()
+```
+
+**信任指纹（首次连接）**：`RejectPolicy` 抛出的 `UnknownServer` 由 `ssh_manager` 转成 `HostKeyNotTrusted`，
+带上主机、算法、`SHA256:` 指纹。GUI 弹「主机 xxx 的指纹 … 确认无误并信任吗？」，确认后以 `trust=True`
+重连并由 `client.save_host_keys()` 写入 `ssh_known_hosts`；CLI 必须显式加 `--trust-host` 才写。
+从不使用 `AutoAddPolicy`——静默信任等于给中间人开门。**指纹变了**（`BadHostKeyException`）一律按失败处理，
+不做「自动更新已知主机」，需用户手工删除 `ssh_known_hosts` 中的对应行后重新确认。
+
+**密码与私钥**：密码只来自三处——`ssh host add|update --password-stdin`（stdin，绝不进 argv）、
+面板密码框（只落 `ssh_hosts.json`，权限 0600）、交互式终端里用户自己输入。私钥连接把 `key_path`
+交给 `connect(key_filename=...)`（可选 `passphrase`），并固定 `look_for_keys=False` /
+`allow_agent=False`——只按配置认证，不扫 `~/.ssh` 的默认密钥、不碰 ssh-agent，行为可预期。
+任何路径上都不把密码拼进命令行。
+
+**保存与连通性解耦**：主机「确定」即落盘，不做连通性校验，密码 / 私钥允许先空着（`validate_host`
+只拦字段明显错误：名称、地址、端口、用户名，以及「填了私钥路径却指不到文件」）。缺凭据的主机由
+`ssh_store.missing_secret()` 标出，面板详情显示「凭据未配置」、保存时给一次 warn 提示、CLI 在
+`notes` 里提示，`data.host.credential_ready` 为 `false`；真正连接时 `_connect()` 先检查凭据，
+抛 `MissingCredential` → `error_kind=credential` 并给出「去编辑主机补上」的文案，而不是让用户
+面对 paramiko 的 `No authentication methods`。这样「先在清单里登记十台机器、稍后逐个补密码」
+也能成立。
+
+**默认私钥兜底**：私钥认证留空时，表单（面板对话框 / `ssh host add|update --auth key`）会调用
+`ssh_store.default_key_path()`，按 OpenSSH 惯例顺序在 `~/.ssh` 里找 `id_ed25519` → `id_ecdsa` →
+`id_rsa` → `id_dsa`，取第一个真实存在的文件填进去，并说明「已自动选用默认私钥」（CLI 在 `notes`，
+面板在私钥行右侧）。填进去的是**具体路径**：界面上看得见、能改、能清空，连接时仍显式传
+`key_filename`——不启用 ssh-agent、不隐式尝试未列出的密钥，认证边界没有放宽（ADR 24）。找不到
+候选就保持空白，按「凭据未配置」处理。
+
+**远端执行**：`exec_command` 的 `timeout` 默认 30 秒（CLI `--timeout`），输出边读边限流并置
+`truncated=True`，退出码原样作为 `exit_status` 返回；`exit_status != 0` 视为业务失败（退出码 1，
+`data.error` 说明退出码），网络 / 认证 / 指纹 / 缺依赖 / 缺凭据类错误分别归到 `error_kind`
+（`auth` / `host_key` / `timeout` / `network` / `missing_dependency` / `credential` / `remote` / `error`），供界面翻译。
+**片段永不自动执行**：必须用户点击或 `ssh snippet run --host X --yes`；`--dry-run` 只回显将要执行的命令。
+
+**失败分支**：没装 paramiko → `available()` 为 False，面板顶部显示 `install_hint()`、CLI 返回
+`data.error`（含安装命令），其余功能不受影响；主机名 / 用户名含非法字符或端口越界 → 在
+`ssh_store.validate_host()` 阶段就被拒（不发起连接）；连接超时 → `error_kind=timeout`，不自动重试。
+本模块不写 `run_log`（失败回显在面板输出区与 CLI 的 `data.error` 里），因此**凭据与口令不会进任何日志**。
+
+---
+
 ## 排查速查表
 
 | 现象 | 先看哪里 |
@@ -296,4 +350,7 @@ CLI 对应 `repos list --only <substr>` / `repos show <name> --files 20`。
 | 改配置没生效 | php.ini 类需重启该版本；nginx 类需 reload；模块开关与语言需重启 phpvm |
 | php-cgi 反复崩溃 | 崩溃详情对话框 + `recover_history.json`；Windows 事件查看器；本机 php85 记得 JIT 必须关闭 |
 | CLI 行为与界面不一致 | 先 `python3 cli.py schema --json` 核对参数契约（文档只写典型用法） |
+| SSH 提示「缺少依赖 paramiko」 | 开发态 `pip install -r requirements.txt`；安装包看 `<包目录>/vendor/paramiko` 是否存在（vendor 装失败构建日志里有 warn），或就地 `pip install -r requirements.txt`（流程 9） |
+| SSH 首次连接被拒 / 指纹变了 | 面板弹窗确认指纹（或 `--trust-host`）后写入 `ssh_known_hosts`；指纹变化需先手工删掉该行再确认 |
+| SSH 连上但远端执行没输出 | 看 `exit_status` 与 `stderr`（`exit_status=-1` 表示超时被截断）；`truncated=true` 说明超过 256 KB 上限 |
 | 键鼠统计一直显示「后台未运行」 | `<数据目录>/plugins/keymouse/daemon.log`（钩子是否被安全软件拦截）→ `daemon.lock` 的 PID 与 `daemon.heartbeat` 是否新鲜 → 设置页是否启用了「键鼠统计」模块（流程 8） |
