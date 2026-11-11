@@ -15,6 +15,12 @@ __pycache__/
 run_log.log*
 recover_history.json
 
+# 端口映射与用户设置：每台机器内容都不同（语言、主题、模块开关、自启动名单…），
+# 首次运行由 core/config.py 用 DEFAULT_PORTS / DEFAULT_SETTINGS 自动生成；
+# 安装包构建也会自带模板（packaging/build.py）。历史上被误提交过，这里按仓库根
+# 精确忽略，避免误伤其它目录的同名文件；已追踪的需 git rm --cached 才会生效
+/config.json
+
 # 崩溃自愈守护进程运行时状态
 crash_watchdog.json
 crash_watchdog.lock
