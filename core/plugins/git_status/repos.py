@@ -91,7 +91,10 @@ def _run(path: str, args: list[str], timeout: float = DEFAULT_TIMEOUT):
     exe = git_executable()
     if not exe:
         raise FileNotFoundError("git")
-    cmd = [exe, "--no-optional-locks", "-C", path, *args]
+    # core.quotePath=false：否则中文文件名会被转义成 "\344\270\255" 八进制串，
+    # 面板里显示成乱码（git 默认开启，macOS 中文目录尤其常见）。
+    cmd = [exe, "--no-optional-locks", "-c", "core.quotePath=false",
+           "-C", path, *args]
     kwargs: dict = {}
     if os.name == "nt":
         kwargs["creationflags"] = 0x08000000  # CREATE_NO_WINDOW

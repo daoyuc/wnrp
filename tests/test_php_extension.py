@@ -12,10 +12,21 @@ import threading
 import unittest
 from unittest import mock
 
-from core import php_extension as ext_mod
+from core import i18n as _i18n, php_extension as ext_mod
 
 
-class DownloadDelegateTest(unittest.TestCase):
+class _Lang(unittest.TestCase):
+    """断言中文文案：显式切 zh_CN，避免英文 locale 下环境性失败。"""
+
+    def setUp(self):
+        self._lang = _i18n.current_language()
+        _i18n.set_language("zh_CN")
+
+    def tearDown(self):
+        _i18n.set_language(self._lang)
+
+
+class DownloadDelegateTest(_Lang):
     def test_download_delegates_to_php_downloader(self):
         """_download 透传进度回调与取消事件给 download_with_progress。"""
         calls = {}

@@ -12,7 +12,7 @@ import types
 import unittest
 from unittest import mock
 
-from core import ssh_manager, ssh_store
+from core import i18n as _i18n, ssh_manager, ssh_store
 
 
 class FakeKey:
@@ -130,6 +130,10 @@ class FakeClient:
 
 class _Base(unittest.TestCase):
     def setUp(self):
+        # 错误分类与降级提示断言中文：显式切 zh_CN，避免英文 locale 下环境性失败
+        lang = _i18n.current_language()
+        _i18n.set_language("zh_CN")
+        self.addCleanup(_i18n.set_language, lang)
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
         self.root = self._tmp.name

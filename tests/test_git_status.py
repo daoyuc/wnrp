@@ -130,6 +130,16 @@ class RepoDescribeTest(unittest.TestCase):
         self.assertEqual(row["untracked"], 0)
         self.assertEqual(row["dirty"], 1)
 
+    def test_non_ascii_path_is_reported_verbatim(self):
+        # git 默认 core.quotePath=true，非 ASCII 路径会变成 "\344\270\255" 这类
+        # 八进制转义串；_run 固定 -c core.quotePath=false，路径应原样返回。
+        name = "中文 文件.txt"
+        with open(os.path.join(self.root, name), "w", encoding="utf-8") as f:
+            f.write("x")
+        row = repos.describe(self.root)
+        self.assertEqual(row["untracked"], 1)
+        self.assertIn(name, row["changes"])
+
     def test_subdirectory_falls_back_to_parent_repo(self):
         # 站点 root 常指向 Laravel 的 public 等子目录：回退上一级找 .git
         public = os.path.join(self.root, "public")

@@ -14,12 +14,24 @@ import unittest
 from unittest import mock
 
 import cli
-from core import backup_bundle, ssh_manager, ssh_store
+from core import backup_bundle, i18n as _i18n, ssh_manager, ssh_store
 from tests.fakes import FakeConfig
 
 
-class SshCliTest(unittest.TestCase):
+class _Lang(unittest.TestCase):
+    """断言中文文案：显式切 zh_CN，避免英文 locale 下环境性失败。"""
+
     def setUp(self):
+        self._lang = _i18n.current_language()
+        _i18n.set_language("zh_CN")
+
+    def tearDown(self):
+        _i18n.set_language(self._lang)
+
+
+class SshCliTest(_Lang):
+    def setUp(self):
+        super().setUp()
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
         self.root = self._tmp.name

@@ -12,7 +12,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from core import ssh_store
+from core import i18n as _i18n, ssh_store
 from tests.fakes import FakeConfig
 
 
@@ -26,6 +26,10 @@ class _StoreBase(unittest.TestCase):
     """隔离数据目录：主机文件与 known_hosts 都指向临时目录。"""
 
     def setUp(self):
+        # 校验失败文案断言中文：显式切 zh_CN，避免英文 locale 下环境性失败
+        lang = _i18n.current_language()
+        _i18n.set_language("zh_CN")
+        self.addCleanup(_i18n.set_language, lang)
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
         self.root = self._tmp.name
