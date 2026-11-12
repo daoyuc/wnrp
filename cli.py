@@ -3184,6 +3184,30 @@ def cmd_ssh_host_connect(a, r: Result) -> Result:
         r.note(t("密码认证需在终端窗口内输入"))
     return r
 
+
+def cmd_ssh_host_overview(a, r: Result) -> Result:
+    store, _mgr = _ssh_libs()
+    if not _ssh_guard(r):
+        return r
+    host = _ssh_pick_host(store, a.target, r)
+    if host is None:
+        return r
+    from core import ssh_overview
+    res = ssh_overview.collect_overview(host, trust=a.trust_host,
+                                       timeout=a.timeout)
+    r.ok = bool(res.get("ok"))
+    r.data = res
+    if r.ok:
+        data = res.get("data", {})
+        text = ssh_overview.overview_text(data)
+        r.data = {"target": res.get("target"), "overview": data, "text": text}
+        r.say(text)
+    else:
+        r.say(t("失败：{err}", err=res.get("error") or t("未知错误")))
+        if res.get("error_kind") == "host_key" and res.get("fingerprint"):
+            r.note(t("确认指纹无误后加 --trust-host 再试一次"))
+    return r
+
 def _ssh_snippet_host_ids(store, refs) -> tuple:
     """把主机名 / id 解析成 host_ids；任一未知即失败（避免静默丢关联）。"""
     hosts = store.load_hosts()
@@ -3541,6 +3565,12 @@ def build_parser() -> argparse.ArgumentParser:
               "用系统终端打开 SSH 会话（密码在终端内输入）")
     p.add_argument("target", help="主机名或 id")
     p.add_argument("--dry-run", action="store_true", help="只打印将执行的命令")
+    p = _leaf(hs, "overview", cmd_ssh_host_overview, "ssh.host.overview",
+              "拉取一次只读系统概览（负载/内存/磁盘/网络累计）")
+    p.add_argument("target", help="主机名或 id")
+    p.add_argument("--timeout", type=float, default=30.0, help="执行超时秒数（默认 30）")
+    p.add_argument("--trust-host", action="store_true",
+                   help="首次连接时信任并记录该主机指纹")
 
     sg = objs.add_parser("snippet", help="命令片段管理 / 远端执行")
     ss = sg.add_subparsers(dest="action", metavar="<action>")

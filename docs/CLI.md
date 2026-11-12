@@ -56,7 +56,7 @@
 | `services` | 整套服务编排 | `start-all` · `stop-all` |
 | `site` | 站点（vhost）管理 | `create` · `disable` · `enable` · `list` · `php` · `remove` · `render` · `secure` · `show` · `sync-port` · `unsecure` |
 | `sqlite` | SQLite 只读查询 | `columns` · `query` · `tables` |
-| `ssh` | SSH 主机与命令片段管理 | `host`（`add` · `connect` · `list` · `remove` · `test` · `update`） · `snippet`（`add` · `list` · `remove` · `run` · `update`） |
+| `ssh` | SSH 主机与命令片段管理 | `host`（`add` · `connect` · `list` · `overview` · `remove` · `test` · `update`） · `snippet`（`add` · `list` · `remove` · `run` · `update`） |
 | `tune` | 开发环境配置推荐（PHP / Nginx） | `apply` · `suggest` |
 | `update` | 软件更新 | `check` · `download` |
 | `version` | 输出版本与环境路径信息 | — |
@@ -814,6 +814,7 @@
 | `add` | 新增主机（密码从 stdin 读，不进命令行历史） | `--name`、`--host`、`--port`、`--user`、`--auth`、`--key-path`、`--passphrase-stdin`、`--tags`、`--note`、`--password-stdin`、`--dry-run` |
 | `connect` | 用系统终端打开 SSH 会话（密码在终端内输入） | `<target>`、`--dry-run` |
 | `list` | 列出主机 | `--query`、`--tag` |
+| `overview` | 拉取一次只读系统概览（负载/内存/磁盘/网络累计） | `<target>`、`--timeout`、`--trust-host` |
 | `remove` | 删除主机（需 --yes） | `<target>`、`--yes`、`--dry-run` |
 | `test` | 测试连接（真实握手） | `<target>`、`--timeout`、`--trust-host` |
 | `update` | 更新主机字段 | `<target>`、`--name`、`--host`、`--port`、`--user`、`--auth`、`--key-path`、`--passphrase-stdin`、`--tags`、`--note`、`--password-stdin`、`--dry-run` |

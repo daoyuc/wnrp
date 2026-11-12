@@ -18,7 +18,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from tkinter.scrolledtext import ScrolledText
 
-from core import run_log, ssh_manager, ssh_store
+from core import run_log, ssh_manager, ssh_overview, ssh_store
 from core.i18n import t
 from . import theme
 from .window_utils import rearm_poll
@@ -44,6 +44,8 @@ class SshPanel(ttk.Frame):
         self._tag = tk.StringVar(value="")
         self._status = tk.StringVar(value=t("就绪"))
         self._detail = tk.StringVar(value=t("选择左侧主机查看详情"))
+        self._overview = tk.StringVar(value=t("点击左侧主机以采集系统概览"))
+        self._overview_cache = None
         self._build()
         self.reload()
         self._poll()
@@ -119,6 +121,18 @@ class SshPanel(ttk.Frame):
         body.add(right, weight=2)
         ttk.Label(right, textvariable=self._detail, style="CardDim.TLabel",
                   justify="left").pack(anchor="w", fill="x")
+
+        # 系统概览（拉式）：点击主机时按需 SSH 执行只读采集，本地解析展示；
+        # 不装 agent、不存历史，想看最新就点「刷新状态」。
+        ovf = ttk.LabelFrame(right, text=t("系统概览"))
+        ovf.pack(fill="x", pady=(theme.PAD_SM, 0))
+        ovhead = ttk.Frame(ovf)
+        ovhead.pack(fill="x")
+        ttk.Label(ovhead, textvariable=self._overview, style="CardBody.TLabel",
+                  justify="left").pack(side="left", anchor="w")
+        ttk.Button(ovhead, text=t("刷新状态"), command=self._refresh_overview,
+                   style="Toolbar.TButton").pack(side="right")
+
         srow = ttk.Frame(right)
         srow.pack(fill="x", pady=(theme.PAD_SM, 0))
         ttk.Label(srow, text=t("命令片段"), style="Section.TLabel").pack(side="left")
@@ -222,6 +236,7 @@ class SshPanel(ttk.Frame):
                     break
         self._render_detail()
         self._render_snippets()
+        self._refresh_overview()
 
     def _render_detail(self) -> None:
         host = self._selected_host
@@ -252,6 +267,31 @@ class SshPanel(ttk.Frame):
             self._stree.insert("", "end", iid=str(snip["id"]), text=snip["name"],
                                values=(scope, lines[0][:80] if lines else ""),
                                tags=("odd",) if index % 2 else ())
+
+    # ------------------------------------------------------------------ #
+    # 系统概览（拉式）
+    # ------------------------------------------------------------------ #
+    def _refresh_overview(self) -> None:
+        """点击主机 / 按「刷新状态」时，按需发起一次只读采集（不自动轮询）。"""
+        host = self._selected_host
+        if host is None:
+            self._overview.set(t("请先选择一台主机"))
+            return
+        if ssh_store.missing_secret(host):
+            self._overview.set(
+                t("凭据未配置，连接前先在「编辑主机」里补齐"))
+            return
+        if not self._require_dep():
+            self._overview.set(t("缺少依赖 paramiko，无法采集"))
+            return
+        # 先回显上次快照，避免来回切换时空白闪烁
+        if self._overview_cache:
+            self._overview.set(ssh_overview.overview_text(
+                self._overview_cache,
+                t("（上次采集，点击刷新状态更新）")))
+        self._status.set(t("正在采集 {target}…",
+                           target=ssh_manager.target_label(host)))
+        self._start_bg("overview", host)
 
     # ------------------------------------------------------------------ #
     # 后台任务
@@ -288,6 +328,8 @@ class SshPanel(ttk.Frame):
             try:
                 if kind == "test":
                     res = ssh_manager.test_connection(host, trust=trust)
+                elif kind == "overview":
+                    res = ssh_overview.collect_overview(host, trust=trust)
                 else:
                     res = ssh_manager.exec_command(host, command, trust=trust)
             except Exception as e:  # noqa: BLE001 - 线程内异常必须转成消息
@@ -338,6 +380,23 @@ class SshPanel(ttk.Frame):
             self._append(t("[连接失败] {target}：{err}",
                            target=label, err=res.get("error", "")))
             self.notify(t("连接失败"), "error")
+            return
+        if kind == "overview":
+            if res.get("ok"):
+                data = res.get("data") or {}
+                self._overview_cache = data
+                self._overview.set(ssh_overview.overview_text(
+                    data, time.strftime("%H:%M:%S")))
+                self._status.set(t("已采集 {target}", target=label))
+                return
+            if res.get("error_kind") == "credential":
+                self._overview.set(
+                    t("凭据未配置，连接前先在「编辑主机」里补齐"))
+                self._status.set(t("凭据未配置"))
+                return
+            self._overview.set(t("采集失败：{err}", err=res.get("error", "")))
+            self._status.set(t("采集失败"))
+            self.notify(t("采集失败"), "error")
             return
         if res.get("stdout"):
             self._append(res["stdout"])

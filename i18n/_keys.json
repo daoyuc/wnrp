@@ -2784,7 +2784,13 @@
   ]
  },
  "凭据未配置": {
-  "count": 1,
+  "count": 2,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "凭据未配置，连接前先在「编辑主机」里补齐": {
+  "count": 2,
   "files": [
    "ui/ssh_panel.py"
   ]
@@ -2951,12 +2957,13 @@
   ]
  },
  "刷新状态": {
-  "count": 5,
+  "count": 6,
   "files": [
    "ui/mysql_panel.py",
    "ui/nginx_panel.py",
    "ui/redis_panel.py",
-   "ui/site_wizard.py"
+   "ui/site_wizard.py",
+   "ui/ssh_panel.py"
   ]
  },
  "前往发布页": {
@@ -3862,7 +3869,7 @@
   ]
  },
  "失败：{err}": {
-  "count": 2,
+  "count": 3,
   "files": [
    "cli.py"
   ]
@@ -5231,6 +5238,12 @@
   "count": 1,
   "files": [
    "core/hosts_manager.py"
+  ]
+ },
+ "已采集 {target}": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
   ]
  },
  "已重新启用站点": {
@@ -7351,7 +7364,7 @@
   ]
  },
  "未知错误": {
-  "count": 4,
+  "count": 5,
   "files": [
    "cli.py",
    "core/nginx_manager.py"
@@ -7894,6 +7907,12 @@
    "core/php_installer.py"
   ]
  },
+ "正在采集 {target}…": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
  "正在重启 phpvm（拉起新进程后退出当前实例）": {
   "count": 1,
   "files": [
@@ -8096,6 +8115,12 @@
   "count": 1,
   "files": [
    "ui/update_dialog.py"
+  ]
+ },
+ "点击左侧主机以采集系统概览": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
   ]
  },
  "热门路径": {
@@ -8446,7 +8471,7 @@
   ]
  },
  "确认指纹无误后加 --trust-host 再试一次": {
-  "count": 1,
+  "count": 2,
   "files": [
    "cli.py"
   ]
@@ -8769,6 +8794,12 @@
    "ui/main_window.py"
   ]
  },
+ "系统概览": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
  "系统负载与运行时长": {
   "count": 1,
   "files": [
@@ -8973,6 +9004,12 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "缺少依赖 paramiko，无法采集": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
   ]
  },
  "缺少依赖 paramiko，请先安装：{cmd}": {
@@ -9499,7 +9536,7 @@
   ]
  },
  "请先选择一台主机": {
-  "count": 1,
+  "count": 2,
   "files": [
    "ui/ssh_panel.py"
   ]
@@ -10231,6 +10268,18 @@
    "ui/plugins/keymouse_panel.py"
   ]
  },
+ "采集失败": {
+  "count": 2,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "采集失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
  "重启": {
   "count": 8,
   "files": [
@@ -10665,6 +10714,12 @@
   "count": 1,
   "files": [
    "ui/php_panel.py"
+  ]
+ },
+ "（上次采集，点击刷新状态更新）": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
   ]
  },
  "（上游 {up}）": {

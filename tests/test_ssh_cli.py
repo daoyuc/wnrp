@@ -368,6 +368,24 @@ class SshCliTest(_Lang):
         self.assertEqual(again.data["count"], expected)
         self.assertFalse(any("已预置" in n for n in again.notes))
 
+    def test_host_overview_reports_snapshot(self):
+        self.seed_host()
+        fake = {
+            "ok": True, "target": "deploy@10.0.0.8:22", "stdout": "",
+            "data": {
+                "uptime_seconds": 100, "load": [0.1, 0.2, 0.3],
+                "mem_total_kb": 8000000, "mem_avail_kb": 2000000,
+                "swap_total_kb": 0, "swap_free_kb": 0, "disks": [],
+                "net_send_bytes": 0, "net_recv_bytes": 0,
+            },
+        }
+        with mock.patch("core.ssh_overview.collect_overview",
+                        return_value=fake):
+            res = self.run_cli(["ssh", "host", "overview", "demo"])
+        self.assertTrue(res.ok)
+        self.assertIn("overview", res.data)
+        self.assertIn("运行时长", res.data["text"])
+
     def test_snippet_run_requires_yes(self):
         host = self.seed_host()
         snip = self.seed_snippet(host)

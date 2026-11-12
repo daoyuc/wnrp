@@ -158,5 +158,21 @@
   "资源": "Resources",
   "网络": "Network",
   "安全": "Security",
-  "已预置 {n} 条常用命令片段，可编辑或删除": "Seeded {n} common operation snippets; edit or delete them as needed"
+  "已预置 {n} 条常用命令片段，可编辑或删除": "Seeded {n} common operation snippets; edit or delete them as needed",
+  "系统概览": "System overview",
+  "点击左侧主机以采集系统概览": "Click a host on the left to collect its system overview",
+  "凭据未配置，连接前先在「编辑主机」里补齐": "Credentials not set; add them in \"Edit host\" before connecting",
+  "缺少依赖 paramiko，无法采集": "Missing paramiko; cannot collect",
+  "正在采集 {target}…": "Collecting {target}…",
+  "已采集 {target}": "Collected {target}",
+  "采集失败": "Collection failed",
+  "采集失败：{err}": "Failed: {err}",
+  "运行时长：{u}": "Uptime: {u}",
+  "负载（1/5/15 分钟）：{a} {b} {c}": "Load (1/5/15 min): {a} {b} {c}",
+  "内存：{u} / {t} {unit}（{p}%）": "Memory: {u} / {t} {unit} ({p}%)",
+  "交换：{u} / {t} {unit}（{p}%）": "Swap: {u} / {t} {unit} ({p}%)",
+  "磁盘：": "Disks:",
+  "网络累计发送：{s} · 接收：{r}": "Network total sent: {s} · received: {r}",
+  "（采集于 {t}）": "(collected at {t})",
+  "（上次采集，点击刷新状态更新）": "(last collection; click Refresh to update)"
 }

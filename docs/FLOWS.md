@@ -342,6 +342,8 @@ MySQL / Docker / 系统错误日志。全部是只读探测：不提权、不带
 `settings.ssh_snippets_builtin` 记版本号决定 —— 用户删掉的内置片段不会因为重启又冒出来，升版本时
 只补当时还不存在的那些（同名片段以用户的为准）。
 
+**系统概览（拉式，不装 agent）**：点击左侧主机时，面板在详情区一次性发起一次只读采集——`ssh_overview.collect_overview()` 复用 `exec_command` 执行一条脚本：读 `/proc/loadavg`（负载）、`/proc/meminfo`（内存 / 交换）、`/proc/net/dev`（网络累计收发字节，跳过回环 `lo`）、`df -Pk`（各分区使用量），全部以 `KEY=value` 形式回显，回本地解析成运行时长 / 负载 / 内存% / 交换% / 各分区磁盘% / 网络累计收发。**不在远端装任何常驻进程**，不靠 agent、不开端口、不存历史、不进定时刷新（定时 `auto_refresh()` 只重载本地列表，不连主机）。想看最新就点「刷新状态」按钮再拉一次。脚本只用 `awk print` / `cut`，对 bash 与 busybox ash 通用、不依赖 `jq`/`bc`；单位换算（KB→GB 等）在本地做，远端只吐原始 `/proc` 与 `df`。凭据缺失（`missing_secret`）时不连、直接提示先补齐；指纹未信任走已有的二次确认重拉。CLI 对称提供 `ssh host overview <名称>`（只读，不需要 `--yes`）。
+
 **失败分支**：没装 paramiko → `available()` 为 False，面板顶部显示 `install_hint()`、CLI 返回
 `data.error`（含安装命令），其余功能不受影响；主机名 / 用户名含非法字符或端口越界 → 在
 `ssh_store.validate_host()` 阶段就被拒（不发起连接）；连接超时 → `error_kind=timeout`，不自动重试。
