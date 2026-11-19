@@ -15,6 +15,7 @@ from core import process_utils as pu
 from core.i18n import t
 from core.mysql_manager import MysqlInstance, MysqlManager, is_admin
 from . import theme
+from . import widgets as w
 
 # 状态卡信息行：(内部键, 标签 msgid)
 _INFO_ROWS = [
@@ -60,6 +61,10 @@ class MysqlPanel(ttk.Frame):
 
     # ------------------------------------------------------------------ #
     def _build(self) -> None:
+        w.PageHeader(
+            self, title=t("MySQL 管理"),
+            subtitle=t("实例发现、启停与错误日志"),
+        )
         top = ttk.Frame(self)
         top.pack(fill="x", pady=(0, 6))
         ttk.Label(top, text=t("MySQL 实例："), font=(theme.FONT, 9, "bold")).pack(side="left")

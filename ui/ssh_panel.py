@@ -21,6 +21,7 @@ from tkinter.scrolledtext import ScrolledText
 from core import run_log, ssh_manager, ssh_overview, ssh_store
 from core.i18n import t
 from . import theme
+from . import widgets as w
 from .window_utils import rearm_poll
 
 _POLL_MS = 120
@@ -54,23 +55,26 @@ class SshPanel(ttk.Frame):
     # 构建
     # ------------------------------------------------------------------ #
     def _build(self) -> None:
+        header = w.PageHeader(
+            self, title=t("SSH 管理"),
+            subtitle=t("主机清单、测试连接与只读命令片段"),
+        )
+        ttk.Label(header.actions, textvariable=self._status,
+                  style="PageSub.TLabel").pack(side="left",
+                                               padx=(0, theme.PAD_SM))
         bar = ttk.Frame(self)
-        bar.pack(fill="x")
-        ttk.Label(bar, text=t("SSH 管理"), style="Title.TLabel").pack(side="left")
-        ttk.Label(bar, textvariable=self._status,
-                  style="CardDim.TLabel").pack(side="left",
-                                               padx=(theme.PAD_MD, 0))
+        bar.pack(fill="x", pady=(0, theme.PAD_SM))
         ttk.Button(bar, text=t("刷新"), command=self.reload,
                    style="Toolbar.TButton").pack(side="right")
         self._tag_box = ttk.Combobox(bar, textvariable=self._tag, width=12,
                                      state="readonly")
         self._tag_box.pack(side="right", padx=(0, theme.PAD_SM))
         self._tag_box.bind("<<ComboboxSelected>>", lambda e: self._render_hosts())
-        ttk.Label(bar, text=t("标签"), style="CardDim.TLabel").pack(
+        ttk.Label(bar, text=t("标签"), style="PageSub.TLabel").pack(
             side="right", padx=(0, theme.PAD_XS))
         ttk.Entry(bar, textvariable=self._search, width=20).pack(
             side="right", padx=(0, theme.PAD_SM))
-        ttk.Label(bar, text=t("搜索"), style="CardDim.TLabel").pack(
+        ttk.Label(bar, text=t("搜索"), style="PageSub.TLabel").pack(
             side="right", padx=(0, theme.PAD_XS))
         self._search.trace_add("write", lambda *_: self._render_hosts())
 

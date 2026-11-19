@@ -21,6 +21,7 @@ from core import process_utils as pu
 from core.i18n import t
 from core.nginx_manager import NginxManager
 from . import theme
+from . import widgets as w
 from .window_utils import rearm_poll
 
 TAIL_BYTES = 256 * 1024
@@ -56,6 +57,10 @@ class LogPanel(ttk.Frame):
 
     # ------------------------------------------------------------------ #
     def _build(self) -> None:
+        w.PageHeader(
+            self, title=t("日志"),
+            subtitle=t("Nginx / PHP / 站点日志统一查看"),
+        )
         top = ttk.Frame(self)
         top.pack(fill="x", pady=(0, 6))
 

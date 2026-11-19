@@ -76,6 +76,9 @@ PALETTES: dict[str, dict[str, str]] = {
         "tab_bg": "#E9EEF6",
         "header_bg": "#F1F5F9",
         "hover": "#F1F5F9",
+        "success_bg": "#ECFDF5",
+        "warn_bg": "#FFFBEB",
+        "err_bg": "#FEF2F2",
     },
     DARK: {
         "primary": "#5B9BFF",
@@ -104,6 +107,9 @@ PALETTES: dict[str, dict[str, str]] = {
         "tab_bg": "#212429",
         "header_bg": "#21252B",
         "hover": "#2F333A",
+        "success_bg": "#1A2E24",
+        "warn_bg": "#2E2A1A",
+        "err_bg": "#2E1F1F",
     },
 }
 

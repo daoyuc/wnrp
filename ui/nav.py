@@ -32,8 +32,8 @@ from . import theme
 # 侧栏宽度：够放「SQLite 数据库」「访问日志聚合」这类最长标题，又不过分挤压内容
 NAV_WIDTH = 184
 # 行高与圆点尺寸（与 theme.py 的 Nav.Treeview rowheight 保持一致）
-NAV_ROW_H = 28
-DOT_SIZE = 8
+NAV_ROW_H = 30
+DOT_SIZE = 9
 
 # 圆点状态 → 调色板角色（"" = 无状态，不画点）
 _STATE_ROLES = {"on": "OK", "off": "GRAY", "warn": "WARN"}
@@ -81,13 +81,16 @@ class SideNav(ttk.Frame):
         self.content = ttk.Frame(self)
         self.content.pack(side="left", fill="both", expand=True)
 
+        # 左侧 3px 强调条：整列导航的视觉锚点（选中项本身用 select_bg + 强调色文字）
+        ttk.Frame(self.sidebar, style="Accent.TFrame", width=3).pack(
+            side="left", fill="y")
         self.tree = ttk.Treeview(self.sidebar, show="tree", selectmode="browse",
                                  style="Nav.Treeview")
         self._scrollbar = ttk.Scrollbar(self.sidebar, orient="vertical",
                                         command=self.tree.yview)
         self.tree.configure(yscrollcommand=self._on_yscroll)
         self.tree.pack(side="left", fill="both", expand=True,
-                       padx=(theme.PAD_SM, 0), pady=theme.PAD_SM)
+                       padx=(theme.PAD_XS, 0), pady=theme.PAD_SM)
         self.tree.bind("<<TreeviewSelect>>", self._on_select)
 
         # 注册表：order 决定显示顺序，pages/texts/group_of 供查询与重建

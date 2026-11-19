@@ -26,6 +26,7 @@ from .extension_dialog import ExtensionDialog
 from .tuning_dialog import TuningDialog
 from .xdebug_dialog import XdebugDialog
 from . import theme
+from . import widgets as w
 
 #: 列表列：状态 / 标识 / 端口进程 + 4 项最常用的 ini 指标 + 扩展数 / 调试开关。
 #: 完整指标与路径放在下方「常用指标」栏，避免列过宽挤占比较视图。
@@ -101,6 +102,7 @@ class PhpPanel(ttk.Frame):
         #: 勾选了「开机自启」的版本名（渲染前从配置重读，见 _reload_autostart）
         self._autostart: set[str] = set()
         self._last_toggle: tuple[str, float] | None = None  # 防双击重复翻转
+        self._filter_var = tk.StringVar()
 
         self._build()
         self.refresh_versions()
@@ -110,40 +112,62 @@ class PhpPanel(ttk.Frame):
     # 界面构建
     # ------------------------------------------------------------------ #
     def _build(self) -> None:
-        bar = ttk.Frame(self)
-        bar.pack(fill="x", pady=(0, 6))
-        self.btn_start = ttk.Button(bar, text=t("启动"), style="Accent.TButton",
-                                    command=lambda: self._operate("start"))
-        self.btn_stop = ttk.Button(bar, text=t("停止"), style="Danger.TButton",
-                                   command=lambda: self._operate("stop"))
-        self.btn_restart = ttk.Button(bar, text=t("重启"), command=lambda: self._operate("restart"))
-        self.btn_port = ttk.Button(bar, text=t("编辑端口"), command=self._edit_port)
-        self.btn_ini = ttk.Button(bar, text=t("查看配置"), command=self._view_ini)
-        self.btn_edit = ttk.Button(bar, text=t("编辑配置"), command=self._edit_ini)
-        self.btn_check = ttk.Button(bar, text=t("自检"), command=self._self_check)
-        self.btn_ext = ttk.Button(bar, text=t("安装扩展"), command=self._manage_ext)
-        self.btn_tune = ttk.Button(bar, text=t("推荐设置"), command=self._recommend_settings)
-        # 没有生效 php.ini 的版本：先生成一份，否则「编辑配置 / 推荐设置」无从下手
-        self.btn_init_ini = ttk.Button(bar, text=t("初始化 php.ini"), command=self._init_ini)
-        self.btn_debug = ttk.Button(bar, text=t("调试"), command=self._open_xdebug)
-        self.btn_download = ttk.Button(bar, text=t("下载新版本"), style="Accent.TButton",
-                                       command=self._download_version)
-        self.btn_terminal = ttk.Button(bar, text=t("打开终端"), command=self._open_terminal)
-        self.btn_composer = ttk.Button(bar, text=t("Composer"), command=self._composer)
-        self.btn_refresh = ttk.Button(bar, text=t("刷新"), command=self.refresh_versions)
-        for b in (self.btn_start, self.btn_stop, self.btn_restart, self.btn_port,
-                  self.btn_ini, self.btn_edit, self.btn_check, self.btn_ext,
-                  self.btn_tune, self.btn_init_ini, self.btn_debug, self.btn_download,
-                  self.btn_terminal, self.btn_composer, self.btn_refresh):
-            b.pack(side="left", padx=(0, 6))
-        ttk.Label(bar, text=t("选中版本后操作 · 双击行查看配置 · 点击「开机自启」列切换勾选"),
-                  style="SubTitle.TLabel").pack(side="left", padx=(4, 0))
+        w.PageHeader(
+            self, title=t("PHP 版本管理"),
+            subtitle=t("选中版本后操作 · 双击行查看配置 · 点击「开机自启」列切换勾选"),
+        )
+        tb = w.Toolbar(
+            self,
+            primary=[
+                {"text": t("启动"), "kind": "accent",
+                 "command": lambda: self._operate("start")},
+                {"text": t("停止"), "kind": "danger",
+                 "command": lambda: self._operate("stop")},
+                {"text": t("重启"), "command": lambda: self._operate("restart")},
+            ],
+            secondary=[
+                {"text": t("编辑端口"), "command": self._edit_port},
+                {"text": t("查看配置"), "command": self._view_ini},
+                {"text": t("编辑配置"), "command": self._edit_ini},
+                {"text": t("自检"), "command": self._self_check},
+                {"text": t("调试"), "command": self._open_xdebug},
+                {"text": t("刷新"), "command": self.refresh_versions},
+            ],
+            overflow=[
+                {"text": t("安装扩展"), "command": self._manage_ext},
+                {"text": t("推荐设置"), "command": self._recommend_settings},
+                {"text": t("初始化 php.ini"), "command": self._init_ini},
+                {"text": t("下载新版本"), "command": self._download_version},
+                {"text": t("打开终端"), "command": self._open_terminal},
+                {"text": t("Composer"), "command": self._composer},
+            ],
+        )
+        (self.btn_start, self.btn_stop, self.btn_restart,
+         self.btn_port, self.btn_ini, self.btn_edit, self.btn_check,
+         self.btn_debug, self.btn_refresh) = tb.buttons
+        self._overflow_menu = tb.overflow_menu
+        self._overflow_init_idx = 2  # 「初始化 php.ini」在 overflow 中的位置
+        # 兼容旧逻辑：扩展/推荐等仍挂在「更多」里，保留属性供测试或外部引用
+        self.btn_ext = self.btn_tune = self.btn_init_ini = self.btn_download = None
+        self.btn_terminal = self.btn_composer = None
+
+        frow = ttk.Frame(self)
+        frow.pack(fill="x", pady=(0, theme.PAD_SM))
+        ttk.Label(frow, text=t("搜索"), style="PageSub.TLabel").pack(side="left")
+        ent = ttk.Entry(frow, textvariable=self._filter_var)
+        ent.pack(side="left", fill="x", expand=True, padx=(theme.PAD_SM, theme.PAD_SM))
+        ent.bind("<Escape>", lambda e: self._filter_var.set(""))
+        self._filter_var.trace_add("write", lambda *_: self._apply_filter())
+        self._filter_count = ttk.Label(frow, text="", style="PageSub.TLabel")
+        self._filter_count.pack(side="right")
 
         # 常用指标栏（选中版本）：先按 bottom 占位，表格再 fill 剩余空间
         self._build_metrics_bar().pack(side="bottom", fill="x", pady=(6, 0))
 
-        # 表格
-        wrap = ttk.Frame(self)
+        # 表格 + 空态
+        self._list_host = ttk.Frame(self)
+        self._list_host.pack(fill="both", expand=True)
+        wrap = ttk.Frame(self._list_host)
         wrap.pack(fill="both", expand=True)
         self.tree = ttk.Treeview(
             wrap, columns=[c[0] for c in COLUMNS], show="headings", selectmode="browse"
@@ -158,6 +182,13 @@ class PhpPanel(ttk.Frame):
         self.tree.configure(yscrollcommand=vsb.set)
         self.tree.pack(side="left", fill="both", expand=True)
         vsb.pack(side="right", fill="y")
+        self._empty = w.EmptyState(
+            self._list_host,
+            title=t("未发现 PHP 版本"),
+            hint=t("将 PHP 放进环境根目录，或使用「更多 → 下载新版本」"),
+            action_text=t("下载新版本"),
+            command=self._download_version,
+        )
 
         self.tree.tag_configure("dot_run", foreground=theme.OK)
         self.tree.tag_configure("dot_stop", foreground=theme.GRAY)
@@ -423,12 +454,48 @@ class PhpPanel(ttk.Frame):
     def _render(self, versions: list[PhpVersion]) -> None:
         self._versions = versions
         self._reload_autostart()
+        self._apply_filter()
+
+    def _apply_filter(self) -> None:
+        """按搜索框过滤版本列表；空列表显示空态。"""
+        q = (self._filter_var.get() or "").strip().lower()
+        if q:
+            shown = [v for v in self._versions
+                     if q in v.name.lower()
+                     or q in (v.display or "").lower()
+                     or q in str(v.port)]
+        else:
+            shown = list(self._versions)
         self._name_to_iid.clear()
         self.tree.delete(*self.tree.get_children())
-        for i, v in enumerate(versions):
+        if not shown:
+            self.tree.master.pack_forget()
+            if self._versions and q:
+                self._empty.set_text(
+                    t("无匹配版本"),
+                    t("试试清空搜索，或换个关键字"),
+                )
+            else:
+                self._empty.set_text(
+                    t("未发现 PHP 版本"),
+                    t("将 PHP 放进环境根目录，或使用「更多 → 下载新版本」"),
+                )
+            self._empty.show()
+            self._filter_count.configure(
+                text=t("显示 {n} / {total}", n=0, total=len(self._versions))
+                if q else "")
+            self._update_buttons()
+            return
+        self._empty.hide()
+        if not self.tree.master.winfo_ismapped():
+            self.tree.master.pack(fill="both", expand=True)
+        for i, v in enumerate(shown):
             values, tags = self._row(v, i)
             iid = self.tree.insert("", "end", values=values, tags=tags)
             self._name_to_iid[v.name] = iid
+        self._filter_count.configure(
+            text=t("显示 {n} / {total}", n=len(shown), total=len(self._versions))
+            if q else "")
         self._update_buttons()
 
     # ------------------------------------------------------------------ #
@@ -623,20 +690,26 @@ class PhpPanel(ttk.Frame):
     def _update_buttons(self) -> None:
         has_sel = self._selected() is not None and not self._busy
         for b in (self.btn_start, self.btn_stop, self.btn_restart, self.btn_port,
-                  self.btn_ini, self.btn_edit, self.btn_check, self.btn_ext,
-                  self.btn_tune, self.btn_debug):
+                  self.btn_ini, self.btn_edit, self.btn_check, self.btn_debug):
             b.configure(state="normal" if has_sel else "disabled")
-        # 「初始化 php.ini」只在选中版本确实没有生效配置时可用
+        # 「初始化 php.ini」在「更多」菜单里：仅选中且缺 ini 时可用
         v = self._selected()
         need_ini = v is not None and not self.php_mgr.ini_ready(v)
-        self.btn_init_ini.configure(
-            state="normal" if (need_ini and not self._busy) else "disabled")
+        if self._overflow_menu is not None:
+            try:
+                self._overflow_menu.entryconfigure(
+                    self._overflow_init_idx,
+                    state="normal" if (need_ini and not self._busy) else "disabled")
+            except tk.TclError:
+                pass
         # 选中项变化 / 状态刷新后，同步底部常用指标
         self._update_metrics_bar()
 
     def _set_busy(self, busy: bool) -> None:
         self._busy = busy
         self.btn_refresh.configure(state="disabled" if busy else "normal")
+        if busy:
+            self.notify(t("进行中…"))
         self._update_buttons()
 
     # ------------------------------------------------------------------ #

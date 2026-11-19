@@ -279,7 +279,9 @@ class MainWindow(tk.Tk):
             self.overview_panel = OverviewPanel(
                 host, self.set_log, self.php_mgr, self.nginx_mgr,
                 self.redis_mgr, self.mysql_mgr, self.vhost_mgr,
-                self.config, self.services)
+                self.config, self.services,
+                on_navigate=lambda key: self.nav.select_key(key)
+                if getattr(self, "nav", None) else False)
         self.php_panel = PhpPanel(host, self.php_mgr, self.config, self.set_log,
                                   on_autostart_change=self._on_php_autostart_change)
         self.nginx_panel = NginxPanel(host, self.nginx_mgr, self.set_log,
@@ -352,6 +354,56 @@ class MainWindow(tk.Tk):
         # 切页：立即补一次刷新（不可见页面的自动刷新是暂停的）+ 记住当前页
         nav.bind("<<NavChanged>>", lambda e: self._on_nav_changed())
         nav.restore(self._last_page_saved)
+        self._bind_global_shortcuts()
+
+    def _bind_global_shortcuts(self) -> None:
+        """全局快捷键：刷新当前页 / 跳到总览·PHP·站点（输入框聚焦时不抢键）。"""
+        mod = "Command" if sys.platform == "darwin" else "Control"
+        self.bind_all(f"<{mod}-r>", self._shortcut_refresh)
+        self.bind_all(f"<{mod}-R>", self._shortcut_refresh)
+        self.bind_all(f"<{mod}-Key-1>", lambda e: self._shortcut_goto("overview"))
+        self.bind_all(f"<{mod}-Key-2>", lambda e: self._shortcut_goto("php"))
+        self.bind_all(f"<{mod}-Key-3>", lambda e: self._shortcut_goto("vhost"))
+
+    def _focus_is_editable(self) -> bool:
+        try:
+            focused = self.focus_get()
+        except tk.TclError:
+            return False
+        if focused is None:
+            return False
+        try:
+            cls = focused.winfo_class()
+        except tk.TclError:
+            return False
+        if cls in ("Entry", "TEntry", "Text", "TCombobox", "TSpinbox", "Listbox"):
+            return True
+        return isinstance(focused, (tk.Entry, tk.Text))
+
+    def _shortcut_refresh(self, _event=None):
+        if self._focus_is_editable():
+            return
+        page = self.nav.current_page() if getattr(self, "nav", None) else None
+        if page is None:
+            return "break"
+        self.set_log(t("进行中…"))
+        for name in ("auto_refresh", "refresh", "refresh_versions",
+                     "refresh_status", "refresh_logs"):
+            fn = getattr(page, name, None)
+            if callable(fn):
+                try:
+                    fn()
+                except Exception as e:  # noqa: BLE001
+                    self.set_log(t("刷新失败：{err}", err=e), "error")
+                break
+        return "break"
+
+    def _shortcut_goto(self, key: str, _event=None):
+        if self._focus_is_editable():
+            return
+        if getattr(self, "nav", None):
+            self.nav.select_key(key)
+        return "break"
 
     def _create_plugin_panel(self, host, spec):
         """按插件声明延迟导入面板；单个插件加载失败只记日志、不阻断启动。"""

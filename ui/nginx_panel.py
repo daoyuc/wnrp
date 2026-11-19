@@ -9,6 +9,7 @@ from core import run_log
 from core.i18n import t
 from core.nginx_manager import NginxManager
 from . import theme
+from . import widgets as w
 from .tuning_dialog import TuningDialog
 
 # 左侧信息卡：行 ID -> (显示标签 msgid, 占位)
@@ -34,6 +35,10 @@ class NginxPanel(ttk.Frame):
 
     # ------------------------------------------------------------------ #
     def _build(self) -> None:
+        w.PageHeader(
+            self, title=t("Nginx 管理"),
+            subtitle=t("启停、平滑重载与配置检查"),
+        )
         # 左侧：状态卡片 + 控制按钮
         left = ttk.Frame(self)
         left.pack(side="left", fill="y", padx=(0, 10))

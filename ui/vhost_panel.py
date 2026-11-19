@@ -18,6 +18,7 @@ from core.vhost_manager import VhostEntry, VhostManager
 from .site_wizard import SiteWizardDialog
 from .diag_dialog import DiagDialog
 from . import theme
+from . import widgets as w
 
 COLUMNS = [
     ("server_name", t("域名"), 230, "w"),
@@ -53,38 +54,48 @@ class VhostPanel(ttk.Frame):
 
     # ------------------------------------------------------------------ #
     def _build(self) -> None:
-        bar = ttk.Frame(self)
-        bar.pack(fill="x", pady=(0, 6))
-        self.btn_new = ttk.Button(bar, text=t("＋ 新建站点…"), style="Accent.TButton",
-                                  command=self._open_wizard)
-        self.btn_new.pack(side="left", padx=(0, 6))
-        self.btn_refresh = ttk.Button(bar, text=t("刷新"), command=self.refresh)
-        self.btn_open_dir = ttk.Button(bar, text=t("打开 vhost 目录"), command=self._open_dir)
-        self.btn_open_dir.pack(side="left", padx=(0, 6))
-        # hosts 写入前会自动备份（hosts.phpvm.bak），这里提供一键还原入口
-        self.btn_hosts_restore = ttk.Button(
-            bar, text=t("还原 hosts 备份"), command=self._restore_hosts)
-        self.btn_hosts_restore.pack(side="left", padx=(0, 6))
-        self.btn_refresh.pack(side="left", padx=(0, 6))
-        self.btn_diag = ttk.Button(bar, text=t("一键体检"), command=self._run_diag)
-        self.btn_diag.pack(side="left", padx=(0, 6))
-        ttk.Label(
-            bar,
-            text=t("「新建站点」按向导生成 Laravel/WordPress/ThinkPHP 等配置，并自动写 hosts；"
-                   "双击行打开配置文件"),
-            style="SubTitle.TLabel",
-        ).pack(side="left", padx=(4, 0))
+        w.PageHeader(
+            self, title=t("站点映射"),
+            subtitle=t("「新建站点」按向导生成 Laravel/WordPress/ThinkPHP 等配置，并自动写 hosts；"
+                       "双击行打开配置文件"),
+        )
+        tb = w.Toolbar(
+            self,
+            primary=[
+                {"text": t("＋ 新建站点…"), "kind": "accent",
+                 "command": self._open_wizard},
+            ],
+            secondary=[
+                {"text": t("刷新"), "command": self.refresh},
+                {"text": t("一键体检"), "command": self._run_diag},
+                {"text": t("打开 vhost 目录"), "command": self._open_dir},
+            ],
+            overflow=[
+                {"text": t("还原 hosts 备份"), "command": self._restore_hosts},
+            ],
+        )
+        (self.btn_new, self.btn_refresh, self.btn_diag,
+         self.btn_open_dir) = tb.buttons
+        self._hosts_restore_menu = tb.overflow_menu
+        self._hosts_restore_idx = 0
+        # 兼容：还原 hosts 仍通过菜单入口；保留按钮属性供 _sync_hosts_restore_btn
+        self.btn_hosts_restore = None
 
         # 搜索过滤：域名 / root / 配置文件 / PHP 版本 / 端口 / 说明 实时过滤
         frow = ttk.Frame(self)
-        frow.pack(fill="x", pady=(0, 6))
-        ttk.Label(frow, text=t("搜索")).pack(side="left")
+        frow.pack(fill="x", pady=(0, theme.PAD_SM))
+        ttk.Label(frow, text=t("搜索"), style="PageSub.TLabel").pack(side="left")
         self._filter_var = tk.StringVar()
         ent = ttk.Entry(frow, textvariable=self._filter_var)
-        ent.pack(side="left", fill="x", expand=True, padx=(6, 6))
+        ent.pack(side="left", fill="x", expand=True, padx=(theme.PAD_SM, theme.PAD_SM))
         ent.bind("<Escape>", lambda e: self._filter_var.set(""))
         self._filter_var.trace_add("write", lambda *_: self._apply_filter())
-        self._filter_count = ttk.Label(frow, text="", style="SubTitle.TLabel")
+        self._only_issues = tk.BooleanVar(value=False)
+        ttk.Checkbutton(
+            frow, text=t("仅异常"), variable=self._only_issues,
+            command=self._apply_filter,
+        ).pack(side="left", padx=(0, theme.PAD_SM))
+        self._filter_count = ttk.Label(frow, text="", style="PageSub.TLabel")
         self._filter_count.pack(side="right")
 
         # 生效 nginx.conf 是否 include 站点目录：自动检测状态行
@@ -101,7 +112,9 @@ class VhostPanel(ttk.Frame):
         self._btn_fix_inc.pack_forget()  # 默认隐藏，仅在「未 include」时显示
         self._inc_status: dict | None = None
 
-        wrap = ttk.Frame(self)
+        self._list_host = ttk.Frame(self)
+        self._list_host.pack(fill="both", expand=True)
+        wrap = ttk.Frame(self._list_host)
         wrap.pack(fill="both", expand=True)
         self.tree = ttk.Treeview(
             wrap, columns=[c[0] for c in COLUMNS], show="headings", selectmode="browse"
@@ -113,6 +126,13 @@ class VhostPanel(ttk.Frame):
         self.tree.configure(yscrollcommand=vsb.set)
         self.tree.pack(side="left", fill="both", expand=True)
         vsb.pack(side="right", fill="y")
+        self._empty = w.EmptyState(
+            self._list_host,
+            title=t("还没有站点"),
+            hint=t("用向导创建第一个站点，或把已有 conf 放进 nginx 站点目录后刷新"),
+            action_text=t("＋ 新建站点…"),
+            command=self._open_wizard,
+        )
 
         self.tree.tag_configure("ok", foreground=theme.TEXT)
         self.tree.tag_configure("warn", foreground=theme.ERR)
@@ -220,16 +240,23 @@ class VhostPanel(ttk.Frame):
         self._apply_filter()
 
     def _apply_filter(self) -> None:
-        """按搜索框内容过滤后重绘；过滤条件在刷新后保留。"""
+        """按搜索框 /「仅异常」过滤后重绘；过滤条件在刷新后保留。"""
         q = self._filter_var.get().strip().lower()
+        rows = list(self._entries)
         if q:
-            self._view = [e for e in self._entries if self._match(e, q)]
-        else:
-            self._view = list(self._entries)
+            rows = [e for e in rows if self._match(e, q)]
+        if self._only_issues.get():
+            rows = [e for e in rows if self._is_issue(e)]
+        self._view = rows
         self._populate()
+        filtered = bool(q) or self._only_issues.get()
         self._filter_count.configure(
             text=t("显示 {n} / {total}", n=len(self._view), total=len(self._entries))
-            if q else "")
+            if filtered else "")
+
+    @staticmethod
+    def _is_issue(e: VhostEntry) -> bool:
+        return bool(e.note) or (e.port is not None and not e.php_version) or e.disabled
 
     @staticmethod
     def _match(e: VhostEntry, q: str) -> bool:
@@ -240,6 +267,23 @@ class VhostPanel(ttk.Frame):
 
     def _populate(self) -> None:
         self.tree.delete(*self.tree.get_children())
+        if not self._view:
+            self.tree.master.pack_forget()
+            if self._entries:
+                self._empty.set_text(
+                    t("无匹配站点"),
+                    t("试试清空搜索或关闭「仅异常」"),
+                )
+            else:
+                self._empty.set_text(
+                    t("还没有站点"),
+                    t("用向导创建第一个站点，或把已有 conf 放进 nginx 站点目录后刷新"),
+                )
+            self._empty.show()
+            return
+        self._empty.hide()
+        if not self.tree.master.winfo_ismapped():
+            self.tree.master.pack(fill="both", expand=True)
         # 一次性读取 hosts，避免逐行重读
         all_doms = [d for e in self._view for d in e.server_name.split()
                     if not d.startswith("*.")]
@@ -283,9 +327,18 @@ class VhostPanel(ttk.Frame):
     # hosts 备份还原（写入前自动备份，这里提供一键还原入口）
     # ------------------------------------------------------------------ #
     def _sync_hosts_restore_btn(self) -> None:
-        """有备份时按钮可用；无备份置灰并给出提示性文本。"""
+        """有备份时「还原 hosts」菜单可用；无备份置灰。"""
         has = hosts_manager.has_backup()
-        self.btn_hosts_restore.configure(state="normal" if has else "disabled")
+        if self._hosts_restore_menu is not None:
+            try:
+                self._hosts_restore_menu.entryconfigure(
+                    self._hosts_restore_idx,
+                    state="normal" if has else "disabled")
+            except tk.TclError:
+                pass
+        if self.btn_hosts_restore is not None:
+            self.btn_hosts_restore.configure(
+                state="normal" if has else "disabled")
 
     def _restore_hosts(self) -> None:
         """用 phpvm 写入前的备份一键还原 hosts（整文件还原，失败会提示提权）。"""
@@ -688,3 +741,5 @@ class VhostPanel(ttk.Frame):
     def _set_busy(self, busy: bool) -> None:
         self._busy = busy
         self.btn_refresh.configure(state="disabled" if busy else "normal")
+        if busy:
+            self.notify(t("进行中…"))

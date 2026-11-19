@@ -18,6 +18,7 @@ from core import run_log
 from core.i18n import t
 
 from . import theme
+from . import widgets as w
 
 MAX_VIEW = 2000  # 视图最多保留条数（与 run_log 内存上限一致）
 FILTER_ALL = "全部"
@@ -44,6 +45,10 @@ class RunLogPanel(ttk.Frame):
     # UI 构建
     # ------------------------------------------------------------------ #
     def _build(self) -> None:
+        w.PageHeader(
+            self, title=t("运行日志"),
+            subtitle=t("应用启停、服务操作与异常的本机轨迹"),
+        )
         top = ttk.Frame(self)
         top.pack(fill="x", pady=(0, 6))
 

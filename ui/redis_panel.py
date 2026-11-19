@@ -19,6 +19,7 @@ from core import process_utils as pu
 from core.i18n import current_language, t
 from core.redis_manager import RedisInstance, RedisManager  # pyright: ignore[reportImplicitRelativeImport]
 from . import theme
+from . import widgets as w
 
 # 执行前需要二次确认的命令（首词小写匹配）
 _DANGEROUS_CMDS = {
@@ -82,6 +83,10 @@ class RedisPanel(ttk.Frame):
 
     # ------------------------------------------------------------------ #
     def _build(self) -> None:
+        w.PageHeader(
+            self, title=t("Redis 管理"),
+            subtitle=t("实例启停、命令执行与键空间"),
+        )
         # 顶部：实例选择（全部页签共享）
         top = ttk.Frame(self)
         top.pack(fill="x", pady=(0, 6))

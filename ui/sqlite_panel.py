@@ -20,6 +20,7 @@ from tkinter import filedialog, messagebox, ttk
 from core.i18n import t
 from core.sqlite_manager import QUERY_LIMIT, SqliteManager, format_value, quote_ident
 from . import theme
+from . import widgets as w
 from .window_utils import rearm_poll
 
 
@@ -45,6 +46,10 @@ class SqlitePanel(ttk.Frame):
 
     # ------------------------------------------------------------------ #
     def _build(self) -> None:
+        w.PageHeader(
+            self, title=t("SQLite 数据库"),
+            subtitle=t("只读浏览表结构并执行查询"),
+        )
         # 底部状态 + 操作按钮：先 pack 到底部，窗口被压小时按钮仍可见
         bar = ttk.Frame(self)
         bar.pack(side="bottom", fill="x", pady=(6, 0))

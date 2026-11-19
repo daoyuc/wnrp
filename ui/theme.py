@@ -32,6 +32,7 @@ FONT: str = prefs.FONT
 MONO_FONT: str = prefs.MONO_FONT
 
 # 字号层级（同一处定义，改这里即可整体放大/缩小）
+FS_DISPLAY = 20   # 仪表盘大数字（仅总览等少数位置）
 FS_TITLE = 15     # 页签内主标题
 FS_SECTION = 10   # 分组标题 / 表格表头
 FS_BODY = 9       # 正文 / 按钮 / 表格行
@@ -168,6 +169,46 @@ def setup_style(root: tk.Misc) -> ttk.Style:
                     foreground=p["gray"])
     style.configure("Mono.TLabel", font=mono(FS_BODY), background=p["card_bg"],
                     foreground=p["text"])
+    style.configure("Display.TLabel", font=font(FS_DISPLAY, True),
+                    background=p["card_bg"], foreground=p["text"])
+    style.configure("PageTitle.TLabel", font=font(FS_TITLE, True),
+                    background=p["bg"], foreground=p["text"])
+    style.configure("PageSub.TLabel", font=font(FS_BODY),
+                    background=p["bg"], foreground=p["text_dim"])
+    style.configure("EmptyTitle.TLabel", font=font(FS_SECTION, True),
+                    background=p["bg"], foreground=p["text"])
+    style.configure("EmptyHint.TLabel", font=font(FS_BODY),
+                    background=p["bg"], foreground=p["text_dim"])
+    # 状态胶囊（ok / warn / err / off）
+    style.configure("PillOk.TLabel", font=font(FS_SMALL, True),
+                    background=p["success_bg"], foreground=p["ok"],
+                    padding=(8, 3))
+    style.configure("PillWarn.TLabel", font=font(FS_SMALL, True),
+                    background=p["warn_bg"], foreground=p["warn"],
+                    padding=(8, 3))
+    style.configure("PillErr.TLabel", font=font(FS_SMALL, True),
+                    background=p["err_bg"], foreground=p["err"],
+                    padding=(8, 3))
+    style.configure("PillOff.TLabel", font=font(FS_SMALL, True),
+                    background=p["panel_alt"], foreground=p["text_dim"],
+                    padding=(8, 3))
+    style.configure("MetricCard.TFrame", background=p["card_bg"],
+                    borderwidth=1, relief="solid", bordercolor=p["border"])
+    style.configure("MetricLabel.TLabel", font=font(FS_SMALL),
+                    background=p["card_bg"], foreground=p["text_dim"])
+    style.configure("MetricValue.TLabel", font=font(FS_TITLE, True),
+                    background=p["card_bg"], foreground=p["text"])
+    style.configure("MetricHint.TLabel", font=font(FS_SMALL),
+                    background=p["card_bg"], foreground=p["text_dim"])
+    style.configure("BannerOk.TFrame", background=p["success_bg"])
+    style.configure("BannerWarn.TFrame", background=p["warn_bg"])
+    style.configure("BannerErr.TFrame", background=p["err_bg"])
+    style.configure("BannerOk.TLabel", font=font(FS_BODY, True),
+                    background=p["success_bg"], foreground=p["ok"])
+    style.configure("BannerWarn.TLabel", font=font(FS_BODY, True),
+                    background=p["warn_bg"], foreground=p["warn"])
+    style.configure("BannerErr.TLabel", font=font(FS_BODY, True),
+                    background=p["err_bg"], foreground=p["err"])
 
     # 按钮：常规按钮带细描边，主/危按钮为实心（层级更清楚）
     style.configure("TButton", font=font(FS_BODY), padding=(10, 5),
@@ -214,12 +255,17 @@ def setup_style(root: tk.Misc) -> ttk.Style:
                     foreground=p["text_dim"])
     style.configure("NavGroup.TLabel", font=font(FS_SMALL, True),
                     background=p["panel_alt"], foreground=p["text_dim"])
-    style.configure("Nav.Treeview", font=font(FS_BODY), rowheight=28,
+    style.configure("Nav.Treeview", font=font(FS_BODY), rowheight=30,
                     background=p["panel_alt"], fieldbackground=p["panel_alt"],
                     foreground=p["text"], borderwidth=0, relief="flat")
     style.map("Nav.Treeview",
               background=[("selected", p["select_bg"])],
               foreground=[("selected", p["primary"])])
+    # 分组行更弱：小字 + 弱化色，让页面项成为视觉主体
+    style.configure("NavGroup.Treeview", font=font(FS_SMALL, True),
+                    rowheight=26, background=p["panel_alt"],
+                    fieldbackground=p["panel_alt"], foreground=p["text_dim"],
+                    borderwidth=0, relief="flat")
 
     # 表格：表头独立底色 + 底部描边，行高略放宽；斑马纹由各面板用 odd/even tag 实现
     style.configure("Treeview", font=font(FS_BODY), rowheight=30,

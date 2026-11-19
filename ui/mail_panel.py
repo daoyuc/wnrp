@@ -21,6 +21,7 @@ from core.config import Config
 from core.i18n import t
 from core.php_manager import PhpManager
 from . import theme
+from . import widgets as w
 
 COLUMNS = [
     ("time", t("时间"), 130, "w"),
@@ -62,6 +63,10 @@ class MailPanel(ttk.Frame):
     # 界面构建
     # ------------------------------------------------------------------ #
     def _build(self) -> None:
+        w.PageHeader(
+            self, title=t("邮件"),
+            subtitle=t("查看 PHP mail() 捕获到的本地邮件"),
+        )
         bar = ttk.Frame(self)
         bar.pack(fill="x", pady=(0, 6))
         ttk.Label(bar, text=t("PHP 版本："), style="CardBold.TLabel").pack(side="left")
