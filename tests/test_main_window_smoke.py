@@ -199,33 +199,57 @@ class MainWindowSmokeTest(unittest.TestCase):
         app2 = self._build()
         self.assertEqual(app2.nav.index(app2.overview_panel), 0)
 
-    def test_about_tab_scrolls_instead_of_being_clipped(self):
-        """关于页必须「可滚动看全 + 横向不溢出」。
+    def test_settings_tabs_before_about_without_page_scroll(self):
+        """设置在关于前；页内用 Notebook 分「功能模块 / 常规」，不再整页纵向滚动。
 
-        回归点：内容（环境信息 / 模块开关 / 一堆设置项）远超一屏，且长文本默认
-        不换行会横向撑破布局 —— 用户只能手动拉大窗口才看得到，且边角被裁切。
+        回归点：原先两块 LabelFrame 竖排会逼出滚动条；长文不换行会横向撑破。
         """
         app = self._build()
-        nb = app.nav
-        nb.select(nb.tabs()[-1])          # 关于页是最后一个页签
+        nav = app.nav
+        self.assertTrue(nav.select_key("about"), "关于页应存在")
+        about_page = nav.current_page()
+        self.assertTrue(nav.select_key("settings"), "设置页应存在")
+        settings_page = nav.current_page()
+        self.assertEqual(nav.index(settings_page), nav.index(about_page) - 1,
+                         "设置应紧挨在关于前面")
+
+        snb = app._settings_nb
+        self.assertEqual(len(snb.tabs()), 2, "设置页应有「功能模块」「常规」两个页签")
         for _ in range(5):
             app.update()
 
-        canvas = app._about_scroll.canvas
-        first, last = canvas.yview()
-        self.assertLess(float(last), 1.0, "内容应高于一屏：必须靠滚动（而不是拉窗口）看全")
-        self.assertGreaterEqual(float(first), 0.0)
+        self.assertGreater(settings_page.winfo_width(), 1, "设置页应已完成布局")
+        mods = snb.nametowidget(snb.tabs()[0])
+        gen = snb.nametowidget(snb.tabs()[1])
 
-        # 内容宽度不得超过可视宽度，否则右侧会被页签边界裁掉
-        canvas_w = canvas.winfo_width()
-        self.assertGreater(canvas_w, 1, "canvas 应已完成布局")
-        self.assertLessEqual(app._about_scroll.content.winfo_reqwidth(), canvas_w,
-                             "关于页内容横向溢出：长文本没有按容器宽度换行")
+        def _walk(widget):
+            yield widget
+            for child in widget.winfo_children():
+                yield from _walk(child)
 
-        # 滚到底再回顶：验证滚动条区间与滚轮通道可用
-        canvas.yview_moveto(1.0)
+        # ttk.Checkbutton 在部分主题下不支持 wraplength；说明文字用 Label 折行
+        tips = [w for w in _walk(mods)
+                if str(w.winfo_class()) in ("TLabel", "Label")
+                and str(w.cget("style") or "") == "SubTitle.TLabel"]
+        self.assertTrue(tips, "功能模块页签应有说明文字")
+        wrap = int(float(tips[0].cget("wraplength") or 0))
+        self.assertGreater(wrap, 100, "说明文字应已设置 wraplength")
+
+        cbs = [w for w in _walk(mods)
+               if str(w.winfo_class()) in ("TCheckbutton", "Checkbutton")]
+        self.assertGreaterEqual(len(cbs), 2, "功能模块页签应有模块勾选框")
+
+        snb.select(1)
         app.update()
-        canvas.yview_moveto(0.0)
+        gen_tips = [w for w in _walk(gen)
+                    if str(w.winfo_class()) in ("TLabel", "Label")
+                    and str(w.cget("style") or "") == "SubTitle.TLabel"]
+        self.assertTrue(gen_tips, "常规页签应有说明文字")
+        gen_wrap = int(float(gen_tips[0].cget("wraplength") or 0))
+        self.assertGreater(gen_wrap, 100)
+        self.assertLessEqual(gen_wrap, settings_page.winfo_width() * 0.7 + 1,
+                             "常规两列说明的 wraplength 应按半宽计算")
+        snb.select(0)
         app.update()
 
     def test_worker_results_reach_main_thread_without_errors(self):

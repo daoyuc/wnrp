@@ -50,7 +50,7 @@ Each PHP version is started and stopped precisely by port, so versions never int
 
 **Plugins**
 
-- **Built-in plugin framework**: plugins ship with the app and are toggled in About -> Modules; disabling one removes its tab, stops loading its code and prevents its background worker from starting
+- **Built-in plugin framework**: plugins ship with the app and are toggled in Settings → Modules; disabling one removes its tab, stops loading its code and prevents its background worker from starting
 - **Keyboard stats** (Windows only): a standalone background process records key presses and timestamps, with today / week / month / year / all summaries — big-number cards (total & daily average presses, typing speed with peak / mean), a Top 10 key ranking, a 24-hour activity chart, pause / resume, report view, CSV export, clear data and launch-at-login. Only *which key* was pressed is stored: no typed text, window titles or clipboard content. Recording continues after the main window is closed
 - **Project launcher**: collects local projects (www subdirectories + site roots, de-duplicated) and derives their URLs from the `server_name` in the vhost configs. Select a project and click "Open in browser", double-click the row, or use the right-click menu to pick a specific domain / copy the URL. It also suggests common commands from marker files (composer.json / artisan / package.json); one click opens a terminal in the project with the matching PHP version prepended to PATH. Commands come only from a built-in whitelist or entries you add yourself; nothing runs automatically, `.phpvm.json` is never used as a command source, and its domains never become URLs. Custom commands can be scoped to a single project. Projects without a vhost only offer folder / terminal actions, with the browser button disabled
 - **Access log insights**: read-only parsing of nginx access logs (including rotated `.log.N` files) with status code distribution, top paths / IPs / user agents, an hourly histogram and the latest 4xx/5xx requests, plus an "errors only" view for quick triage. Logs can only be picked from the candidate list — no project files are read, nothing is stored or uploaded (ADR 17)
@@ -62,7 +62,7 @@ Each PHP version is started and stopped precisely by port, so versions never int
 
 - macOS: download `phpvm-<version>-macos.dmg` and drag `phpvm.app` into Applications (right-click → Open if Gatekeeper warns)
 - Windows: download `phpvm-<version>-windows-setup.exe` and run the installer
-- Installer builds check for updates silently on launch and can upgrade from the "About" page
+- Installer builds check for updates silently on launch and can upgrade from the Settings page
 
 **From source / portable**
 

@@ -2085,7 +2085,7 @@ def cmd_redis_list(a, r: Result) -> Result:
     cfg = Config()
     if not modules.is_enabled("redis", cfg):
         return r.fail("Redis 模块已停用（settings.disabled_modules），"
-                      "如需使用请在 GUI 关于页启用或 config set settings.disabled_modules []")
+                      "如需使用请在 GUI 设置页启用或 config set settings.disabled_modules []")
     insts = RedisManager().refresh_instances()
     r.data = {"count": len(insts), "instances": [_redis_dict(i) for i in insts]}
     for i in insts:

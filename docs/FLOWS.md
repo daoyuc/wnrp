@@ -149,7 +149,7 @@ CLI 等价：`python3 cli.py site sync-port --old 9082 --new 9083 --reload`。
 启动（GUI / CLI / 开机自启）
  ├─ plugins.discover() 扫描 core/plugins/ 各子包，importlib 读 MANIFEST: PluginSpec
  │    └─ 单个插件导入失败 → run_log.warn + 跳过，不阻断启动
- ├─ core/modules.py 把插件 key 并入 MODULES → 关于页模块开关自动出现该项
+ ├─ core/modules.py 把插件 key 并入 MODULES → 设置页模块开关自动出现该项
  ├─ 主窗口 _build() 末尾：按 enabled_specs(config) 延迟 import ui/plugins/*_panel.py
  │    └─ 面板进 _plugin_panels + _refresh_panels()（定时刷新 / 主题重绘）
  ├─ after(2600ms) ensure_backgrounds(config) → keymouse.ensure_daemon()

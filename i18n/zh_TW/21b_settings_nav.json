@@ -1,0 +1,5 @@
+{
+  "模块开关、开机自启、外观与环境维护": "模組開關、開機自啟、外觀與環境維護",
+  "常规": "一般",
+  "如需使用请在 GUI 设置页启用或 config set settings.disabled_modules []": "如需使用請在 GUI 設定頁啟用，或執行 config set settings.disabled_modules []"
+}

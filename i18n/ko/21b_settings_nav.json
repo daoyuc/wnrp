@@ -1,0 +1,5 @@
+{
+  "模块开关、开机自启、外观与环境维护": "모듈 스위치, 자동 시작, 외관, 환경 유지관리",
+  "常规": "일반",
+  "如需使用请在 GUI 设置页启用或 config set settings.disabled_modules []": "GUI 설정 페이지에서 사용하거나 config set settings.disabled_modules [] 를 실행하세요"
+}

@@ -136,7 +136,7 @@ CLI 返回 `data.error`，不影响其余页面（边界见 [ADR 23](DECISIONS.m
 | `recover_history.json` | 自愈决策历史（判定与结果） | `core/recover_history.py` | GUI「崩溃详情 → 自愈历史」可查 |
 | `crash_watchdog.json` / `.lock` / `.log` | 守护进程看护清单、单例锁、守护自身日志 | `core/crash_watchdog.py` | 均为运行期文件，不入库 |
 | `autostart_services.log` | 每次 `--start-all` 的逐项结果（含 `php_scope=`） | `main.py` | 排查「登录后服务没起来」的第一现场 |
-| `updates/` | 升级包下载缓存（`.part` 原子改名 + SHA-256 校验） | `core/updater.py` | 可从关于页直达 |
+| `updates/` | 升级包下载缓存（`.part` 原子改名 + SHA-256 校验） | `core/updater.py` | 可从设置页直达 |
 | `ssh_hosts.json` / `.bak` | SSH 主机清单（含密码 / 私钥口令） | `core/ssh_store.py` | POSIX `0600`、Windows `icacls` 仅当前用户；**不进 `config.json`、不进备份导出包**（ADR 24） |
 | `ssh_known_hosts` | 已显式确认的主机指纹（OpenSSH known_hosts 格式） | `core/ssh_manager.py` | 首次连接一律拒绝，用户确认指纹后才写入；`PHPVM_SSH_HOSTS` 可把主机清单指向别处（测试用） |
 | `<数据目录>/plugins/keymouse/` | `stats.db`（WAL，日桶 + 分钟桶）+ `daemon.lock`（PID）/ `daemon.heartbeat` / `daemon.stop` / `paused` / `daemon.log(.1)` | 键鼠统计后台守护进程；面板与 CLI 只读 | 运行期文件，不入库；只落 vkCode 与时间戳，不记录输入内容 / 窗口标题；保留期默认 730 天 |

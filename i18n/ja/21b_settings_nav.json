@@ -1,0 +1,5 @@
+{
+  "模块开关、开机自启、外观与环境维护": "モジュール切替、自動起動、外観、環境メンテ",
+  "常规": "一般",
+  "如需使用请在 GUI 设置页启用或 config set settings.disabled_modules []": "GUI の設定ページで有効にするか、config set settings.disabled_modules [] を実行してください"
+}

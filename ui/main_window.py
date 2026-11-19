@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""主窗口：多页签（PHP 版本管理 / Nginx 管理 / Redis 管理 / 站点映射 / SQLite 数据库 / Nginx 日志 / 插件 / 关于）+ 顶部 cmd php 状态 + 底部状态栏。"""
+"""主窗口：左侧导航（PHP / Nginx / Redis / 站点 / 日志 / 插件 / 设置 / 关于）+ 顶部 cmd php 状态 + 底部状态栏。"""
 import importlib
 import os
 import queue
@@ -35,6 +35,7 @@ from .redis_panel import RedisPanel
 from .run_log_panel import RunLogPanel
 from .site_wizard import SiteWizardDialog
 from . import theme
+from . import widgets as w
 from .update_dialog import UpdateBanner, UpdateDialog
 from .vhost_panel import VhostPanel
 from .window_utils import fit_window
@@ -45,7 +46,7 @@ CLI_PREFIX = "CMD php" if IS_WIN else t("终端 php")
 CRASH_POLL_TICKS = 8  # 崩溃检测频率 ≈ 8 × 8s = 64s 一次（仅告警展示用）
 # 外观模式顺序（与下拉框/菜单一致）：浅色 / 深色 / 跟随系统
 THEME_MODES = (theme_prefs.LIGHT, theme_prefs.DARK, theme_prefs.SYSTEM)
-# 关于页长文本自动换行的留白：把「整页宽度」换算成控件所在那一列的可用宽度
+# 设置 / 关于页长文本自动换行的留白：把「整页宽度」换算成控件所在那一列的可用宽度
 # （见 ui/layout.auto_wrap 的 fraction / pad；留得略保守，宁可早一点折行也不要撑破布局）
 WRAP_PAD_PAGE = 44           # 内容帧内边距（PAD_XL × 2）+ 余量
 WRAP_PAD_BOX = 72            # 分组框内：再叠加框内边距与边框
@@ -59,9 +60,10 @@ def theme_label(mode: str) -> str:
 
 
 class MainWindow(tk.Tk):
-    # 控件跨方法创建（_build / _build_about 等），提前声明类型以满足静态检查
+    # 控件跨方法创建（_build / _build_settings / _build_about 等），提前声明类型以满足静态检查
     _module_vars: dict[str, tk.BooleanVar]
     _about_scroll: ScrolledFrame
+    _settings_nb: ttk.Notebook
 
     def __init__(self, php_mgr: PhpManager, nginx_mgr: NginxManager,
                  redis_mgr: RedisManager, mysql_mgr: MysqlManager, config: Config):
@@ -106,7 +108,7 @@ class MainWindow(tk.Tk):
         self.after(8000, self._tick)
         # 启动后稍作延迟，回溯最近 24h 的 php-cgi 崩溃（不弹窗，仅状态栏/托盘提示）
         self.after(1500, self._check_crash_startup)
-        # 启动静默检查更新（可在「关于 → 设置」关闭；发现新版本只做状态栏提示）
+        # 启动静默检查更新（可在「设置」页关闭；发现新版本只做状态栏提示）
         self._update_banner = UpdateBanner(self, self.config, self._on_update_found)
         self._update_banner.start()
 
@@ -173,7 +175,7 @@ class MainWindow(tk.Tk):
         self.set_log(t("外观已切换为{name}", name=theme_label(mode)))
 
     def _sync_theme_box(self) -> None:
-        """关于页的主题下拉与当前模式保持一致。"""
+        """设置页的主题下拉与当前模式保持一致。"""
         box = getattr(self, "_theme_box", None)
         if box is None:
             return
@@ -182,7 +184,7 @@ class MainWindow(tk.Tk):
             box.current(THEME_MODES.index(mode))
 
     def _apply_theme_box(self) -> None:
-        """关于页下拉：应用所选外观（与菜单等效）。"""
+        """设置页下拉：应用所选外观（与菜单等效）。"""
         idx = self._theme_box.current()
         if 0 <= idx < len(THEME_MODES):
             self._on_theme_selected(THEME_MODES[idx])
@@ -321,6 +323,7 @@ class MainWindow(tk.Tk):
             self.ssh_panel = SshPanel(host, self.config, self.set_log)
         # 运行日志：全局记录（应用启停 / 服务启停结果 / 异常），不受模块开关影响
         self.run_panel = RunLogPanel(host, self.set_log)
+        settings = self._build_settings(host)
         about = self._build_about(host)
         # 登记（顺序即同组内的显示顺序；分组由 core.modules.GROUPS 决定）
         if self.overview_panel is not None:
@@ -350,6 +353,8 @@ class MainWindow(tk.Tk):
                 self._plugin_panels.append(panel)
                 nav.add(panel, text=t(spec.name), key=spec.key,
                         group=modules.group_of(spec.key))
+        # 设置在关于之前：模块开关 / 自启 / 主题等都在设置页，关于只留产品与环境信息
+        nav.add(settings, text=t("设置"), key="settings", group="other")
         nav.add(about, text=t("关于"), key="about")
         # 切页：立即补一次刷新（不可见页面的自动刷新是暂停的）+ 记住当前页
         nav.bind("<<NavChanged>>", lambda e: self._on_nav_changed())
@@ -462,41 +467,285 @@ class MainWindow(tk.Tk):
         except Exception as e:  # noqa: BLE001 - 记忆失败不应打断界面
             run_log.warn("ui", t("保存上次页面失败：{err}", err=e))
 
-    def _build_about(self, master) -> ttk.Frame:
-        # 整页可滚动 + 长文本自动换行：内容（环境信息 + 模块开关 + 一堆设置项）远超一屏，
-        # 之前只能手动拉大窗口才看得到下半部分，过宽的文本还会被页签边界裁掉
-        page = ttk.Frame(master, style="Card.TFrame")
-        sc = scrolled_frame(page, padding=theme.PAD_XL, style="Card.TFrame")
-        self._about_scroll = sc
-        # 整页为一张卡片：分组框与内部文本统一走 Card.* 样式，避免底色不一致
-        frame = sc.content
-        base = sc.canvas  # 换行基准：canvas 宽度只由窗口决定，不会随内容反复变化
+    def _build_settings(self, master) -> ttk.Frame:
+        """设置页：页签切换「功能模块」与「常规」，避免整页纵向堆叠出滚动条。"""
+        page = ttk.Frame(master, style="Card.TFrame", padding=theme.PAD_XL)
+        w.PageHeader(
+            page, title=t("设置"),
+            subtitle=t("模块开关、开机自启、外观与环境维护"),
+        )
+        nb = ttk.Notebook(page)
+        nb.pack(fill="both", expand=True)
+        self._settings_nb = nb
 
-        ttk.Label(frame, text=APP_TITLE, style="Title.TLabel").pack(
-            anchor="w", pady=(0, theme.PAD_SM)
+        mods_tab = ttk.Frame(nb, padding=theme.PAD_MD, style="Card.TFrame")
+        gen_tab = ttk.Frame(nb, padding=theme.PAD_MD, style="Card.TFrame")
+        nb.add(mods_tab, text=f"  {t('功能模块')}  ")
+        nb.add(gen_tab, text=f"  {t('常规')}  ")
+        self._fill_settings_modules(mods_tab)
+        self._fill_settings_general(gen_tab)
+        return page
+
+    def _fill_settings_modules(self, host) -> None:
+        """功能模块页签：两列勾选，取消后需重启才不加载。"""
+        auto_wrap(
+            ttk.Label(
+                host,
+                text=t("默认全部启用；取消勾选后需重启 phpvm 生效（该模块代码将不再加载）。"),
+                style="SubTitle.TLabel",
+            ),
+            host, pad=WRAP_PAD_PAGE,
+        ).pack(anchor="w", pady=(0, theme.PAD_SM))
+
+        grid = ttk.Frame(host, style="Card.TFrame")
+        grid.pack(fill="both", expand=True)
+        grid.columnconfigure(0, weight=1)
+        grid.columnconfigure(1, weight=1)
+
+        self._module_vars: dict[str, tk.BooleanVar] = {}
+        disabled = modules.disabled_modules(self.config)
+        for i, meta in enumerate(modules.MODULES):
+            key = str(meta["key"])
+            required = bool(meta["required"])
+            var = tk.BooleanVar(value=(key not in disabled))
+            self._module_vars[key] = var
+            cb = ttk.Checkbutton(
+                grid, text=modules.label(meta), variable=var, style="Card.TCheckbutton",
+                state="disabled" if required else "normal",
+                command=lambda k=key: self._toggle_module(k),
+            )
+            # 两列：按半宽算 wraplength，避免长标签把整页撑破
+            auto_wrap(cb, host, fraction=0.5, pad=WRAP_PAD_HALF)
+            cb.grid(row=i // 2, column=i % 2, sticky="nw",
+                    pady=1, padx=(0, theme.PAD_MD))
+
+    def _fill_settings_general(self, host) -> None:
+        """常规页签：自启 / 主题 / 更新 / 服务编排 / 备份 / Adminer（左右两列）。"""
+        cols = ttk.Frame(host, style="Card.TFrame")
+        cols.pack(fill="both", expand=True)
+        cols.columnconfigure(0, weight=1, uniform="settings")
+        cols.columnconfigure(1, weight=1, uniform="settings")
+        left = ttk.Frame(cols, style="Card.TFrame")
+        right = ttk.Frame(cols, style="Card.TFrame")
+        left.grid(row=0, column=0, sticky="nsew", padx=(0, theme.PAD_MD))
+        right.grid(row=0, column=1, sticky="nsew")
+        # 两列文本：以页签宽为基准 × 0.5
+        half = dict(fraction=0.5, pad=WRAP_PAD_HALF)
+
+        # —— 左列：自启 / 自愈 / 语言 / 主题 ——
+        self._autostart_var = tk.BooleanVar(value=autostart.is_enabled())
+        auto_wrap(
+            ttk.Checkbutton(
+                left, text=t("开机自动启动 phpvm（当前用户）"), style="Card.TCheckbutton",
+                variable=self._autostart_var, command=self._toggle_autostart,
+            ),
+            host, **half,
+        ).pack(anchor="w", pady=(0, theme.PAD_SM))
+        self._svc_autostart_var = tk.BooleanVar(value=autostart.services_enabled())
+        self._cb_svc_autostart = ttk.Checkbutton(
+            left, text=t("开机自动启动全部服务（Nginx + PHP + Redis + MySQL）"),
+            style="Card.TCheckbutton",
+            variable=self._svc_autostart_var, command=self._toggle_service_autostart,
+            state="normal" if IS_WIN else "disabled",
+        )
+        auto_wrap(self._cb_svc_autostart, host, **half)
+        self._cb_svc_autostart.pack(anchor="w", pady=(0, theme.PAD_SM))
+        if not IS_WIN:
+            auto_wrap(
+                ttk.Label(
+                    left,
+                    text=t("该能力当前仅支持 Windows（写入用户「启动」目录）。"),
+                    style="SubTitle.TLabel",
+                ),
+                host, **half,
+            ).pack(anchor="w", pady=(0, theme.PAD_SM))
+        self._svc_launch_var = tk.BooleanVar(
+            value=bool(self.config.get_setting("start_services_on_launch", False)))
+        auto_wrap(
+            ttk.Checkbutton(
+                left, text=t("启动 phpvm 时自动启动全部服务（PHP / Redis / MySQL / Nginx）"),
+                style="Card.TCheckbutton",
+                variable=self._svc_launch_var, command=self._toggle_service_launch,
+            ),
+            host, **half,
+        ).pack(anchor="w", pady=(0, theme.PAD_SM))
+
+        scope_row = ttk.Frame(left, style="Card.TFrame")
+        scope_row.pack(anchor="w", pady=(0, theme.PAD_XS))
+        ttk.Label(scope_row, text=t("自动启动服务的 PHP 版本："),
+                  style="CardBold.TLabel").pack(side="left")
+        self._svc_scope_box = ttk.Combobox(
+            scope_row, state="readonly", width=18,
+            values=[scope_label(s) for s in PHP_SCOPES],
+        )
+        self._sync_service_scope_box()
+        self._svc_scope_box.pack(side="left", padx=(theme.PAD_XS, 0))
+        ttk.Button(scope_row, text=t("应用"), command=self._apply_service_scope_box).pack(
+            side="left", padx=(theme.PAD_SM, 0)
         )
         auto_wrap(
             ttk.Label(
-                frame,
-                text=t("管理 {root} 下多个 PHP 版本的启动 / 停止 / 重启 / 状态 / 端口 / 配置，"
-                       "并附带 Nginx 与 Redis 管理。", root=WNRP_ROOT),
+                left,
+                text=t("默认「仅最新版本」：开机自启/启动时不会一次拉起全部 PHP 版本，"
+                       "其它版本可在 PHP 页手动启动。"),
                 style="SubTitle.TLabel",
             ),
-            base, pad=WRAP_PAD_PAGE,
-        ).pack(anchor="w", pady=(0, theme.PAD_LG))
+            host, **half,
+        ).pack(anchor="w", pady=(0, theme.PAD_XS))
+        auto_wrap(
+            ttk.Label(
+                left,
+                text=t("选「按 PHP 页勾选」时，只启动 PHP 页中勾选了「开机自启」的版本"
+                       "（在 PHP 页点击「开机自启」列即可切换）。"),
+                style="SubTitle.TLabel",
+            ),
+            host, **half,
+        ).pack(anchor="w", pady=(0, theme.PAD_SM))
 
-        # 上排两列（环境信息 / 功能模块）：原先上下堆叠，白占掉近一屏高度
-        top = ttk.Frame(frame, style="Card.TFrame")
-        top.pack(fill="x")
-        top.columnconfigure(0, weight=1, uniform="about_col")
-        top.columnconfigure(1, weight=1, uniform="about_col")
-        info = ttk.LabelFrame(top, text=t("环境信息"), padding=12,
+        self._recover_var = tk.BooleanVar(
+            value=bool(self.config.get_setting("auto_recover_crash", False)))
+        auto_wrap(
+            ttk.Checkbutton(
+                left, text=t("php-cgi 崩溃后自动重启（自愈，默认关闭）"),
+                style="Card.TCheckbutton",
+                variable=self._recover_var, command=self._toggle_recover,
+            ),
+            host, **half,
+        ).pack(anchor="w")
+        auto_wrap(
+            ttk.Label(
+                left,
+                text=t("自愈防抖 60 秒、每版本每小时最多 3 次，防止崩溃循环刷进程。"),
+                style="SubTitle.TLabel",
+            ),
+            host, **half,
+        ).pack(anchor="w", pady=(theme.PAD_XS, theme.PAD_SM))
+
+        lang_row = ttk.Frame(left, style="Card.TFrame")
+        lang_row.pack(anchor="w", pady=(0, theme.PAD_SM))
+        ttk.Label(lang_row, text=t("界面语言："), style="CardBold.TLabel").pack(side="left")
+        self._lang_box = ttk.Combobox(
+            lang_row, state="readonly", width=16,
+            values=[f"{name}（{code}）" for code, name in LANGS.items()],
+        )
+        self._lang_box.current(list(LANGS).index(self.config.get_lang()))
+        self._lang_box.pack(side="left", padx=(theme.PAD_XS, 0))
+        ttk.Button(lang_row, text=t("应用"), command=self._apply_lang_box).pack(
+            side="left", padx=(theme.PAD_SM, 0)
+        )
+
+        theme_row = ttk.Frame(left, style="Card.TFrame")
+        theme_row.pack(anchor="w")
+        ttk.Label(theme_row, text=t("外观主题："), style="CardBold.TLabel").pack(side="left")
+        self._theme_box = ttk.Combobox(
+            theme_row, state="readonly", width=16,
+            values=[theme_label(m) for m in THEME_MODES],
+        )
+        self._theme_box.pack(side="left", padx=(theme.PAD_XS, 0))
+        self._sync_theme_box()
+        ttk.Button(theme_row, text=t("应用"), command=self._apply_theme_box).pack(
+            side="left", padx=(theme.PAD_SM, 0)
+        )
+        auto_wrap(
+            ttk.Label(
+                left,
+                text=t("深色/浅色切换立即生效；「跟随系统」会随系统外观自动切换。"),
+                style="SubTitle.TLabel",
+            ),
+            host, **half,
+        ).pack(anchor="w", pady=(theme.PAD_XS, 0))
+
+        # —— 右列：更新 / 服务编排 / 备份 / Adminer ——
+        upd_row = ttk.Frame(right, style="Card.TFrame")
+        upd_row.pack(anchor="w", fill="x")
+        ttk.Label(upd_row, text=t("软件更新："), style="CardBold.TLabel").pack(side="left")
+        ttk.Label(upd_row, text=t("当前版本 {ver}", ver=f"v{updater.current_version()}"),
+                  style="CardDim.TLabel").pack(side="left",
+                                               padx=(theme.PAD_XS, theme.PAD_MD))
+        ttk.Button(upd_row, text=t("检查更新"),
+                   command=self.open_update_dialog).pack(side="left")
+        ttk.Button(upd_row, text=t("打开下载缓存目录"),
+                   command=self._open_update_dir).pack(side="left", padx=(theme.PAD_SM, 0))
+        self._update_autocheck_var = tk.BooleanVar(
+            value=bool(self.config.get_setting("check_update_on_start", True)))
+        auto_wrap(
+            ttk.Checkbutton(
+                right,
+                text=t("启动时自动检查更新（发现新版本时仅状态栏提示）"),
+                style="Card.TCheckbutton",
+                variable=self._update_autocheck_var,
+                command=self._toggle_update_autocheck,
+            ),
+            host, **half,
+        ).pack(anchor="w", pady=(theme.PAD_XS, theme.PAD_MD))
+
+        group_row = ttk.Frame(right, style="Card.TFrame")
+        group_row.pack(anchor="w", fill="x")
+        ttk.Label(group_row, text=t("服务编排："), style="CardBold.TLabel").pack(side="left")
+        ttk.Button(group_row, text=t("全部启动"), style="Accent.TButton",
+                   command=lambda: self._all_services("start")).pack(side="left", padx=(4, 6))
+        ttk.Button(group_row, text=t("全部停止"), style="Danger.TButton",
+                   command=lambda: self._all_services("stop")).pack(side="left")
+        auto_wrap(
+            ttk.Label(
+                right,
+                text=t("启动顺序 PHP → Redis → MySQL → Nginx，停止反之；已运行的服务自动跳过。"),
+                style="SubTitle.TLabel",
+            ),
+            host, **half,
+        ).pack(anchor="w", pady=(theme.PAD_XS, theme.PAD_MD))
+
+        bak_row = ttk.Frame(right, style="Card.TFrame")
+        bak_row.pack(anchor="w", fill="x")
+        ttk.Label(bak_row, text=t("环境备份："), style="CardBold.TLabel").pack(side="left")
+        ttk.Button(bak_row, text=t("导出配置…"), command=self._export_backup).pack(
+            side="left", padx=(4, 6))
+        ttk.Button(bak_row, text=t("从备份恢复…"), command=self._restore_backup).pack(side="left")
+        auto_wrap(
+            ttk.Label(
+                right,
+                text=t("导出 config.json / 站点配置 / nginx.conf / 各版本 php.ini 为 zip；"
+                       "恢复会先备份现有文件，nginx -t 失败整体回滚。不含数据库数据。"),
+                style="SubTitle.TLabel",
+            ),
+            host, **half,
+        ).pack(anchor="w", pady=(theme.PAD_XS, theme.PAD_MD))
+
+        adm_row = ttk.Frame(right, style="Card.TFrame")
+        adm_row.pack(anchor="w", fill="x")
+        ttk.Label(adm_row, text=t("数据库 GUI："), style="CardBold.TLabel").pack(side="left")
+        ttk.Button(adm_row, text=t("安装 / 更新 Adminer…"),
+                   command=self._install_adminer).pack(side="left", padx=(4, 6))
+        ttk.Button(adm_row, text=t("打开 Adminer"),
+                   command=self._open_adminer).pack(side="left")
+        auto_wrap(
+            ttk.Label(
+                right,
+                text=t("下载 Adminer 单文件并托管为 http://{domain}（零驱动依赖）。"
+                       "Adminer 具备写库能力，仅供本地开发使用。",
+                       domain=adminer.DEFAULT_DOMAIN),
+                style="SubTitle.TLabel",
+            ),
+            host, **half,
+        ).pack(anchor="w", pady=(theme.PAD_XS, 0))
+
+    def _build_about(self, master) -> ttk.Frame:
+        """关于页：产品说明与环境信息（设置项已迁到「设置」页）。"""
+        page = ttk.Frame(master, style="Card.TFrame")
+        sc = scrolled_frame(page, padding=theme.PAD_XL, style="Card.TFrame")
+        self._about_scroll = sc
+        frame = sc.content
+        base = sc.canvas
+
+        w.PageHeader(
+            frame, title=APP_TITLE,
+            subtitle=t("管理 {root} 下多个 PHP 版本的启动 / 停止 / 重启 / 状态 / 端口 / 配置，"
+                       "并附带 Nginx 与 Redis 管理。", root=WNRP_ROOT),
+        )
+
+        info = ttk.LabelFrame(frame, text=t("环境信息"), padding=12,
                               style="Card.TLabelframe")
-        info.grid(row=0, column=0, sticky="nsew", padx=(0, theme.PAD_SM))
-        # 模块开关：取消勾选的可选模块在重启后不再加载
-        mods = ttk.LabelFrame(top, text=t("功能模块"), padding=12,
-                              style="Card.TLabelframe")
-        mods.grid(row=0, column=1, sticky="nsew", padx=(theme.PAD_SM, 0))
+        info.pack(fill="x")
         rows = [
             (t("phpvm 版本"), f"v{updater.current_version()}"),
             (t("环境根目录"), WNRP_ROOT_SHOW),
@@ -514,234 +763,8 @@ class MainWindow(tk.Tk):
             )
             auto_wrap(
                 ttk.Label(info, text=v, style="CardDim.TLabel"),
-                base, fraction=0.5, pad=WRAP_PAD_HALF_FIELD,
+                base, pad=WRAP_PAD_HALF_FIELD,
             ).grid(row=i, column=1, sticky="w", pady=3)
-
-        auto_wrap(
-            ttk.Label(
-                mods,
-                text=t("默认全部启用；取消勾选后需重启 phpvm 生效（该模块代码将不再加载）。"),
-                style="SubTitle.TLabel",
-            ),
-            base, fraction=0.5, pad=WRAP_PAD_HALF,
-        ).pack(anchor="w", pady=(0, 6))
-        self._module_vars: dict[str, tk.BooleanVar] = {}
-        disabled = modules.disabled_modules(self.config)
-        for meta in modules.MODULES:
-            key = str(meta["key"])
-            required = bool(meta["required"])
-            var = tk.BooleanVar(value=(key not in disabled))
-            self._module_vars[key] = var
-            cb = ttk.Checkbutton(
-                mods, text=modules.label(meta), variable=var, style="Card.TCheckbutton",
-                state="disabled" if required else "normal",
-                command=lambda k=key: self._toggle_module(k),
-            )
-            auto_wrap(cb, base, fraction=0.5, pad=WRAP_PAD_HALF)
-            cb.pack(anchor="w", pady=1)
-
-        # 设置区：开机自启 + 崩溃自愈 + 界面语言
-        settings = ttk.LabelFrame(frame, text=t("设置"), padding=12,
-                                  style="Card.TLabelframe")
-        settings.pack(fill="x", pady=(theme.PAD_MD, 0))
-        self._autostart_var = tk.BooleanVar(value=autostart.is_enabled())
-        auto_wrap(
-            ttk.Checkbutton(
-                settings, text=t("开机自动启动 phpvm（当前用户）"), style="Card.TCheckbutton",
-                variable=self._autostart_var, command=self._toggle_autostart,
-            ),
-            base, pad=WRAP_PAD_BOX,
-        ).pack(anchor="w", pady=(0, theme.PAD_SM))
-        # 开机自动启动整套服务（Windows：写入「启动」目录脚本；其它平台暂不支持）
-        self._svc_autostart_var = tk.BooleanVar(value=autostart.services_enabled())
-        self._cb_svc_autostart = ttk.Checkbutton(
-            settings, text=t("开机自动启动全部服务（Nginx + PHP + Redis + MySQL）"),
-            style="Card.TCheckbutton",
-            variable=self._svc_autostart_var, command=self._toggle_service_autostart,
-            state="normal" if IS_WIN else "disabled",
-        )
-        auto_wrap(self._cb_svc_autostart, base, pad=WRAP_PAD_BOX)
-        self._cb_svc_autostart.pack(anchor="w", pady=(0, theme.PAD_SM))
-        if not IS_WIN:
-            auto_wrap(
-                ttk.Label(
-                    settings,
-                    text=t("该能力当前仅支持 Windows（写入用户「启动」目录）。"),
-                    style="SubTitle.TLabel",
-                ),
-                base, pad=WRAP_PAD_BOX,
-            ).pack(anchor="w", pady=(0, 6))
-        # 启动 phpvm 时自动启动整套服务（跨平台；结果写入「运行日志」页签）
-        self._svc_launch_var = tk.BooleanVar(
-            value=bool(self.config.get_setting("start_services_on_launch", False)))
-        auto_wrap(
-            ttk.Checkbutton(
-                settings, text=t("启动 phpvm 时自动启动全部服务（PHP / Redis / MySQL / Nginx）"),
-                style="Card.TCheckbutton",
-                variable=self._svc_launch_var, command=self._toggle_service_launch,
-            ),
-            base, pad=WRAP_PAD_BOX,
-        ).pack(anchor="w", pady=(0, theme.PAD_SM))
-        # 「自动启动服务」时启动哪些 PHP 版本（默认仅最新，避免一次拉起全部版本）
-        scope_row = ttk.Frame(settings, style="Card.TFrame")
-        scope_row.pack(anchor="w", pady=(0, theme.PAD_SM))
-        ttk.Label(scope_row, text=t("自动启动服务的 PHP 版本："),
-                  style="CardBold.TLabel").pack(side="left")
-        self._svc_scope_box = ttk.Combobox(
-            scope_row, state="readonly", width=22,
-            values=[scope_label(s) for s in PHP_SCOPES],
-        )
-        self._sync_service_scope_box()
-        self._svc_scope_box.pack(side="left", padx=(theme.PAD_XS, 0))
-        ttk.Button(scope_row, text=t("应用"), command=self._apply_service_scope_box).pack(
-            side="left", padx=(theme.PAD_SM, 0)
-        )
-        auto_wrap(
-            ttk.Label(
-                settings,
-                text=t("默认「仅最新版本」：开机自启/启动时不会一次拉起全部 PHP 版本，"
-                       "其它版本可在 PHP 页手动启动。"),
-                style="SubTitle.TLabel",
-            ),
-            base, pad=WRAP_PAD_BOX,
-        ).pack(anchor="w", pady=(0, theme.PAD_XS))
-        auto_wrap(
-            ttk.Label(
-                settings,
-                text=t("选「按 PHP 页勾选」时，只启动 PHP 页中勾选了「开机自启」的版本"
-                       "（在 PHP 页点击「开机自启」列即可切换）。"),
-                style="SubTitle.TLabel",
-            ),
-            base, pad=WRAP_PAD_BOX,
-        ).pack(anchor="w", pady=(0, theme.PAD_XS))
-        self._recover_var = tk.BooleanVar(value=bool(self.config.get_setting("auto_recover_crash", False)))
-        auto_wrap(
-            ttk.Checkbutton(
-                settings, text=t("php-cgi 崩溃后自动重启（自愈，默认关闭）"),
-                style="Card.TCheckbutton",
-                variable=self._recover_var, command=self._toggle_recover,
-            ),
-            base, pad=WRAP_PAD_BOX,
-        ).pack(anchor="w")
-        auto_wrap(
-            ttk.Label(
-                settings,
-                text=t("自愈防抖 60 秒、每版本每小时最多 3 次，防止崩溃循环刷进程。"),
-                style="SubTitle.TLabel",
-            ),
-            base, pad=WRAP_PAD_BOX,
-        ).pack(anchor="w", pady=(theme.PAD_XS, 0))
-        lang_row = ttk.Frame(settings, style="Card.TFrame")
-        lang_row.pack(anchor="w", pady=(theme.PAD_SM, 0))
-        ttk.Label(lang_row, text=t("界面语言："), style="CardBold.TLabel").pack(side="left")
-        self._lang_box = ttk.Combobox(
-            lang_row, state="readonly", width=16,
-            values=[f"{name}（{code}）" for code, name in LANGS.items()],
-        )
-        self._lang_box.current(list(LANGS).index(self.config.get_lang()))
-        self._lang_box.pack(side="left", padx=(theme.PAD_XS, 0))
-        ttk.Button(lang_row, text=t("应用"), command=self._apply_lang_box).pack(
-            side="left", padx=(theme.PAD_SM, 0)
-        )
-
-        # 外观主题：浅色 / 深色 / 跟随系统（立即生效，无需重启）
-        theme_row = ttk.Frame(settings, style="Card.TFrame")
-        theme_row.pack(anchor="w", pady=(theme.PAD_SM, 0))
-        ttk.Label(theme_row, text=t("外观主题："), style="CardBold.TLabel").pack(side="left")
-        self._theme_box = ttk.Combobox(
-            theme_row, state="readonly", width=16,
-            values=[theme_label(m) for m in THEME_MODES],
-        )
-        self._theme_box.pack(side="left", padx=(theme.PAD_XS, 0))
-        self._sync_theme_box()
-        ttk.Button(theme_row, text=t("应用"), command=self._apply_theme_box).pack(
-            side="left", padx=(theme.PAD_SM, 0)
-        )
-        auto_wrap(
-            ttk.Label(
-                settings,
-                text=t("深色/浅色切换立即生效；「跟随系统」会随系统外观自动切换。"),
-                style="SubTitle.TLabel",
-            ),
-            base, pad=WRAP_PAD_BOX,
-        ).pack(anchor="w", pady=(theme.PAD_XS, 0))
-
-        # 软件更新：版本显示 + 手动检查 + 启动自动检查开关
-        upd_row = ttk.Frame(settings, style="Card.TFrame")
-        upd_row.pack(anchor="w", pady=(theme.PAD_MD, 0))
-        ttk.Label(upd_row, text=t("软件更新："), style="CardBold.TLabel").pack(side="left")
-        ttk.Label(upd_row, text=t("当前版本 {ver}", ver=f"v{updater.current_version()}"),
-                  style="CardDim.TLabel").pack(side="left",
-                                               padx=(theme.PAD_XS, theme.PAD_MD))
-        ttk.Button(upd_row, text=t("检查更新"),
-                   command=self.open_update_dialog).pack(side="left")
-        ttk.Button(upd_row, text=t("打开下载缓存目录"),
-                   command=self._open_update_dir).pack(side="left", padx=(theme.PAD_SM, 0))
-        self._update_autocheck_var = tk.BooleanVar(
-            value=bool(self.config.get_setting("check_update_on_start", True)))
-        auto_wrap(
-            ttk.Checkbutton(
-                settings,
-                text=t("启动时自动检查更新（发现新版本时仅状态栏提示）"),
-                style="Card.TCheckbutton",
-                variable=self._update_autocheck_var,
-                command=self._toggle_update_autocheck,
-            ),
-            base, pad=WRAP_PAD_BOX,
-        ).pack(anchor="w", pady=(theme.PAD_XS, 0))
-
-        # 服务编排：一键启停整套环境
-        group_row = ttk.Frame(settings, style="Card.TFrame")
-        group_row.pack(anchor="w", pady=(theme.PAD_MD, 0), fill="x")
-        ttk.Label(group_row, text=t("服务编排："), style="CardBold.TLabel").pack(side="left")
-        ttk.Button(group_row, text=t("全部启动"), style="Accent.TButton",
-                   command=lambda: self._all_services("start")).pack(side="left", padx=(4, 6))
-        ttk.Button(group_row, text=t("全部停止"), style="Danger.TButton",
-                   command=lambda: self._all_services("stop")).pack(side="left")
-        auto_wrap(
-            ttk.Label(
-                settings,
-                text=t("启动顺序 PHP → Redis → MySQL → Nginx，停止反之；已运行的服务自动跳过。"),
-                style="SubTitle.TLabel",
-            ),
-            base, pad=WRAP_PAD_BOX,
-        ).pack(anchor="w", pady=(4, 0))
-
-        # 环境备份与迁移（F6）：导出 / 恢复「整套配置」（不含数据库数据）
-        bak_row = ttk.Frame(settings, style="Card.TFrame")
-        bak_row.pack(anchor="w", pady=(theme.PAD_MD, 0), fill="x")
-        ttk.Label(bak_row, text=t("环境备份："), style="CardBold.TLabel").pack(side="left")
-        ttk.Button(bak_row, text=t("导出配置…"), command=self._export_backup).pack(
-            side="left", padx=(4, 6))
-        ttk.Button(bak_row, text=t("从备份恢复…"), command=self._restore_backup).pack(side="left")
-        auto_wrap(
-            ttk.Label(
-                settings,
-                text=t("导出 config.json / 站点配置 / nginx.conf / 各版本 php.ini 为 zip；"
-                       "恢复会先备份现有文件，nginx -t 失败整体回滚。不含数据库数据。"),
-                style="SubTitle.TLabel",
-            ),
-            base, pad=WRAP_PAD_BOX,
-        ).pack(anchor="w", pady=(4, 0))
-
-        # 数据库 GUI（Adminer，F9）：单文件托管为本地站点
-        adm_row = ttk.Frame(settings, style="Card.TFrame")
-        adm_row.pack(anchor="w", pady=(theme.PAD_MD, 0), fill="x")
-        ttk.Label(adm_row, text=t("数据库 GUI："), style="CardBold.TLabel").pack(side="left")
-        ttk.Button(adm_row, text=t("安装 / 更新 Adminer…"),
-                   command=self._install_adminer).pack(side="left", padx=(4, 6))
-        ttk.Button(adm_row, text=t("打开 Adminer"),
-                   command=self._open_adminer).pack(side="left")
-        auto_wrap(
-            ttk.Label(
-                settings,
-                text=t("下载 Adminer 单文件并托管为 http://{domain}（零驱动依赖）。"
-                       "Adminer 具备写库能力，仅供本地开发使用。",
-                       domain=adminer.DEFAULT_DOMAIN),
-                style="SubTitle.TLabel",
-            ),
-            base, pad=WRAP_PAD_BOX,
-        ).pack(anchor="w", pady=(4, 0))
 
         auto_wrap(
             ttk.Label(
@@ -752,12 +775,11 @@ class MainWindow(tk.Tk):
             ),
             base, pad=WRAP_PAD_PAGE,
         ).pack(anchor="w", pady=(theme.PAD_LG, 0))
-        # 内容建完后再挂滚轮（此时子孙控件都已存在）
         sc.bind_wheel()
         return page
 
     def _apply_lang_box(self) -> None:
-        """关于页语言下拉：应用所选语言并提示重启生效。"""
+        """设置页语言下拉：应用所选语言并提示重启生效。"""
         codes = list(LANGS)
         idx = self._lang_box.current()
         if idx < 0 or idx >= len(codes):
@@ -1024,7 +1046,7 @@ class MainWindow(tk.Tk):
         """打开「新建站点」向导（Nginx 管理页入口），完成后刷新站点映射列表。"""
         SiteWizardDialog(self, self.config, on_done=lambda: self.vhost_panel.refresh())
 
-    # 设置区开关（关于页）
+    # 设置页开关
     def _toggle_autostart(self) -> None:
         target = self._autostart_var.get()
         ok = autostart.enable() if target else autostart.disable()

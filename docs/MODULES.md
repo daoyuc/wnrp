@@ -12,7 +12,7 @@
 服务  总览(overview) │ PHP 版本管理(php,刚需) │ Nginx 管理(nginx,刚需) │ Redis 管理(redis) │ MySQL 管理(mysql)
 站点  站点映射(vhost,刚需) │ SQLite 数据库(sqlite)
 诊断  Nginx 日志(log) │ 邮件(mail) │ 运行日志(常驻，不受开关影响) │ 访问日志聚合(access_insights) │ 端口占用(port_scan) │ PHP 错误日志(php_errors) │ 证书到期(cert_watch)
-其他  SSH 管理(ssh) │ 键鼠统计(keymouse) │ 项目启动器(project_launcher) │ 站点巡检(site_health) │ Git 工作区(git_status) │ 关于(设置区/模块开关在此)
+其他  SSH 管理(ssh) │ 键鼠统计(keymouse) │ 项目启动器(project_launcher) │ 站点巡检(site_health) │ Git 工作区(git_status) │ 设置(settings) │ 关于(about)
 ```
 
 - 顶部：菜单栏（外观 / 语言 / 帮助）、状态栏（就绪消息 + 整机内存槽位 + 更新提示 + 崩溃告警）。
@@ -28,7 +28,7 @@
 - 服务状态圆点（PHP / Nginx / Redis / MySQL）：`MainWindow._refresh_nav_states()` 在 worker 线程探测、主线程
   写 UI，复用 `_tick()` 的 4 轮降频（≈32s）；状态未变化不重绘。
 - 托盘（Windows）：动态菜单 —— 一键启停整套服务、Nginx 子菜单、各 PHP 版本、Redis 子菜单、显示/隐藏/退出。
-- 导航构建在 `ui/main_window.py::_build()`；「关于」页（含设置区、模块开关、服务编排按钮）在 `_build_about()`。
+- 导航构建在 `ui/main_window.py::_build()`；「设置」页在 `_build_settings()`（Notebook：「功能模块」两列勾选 / 「常规」左右两列：自启·主题·更新·服务编排·备份·Adminer），「关于」页在 `_build_about()`（产品说明与环境信息）；设置紧挨关于之前，页内用页签拆开以避免整页纵向滚动。
 
 ## 2. 能力 → 落点对照表
 
@@ -48,10 +48,10 @@
 | 站点与应用日志聚合 | `ui/nginx_log_panel.py`（升级为「日志」页）/ `logs` | `log_sources.py` | 只读（不改任何文件；`settings.log_last_source` 记忆上次来源） | 按「来源」（Nginx / PHP / 站点）推导候选日志，复用既有增量读 + 着色 + 过滤 |
 | 首页总览仪表盘 | `ui/overview_panel.py` / `overview` | `overview.py` | 只读（聚合各 manager 状态，不新增轮询/进程；模块可停用） | 服务状态卡（内嵌每服务内存/CPU 占用，F12）+ 站点告警（未映射 hosts / 端口未映射 / 证书缺失）+ 最近崩溃/运行日志；一键全部启动/停止/体检全部 |
 | 轻量资源监控（CPU / 内存） | `monitor` / 总览面板「服务状态」行内 | `resource_monitor.py` | 只读（不引 psutil；posix 走 `ps` 一次快照 + TTL 缓存，Windows 走 ctypes 取 RSS/CPU 时间） | 按服务聚合 phpvm 管理的 nginx / 各 PHP 版本 / Redis / MySQL 进程的 RSS 与 CPU%；CLI `monitor snapshot` 输出机器可读快照，GUI 在总览行内展示并合计；**Windows 服务进程**（mysqld 等以 SYSTEM 运行、非提权 `OpenProcess` 一律拒绝）自动改用 `NtQuerySystemInformation` 系统级快照补 RSS/CPU，不再恒显示「— / 未知」 |
-| 环境备份与迁移 | `ui/main_window.py` 关于页 / `backup` | `backup_bundle.py` | 导出 zip；恢复时改前 `.bak` | 只打包配置（config.json / vhost / nginx.conf / php.ini）；恢复后 `nginx -t` 失败整体回滚；不含数据库数据 |
+| 环境备份与迁移 | `ui/main_window.py` 设置页 / `backup` | `backup_bundle.py` | 导出 zip；恢复时改前 `.bak` | 只打包配置（config.json / vhost / nginx.conf / php.ini）；恢复后 `nginx -t` 失败整体回滚；不含数据库数据 |
 | 邮件捕获（.eml） | `ui/mail_panel.py` / `mail` | `mail_catcher.py`、`mail_sink.py` | php.ini（`.bak`）+ `<数据目录>/mail/*.eml` | 两种落地方式同一目录：Unix 用 `sendmail_path` POSIX 垫片；Windows 把 `SMTP`/`smtp_port`/`sendmail_from` 指向内置 sink（`mail_sink.py`，127.0.0.1:1025，随 phpvm 运行）；关闭时还原用户原值 |
 | 项目级配置 `.phpvm.json` | `ui/vhost_panel.py` 右键 / `project` | `project_config.py` | vhost（`.bak`）+ hosts + 服务进程 | `apply` 按配置对齐：切站点 PHP 端口 / 写 hosts / 启服务；不改项目业务代码；用 JSON 避免 YAML 依赖 |
-| Adminer 数据库 GUI | `ui/main_window.py` 关于页 / `adminer` | `adminer.py` | `<数据目录>/adminer/index.php` + 站点配置 | 下载单文件 Adminer 并托管为 `adminer.test`；离线可「用户自备」；写库能力仅限本地开发 |
+| Adminer 数据库 GUI | `ui/main_window.py` 设置页 / `adminer` | `adminer.py` | `<数据目录>/adminer/index.php` + 站点配置 | 下载单文件 Adminer 并托管为 `adminer.test`；离线可「用户自备」；写库能力仅限本地开发 |
 | 新建站点向导 / HTTPS 证书 | `ui/site_wizard.py` | `site_service.py`、`site_templates.py`、`cert_manager.py` | vhost + hosts + 证书文件 | 5 步编排，任一步失败可整体回滚 |
 | hosts 写入 / 移除 / 还原 | `ui/vhost_panel.py` 按钮、向导 | `hosts_manager.py` | 系统 hosts + `hosts.phpvm.bak` | 只动 `# >>> phpvm-managed >>>` 块；写入需提权 |
 | Redis 多实例管理 | `ui/redis_panel.py` | `redis_manager.py` | redis 进程 / 日志 | 危险命令需二次确认 |
@@ -59,21 +59,21 @@
 | SQLite 只读查询 | `ui/sqlite_panel.py` | `sqlite_manager.py` | `settings.sqlite_last_db` | 只读（mode=ro + query_only + 关键字白名单） |
 | Nginx 日志查看 | `ui/nginx_log_panel.py` | `nginx_manager.py`（日志目录推导） | — | 增量 tail + 自动跟随 |
 | 运行日志 | `ui/run_log_panel.py` | `run_log.py` | `run_log.log(.1)` | 内存 2000 条 / 单文件 1MB 轮转 |
-| 整套服务一键启停 | 关于页按钮、托盘菜单 | `service_group.py` | 各服务进程 | 顺序：启动 PHP→Redis→MySQL→Nginx，停止反向 |
-| 自动启动的 PHP 范围 | 关于页「自动启动服务的 PHP 版本」 | `service_group.php_targets()` | `settings.autostart_php_scope` | `newest`(默认)/`used`/`active`/`custom`/`all`；手动「全部启动」与停止始终覆盖全部 |
+| 整套服务一键启停 | 设置页按钮、托盘菜单、总览 | `service_group.py` | 各服务进程 | 顺序：启动 PHP→Redis→MySQL→Nginx，停止反向 |
+| 自动启动的 PHP 范围 | 设置页「自动启动服务的 PHP 版本」 | `service_group.php_targets()` | `settings.autostart_php_scope` | `newest`(默认)/`used`/`active`/`custom`/`all`；手动「全部启动」与停止始终覆盖全部 |
 | 逐个版本的开机自启勾选 | PHP 页「开机自启」列（点击切换） | `php_panel._toggle_autostart()` → `service_group.set_autostart_versions()` | `settings.autostart_php_versions` | 仅 `custom` 策略下生效；勾选/取消会自动把策略切到 `custom` |
-| 开机自启 phpvm / 服务 | 关于页设置区 | `autostart.py`、`main.py --start-all` | Win Run 项 + 启动目录 vbs / mac LaunchAgent | 服务启动范围同上；日志 `autostart_services.log` |
+| 开机自启 phpvm / 服务 | 设置页 | `autostart.py`、`main.py --start-all` | Win Run 项 + 启动目录 vbs / mac LaunchAgent | 服务启动范围同上；日志 `autostart_services.log` |
 | 崩溃检测与自愈 | 状态栏告警 + 崩溃详情对话框 | `health_monitor.py`、`crash_watchdog.py`、`recover_history.py` | `recover_history.json`、`crash_watchdog.*` | 自愈默认关闭；防抖 + 每小时限次 + 手动停止宽限期；守护启动首轮按开机自启范围裁剪看护列表（见 `_prune_watch_for_boot`） |
 | 开发环境配置推荐 | `ui/tuning_dialog.py` | `tuning.py`、`nginx_conf.py` | php.ini / nginx.conf + `.bak` | 按硬件分档出建议，逐条勾选后写入，`nginx -t` 失败回滚 |
 | 外部工具（Composer） | `ui/php_panel.py` | `tool_manager.py` | — | 以所选 PHP 版本运行（临时前置 PATH） |
 | 软件更新 | `ui/update_dialog.py` + 状态栏 | `updater.py`、`version.py`、`app_paths.py` | `updates/` 缓存 | 检查 GitHub Releases → SHA-256 校验 → 替换后重启 |
-| 模块开关 | 关于页「功能模块」 | `modules.py` | `settings.disabled_modules` | 刚需：PHP / Nginx / 站点映射；停用后**重启**才不加载 |
-| 界面语言 / 外观主题 | 菜单栏 + 关于页 | `i18n.py`、`core/theme.py`、`ui/theme.py` | `settings.lang` / `settings.theme` | 语言重启生效；主题立即生效（走各面板 `refresh_theme()`） |
+| 模块开关 | 设置页「功能模块」 | `modules.py` | `settings.disabled_modules` | 刚需：PHP / Nginx / 站点映射；停用后**重启**才不加载 |
+| 界面语言 / 外观主题 | 菜单栏 + 设置页 | `i18n.py`、`core/theme.py`、`ui/theme.py` | `settings.lang` / `settings.theme` | 语言重启生效；主题立即生效（走各面板 `refresh_theme()`） |
 | 托盘 | `ui/tray.py`（Windows） | `icon.py` | `phpvm.ico`（生成） | 最小化即隐藏到托盘；关闭框提供「重启」 |
 | CLI（AI / 脚本通道） | `cli.py` | 全部 `core/*` | 同 GUI（共用 config.json） | 不 import tkinter；写操作支持 `--dry-run` |
 | 打包与发布 | `packaging/build.py`、`packaging/phpvm.iss` | `.github/workflows/release.yml` | `dist/` | 打 tag 自动构建双平台并发布 Release |
 | 状态栏整机内存槽位 | 主窗口底部状态栏（`ui/main_window.py::_refresh_memory()`） | `core/system_memory.py` | 只读（不写文件、不缓存进程状态） | Windows `GlobalMemoryStatusEx` / Linux `/proc/meminfo` / macOS `sysctl`+`vm_stat`；每 8s 由 worker 采集、只经 `_post()` 回主线程写 `StringVar`；取不到显示「内存 —」而非报错；与 `core/resource_monitor.py` 的「phpvm 管理进程 RSS/CPU」不是一回事 |
-| 插件框架（发现 / 开关 / 设置 / 后台拉起） | 关于页「功能模块」（自动并入） | `core/plugins/__init__.py`、`base.py`、`settings.py`、`core/modules.py` | `settings.disabled_modules`、`settings.plugin_settings` | 内置目录只声明 `MANIFEST: PluginSpec`，`pkgutil` + `importlib` 发现；单插件导入失败只 warn、不阻断启动；设置页与启动快照无需各写一遍枚举 |
+| 插件框架（发现 / 开关 / 设置 / 后台拉起） | 设置页「功能模块」（自动并入） | `core/plugins/__init__.py`、`base.py`、`settings.py`、`core/modules.py` | `settings.disabled_modules`、`settings.plugin_settings` | 内置目录只声明 `MANIFEST: PluginSpec`，`pkgutil` + `importlib` 发现；单插件导入失败只 warn、不阻断启动；设置页与启动快照无需各写一遍枚举 |
 | 键鼠统计（今日 / 本周 / 本月 / 本年 / 全部） | `ui/plugins/keymouse_panel.py` / `plugin`、`keymouse` 命令组 | `core/plugins/keymouse/`（`collector`、`store`、`stats`、`daemon`、`keymap`） | `<数据目录>/plugins/keymouse/stats.db` + `daemon.*` / `paused` | 独立守护进程写库，GUI / CLI 只读 `mode=ro`；Windows / macOS 采集（macOS 需「输入监控」授权）；只落 vkCode + 时间戳；插件停用后守护进程 ≤60s 自行退出 |
 | 项目启动器（本地项目 → 站点 / 命令 / 编辑器 → 浏览器、终端或 IDE） | `ui/plugins/project_launcher_panel.py` / `launcher` 命令组 | `core/plugins/project_launcher/`（`projects`、`commands`、`editor`）、`core/process_utils.py::open_terminal()` | `settings.plugin_settings.project_launcher.www_dir` / `custom_commands` / `editor` / `recent` / `recent_first` | 只读扫描 `www_dir`（默认 `<WNRP_ROOT>/www`，可在面板或 `launcher set-www` 改）+ vhost root 并去重；站点 URL 只由 vhost 的 `server_name` 生成（`launcher browse` / 面板按钮、双击、右键），命令只来自内置白名单或用户手动添加，编辑器只来自内置探测或用户模板且按 argv 启动（不拼 shell），**绝不读 `.phpvm.json` 当命令或 URL 来源**（ADR 16 / ADR 19）；无后台进程、无自动执行 |
 | 访问日志聚合（access.log → 状态码 / 热门路径 / 错误请求） | `ui/plugins/access_insights_panel.py` / `insights` 命令组 | `core/plugins/access_insights/aggregate.py` | 无（不落库、不写任何文件） | 只读 nginx 自身日志目录里的 `*access*.log`（含轮转），文件名只能从候选列表里选、`realpath` 前缀校验；解析失败的行计入 `skipped`；**不读项目内任何文件**；无后台进程、无自动执行（ADR 17） |
@@ -114,7 +114,7 @@
 | `ssh` | SSH 管理 | ❌ | 不建导航项、不实例化 `SshPanel`、不 import `core/ssh_manager`；已保存的主机与片段保留在 `ssh_hosts.json` / `settings.ssh_snippets`，`ssh` 命令组返回「模块已停用」错误 |
 
 插件的 key / 名称来自各 `core/plugins/<name>/` 的 `MANIFEST`，由 `core/modules.py` 在启动期自动并入
-`MODULES` —— 关于页勾选框、启动快照与 CLI `plugin enable/disable` 因此无需各写一遍。
+`MODULES` —— 设置页勾选框、启动快照与 CLI `plugin enable/disable` 因此无需各写一遍。
 
 停用是**启动期行为**（界面只在启动时构建），改完需重启 phpvm；`--start-all` 与 CLI 也遵守该开关
 （停用的模块不加载其 manager，因此不会去启停对应服务）。
