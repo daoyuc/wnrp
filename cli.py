@@ -1061,6 +1061,106 @@ def cmd_health_probe(a, r: Result) -> Result:
 
 
 # --------------------------------------------------------------------------- #
+# ports（端口占用：只读 netstat / lsof，不杀进程）
+# --------------------------------------------------------------------------- #
+def _port_scan():
+    from core.plugins.port_scan import scan
+
+    return scan
+
+
+def cmd_ports_list(a, r: Result) -> Result:
+    scan = _port_scan()
+    data = scan.report(only=getattr(a, "only", "") or "",
+                       kind=getattr(a, "kind", "") or "",
+                       limit=getattr(a, "limit", 0) or 0)
+    r.data = data
+    if data.get("error"):
+        return r.fail(t(scan.ERROR_MESSAGES.get(data["error"], "端口查询失败")))
+    if not data["total"]:
+        r.say(t("没有匹配的端口（检查 --only / --kind 过滤）"))
+        return r
+    r.say(t("监听端口 {ports} 个（{n} 条进程记录）：WNMP 服务 {svc} · "
+            "其他 {other} · 端口冲突 {conflict}",
+            ports=data["ports"], n=data["total"], svc=data["services"],
+            other=data["other"], conflict=len(data["conflicts"])))
+    for it in data["items"]:
+        proc = it.get("process") or "—"
+        kind = t(scan.KIND_MESSAGES.get(it.get("kind"), "其他程序"))
+        r.say(f"  {it['port']:>5}  {proc:<20} {it.get('pid') or '—':>7}  "
+              f"{kind:<8}  {it.get('addr') or '—'}")
+    if data["conflicts"]:
+        r.note(t("同端口被多个进程监听：{ports}",
+                 ports=", ".join(str(p) for p in data["conflicts"])))
+    return r
+
+
+# --------------------------------------------------------------------------- #
+# errors（PHP 错误日志：只读尾部，按级别与消息聚合）
+# --------------------------------------------------------------------------- #
+def _php_errors():
+    from core.plugins.php_errors import aggregate
+
+    return aggregate
+
+
+def cmd_errors_report(a, r: Result) -> Result:
+    agg = _php_errors()
+    data = agg.report(Config(), only=getattr(a, "only", "") or "",
+                      level=getattr(a, "level", "") or "",
+                      top=getattr(a, "top", agg.DEFAULT_TOP) or agg.DEFAULT_TOP,
+                      limit=getattr(a, "limit", agg.DEFAULT_LIMIT)
+                      or agg.DEFAULT_LIMIT)
+    r.data = data
+    if data.get("error") == "no_source":
+        # 没有 PHP 目录 / 站点日志是正常状态（例如纯静态站），不算失败
+        r.note(t(agg.ERROR_MESSAGES["no_source"]))
+        return r
+    if data.get("error"):
+        return r.fail(t(agg.ERROR_MESSAGES.get(data["error"], "读取失败")))
+    counts = data.get("counts") or {}
+    r.say(t("扫描 {files} 个日志文件 · {entries} 条错误 · {lines} 行已读",
+            files=data["files"], entries=data["entries"], lines=data["lines"]))
+    for it in data["top"]:
+        r.say(f"  [{t(agg.LEVEL_MESSAGES.get(it['level'], '其他'))}] "
+              f"x{it['count']}  {it['last']}  ({it['source']})")
+        r.say(f"       {it['message']}")
+    if counts.get("warning"):
+        r.note(t("另有 {n} 条警告", n=counts["warning"]))
+    return r
+
+
+# --------------------------------------------------------------------------- #
+# certs（站点证书到期：只读 vhost + openssl，不续期）
+# --------------------------------------------------------------------------- #
+def _cert_watch():
+    from core.plugins.cert_watch import watch
+
+    return watch
+
+
+def cmd_certs_list(a, r: Result) -> Result:
+    watch = _cert_watch()
+    data = watch.report(Config(), only=getattr(a, "only", "") or "",
+                        within=getattr(a, "within", 0) or 0)
+    r.data = data
+    if data.get("error") == "no_cert":
+        r.note(t(watch.ERROR_MESSAGES["no_cert"]))
+        return r
+    if data.get("error"):
+        return r.fail(t(watch.ERROR_MESSAGES.get(data["error"], "读取失败")))
+    r.say(t("{n} 张证书 · 已过期 {expired} · 30 天内到期 {warn}",
+            n=data["total"], expired=data["expired"],
+            warn=int(data.get("warn") or 0) + int(data.get("critical") or 0)))
+    for it in data["items"]:
+        r.say(f"  {it['site']:<22} {it['not_after_text']}  "
+              f"{t('{days} 天', days=it['days_left']):<8} "
+              f"{t(watch.LEVEL_MESSAGES.get(it['level'], '正常')):<12} "
+              f"{it['path']}")
+    return r
+
+
+# --------------------------------------------------------------------------- #
 # repos（Git 工作区：只读 status / log，不 fetch / pull / 提交）
 # --------------------------------------------------------------------------- #
 def _git_repos():
@@ -3503,6 +3603,44 @@ def build_parser() -> argparse.ArgumentParser:
                     help="单站点超时秒数（默认 5）")
     _p.add_argument("--limit", type=int, default=0,
                     help="最多探测多少个站点（默认全部）")
+
+    # ports（端口占用：只读 netstat / lsof，不杀进程）
+    g = sub.add_parser("ports", help="端口占用（只读 netstat / lsof）",
+                       parents=[COMMON])
+    gs = g.add_subparsers(dest="action", metavar="<action>")
+    _p = _leaf(gs, "list", cmd_ports_list, "ports.list",
+               "列出本机 TCP 监听端口与占用进程")
+    _p.add_argument("--only", default="", help="按端口号 / 进程名 / 地址子串过滤")
+    _p.add_argument("--kind", default="",
+                    choices=("nginx", "php", "redis", "mysql", "other"),
+                    help="按归属过滤")
+    _p.add_argument("--limit", type=int, default=0,
+                    help="最多列出多少条（默认全部）")
+
+    # errors（PHP 错误日志：只读尾部，按级别与消息聚合）
+    g = sub.add_parser("errors", help="PHP 错误日志（只读尾部）",
+                       parents=[COMMON])
+    gs = g.add_subparsers(dest="action", metavar="<action>")
+    _p = _leaf(gs, "report", cmd_errors_report, "errors.report",
+               "聚合各 PHP 版本与站点日志里的错误")
+    _p.add_argument("--level", default="",
+                    choices=("fatal", "error", "warning", "notice",
+                             "deprecated", "other"),
+                    help="只看某一级别")
+    _p.add_argument("--only", default="", help="按日志路径子串过滤")
+    _p.add_argument("--top", type=int, default=10, help="最多列出多少条聚合项")
+    _p.add_argument("--limit", type=int, default=200,
+                    help="最近错误保留条数（默认 200）")
+
+    # certs（站点证书到期：只读 vhost + openssl）
+    g = sub.add_parser("certs", help="站点证书到期（只读，不续期）",
+                       parents=[COMMON])
+    gs = g.add_subparsers(dest="action", metavar="<action>")
+    _p = _leaf(gs, "list", cmd_certs_list, "certs.list",
+               "按剩余天数列出各站点 SSL 证书")
+    _p.add_argument("--within", type=int, default=0,
+                    help="只看剩余天数不超过 N 天的证书（含已过期）")
+    _p.add_argument("--only", default="", help="按站点名 / 证书路径子串过滤")
 
     # repos（Git 工作区：只读 status / log）
     g = sub.add_parser("repos", help="Git 工作区（只读 status / log）",

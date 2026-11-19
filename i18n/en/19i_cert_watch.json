@@ -1,0 +1,21 @@
+{
+  "证书到期": "Certificate expiry",
+  "站点 / 路径过滤": "Site / path filter",
+  "30 天内到期": "Expiring in 30 days",
+  "最近到期": "Next to expire",
+  "到期时间": "Expires at",
+  "剩余天数": "Days left",
+  "证书路径": "Certificate path",
+  "{days} 天": "{days} d",
+  "7 天内到期": "Expiring within 7 days",
+  "正在读取证书…": "Reading certificates…",
+  "证书列表渲染失败：{err}": "Failed to render the certificate list: {err}",
+  "证书读取失败：{err}": "Certificate read failed: {err}",
+  "{n} 张证书 · 已过期 {expired} · 30 天内到期 {warn}": "{n} certificates · expired {expired} · expiring in 30 days {warn}",
+  "只读：从 vhost 的 ssl_certificate 读路径，用系统 openssl 取到期时间；不续期、不改配置，双击打开证书所在目录": "Read-only: reads ssl_certificate paths from vhosts and expiry dates via the system openssl. No renewal, no config changes; double-click opens the certificate folder.",
+  "打开证书目录失败：{err}": "Failed to open the certificate folder: {err}",
+  "已打开证书目录：{path}": "Opened certificate folder: {path}",
+  "找不到 openssl（无法读取证书到期时间）": "openssl not found (cannot read certificate expiry)",
+  "没有找到站点证书（vhost 里没有 ssl_certificate）": "No site certificates found (no ssl_certificate in vhosts)",
+  "读取证书超时": "Reading the certificate timed out"
+}

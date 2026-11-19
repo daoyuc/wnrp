@@ -32,9 +32,11 @@
 |---|---|---|
 | `adminer` | Adminer 数据库 GUI（单文件托管） | `install` · `open` · `status` |
 | `backup` | 环境备份与迁移（仅配置，不含数据库数据） | `export` · `restore` |
+| `certs` | 站点证书到期（只读，不续期） | `list` |
 | `config` | 配置读写（config.json） | `get` · `list` · `set` |
 | `diag` | 一键体检 / 502 诊断（只读） | `all` · `site` |
 | `env` | 输出全部服务快照（nginx / PHP / Redis / MySQL） | — |
+| `errors` | PHP 错误日志（只读尾部） | `report` |
 | `health` | 站点巡检（只读 HTTP(S) 探测 vhost 域名） | `probe` · `sites` |
 | `hosts` | hosts 映射管理 | `add` · `remove` · `restore` · `status` |
 | `insights` | 访问日志聚合（只读解析 nginx access.log） | `files` · `report` |
@@ -49,6 +51,7 @@
 | `overview` | 首页总览仪表盘（只读快照） | `summary` |
 | `php` | PHP 版本管理 | `check` · `ext-list` · `ext-set` · `ini` · `list` · `port` · `restart` · `start` · `status` · `stop` · `xdebug-disable` · `xdebug-enable` · `xdebug-status` |
 | `plugin` | 内置插件管理 | `disable` · `enable` · `list` · `status` |
+| `ports` | 端口占用（只读 netstat / lsof） | `list` |
 | `project` | 项目级配置（.phpvm.json） | `apply` · `show` |
 | `redis` | Redis 管理 | `cmd` · `list` · `ping` · `restart` · `start` · `status` · `stop` |
 | `repos` | Git 工作区（只读 status / log） | `list` · `show` |
@@ -98,6 +101,15 @@
 | `--dry-run` |  |  | 只报告将恢复哪些文件 |
 | `--yes` |  |  | 确认恢复（覆盖当前配置） |
 
+## `certs` — 站点证书到期（只读，不续期）
+
+### `certs list` — 按剩余天数列出各站点 SSL 证书
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--within` |  |  | 只看剩余天数不超过 N 天的证书（含已过期） |
+| `--only` |  |  | 按站点名 / 证书路径子串过滤 |
+
 ## `config` — 配置读写（config.json）
 
 ### `config get` — 读取配置键（ports.<name> / settings.<key>）
@@ -131,6 +143,17 @@
 | `<target>` | 是 |  | 域名 / 配置文件名 / 配置文件路径 |
 
 ## `env` — 输出全部服务快照（nginx / PHP / Redis / MySQL）
+
+## `errors` — PHP 错误日志（只读尾部）
+
+### `errors report` — 聚合各 PHP 版本与站点日志里的错误
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--level` |  |  | 只看某一级别 |
+| `--only` |  |  | 按日志路径子串过滤 |
+| `--top` |  | 10 | 最多列出多少条聚合项 |
+| `--limit` |  | 200 | 最近错误保留条数（默认 200） |
 
 ## `health` — 站点巡检（只读 HTTP(S) 探测 vhost 域名）
 
@@ -584,6 +607,16 @@
 | 参数 | 必填 | 默认 | 说明 |
 |---|---|---|---|
 | `<key>` | 是 |  | 插件 key（如 keymouse） |
+
+## `ports` — 端口占用（只读 netstat / lsof）
+
+### `ports list` — 列出本机 TCP 监听端口与占用进程
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--only` |  |  | 按端口号 / 进程名 / 地址子串过滤 |
+| `--kind` |  |  | 按归属过滤 |
+| `--limit` |  |  | 最多列出多少条（默认全部） |
 
 ## `project` — 项目级配置（.phpvm.json）
 

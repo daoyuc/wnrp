@@ -72,6 +72,12 @@
    "ui/main_window.py"
   ]
  },
+ "30 天内到期": {
+  "count": 1,
+  "files": [
+   "ui/plugins/cert_watch_panel.py"
+  ]
+ },
  "5xx 比例": {
   "count": 1,
   "files": [
@@ -241,9 +247,10 @@
   ]
  },
  "MySQL": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/mysql_panel.py"
+   "ui/mysql_panel.py",
+   "ui/overview_panel.py"
   ]
  },
  "MySQL 仍未停止，请手动结束进程": {
@@ -307,9 +314,10 @@
   ]
  },
  "MySQL 管理": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/main_window.py"
+   "ui/main_window.py",
+   "ui/mysql_panel.py"
   ]
  },
  "MySQL：未发现实例": {
@@ -329,6 +337,12 @@
   "files": [
    "ui/nginx_log_panel.py",
    "core/log_sources.py"
+  ]
+ },
+ "Nginx / PHP / 站点日志统一查看": {
+  "count": 1,
+  "files": [
+   "ui/nginx_log_panel.py"
   ]
  },
  "Nginx 停止失败，请手动检查进程": {
@@ -428,9 +442,10 @@
   ]
  },
  "Nginx 管理": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/main_window.py"
+   "ui/main_window.py",
+   "ui/nginx_panel.py"
   ]
  },
  "Nginx 运行": {
@@ -482,8 +497,9 @@
   ]
  },
  "PHP": {
-  "count": 3,
+  "count": 4,
   "files": [
+   "ui/overview_panel.py",
    "ui/plugins/project_launcher_panel.py",
    "ui/plugins/site_health_panel.py",
    "core/log_sources.py"
@@ -560,9 +576,10 @@
   ]
  },
  "PHP 版本管理": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/main_window.py"
+   "ui/main_window.py",
+   "ui/php_panel.py"
   ]
  },
  "PHP 版本管理器": {
@@ -596,10 +613,34 @@
    "ui/dialogs.py"
   ]
  },
+ "PHP 错误日志": {
+  "count": 1,
+  "files": [
+   "ui/plugins/php_errors_panel.py"
+  ]
+ },
+ "PHP 错误日志汇总失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/php_errors_panel.py"
+  ]
+ },
+ "PHP 错误日志渲染失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/php_errors_panel.py"
+  ]
+ },
  "PHP-FPM 状态": {
   "count": 1,
   "files": [
    "core/ssh_store.py"
+  ]
+ },
+ "PID": {
+  "count": 1,
+  "files": [
+   "ui/plugins/port_scan_panel.py"
   ]
  },
  "PID {p}": {
@@ -612,6 +653,12 @@
   "count": 1,
   "files": [
    "ui/xdebug_dialog.py"
+  ]
+ },
+ "Redis": {
+  "count": 1,
+  "files": [
+   "ui/overview_panel.py"
   ]
  },
  "Redis 命令": {
@@ -627,9 +674,10 @@
   ]
  },
  "Redis 管理": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/main_window.py"
+   "ui/main_window.py",
+   "ui/redis_panel.py"
   ]
  },
  "Redis 连通性": {
@@ -669,9 +717,10 @@
   ]
  },
  "SQLite 数据库": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/main_window.py"
+   "ui/main_window.py",
+   "ui/sqlite_panel.py"
   ]
  },
  "SQLite 文件": {
@@ -715,6 +764,12 @@
   "count": 1,
   "files": [
    "core/plugins/project_launcher/commands.py"
+  ]
+ },
+ "WNMP 服务": {
+  "count": 1,
+  "files": [
+   "ui/plugins/port_scan_panel.py"
   ]
  },
  "Windows 服务": {
@@ -1465,10 +1520,23 @@
    "core/tuning.py"
   ]
  },
+ "{days} 天": {
+  "count": 3,
+  "files": [
+   "cli.py",
+   "ui/plugins/cert_watch_panel.py"
+  ]
+ },
  "{ext} 扩展已存在于 {dir}\\{dll}，无需重复下载。": {
   "count": 1,
   "files": [
    "core/php_extension.py"
+  ]
+ },
+ "{files} 个文件 · {entries} 条错误 · {lines} 行已读": {
+  "count": 1,
+  "files": [
+   "ui/plugins/php_errors_panel.py"
   ]
  },
  "{ini} 加载正常{extra}": {
@@ -1587,6 +1655,13 @@
    "ui/plugins/site_health_panel.py"
   ]
  },
+ "{n} 张证书 · 已过期 {expired} · 30 天内到期 {warn}": {
+  "count": 2,
+  "files": [
+   "cli.py",
+   "ui/plugins/cert_watch_panel.py"
+  ]
+ },
  "{n} 行": {
   "count": 1,
   "files": [
@@ -1695,6 +1770,12 @@
    "ui/site_wizard.py"
   ]
  },
+ "…": {
+  "count": 1,
+  "files": [
+   "ui/overview_panel.py"
+  ]
+ },
  "…共 {count} 次": {
   "count": 1,
   "files": [
@@ -1771,6 +1852,12 @@
   "count": 1,
   "files": [
    "core/tuning.py"
+  ]
+ },
+ "一眼查看服务健康、站点告警与最近运行情况": {
+  "count": 1,
+  "files": [
+   "ui/overview_panel.py"
   ]
  },
  "一键体检": {
@@ -1907,7 +1994,7 @@
   ]
  },
  "下载新版本": {
-  "count": 1,
+  "count": 2,
   "files": [
    "ui/php_panel.py"
   ]
@@ -2045,6 +2132,12 @@
    "core/ssh_manager.py"
   ]
  },
+ "主机清单、测试连接与只读命令片段": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
  "主机配置格式不正确": {
   "count": 1,
   "files": [
@@ -2079,6 +2172,12 @@
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "仅异常": {
+  "count": 1,
+  "files": [
+   "ui/vhost_panel.py"
   ]
  },
  "仅当前项目可用": {
@@ -2147,10 +2246,17 @@
    "ui/dialogs.py"
   ]
  },
- "体检失败：{err}": {
+ "体检全部": {
   "count": 1,
   "files": [
-   "ui/diag_dialog.py"
+   "ui/overview_panel.py"
+  ]
+ },
+ "体检失败：{err}": {
+  "count": 2,
+  "files": [
+   "ui/diag_dialog.py",
+   "ui/overview_panel.py"
   ]
  },
  "体检完成：{n} 个站点，总体 {level}": {
@@ -2163,6 +2269,12 @@
   "count": 1,
   "files": [
    "ui/vhost_panel.py"
+  ]
+ },
+ "体检结果": {
+  "count": 1,
+  "files": [
+   "ui/overview_panel.py"
   ]
  },
  "保存": {
@@ -2387,6 +2499,13 @@
    "ui/main_window.py"
   ]
  },
+ "健康": {
+  "count": 2,
+  "files": [
+   "ui/overview_panel.py",
+   "ui/widgets.py"
+  ]
+ },
  "健康：{h}": {
   "count": 1,
   "files": [
@@ -2406,9 +2525,16 @@
   ]
  },
  "全部停止": {
-  "count": 2,
+  "count": 3,
   "files": [
-   "ui/main_window.py"
+   "ui/main_window.py",
+   "ui/overview_panel.py"
+  ]
+ },
+ "全部停止失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/overview_panel.py"
   ]
  },
  "全部停止服务": {
@@ -2424,9 +2550,16 @@
   ]
  },
  "全部启动": {
-  "count": 2,
+  "count": 3,
   "files": [
-   "ui/main_window.py"
+   "ui/main_window.py",
+   "ui/overview_panel.py"
+  ]
+ },
+ "全部启动失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/overview_panel.py"
   ]
  },
  "全部启动服务": {
@@ -2447,10 +2580,22 @@
    "core/tuning.py"
   ]
  },
+ "全部归属": {
+  "count": 2,
+  "files": [
+   "ui/plugins/port_scan_panel.py"
+  ]
+ },
  "全部文件": {
   "count": 1,
   "files": [
    "ui/sqlite_panel.py"
+  ]
+ },
+ "全部级别": {
+  "count": 2,
+  "files": [
+   "ui/plugins/php_errors_panel.py"
   ]
  },
  "全部通过": {
@@ -2481,6 +2626,12 @@
   "count": 1,
   "files": [
    "cli.py"
+  ]
+ },
+ "共 {n} 个站点，错误 {e} 项，警告 {w} 项": {
+  "count": 1,
+  "files": [
+   "ui/overview_panel.py"
   ]
  },
  "共 {n} 个项目": {
@@ -2549,6 +2700,12 @@
    "ui/php_panel.py"
   ]
  },
+ "关键服务未运行，请检查 Nginx / PHP": {
+  "count": 1,
+  "files": [
+   "ui/overview_panel.py"
+  ]
+ },
  "关键配置": {
   "count": 1,
   "files": [
@@ -2611,10 +2768,17 @@
    "ui/nav.py"
   ]
  },
- "内存 {mem} · CPU {cpu}": {
+ "其他程序": {
   "count": 1,
   "files": [
-   "cli.py"
+   "ui/plugins/port_scan_panel.py"
+  ]
+ },
+ "内存 {mem} · CPU {cpu}": {
+  "count": 2,
+  "files": [
+   "cli.py",
+   "ui/overview_panel.py"
   ]
  },
  "内存 {pct}% · {used}/{total}": {
@@ -2672,13 +2836,14 @@
   ]
  },
  "内部错误：{err}": {
-  "count": 9,
+  "count": 10,
   "files": [
    "ui/diag_dialog.py",
    "ui/download_dialog.py",
    "ui/extension_dialog.py",
    "ui/mail_panel.py",
    "ui/nginx_panel.py",
+   "ui/overview_panel.py",
    "ui/php_panel.py",
    "ui/redis_panel.py",
    "ui/vhost_panel.py"
@@ -2939,11 +3104,18 @@
    "cli.py"
   ]
  },
+ "到期时间": {
+  "count": 1,
+  "files": [
+   "ui/plugins/cert_watch_panel.py"
+  ]
+ },
  "刷新": {
-  "count": 13,
+  "count": 17,
   "files": [
    "ui/mail_panel.py",
    "ui/nginx_log_panel.py",
+   "ui/overview_panel.py",
    "ui/php_panel.py",
    "ui/redis_panel.py",
    "ui/run_log_panel.py",
@@ -2951,9 +3123,24 @@
    "ui/ssh_panel.py",
    "ui/vhost_panel.py",
    "ui/plugins/access_insights_panel.py",
+   "ui/plugins/cert_watch_panel.py",
    "ui/plugins/git_status_panel.py",
+   "ui/plugins/php_errors_panel.py",
+   "ui/plugins/port_scan_panel.py",
    "ui/plugins/project_launcher_panel.py",
    "ui/plugins/site_health_panel.py"
+  ]
+ },
+ "刷新失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "刷新或检查环境根目录后重试": {
+  "count": 1,
+  "files": [
+   "ui/overview_panel.py"
   ]
  },
  "刷新状态": {
@@ -2978,10 +3165,22 @@
    "ui/nginx_panel.py"
   ]
  },
+ "剩余天数": {
+  "count": 1,
+  "files": [
+   "ui/plugins/cert_watch_panel.py"
+  ]
+ },
  "功能模块": {
   "count": 1,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "加载中…": {
+  "count": 1,
+  "files": [
+   "ui/overview_panel.py"
   ]
  },
  "加载失败": {
@@ -3182,6 +3381,12 @@
    "cli.py"
   ]
  },
+ "另有 {n} 条警告": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "只探测 nginx vhost 里的域名：GET /，不跟随重定向、不带 Cookie、不经系统代理": {
   "count": 1,
   "files": [
@@ -3194,10 +3399,34 @@
    "core/ini_editor.py"
   ]
  },
+ "只读列表：归属按进程名推断；双击一行复制端口号，本页不杀进程": {
+  "count": 1,
+  "files": [
+   "ui/plugins/port_scan_panel.py"
+  ]
+ },
  "只读查询：git status / git log，不 fetch、不 pull、不提交": {
   "count": 1,
   "files": [
    "ui/plugins/git_status_panel.py"
+  ]
+ },
+ "只读浏览表结构并执行查询": {
+  "count": 1,
+  "files": [
+   "ui/sqlite_panel.py"
+  ]
+ },
+ "只读：从 vhost 的 ssl_certificate 读路径，用系统 openssl 取到期时间；不续期、不改配置，双击打开证书所在目录": {
+  "count": 1,
+  "files": [
+   "ui/plugins/cert_watch_panel.py"
+  ]
+ },
+ "只读：读每个日志尾部 256 KB、最多 40 个文件；同一消息（忽略行号与路径）合并计数，双击打开对应日志": {
+  "count": 1,
+  "files": [
+   "ui/plugins/php_errors_panel.py"
   ]
  },
  "可分析的 access 日志：": {
@@ -3273,6 +3502,12 @@
    "ui/redis_panel.py"
   ]
  },
+ "合计 · {n} 个服务运行中 · 内存 {mem} · CPU {cpu}": {
+  "count": 1,
+  "files": [
+   "ui/overview_panel.py"
+  ]
+ },
  "合计：{n} 个运行中的服务 · 内存 {mem} · CPU {cpu}": {
   "count": 1,
   "files": [
@@ -3319,6 +3554,18 @@
   "count": 1,
   "files": [
    "core/vhost_manager.py"
+  ]
+ },
+ "同端口被多个进程监听": {
+  "count": 1,
+  "files": [
+   "ui/plugins/port_scan_panel.py"
+  ]
+ },
+ "同端口被多个进程监听：{ports}": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "名称": {
@@ -3371,6 +3618,12 @@
   "count": 1,
   "files": [
    "core/mysql_manager.py"
+  ]
+ },
+ "启停、平滑重载与配置检查": {
+  "count": 1,
+  "files": [
+   "ui/nginx_panel.py"
   ]
  },
  "启动": {
@@ -3530,6 +3783,13 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "告警": {
+  "count": 3,
+  "files": [
+   "ui/overview_panel.py",
+   "ui/widgets.py"
   ]
  },
  "告警 {n} 项": {
@@ -3886,6 +4146,12 @@
    "ui/vhost_panel.py"
   ]
  },
+ "存在 {n} 项告警": {
+  "count": 1,
+  "files": [
+   "ui/overview_panel.py"
+  ]
+ },
  "存在失败的同步（已自动还原备份），请检查上方详情。": {
   "count": 1,
   "files": [
@@ -4026,6 +4292,18 @@
    "core/php_manager.py"
   ]
  },
+ "实例发现、启停与错误日志": {
+  "count": 1,
+  "files": [
+   "ui/mysql_panel.py"
+  ]
+ },
+ "实例启停、命令执行与键空间": {
+  "count": 1,
+  "files": [
+   "ui/redis_panel.py"
+  ]
+ },
  "实例未运行，无法统计键空间": {
   "count": 1,
   "files": [
@@ -4109,6 +4387,12 @@
   "count": 1,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "将 PHP 放进环境根目录，或使用「更多 → 下载新版本」": {
+  "count": 2,
+  "files": [
+   "ui/php_panel.py"
   ]
  },
  "将下载 Adminer 单文件并创建站点 http://{domain}，同时写入 hosts（可能请求系统授权）。\n\n确定继续？": {
@@ -4328,12 +4612,15 @@
   ]
  },
  "就绪": {
-  "count": 6,
+  "count": 9,
   "files": [
    "ui/main_window.py",
    "ui/ssh_panel.py",
    "ui/plugins/access_insights_panel.py",
+   "ui/plugins/cert_watch_panel.py",
    "ui/plugins/git_status_panel.py",
+   "ui/plugins/php_errors_panel.py",
+   "ui/plugins/port_scan_panel.py",
    "ui/plugins/project_launcher_panel.py",
    "ui/plugins/site_health_panel.py"
   ]
@@ -4495,12 +4782,13 @@
   ]
  },
  "已停止": {
-  "count": 5,
+  "count": 7,
   "files": [
    "ui/dialogs.py",
    "ui/main_window.py",
    "ui/mysql_panel.py",
    "ui/nginx_panel.py",
+   "ui/overview_panel.py",
    "ui/redis_panel.py"
   ]
  },
@@ -4768,6 +5056,12 @@
    "ui/ssh_panel.py"
   ]
  },
+ "已复制端口号：{port}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/port_scan_panel.py"
+  ]
+ },
  "已复制：{text}": {
   "count": 4,
   "files": [
@@ -4894,6 +5188,12 @@
    "ui/plugins/keymouse_panel.py"
   ]
  },
+ "已打开日志：{path}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/php_errors_panel.py"
+  ]
+ },
  "已打开的 cmd 不会自动切换，需重开窗口": {
   "count": 1,
   "files": [
@@ -4942,6 +5242,12 @@
   "count": 1,
   "files": [
    "ui/ssh_panel.py"
+  ]
+ },
+ "已打开证书目录：{path}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/cert_watch_panel.py"
   ]
  },
  "已打开：{path}": {
@@ -5175,8 +5481,9 @@
   ]
  },
  "已过期": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "ui/plugins/cert_watch_panel.py",
    "ui/plugins/site_health_panel.py"
   ]
  },
@@ -5306,6 +5613,12 @@
   "count": 3,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "应用启停、服务操作与异常的本机轨迹": {
+  "count": 1,
+  "files": [
+   "ui/run_log_panel.py"
   ]
  },
  "应用失败": {
@@ -5514,9 +5827,11 @@
   ]
  },
  "异常": {
-  "count": 3,
+  "count": 5,
   "files": [
    "ui/dialogs.py",
+   "ui/overview_panel.py",
+   "ui/widgets.py",
    "ui/plugins/site_health_panel.py"
   ]
  },
@@ -5530,6 +5845,12 @@
   "count": 1,
   "files": [
    "core/health_monitor.py"
+  ]
+ },
+ "归属": {
+  "count": 2,
+  "files": [
+   "ui/plugins/port_scan_panel.py"
   ]
  },
  "当前 HTTPS：{state}": {
@@ -5672,15 +5993,22 @@
   ]
  },
  "总览": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/main_window.py"
+   "ui/main_window.py",
+   "ui/overview_panel.py"
   ]
  },
  "总览摘要：": {
   "count": 1,
   "files": [
    "cli.py"
+  ]
+ },
+ "总览聚合失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/overview_panel.py"
   ]
  },
  "恢复": {
@@ -5783,6 +6111,12 @@
    "ui/mysql_panel.py"
   ]
  },
+ "打开日志失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/php_errors_panel.py"
+  ]
+ },
  "打开日志文件": {
   "count": 2,
   "files": [
@@ -5858,6 +6192,12 @@
   "count": 1,
   "files": [
    "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "打开证书目录失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/cert_watch_panel.py"
   ]
  },
  "打开邮件目录": {
@@ -5937,10 +6277,17 @@
    "ui/php_panel.py"
   ]
  },
+ "扫描 {files} 个日志文件 · {entries} 条错误 · {lines} 行已读": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
  "扫描失败": {
-  "count": 3,
+  "count": 4,
   "files": [
    "ui/vhost_panel.py",
+   "ui/plugins/port_scan_panel.py",
    "ui/plugins/project_launcher_panel.py"
   ]
  },
@@ -5948,6 +6295,12 @@
   "count": 1,
   "files": [
    "ui/php_panel.py"
+  ]
+ },
+ "扫描完成 · {ports} 个端口 · {n} 条记录": {
+  "count": 1,
+  "files": [
+   "ui/plugins/port_scan_panel.py"
   ]
  },
  "把缺失域名写入 hosts 指向 127.0.0.1": {
@@ -6151,8 +6504,9 @@
   ]
  },
  "搜索": {
-  "count": 3,
+  "count": 4,
   "files": [
+   "ui/php_panel.py",
    "ui/ssh_panel.py",
    "ui/vhost_panel.py",
    "ui/plugins/project_launcher_panel.py"
@@ -6198,6 +6552,12 @@
   "count": 1,
   "files": [
    "core/service_group.py"
+  ]
+ },
+ "操作服务后会在此显示最近记录": {
+  "count": 1,
+  "files": [
+   "ui/overview_panel.py"
   ]
  },
  "操作超时，已解锁": {
@@ -6341,6 +6701,24 @@
    "core/diag.py"
   ]
  },
+ "无匹配版本": {
+  "count": 1,
+  "files": [
+   "ui/php_panel.py"
+  ]
+ },
+ "无匹配站点": {
+  "count": 1,
+  "files": [
+   "ui/vhost_panel.py"
+  ]
+ },
+ "无告警": {
+  "count": 1,
+  "files": [
+   "ui/overview_panel.py"
+  ]
+ },
  "无响应": {
   "count": 1,
   "files": [
@@ -6351,6 +6729,12 @@
   "count": 1,
   "files": [
    "core/diag.py"
+  ]
+ },
+ "无崩溃记录": {
+  "count": 1,
+  "files": [
+   "ui/overview_panel.py"
   ]
  },
  "无效时区（如 Asia/Shanghai）": {
@@ -6526,9 +6910,10 @@
   ]
  },
  "日志": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/main_window.py"
+   "ui/main_window.py",
+   "ui/nginx_log_panel.py"
   ]
  },
  "日志只读自 nginx 日志目录，不读取项目内文件": {
@@ -6538,10 +6923,11 @@
   ]
  },
  "日志文件": {
-  "count": 2,
+  "count": 3,
   "files": [
    "ui/run_log_panel.py",
-   "ui/plugins/access_insights_panel.py"
+   "ui/plugins/access_insights_panel.py",
+   "ui/plugins/php_errors_panel.py"
   ]
  },
  "日志文件不存在：{path}": {
@@ -6608,8 +6994,9 @@
   ]
  },
  "显示 {n} / {total}": {
-  "count": 1,
+  "count": 3,
   "files": [
+   "ui/php_panel.py",
    "ui/vhost_panel.py"
   ]
  },
@@ -6679,6 +7066,18 @@
    "ui/plugins/access_insights_panel.py"
   ]
  },
+ "暂无日志": {
+  "count": 1,
+  "files": [
+   "ui/overview_panel.py"
+  ]
+ },
+ "暂无服务数据": {
+  "count": 1,
+  "files": [
+   "ui/overview_panel.py"
+  ]
+ },
  "暂无记录": {
   "count": 2,
   "files": [
@@ -6695,6 +7094,12 @@
   "count": 2,
   "files": [
    "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "更多": {
+  "count": 1,
+  "files": [
+   "ui/widgets.py"
   ]
  },
  "更新 /etc/hosts 需要管理员授权（已取消或失败：{err}）": {
@@ -6745,16 +7150,46 @@
    "core/diag.py"
   ]
  },
+ "最近一条": {
+  "count": 1,
+  "files": [
+   "ui/plugins/php_errors_panel.py"
+  ]
+ },
  "最近使用优先": {
   "count": 1,
   "files": [
    "ui/plugins/project_launcher_panel.py"
   ]
  },
+ "最近到期": {
+  "count": 1,
+  "files": [
+   "ui/plugins/cert_watch_panel.py"
+  ]
+ },
+ "最近崩溃": {
+  "count": 1,
+  "files": [
+   "ui/overview_panel.py"
+  ]
+ },
+ "最近时间": {
+  "count": 1,
+  "files": [
+   "ui/plugins/php_errors_panel.py"
+  ]
+ },
  "最近登录记录": {
   "count": 1,
   "files": [
    "core/ssh_store.py"
+  ]
+ },
+ "最近运行日志": {
+  "count": 1,
+  "files": [
+   "ui/overview_panel.py"
   ]
  },
  "最近错误请求": {
@@ -6797,6 +7232,12 @@
   "count": 2,
   "files": [
    "core/php_downloader.py"
+  ]
+ },
+ "服务状态": {
+  "count": 1,
+  "files": [
+   "ui/overview_panel.py"
   ]
  },
  "服务端指纹：{fp}": {
@@ -6842,8 +7283,9 @@
   ]
  },
  "未发现 PHP 版本": {
-  "count": 1,
+  "count": 3,
   "files": [
+   "ui/php_panel.py",
    "ui/site_wizard.py"
   ]
  },
@@ -7338,11 +7780,19 @@
    "ui/xdebug_dialog.py"
   ]
  },
+ "未检测到版本": {
+  "count": 1,
+  "files": [
+   "ui/overview_panel.py"
+  ]
+ },
  "未知": {
-  "count": 12,
+  "count": 15,
   "files": [
    "cli.py",
    "ui/main_window.py",
+   "ui/overview_panel.py",
+   "ui/widgets.py",
    "core/diag.py",
    "core/health_monitor.py",
    "core/nginx_manager.py",
@@ -7446,9 +7896,10 @@
   ]
  },
  "来源": {
-  "count": 2,
+  "count": 3,
   "files": [
    "ui/run_log_panel.py",
+   "ui/plugins/php_errors_panel.py",
    "ui/plugins/project_launcher_panel.py"
   ]
  },
@@ -7462,6 +7913,12 @@
   "count": 1,
   "files": [
    "ui/nginx_log_panel.py"
+  ]
+ },
+ "查看 PHP mail() 捕获到的本地邮件": {
+  "count": 1,
+  "files": [
+   "ui/mail_panel.py"
   ]
  },
  "查看配置": {
@@ -7589,9 +8046,10 @@
   ]
  },
  "次数": {
-  "count": 3,
+  "count": 4,
   "files": [
-   "ui/plugins/access_insights_panel.py"
+   "ui/plugins/access_insights_panel.py",
+   "ui/plugins/php_errors_panel.py"
   ]
  },
  "正在{action} [{name}] …": {
@@ -7793,6 +8251,12 @@
    "ui/sqlite_panel.py"
   ]
  },
+ "正在扫描端口…": {
+  "count": 1,
+  "files": [
+   "ui/plugins/port_scan_panel.py"
+  ]
+ },
  "正在替换端口并校验 nginx 配置…": {
   "count": 1,
   "files": [
@@ -7839,6 +8303,12 @@
   "count": 1,
   "files": [
    "ui/vhost_panel.py"
+  ]
+ },
+ "正在汇总错误日志…": {
+  "count": 1,
+  "files": [
+   "ui/plugins/php_errors_panel.py"
   ]
  },
  "正在测试 {target}…": {
@@ -7895,6 +8365,12 @@
    "ui/mail_panel.py"
   ]
  },
+ "正在读取证书…": {
+  "count": 1,
+  "files": [
+   "ui/plugins/cert_watch_panel.py"
+  ]
+ },
  "正在运行 php -v 验证": {
   "count": 1,
   "files": [
@@ -7939,6 +8415,12 @@
    "core/tuning.py"
   ]
  },
+ "汇总失败": {
+  "count": 1,
+  "files": [
+   "ui/plugins/php_errors_panel.py"
+  ]
+ },
  "没有匹配的主机": {
   "count": 1,
   "files": [
@@ -7952,6 +8434,12 @@
   ]
  },
  "没有匹配的站点（检查 --domain 过滤）": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "没有匹配的端口（检查 --only / --kind 过滤）": {
   "count": 1,
   "files": [
    "cli.py"
@@ -8046,6 +8534,12 @@
   "files": [
    "ui/site_wizard.py",
    "ui/sqlite_panel.py"
+  ]
+ },
+ "消息": {
+  "count": 1,
+  "files": [
+   "ui/plugins/php_errors_panel.py"
   ]
  },
  "深色/浅色切换立即生效；「跟随系统」会随系统外观自动切换。": {
@@ -8173,12 +8667,13 @@
   ]
  },
  "状态": {
-  "count": 4,
+  "count": 5,
   "files": [
    "ui/dialogs.py",
    "ui/download_dialog.py",
    "ui/extension_dialog.py",
-   "ui/php_panel.py"
+   "ui/php_panel.py",
+   "ui/plugins/cert_watch_panel.py"
   ]
  },
  "状态与日志": {
@@ -8321,6 +8816,12 @@
    "ui/main_window.py"
   ]
  },
+ "环境正常 · 全部在线 · 共 {n} 个站点": {
+  "count": 1,
+  "files": [
+   "ui/overview_panel.py"
+  ]
+ },
  "理由": {
   "count": 1,
   "files": [
@@ -8337,6 +8838,12 @@
   "count": 1,
   "files": [
    "core/vhost_manager.py"
+  ]
+ },
+ "用向导创建第一个站点，或把已有 conf 放进 nginx 站点目录后刷新": {
+  "count": 2,
+  "files": [
+   "ui/vhost_panel.py"
   ]
  },
  "用户名": {
@@ -8387,10 +8894,23 @@
    "ui/main_window.py"
   ]
  },
- "监听端口": {
+ "监听地址": {
   "count": 1,
   "files": [
+   "ui/plugins/port_scan_panel.py"
+  ]
+ },
+ "监听端口": {
+  "count": 2,
+  "files": [
+   "ui/plugins/port_scan_panel.py",
    "core/ssh_store.py"
+  ]
+ },
+ "监听端口 {ports} 个（{n} 条进程记录）：WNMP 服务 {svc} · 其他 {other} · 端口冲突 {conflict}": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "目录不存在": {
@@ -8567,9 +9087,22 @@
   ]
  },
  "站点": {
+  "count": 2,
+  "files": [
+   "ui/nav.py",
+   "ui/plugins/cert_watch_panel.py"
+  ]
+ },
+ "站点 / 路径过滤": {
   "count": 1,
   "files": [
-   "ui/nav.py"
+   "ui/plugins/cert_watch_panel.py"
+  ]
+ },
+ "站点与 hosts 当前看起来正常": {
+  "count": 1,
+  "files": [
+   "ui/overview_panel.py"
   ]
  },
  "站点信息": {
@@ -8639,9 +9172,10 @@
   ]
  },
  "站点映射": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/main_window.py"
+   "ui/main_window.py",
+   "ui/vhost_panel.py"
   ]
  },
  "站点未被禁用": {
@@ -8675,12 +9209,19 @@
   ]
  },
  "端口": {
-  "count": 4,
+  "count": 5,
   "files": [
    "ui/dialogs.py",
    "ui/php_panel.py",
    "ui/ssh_panel.py",
-   "ui/vhost_panel.py"
+   "ui/vhost_panel.py",
+   "ui/plugins/port_scan_panel.py"
+  ]
+ },
+ "端口 / 进程过滤": {
+  "count": 1,
+  "files": [
+   "ui/plugins/port_scan_panel.py"
   ]
  },
  "端口 {port} 已被 [{other}] 占用": {
@@ -8714,10 +9255,29 @@
   ]
  },
  "端口冲突": {
-  "count": 2,
+  "count": 3,
   "files": [
    "ui/dialogs.py",
-   "ui/php_panel.py"
+   "ui/php_panel.py",
+   "ui/plugins/port_scan_panel.py"
+  ]
+ },
+ "端口占用": {
+  "count": 1,
+  "files": [
+   "ui/plugins/port_scan_panel.py"
+  ]
+ },
+ "端口占用扫描失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/port_scan_panel.py"
+  ]
+ },
+ "端口占用渲染失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/port_scan_panel.py"
   ]
  },
  "端口已修改": {
@@ -8819,9 +9379,10 @@
   ]
  },
  "级别": {
-  "count": 1,
+  "count": 3,
   "files": [
-   "ui/run_log_panel.py"
+   "ui/run_log_panel.py",
+   "ui/plugins/php_errors_panel.py"
   ]
  },
  "级别：": {
@@ -9223,6 +9784,12 @@
    "core/php_installer.py"
   ]
  },
+ "警告": {
+  "count": 1,
+  "files": [
+   "ui/plugins/php_errors_panel.py"
+  ]
+ },
  "警告 {n}": {
   "count": 2,
   "files": [
@@ -9297,15 +9864,28 @@
   ]
  },
  "证书": {
+  "count": 2,
+  "files": [
+   "ui/plugins/cert_watch_panel.py",
+   "ui/plugins/site_health_panel.py"
+  ]
+ },
+ "证书列表渲染失败：{err}": {
   "count": 1,
   "files": [
-   "ui/plugins/site_health_panel.py"
+   "ui/plugins/cert_watch_panel.py"
   ]
  },
  "证书删除失败：{err}": {
   "count": 1,
   "files": [
    "core/site_service.py"
+  ]
+ },
+ "证书到期": {
+  "count": 1,
+  "files": [
+   "ui/plugins/cert_watch_panel.py"
   ]
  },
  "证书文件不存在：{p}（访问 HTTPS 会报 SSL 错误）": {
@@ -9338,10 +9918,34 @@
    "cli.py"
   ]
  },
+ "证书读取失败：{err}": {
+  "count": 1,
+  "files": [
+   "ui/plugins/cert_watch_panel.py"
+  ]
+ },
+ "证书路径": {
+  "count": 1,
+  "files": [
+   "ui/plugins/cert_watch_panel.py"
+  ]
+ },
  "诊断": {
   "count": 1,
   "files": [
    "ui/nav.py"
+  ]
+ },
+ "试试清空搜索或关闭「仅异常」": {
+  "count": 1,
+  "files": [
+   "ui/vhost_panel.py"
+  ]
+ },
+ "试试清空搜索，或换个关键字": {
+  "count": 1,
+  "files": [
+   "ui/php_panel.py"
   ]
  },
  "该 server 块位于主配置（nginx.conf）中，无法自动启用 HTTPS；请先为它单独建立站点配置。": {
@@ -9479,11 +10083,12 @@
   ]
  },
  "说明": {
-  "count": 4,
+  "count": 5,
   "files": [
    "ui/extension_dialog.py",
    "ui/vhost_panel.py",
    "ui/plugins/git_status_panel.py",
+   "ui/plugins/port_scan_panel.py",
    "ui/plugins/site_health_panel.py"
   ]
  },
@@ -9645,9 +10250,10 @@
   ]
  },
  "读取失败": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/dialogs.py"
+   "ui/dialogs.py",
+   "ui/plugins/cert_watch_panel.py"
   ]
  },
  "读取失败：{err}": {
@@ -9751,6 +10357,12 @@
    "core/tuning.py"
   ]
  },
+ "路径过滤": {
+  "count": 1,
+  "files": [
+   "ui/plugins/php_errors_panel.py"
+  ]
+ },
  "路径：{path}": {
   "count": 1,
   "files": [
@@ -9830,13 +10442,14 @@
   ]
  },
  "运行中": {
-  "count": 9,
+  "count": 10,
   "files": [
    "cli.py",
    "ui/dialogs.py",
    "ui/mail_panel.py",
    "ui/mysql_panel.py",
    "ui/nginx_panel.py",
+   "ui/overview_panel.py",
    "ui/redis_panel.py"
   ]
  },
@@ -9853,9 +10466,10 @@
   ]
  },
  "运行日志": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/main_window.py"
+   "ui/main_window.py",
+   "ui/run_log_panel.py"
   ]
  },
  "运行状态": {
@@ -9864,6 +10478,12 @@
    "ui/mysql_panel.py",
    "ui/nginx_panel.py",
    "ui/redis_panel.py"
+  ]
+ },
+ "近期没有 php-cgi 崩溃事件": {
+  "count": 1,
+  "files": [
+   "ui/overview_panel.py"
   ]
  },
  "还原 /etc/hosts 需要 root 权限，请手动执行：sudo cp {src} {dst}": {
@@ -9902,6 +10522,12 @@
    "core/site_service.py"
   ]
  },
+ "还没有站点": {
+  "count": 2,
+  "files": [
+   "ui/vhost_panel.py"
+  ]
+ },
  "这台主机还没有保存密码，请先在「编辑主机」里补上": {
   "count": 1,
   "files": [
@@ -9915,9 +10541,10 @@
   ]
  },
  "进程": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/dialogs.py"
+   "ui/dialogs.py",
+   "ui/plugins/port_scan_panel.py"
   ]
  },
  "进程失联（端口 {port} 无监听）": {
@@ -9930,6 +10557,15 @@
   "count": 1,
   "files": [
    "core/health_monitor.py"
+  ]
+ },
+ "进行中…": {
+  "count": 4,
+  "files": [
+   "ui/main_window.py",
+   "ui/overview_panel.py",
+   "ui/php_panel.py",
+   "ui/vhost_panel.py"
   ]
  },
  "远端命令退出码为 {code}": {
@@ -10062,8 +10698,9 @@
   ]
  },
  "邮件": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "ui/mail_panel.py",
    "ui/main_window.py"
   ]
  },
@@ -10350,12 +10987,13 @@
   ]
  },
  "错误": {
-  "count": 5,
+  "count": 6,
   "files": [
    "ui/download_dialog.py",
    "ui/nginx_panel.py",
    "ui/php_panel.py",
-   "ui/redis_panel.py"
+   "ui/redis_panel.py",
+   "ui/plugins/php_errors_panel.py"
   ]
  },
  "错误 {n}": {
@@ -10881,7 +11519,7 @@
   ]
  },
  "＋ 新建站点…": {
-  "count": 1,
+  "count": 2,
   "files": [
    "ui/vhost_panel.py"
   ]

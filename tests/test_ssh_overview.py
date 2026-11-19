@@ -3,7 +3,7 @@
 import unittest
 from unittest import mock
 
-from core import ssh_overview
+from core import i18n as _i18n, ssh_overview
 
 # 模拟远端采集脚本的输出（字段顺序与 _COLLECT_SCRIPT 对应）
 SAMPLE = """
@@ -18,6 +18,12 @@ NET=75000000000 74000000000
 
 
 class ParseTest(unittest.TestCase):
+    def setUp(self):
+        # 概览文案断言中文：显式切 zh_CN，避免英文 locale 下环境性失败
+        lang = _i18n.current_language()
+        _i18n.set_language("zh_CN")
+        self.addCleanup(_i18n.set_language, lang)
+
     def test_parse_fields(self):
         d = ssh_overview.parse_overview(SAMPLE)
         self.assertEqual(d["uptime_seconds"], 123456)
