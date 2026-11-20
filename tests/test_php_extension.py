@@ -101,5 +101,62 @@ class DownloadDelegateTest(_Lang):
         self.assertIsNotNone(seen["progress_cb"])
 
 
+class PickPeclTest(unittest.TestCase):
+    """_pick_pecl 并行探测 / _http_get_retry 重试与可诊断报错。"""
+
+    def test_http_get_retry_retries_then_succeeds(self):
+        calls = {"n": 0}
+
+        def fake_get(url, timeout=20):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise OSError("boom")
+            return b"ok"
+
+        with mock.patch.object(ext_mod, "_http_get", fake_get):
+            self.assertEqual(ext_mod._http_get_retry("http://x/"), b"ok")
+        self.assertEqual(calls["n"], 2)
+
+    def test_http_get_retry_gives_up_after_attempts(self):
+        def fake_get(url, timeout=20):
+            raise OSError("boom")
+
+        with mock.patch.object(ext_mod, "_http_get", fake_get):
+            with self.assertRaises(OSError):
+                ext_mod._http_get_retry("http://x/", attempts=2)
+
+    def test_pick_pecl_picks_newest_matching_version(self):
+        rt = ext_mod.RuntimeInfo("8.5", "nts", "x64", "vs17")
+
+        def fake_get_retry(url, attempts=2):
+            if url.rstrip("/").endswith("redis"):
+                return (b"<a href=\"6.1.0/\">6.1.0/</a> "
+                        b"<a href=\"6.0.2/\">6.0.2/</a> "
+                        b"<a href=\"5.3.7/\">5.3.7/</a>")
+            ver = url.rstrip("/").rsplit("/", 1)[-1]
+            if ver == "6.0.2":
+                return b"php_redis-6.0.2-8.5-nts-vs17-x64.zip"
+            return b"<a href='unrelated.zip'>x</a>"
+
+        with mock.patch.object(ext_mod, "_http_get_retry", fake_get_retry):
+            url, fname = ext_mod._pick_pecl("redis", rt)
+        self.assertEqual(fname, "php_redis-6.0.2-8.5-nts-vs17-x64.zip")
+        self.assertIn("6.0.2", url)
+
+    def test_pick_pecl_error_lists_tried_versions(self):
+        rt = ext_mod.RuntimeInfo("8.5", "nts", "x64", "vs17")
+
+        def fake_get_retry(url, attempts=2):
+            if url.rstrip("/").endswith("redis"):
+                return b"<a href=\"6.1.0/\">6.1.0/</a> <a href=\"6.0.2/\">6.0.2/</a>"
+            return b"<a href='unrelated.zip'>x</a>"
+
+        with mock.patch.object(ext_mod, "_http_get_retry", fake_get_retry):
+            with self.assertRaises(RuntimeError) as cm:
+                ext_mod._pick_pecl("redis", rt)
+        self.assertIn("6.1.0", str(cm.exception))
+        self.assertIn("6.0.2", str(cm.exception))
+
+
 if __name__ == "__main__":
     unittest.main()

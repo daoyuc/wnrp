@@ -484,7 +484,7 @@
    "ui/php_panel.py"
   ]
  },
- "PECL 无适配本机 {series} {ts} {arch} 的 {ext} 构建。\n该扩展可能尚未提供当前 PHP 主版本的 Windows 包。": {
+ "PECL 无适配本机 {series} {ts} {arch} 的 {ext} 构建（已尝试版本：{vers}）。\n该扩展可能尚未提供当前 PHP 主版本的 Windows 包。": {
   "count": 1,
   "files": [
    "core/php_extension.py"
@@ -3208,12 +3208,6 @@
    "ui/dialogs.py"
   ]
  },
- "匹配 {ext}-{ver} 与 PHP {series} {ts} {arch}…": {
-  "count": 1,
-  "files": [
-   "core/php_extension.py"
-  ]
- },
  "匹配目标：PHP {series} · {ts} · {arch} · {compiler}": {
   "count": 1,
   "files": [
@@ -3353,10 +3347,11 @@
   ]
  },
  "取消": {
-  "count": 9,
+  "count": 10,
   "files": [
    "ui/dialogs.py",
    "ui/download_dialog.py",
+   "ui/extension_dialog.py",
    "ui/main_window.py",
    "ui/site_wizard.py",
    "ui/ssh_panel.py",
@@ -5578,6 +5573,12 @@
    "ui/php_panel.py"
   ]
  },
+ "常规": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
  "干净": {
   "count": 1,
   "files": [
@@ -5607,6 +5608,12 @@
   "count": 2,
   "files": [
    "ui/nginx_panel.py"
+  ]
+ },
+ "并行匹配 {ext} 前 {n} 个版本与 PHP {series} {ts} {arch}…": {
+  "count": 1,
+  "files": [
+   "core/php_extension.py"
   ]
  },
  "应用": {
@@ -8033,6 +8040,12 @@
    "ui/main_window.py"
   ]
  },
+ "模块开关、开机自启、外观与环境维护": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
  "模板 [{tpl}] 需要 PHP 解析，但未选择任何 PHP 版本。\n请返回第 1 步选择一个已安装的 PHP 版本。": {
   "count": 1,
   "files": [
@@ -8131,9 +8144,10 @@
   ]
  },
  "正在取消…": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/download_dialog.py"
+   "ui/download_dialog.py",
+   "ui/extension_dialog.py"
   ]
  },
  "正在取消下载…": {
@@ -9828,7 +9842,7 @@
   ]
  },
  "设置": {
-  "count": 1,
+  "count": 2,
   "files": [
    "ui/main_window.py"
   ]

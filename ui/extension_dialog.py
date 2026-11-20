@@ -14,6 +14,7 @@ from tkinter import messagebox, ttk
 from core import php_extension as ext_mod
 from core import run_log
 from core.i18n import t
+from core.php_downloader import DownloadCancelled
 from core.php_manager import PhpManager, PhpVersion
 from . import theme
 from .window_utils import fit_window
@@ -57,14 +58,18 @@ class ExtensionDialog(tk.Toplevel):
         self._build_local_tab()
         self._build_online_tab()
 
-        # 进度区（下载安装时展开：进度条 + 阶段/速度/耗时文本），位于底部按钮之上
+        # 进度区（下载安装时展开：进度条 + 阶段/速度文本 + 取消按钮），位于底部按钮之上
         self.progress_box = ttk.Frame(self, padding=(16, 6, 16, 0))
         self.progress_bar = ttk.Progressbar(self.progress_box, mode="determinate",
                                             maximum=100)
         self.progress_bar.pack(fill="x")
-        self.progress_label = ttk.Label(self.progress_box, text="",
-                                        style="SubTitle.TLabel")
-        self.progress_label.pack(anchor="w", pady=(4, 0))
+        prow = ttk.Frame(self.progress_box)
+        prow.pack(fill="x", pady=(4, 0))
+        self.progress_label = ttk.Label(prow, text="", style="SubTitle.TLabel")
+        self.progress_label.pack(side="left")
+        self.btn_cancel = ttk.Button(prow, text=t("取消"), width=6,
+                                     command=self._cancel_install)
+        self.btn_cancel.pack(side="right")
 
         btns = ttk.Frame(self, padding=(16, 8, 16, 14))
         # 先于页签内容分配空间（side=bottom），保证右下角按钮始终可见
@@ -209,6 +214,8 @@ class ExtensionDialog(tk.Toplevel):
             self._on_saved(kind, payload)
         elif kind == "installed":
             self._on_installed(payload)
+        elif kind == "cancelled":
+            self._on_cancelled()
 
     def _on_loaded(self, payload: tuple) -> None:
         infos, rt = payload
@@ -359,8 +366,10 @@ class ExtensionDialog(tk.Toplevel):
             return
         self._busy = True
         self.btn_install.configure(state="disabled")
+        self._stop.clear()  # 上次可能因关窗置位过，新安装前复位
         # 展开进度区：连接 / 匹配阶段用滚动条，下载期切百分比
         self.progress_box.pack(side="bottom", fill="x", before=self._btns)
+        self.btn_cancel.state(["!disabled"])
         self._set_indeterminate(True)
         self.progress_bar.configure(value=0)
         self.progress_label.configure(text=t("正在安装 {name} …", name=item["name"]))
@@ -387,19 +396,36 @@ class ExtensionDialog(tk.Toplevel):
                     item, self.version.dir, self._runtime, progress,
                     dl_progress=dl_progress, stop_event=self._stop)
                 self._queue.put(("installed", (item["key"], ok, msg, dll)))
+            except DownloadCancelled:
+                self._queue.put(("cancelled", None))
             except Exception as e:  # noqa: BLE001
                 self._queue.put(("installed", (item["key"], False, str(e), "")))
 
         threading.Thread(target=worker, daemon=True).start()
         self._start_drain()
 
-    def _on_installed(self, payload: tuple) -> None:
-        key, ok, msg, dll = payload
+    def _finish_progress(self) -> None:
+        """安装结束（成功 / 失败 / 取消）的统一收尾：收起进度区、复位状态。"""
         self._busy = False
         self._set_indeterminate(False)
         self.progress_box.pack_forget()
         self.progress_label.configure(text="")
         self._update_online_btn()
+
+    def _cancel_install(self) -> None:
+        """请求取消后台下载：置位 stop_event，下载器会立刻中止并保留断点。"""
+        if not self._busy:
+            return
+        self._stop.set()
+        self.btn_cancel.state(["disabled"])
+        self.progress_label.configure(text=t("正在取消…"))
+
+    def _on_cancelled(self) -> None:
+        self._finish_progress()
+
+    def _on_installed(self, payload: tuple) -> None:
+        key, ok, msg, dll = payload
+        self._finish_progress()
         if not ok:
             messagebox.showerror(t("安装失败"), msg, parent=self)
             return

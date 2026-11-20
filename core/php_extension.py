@@ -11,7 +11,9 @@ import os
 import re
 import shutil
 import threading
+import time
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 from . import file_backup
@@ -250,29 +252,62 @@ def _match_file(html: str, ext_key: str, rt: RuntimeInfo, dll_mode: bool) -> str
     return next(iter(found.values()))
 
 
+def _http_get_retry(url: str, attempts: int = 2) -> bytes:
+    """带一次重试的 GET：_http_get 单次 20s 超时，网络抖动不至于一击致命。"""
+    err: Exception | None = None
+    for i in range(attempts):
+        try:
+            return _http_get(url)
+        except Exception as e:  # noqa: BLE001 - 网络错误种类多，统一重试
+            err = e
+            if i < attempts - 1:
+                time.sleep(0.5)
+    raise err
+
+
+# 并行探测的版本数上限（从新到旧；更旧的版本通常也不再出新 Windows 包）
+_PECL_PROBE_LIMIT = 8
+
+
 def _pick_pecl(ext_key: str, rt: RuntimeInfo, progress=None) -> tuple[str, str]:
-    """在 PECL 版本目录（新→旧）中找首个匹配的 zip，返回 (zip_url, zip_file)。"""
+    """在 PECL 版本目录（新→旧）中找首个匹配的 zip，返回 (zip_url, zip_file)。
+
+    前 ``_PECL_PROBE_LIMIT`` 个版本并行探测（4 连接，各版本一次 GET）：
+    老实现逐版本串行请求，网络抖动 + 20s 超时最坏拖几分钟且一击即失败。
+    """
     base = f"{PECL_BASE}/{ext_key}"
     if progress:
         progress(t("获取 {ext} 版本列表…", ext=ext_key))
-    html = _http_get(base + "/").decode("utf-8", errors="replace")
+    html = _http_get_retry(base + "/").decode("utf-8", errors="replace")
     versions = [h.split("/")[0] for h in re.findall(r'href="([\d.]+)/"', html)]
     versions.sort(key=_ver_key, reverse=True)
     if not versions:
         raise RuntimeError(t("PECL 未找到 {ext} 的版本目录", ext=ext_key))
-    for ver in versions:
-        if progress:
-            progress(t("匹配 {ext}-{ver} 与 PHP {series} {ts} {arch}…",
-                       ext=ext_key, ver=ver, series=rt.series,
-                       ts=rt.ts.upper(), arch=rt.arch))
-        page = _http_get(f"{base}/{ver}/").decode("utf-8", errors="replace")
-        fname = _match_file(page, ext_key, rt, dll_mode=False)
-        if fname:
-            return f"{base}/{ver}/{fname}", fname
+    probe = versions[:_PECL_PROBE_LIMIT]
+    if progress:
+        progress(t("并行匹配 {ext} 前 {n} 个版本与 PHP {series} {ts} {arch}…",
+                   ext=ext_key, n=len(probe), series=rt.series,
+                   ts=rt.ts.upper(), arch=rt.arch))
+
+    def check(ver: str) -> tuple[str, str | None]:
+        try:
+            page = _http_get_retry(f"{base}/{ver}/").decode("utf-8",
+                                                            errors="replace")
+        except Exception:  # noqa: BLE001 - 单个版本目录失败不影响其它版本
+            return ver, None
+        return ver, _match_file(page, ext_key, rt, dll_mode=False)
+
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        # map 保持「从新到旧」顺序产出：首个命中即最新可用版本
+        for ver, fname in ex.map(check, probe):
+            if fname:
+                return f"{base}/{ver}/{fname}", fname
     raise RuntimeError(
-        t("PECL 无适配本机 {series} {ts} {arch} 的 {ext} 构建。\n"
+        t("PECL 无适配本机 {series} {ts} {arch} 的 {ext} 构建"
+          "（已尝试版本：{vers}）。\n"
           "该扩展可能尚未提供当前 PHP 主版本的 Windows 包。",
-          series=rt.series, ts=rt.ts.upper(), arch=rt.arch, ext=ext_key)
+          series=rt.series, ts=rt.ts.upper(), arch=rt.arch, ext=ext_key,
+          vers="、".join(probe))
     )
 
 
@@ -312,7 +347,7 @@ def install_online(catalog_item: dict, php_dir: str, rt: RuntimeInfo,
         if catalog_item.get("source") == "xdebug":
             if progress:
                 report(t("获取 xdebug.org 文件列表…"))
-            html = _http_get(XDEBUG_URL).decode("utf-8", errors="replace")
+            html = _http_get_retry(XDEBUG_URL).decode("utf-8", errors="replace")
             fname = _match_file(html, ext_key, rt, dll_mode=True)
             if not fname:
                 raise RuntimeError(

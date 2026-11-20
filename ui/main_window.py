@@ -1571,8 +1571,10 @@ class MainWindow(tk.Tk):
         else:
             items.append({"type": "item", "label": t("MySQL：未发现实例"), "enabled": False})
 
-        # 各 PHP 版本快捷启停
-        versions = self.php_mgr.versions or self.php_mgr.scan_versions()
+        # 各 PHP 版本快捷启停。
+        # 只读缓存，不在 UI 线程扫描：这里跑在主线程 wndproc 里，同步扫目录
+        # 会让右键弹出卡顿；菜单每次右键都重建，主窗口启动后的扫描很快补上缓存
+        versions = self.php_mgr.versions or []
         for v in versions:
             sub: list[dict] = []
             if v.running and v.pid:

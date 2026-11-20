@@ -141,16 +141,27 @@ class Config:
                 if k in data.get("settings", {}):
                     self.settings[k] = data["settings"][k]
         except (OSError, json.JSONDecodeError):
-            # 配置损坏时回退默认并覆盖保存
+            # 配置损坏：先把坏文件改名留档（便于人工找回端口映射），
+            # 再回退默认并重新生成，绝不覆盖掉用户可能抢救的数据
+            try:
+                os.replace(self.config_path, self.config_path + ".broken")
+            except OSError:
+                pass
             self.save()
 
     def save(self) -> None:
         data = {"ports": self.ports, "settings": self.settings}
+        # 原子写：先写临时文件再 os.replace，写一半崩溃/断电也不会损坏正式配置
+        tmp = self.config_path + ".tmp"
         try:
-            with open(self.config_path, "w", encoding="utf-8") as f:
+            with open(tmp, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
+            os.replace(tmp, self.config_path)
         except OSError:
-            pass
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
 
     def get_setting(self, key: str, default=None):
         return self.settings.get(key, DEFAULT_SETTINGS.get(key, default))
