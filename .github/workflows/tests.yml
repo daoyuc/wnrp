@@ -23,7 +23,9 @@ jobs:
     strategy:
       fail-fast: false          # 一个平台挂了也要看到另外两个平台的结果
       matrix:
-        os: [macos-14, ubuntu-latest, windows-latest]
+        # macos-14 在本仓库会落到不受支持的 macos-14-arm64-us-default，秒级 cancelled；
+        # macos-latest 由 GitHub 解析到当前可用镜像。
+        os: [macos-latest, ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
 
