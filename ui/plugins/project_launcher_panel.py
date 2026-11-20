@@ -25,6 +25,7 @@ from core.plugins import settings as plugin_settings
 from core.plugins.project_launcher import (commands, editor, projects,
                                           supported)
 from .. import theme
+from .. import widgets as w
 from ..window_utils import rearm_poll
 
 _BUSY_TIMEOUT = 30.0   # 秒：扫描线程异常退出时的兜底解锁
@@ -51,7 +52,6 @@ class ProjectLauncherPanel(ttk.Frame):
         self._cmd_rev = False
         self._search = tk.StringVar()
         self._status = tk.StringVar(value=t("就绪"))
-        self._empty_text = tk.StringVar(value=t("暂无项目"))
         self._recent_only = tk.BooleanVar(
             value=bool(plugin_settings.get(config, projects.KEY,
                                            "recent_first", False)))
@@ -67,36 +67,54 @@ class ProjectLauncherPanel(ttk.Frame):
     # 构建
     # ------------------------------------------------------------------ #
     def _build(self) -> None:
-        bar = ttk.Frame(self)
-        bar.pack(fill="x")
-        ttk.Label(bar, text=t("项目启动器"), style="Title.TLabel").pack(side="left")
-        ttk.Label(bar, textvariable=self._status,
-                  style="CardDim.TLabel").pack(side="left", padx=(theme.PAD_MD, 0))
-        ttk.Button(bar, text=t("刷新"), command=self.refresh,
-                   style="Toolbar.TButton").pack(side="right")
-        ttk.Button(bar, text=t("选择目录"), command=self._on_pick_www).pack(
-            side="right", padx=(0, theme.PAD_SM))
-        ttk.Entry(bar, textvariable=self._search, width=22).pack(
-            side="right", padx=(0, theme.PAD_SM))
-        ttk.Label(bar, text=t("搜索"), style="CardDim.TLabel").pack(
+        self._header = w.PageHeader(self, title=t("项目启动器"), subtitle=t("就绪"))
+        self._status = self._header.subtitle_var
+
+        tb = w.Toolbar(
+            self,
+            primary=[
+                {"text": t("在浏览器打开"), "kind": "accent",
+                 "command": self._on_browse},
+            ],
+            secondary=[
+                {"text": t("在编辑器打开"), "command": self._on_editor},
+                {"text": t("在终端运行"), "command": self._on_run},
+                {"text": t("打开目录"), "command": self._on_open_dir},
+                {"text": t("刷新"), "command": self.refresh},
+                {"text": t("选择目录"), "command": self._on_pick_www},
+            ],
+            overflow=[
+                {"text": t("添加命令"), "command": self._on_add},
+                {"text": t("删除命令"), "command": self._on_remove},
+            ],
+        )
+        (self._browse_btn, self._editor_btn, self._btn_run, self._btn_open_dir,
+         self._btn_refresh, self._btn_www) = tb.buttons
+
+        frow = ttk.Frame(self)
+        frow.pack(fill="x", pady=(0, theme.PAD_SM))
+        ttk.Label(frow, text=t("搜索"), style="PageSub.TLabel").pack(side="left")
+        ttk.Entry(frow, textvariable=self._search, width=22).pack(
+            side="left", padx=(theme.PAD_SM, theme.PAD_MD))
+        ttk.Checkbutton(frow, text=t("最近使用优先"), variable=self._recent_only,
+                        command=self._on_recent_only).pack(side="left")
+        self._editor_box = ttk.Combobox(
+            frow, textvariable=self._editor_var, width=14,
+            values=editor.choices(self.config))
+        self._editor_box.pack(side="right")
+        self._editor_box.bind("<<ComboboxSelected>>", lambda e: self._save_editor())
+        ttk.Label(frow, text=t("编辑器"), style="PageSub.TLabel").pack(
             side="right", padx=(0, theme.PAD_XS))
-        ttk.Checkbutton(bar, text=t("最近使用优先"), variable=self._recent_only,
-                        command=self._on_recent_only).pack(
-            side="right", padx=(0, theme.PAD_MD))
         self._search.trace_add("write", lambda *_: self._render_projects())
 
         self._body = ttk.Frame(self)
-        self._body.pack(fill="both", expand=True, pady=(theme.PAD_MD, 0))
+        self._body.pack(fill="both", expand=True)
         self._cols = ttk.Frame(self._body)
         self._cols.pack(fill="both", expand=True)
 
         left = ttk.Frame(self._cols)
         left.pack(side="left", fill="both", expand=True)
-        head = ttk.Frame(left)
-        head.pack(fill="x")
-        ttk.Label(head, text=t("项目"), style="Section.TLabel").pack(side="left")
-        ttk.Label(head, text=t("站点地址来自站点映射（vhost）配置"),
-                  style="CardDim.TLabel").pack(side="right")
+        ttk.Label(left, text=t("项目"), style="Section.TLabel").pack(anchor="w")
         self._ptree = ttk.Treeview(left, columns=("php", "domains"),
                                    show="tree headings", selectmode="browse",
                                    height=14)
@@ -123,36 +141,14 @@ class ProjectLauncherPanel(ttk.Frame):
         csb.pack(side="right", fill="y")
         self._ctree.configure(yscrollcommand=csb.set)
 
-        self._empty = ttk.Label(self._body, textvariable=self._empty_text,
-                                style="CardDim.TLabel")
+        self._empty = w.EmptyState(
+            self._body, title=t("暂无项目"),
+            hint=t("站点地址来自站点映射（vhost）配置"),
+            action_text=t("选择目录"), command=self._on_pick_www,
+        )
 
-        actions = ttk.Frame(self)
-        actions.pack(fill="x", pady=(theme.PAD_MD, 0))
-        self._browse_btn = ttk.Button(
-            actions, text=t("在浏览器打开"), command=self._on_browse,
-            style="Accent.TButton")
-        self._browse_btn.pack(side="left")
-        self._editor_btn = ttk.Button(
-            actions, text=t("在编辑器打开"), command=self._on_editor)
-        self._editor_btn.pack(side="left", padx=(theme.PAD_SM, 0))
-        ttk.Button(actions, text=t("在终端运行"), command=self._on_run).pack(
-            side="left", padx=(theme.PAD_SM, 0))
-        ttk.Button(actions, text=t("打开目录"), command=self._on_open_dir).pack(
-            side="left", padx=(theme.PAD_SM, 0))
-        ttk.Button(actions, text=t("添加命令"), command=self._on_add).pack(
-            side="left", padx=(theme.PAD_SM, 0))
-        ttk.Button(actions, text=t("删除命令"), command=self._on_remove,
-                   style="Danger.TButton").pack(side="left",
-                                                padx=(theme.PAD_SM, 0))
-        self._editor_box = ttk.Combobox(
-            actions, textvariable=self._editor_var, width=14,
-            values=editor.choices(self.config))
-        self._editor_box.pack(side="right")
-        self._editor_box.bind("<<ComboboxSelected>>", lambda e: self._save_editor())
-        ttk.Label(actions, text=t("编辑器"), style="CardDim.TLabel").pack(
-            side="right", padx=(0, theme.PAD_XS))
         if not supported():
-            ttk.Label(actions, text=t("当前平台不支持"),
+            ttk.Label(self, text=t("当前平台不支持"),
                       style="CardDim.TLabel").pack(side="right",
                                                    padx=(0, theme.PAD_MD))
 
@@ -315,8 +311,9 @@ class ProjectLauncherPanel(ttk.Frame):
                 tags=("odd" if i % 2 else "even",))
 
         if self._view:
-            self._empty.pack_forget()
-            self._cols.pack(fill="both", expand=True)
+            self._empty.hide()
+            if not self._cols.winfo_ismapped():
+                self._cols.pack(fill="both", expand=True)
             # 注意：部分 Tk 版本里 ``exists("")`` 返回真，空 key 会选中空串（无选中），
             # 必须先判空，否则首屏命令列表为空。
             key = (self._selected_key
@@ -327,8 +324,11 @@ class ProjectLauncherPanel(ttk.Frame):
             self._ptree.see(key)
         else:
             self._cols.pack_forget()
-            self._empty_text.set(t("没有匹配的项目") if q else t("暂无项目"))
-            self._empty.pack(expand=True)
+            self._empty.set_text(
+                t("没有匹配的项目") if q else t("暂无项目"),
+                t("站点地址来自站点映射（vhost）配置"),
+            )
+            self._empty.show()
         self._render_commands()
 
     def _render_commands(self) -> None:

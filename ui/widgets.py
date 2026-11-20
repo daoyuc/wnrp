@@ -221,13 +221,14 @@ class MetricCard:
 
     def __init__(self, master, *, label: str, value: str = "—",
                  hint: str = "", on_click: Callable | None = None,
-                 value_var: tk.StringVar | None = None):
+                 value_var: tk.StringVar | None = None,
+                 hint_var: tk.StringVar | None = None):
         self.frame = ttk.Frame(master, style="MetricCard.TFrame",
                                padding=theme.PAD_MD)
         self.label_var = tk.StringVar(value=label)
         # 可传入外部 StringVar，便于面板在 _render 里直接 .set()
         self.value_var = value_var if value_var is not None else tk.StringVar(value=value)
-        self.hint_var = tk.StringVar(value=hint)
+        self.hint_var = hint_var if hint_var is not None else tk.StringVar(value=hint)
         ttk.Label(self.frame, textvariable=self.label_var,
                   style="MetricLabel.TLabel").pack(anchor="w")
         self.value_lbl = ttk.Label(self.frame, textvariable=self.value_var,
@@ -235,7 +236,8 @@ class MetricCard:
         self.value_lbl.pack(anchor="w", pady=(2, 0))
         self.hint_lbl = ttk.Label(self.frame, textvariable=self.hint_var,
                                   style="MetricHint.TLabel")
-        if hint:
+        # 外部 hint_var 始终占位，避免后续 .set 时还要手动 pack
+        if hint or hint_var is not None:
             self.hint_lbl.pack(anchor="w", pady=(2, 0))
         self._on_click = on_click
         if on_click:

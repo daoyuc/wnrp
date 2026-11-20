@@ -31,6 +31,7 @@ from core.plugins.keymouse import (
     supported,
 )
 from .. import theme
+from .. import widgets as w
 from ..window_utils import rearm_poll
 
 _RANK_ROWS = 8        # 排名榜显示条数（再多会挤掉小时图）
@@ -62,10 +63,22 @@ class KeymousePanel(ttk.Frame):
     # 构建
     # ------------------------------------------------------------------ #
     def _build(self) -> None:
-        # ---- 顶部工具条：时间范围 + 采集状态 --------------------------
-        bar = ttk.Frame(self)
-        bar.pack(fill="x")
+        self._header = w.PageHeader(self, title=t("键鼠统计"), subtitle=t("检测中…"))
+        self._status_text = self._header.subtitle_var
 
+        # 采集启停文案会随状态变化，单独放右侧；报告类动作走 Toolbar
+        tb = w.Toolbar(
+            self,
+            secondary=[
+                {"text": t("显示报告"), "command": self._show_report},
+                {"text": t("保存报告…"), "command": self._save_report},
+            ],
+            overflow=[{"text": t("清空记录"), "command": self._on_clear}],
+        )
+        self._btn_report, self._btn_save = tb.buttons[:2]
+
+        bar = ttk.Frame(self)
+        bar.pack(fill="x", pady=(0, theme.PAD_SM))
         self._range_btns: dict[str, ttk.Button] = {}
         for key in stats.RANGES:
             btn = ttk.Button(bar, text=t(stats.RANGE_LABELS[key]), width=7,
@@ -74,50 +87,33 @@ class KeymousePanel(ttk.Frame):
             self._range_btns[key] = btn
 
         self._btn_daemon = ttk.Button(bar, text=t("启动后台记录"),
-                                      command=self._on_daemon)
+                                      command=self._on_daemon,
+                                      style="Accent.TButton")
         self._btn_daemon.pack(side="right")
         self._btn_pause = ttk.Button(bar, text=t("暂停采集"),
                                      command=self._on_pause)
         self._btn_pause.pack(side="right", padx=(0, 6))
-
-        self._status_text = tk.StringVar(value=t("检测中…"))
-        ttk.Label(bar, textvariable=self._status_text, style="SubTitle.TLabel").pack(
-            side="right", padx=(0, 12))
         self._dot = tk.Label(bar, text="●", font=(theme.FONT, 12, "bold"),
                              background=theme.BG, foreground=theme.GRAY)
         self._dot.pack(side="right", padx=(8, 2))
 
         # ---- 数字卡 ---------------------------------------------------
         cards = ttk.Frame(self)
-        cards.pack(fill="x", pady=(10, 10))
+        cards.pack(fill="x", pady=(0, theme.PAD_MD))
         cards.columnconfigure(0, weight=1, uniform="km")
         cards.columnconfigure(1, weight=1, uniform="km")
-
-        card_key = ttk.Frame(cards, style="Card.TFrame", padding=14)
-        card_key.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
-        ttk.Label(card_key, text=t("键盘按键"), style="CardDim.TLabel").pack(anchor="w")
         self._total_var = tk.StringVar(value="—")
-        tk.Label(card_key, textvariable=self._total_var, font=theme.font(26, True),
-                 background=theme.CARD_BG, foreground=theme.PRIMARY).pack(anchor="w")
         self._total_sub = tk.StringVar(value="")
-        ttk.Label(card_key, textvariable=self._total_sub,
-                  style="CardDim.TLabel").pack(anchor="w")
-
-        card_kpm = ttk.Frame(cards, style="Card.TFrame", padding=14)
-        card_kpm.grid(row=0, column=1, sticky="nsew")
-        ttk.Label(card_kpm, text=t("打字速度"), style="CardDim.TLabel").pack(anchor="w")
-        row = ttk.Frame(card_kpm, style="Card.TFrame")
-        row.pack(anchor="w")
         self._kpm_var = tk.StringVar(value="—")
-        self._kpm_label = tk.Label(row, textvariable=self._kpm_var,
-                                   font=theme.font(26, True), background=theme.CARD_BG,
-                                   foreground=theme.PRIMARY)
-        self._kpm_label.pack(side="left")
-        ttk.Label(row, text=t("次/分"), style="CardDim.TLabel").pack(
-            side="left", padx=(6, 0), pady=(10, 0))
         self._kpm_sub = tk.StringVar(value="")
-        ttk.Label(card_kpm, textvariable=self._kpm_sub,
-                  style="CardDim.TLabel").pack(anchor="w")
+        w.MetricCard(cards, label=t("键盘按键"),
+                     value_var=self._total_var,
+                     hint_var=self._total_sub).grid(
+            row=0, column=0, sticky="nsew", padx=(0, theme.PAD_SM))
+        w.MetricCard(cards, label=t("打字速度"),
+                     value_var=self._kpm_var,
+                     hint_var=self._kpm_sub).grid(
+            row=0, column=1, sticky="nsew")
 
         # ---- 键位排名 -------------------------------------------------
         rank_box = ttk.Frame(self)
@@ -140,7 +136,7 @@ class KeymousePanel(ttk.Frame):
 
         # ---- 按小时分布 -----------------------------------------------
         hour_box = ttk.Frame(self)
-        hour_box.pack(fill="x", pady=(8, 0))
+        hour_box.pack(fill="x", pady=(theme.PAD_SM, 0))
         self._hour_title = tk.StringVar(value=t("按小时活动"))
         ttk.Label(hour_box, textvariable=self._hour_title,
                   style="Section.TLabel").pack(anchor="w")
@@ -149,16 +145,6 @@ class KeymousePanel(ttk.Frame):
             background=theme.CARD_BG, bd=0)
         self._hour_canvas.pack(fill="x", pady=(4, 0))
         self._hour_canvas.bind("<Configure>", lambda e: self._draw_hours())
-
-        # ---- 底部操作 -------------------------------------------------
-        actions = ttk.Frame(self)
-        actions.pack(fill="x", pady=(8, 0))
-        ttk.Button(actions, text=t("显示报告"),
-                   command=self._show_report).pack(side="left", padx=(0, 6))
-        ttk.Button(actions, text=t("保存报告…"),
-                   command=self._save_report).pack(side="left", padx=(0, 6))
-        ttk.Button(actions, text=t("清空记录"),
-                   command=self._on_clear).pack(side="right")
 
     # ------------------------------------------------------------------ #
     # 时间范围
@@ -298,16 +284,17 @@ class KeymousePanel(ttk.Frame):
             self._total_var.set("—")
             self._total_sub.set(t("暂无记录"))
             self._kpm_var.set("—")
-            self._kpm_sub.set(t("峰值 — · 均值 —"))
+            self._kpm_sub.set(f"{t('次/分')} · {t('峰值 — · 均值 —')}")
             return
         self._total_var.set(f"{total:,}")
         self._total_sub.set(t("日均 {avg} 次 · 覆盖 {days} 天",
                               avg=data.get("daily_avg", 0), days=data.get("days", 1)))
         kpm = data.get("kpm_last") or data.get("kpm_avg") or 0
         self._kpm_var.set(f"{kpm:g}")
-        self._kpm_sub.set(t("峰值 {peak} · 均值 {avg}",
-                            peak=data.get("kpm_peak", 0),
-                            avg=data.get("kpm_avg", 0)))
+        self._kpm_sub.set(
+            f"{t('次/分')} · " + t("峰值 {peak} · 均值 {avg}",
+                                   peak=data.get("kpm_peak", 0),
+                                   avg=data.get("kpm_avg", 0)))
 
     # ---- Canvas 自绘 -------------------------------------------------- #
     def _draw_rank(self) -> None:
