@@ -31,14 +31,14 @@
 | **MySQL** | 实例发现（my.ini 解析端口/数据目录）；**Windows 服务优先**控制（`sc`/`net`，非管理员禁用启停并提示，进程模式兜底）；状态卡、错误日志 tail、配置与数据目录直达 | `core/mysql_manager.py`、`ui/mysql_panel.py` |
 | **HTTPS 证书** | 探测 openssl / mkcert → 为站点生成证书（`<nginx>/SSL/`）+ 443 模板变体；未检测到工具时禁用选项并给安装指引 | `core/cert_manager.py`、`core/site_templates.py`、`ui/site_wizard.py` |
 | **服务编排** | 一键全启停（PHP → Redis → MySQL → Nginx，反向停止）+ **自动启动时的 PHP 范围可选**（仅最新 / 站点引用+最新 / 跟随 cmd / 全部，默认仅最新）+ 「打开终端」（PATH 前置所选 PHP 版本） | `core/service_group.py`、`pu.open_terminal`、`ui/php_panel.py`、`ui/main_window.py` |
-| **模块开关** | 功能模块可勾选（关于页）：停用的模块不创建页签、不实例化 manager、不导入其代码；PHP/Nginx/站点映射 为刚需不可取消 | `core/modules.py`、`main.py`、`ui/main_window.py` |
+| **模块开关** | 功能模块可勾选（设置页「功能模块」）：停用的模块不创建页签、不实例化 manager、不导入其代码；PHP/Nginx/站点映射 为刚需不可取消 | `core/modules.py`、`main.py`、`ui/main_window.py` |
 | 崩溃防护 | Windows 事件日志 + **macOS `.ips`** 双数据源；详情弹窗（含自愈历史页）与清空；**独立守护进程**自愈（防抖 60s、每 3600s 限 N 次、连续失败 5 次解除、手动停止 300s 宽限、`recover_history.json`） | `core/health_monitor.py`、`crash_watchdog.py`、`recover_history.py` |
 | **分发与自动升级** | `packaging/build.py` 跨平台构建 macOS `.app`/`.dmg`（标准库写 PNG → `iconutil` 转 `.icns`，附 `/Applications` 快捷方式）与 Windows 目录/zip/Inno Setup 安装程序；内置 `core/updater.py` 从 GitHub Releases 检查更新 → 下载（`.part` 原子改名）→ SHA-256 校验 → 一键替换重启（mac `hdiutil`+`ditto`；Win 静默安装）；数据目录自动外置（`~/.phpvm`），升级不丢配置 | `core/updater.py`、`core/version.py`、`core/app_paths.py`、`ui/update_dialog.py`、`packaging/`、`.github/workflows/release.yml` |
 | **国际化** | 5 语言（zh_CN 为源码原文；en / zh_TW / ja / ko 词条表）、系统语言自动探测、`settings.lang` 持久化、重启生效 | `core/i18n.py`、`i18n/`、`_i18n_scan.py` |
 | **开发环境配置推荐** | 按本机 CPU/内存/平台分档（low/mid/high）生成 php.ini 与 nginx.conf 的**开发向**建议（opcache / realpath / 上传上限 / worker 与连接数 / fastcgi 超时与缓冲等），逐条「当前值 → 建议值 + 理由」让用户勾选；写入前备份、nginx 写完 `nginx -t` 失败自动还原；CLI `tune suggest/apply` 同源 | `core/tuning.py`、`core/nginx_conf.py`、`ui/tuning_dialog.py` |
 | **跨平台** | 环境根可配置（`WNRP_ROOT`）、lsof/ps 快照、brew 前缀探测、LaunchAgent 自启、单实例 socket 锁、`open` 打开路径、窗口工作区自适应、可写数据目录自动判定（`.app`/只读安装目录 → `~/.phpvm`） | `core/config.py`、`process_utils.py`、`core/app_paths.py`、`ui/window_utils.py` |
 | 系统集成 | 托盘动态菜单（Nginx / Redis / 各 PHP）、开机自启、最小化到托盘、**关闭框「重启」**、状态栏崩溃告警 | `main.py`、`ui/tray.py`、`ui/main_window.py`、`core/autostart.py` |
-| **插件体系** | 内置插件声明式注册（`MANIFEST: PluginSpec`）+ 关于页统一开关 + `settings.plugin_settings` + 主窗口延迟挂载面板；键鼠统计（Windows / macOS）：独立守护进程采集按键（Windows `WH_KEYBOARD_LL`，macOS `CGEventTap` + 输入监控授权），今日 / 本周 / 本月 / 本年 / 全部汇总、Top N 榜、24 小时分布、打字速度峰值 / 均值、暂停、CSV 导出、清空、登录后自动运行；项目启动器（本地项目 → 站点 / 命令 / 编辑器）；访问日志聚合（状态码 / 热门路径 / 错误请求）；站点巡检（只读 HTTP(S) 探测 vhost 域名，状态码 / 耗时 / 证书剩余天数）；Git 工作区（只读 `git status` / `log`，分支 / 未提交 / 领先落后 / 最近提交） | `core/plugins/`、`ui/plugins/`、`core/modules.py`、`cli.py` 的 `plugin` / `keymouse` / `launcher` / `insights` / `health` / `repos` 分组 |
+| **插件体系** | 内置插件声明式注册（`MANIFEST: PluginSpec`）+ 设置页统一开关 + `settings.plugin_settings` + 主窗口延迟挂载面板；键鼠统计（Windows / macOS）：独立守护进程采集按键（Windows `WH_KEYBOARD_LL`，macOS `CGEventTap` + 输入监控授权），今日 / 本周 / 本月 / 本年 / 全部汇总、Top N 榜、24 小时分布、打字速度峰值 / 均值、暂停、CSV 导出、清空、登录后自动运行；项目启动器（本地项目 → 站点 / 命令 / 编辑器）；访问日志聚合（状态码 / 热门路径 / 错误请求）；站点巡检（只读 HTTP(S) 探测 vhost 域名，状态码 / 耗时 / 证书剩余天数）；Git 工作区（只读 `git status` / `log`，分支 / 未提交 / 领先落后 / 最近提交） | `core/plugins/`、`ui/plugins/`、`core/modules.py`、`cli.py` 的 `plugin` / `keymouse` / `launcher` / `insights` / `health` / `repos` 分组 |
 | **SSH 管理** | 主机清单（密码 / 私钥 + 口令，凭据单独存 `ssh_hosts.json` 并收紧权限）、真实握手「测试连接」（耗时 / 服务端标识 / `SHA256:` 指纹，首次必须显式确认才信任）、系统终端会话（密码不进命令行）、命令片段库（关联多台主机或通用 + 标签筛选）与远端执行（`exit_status`、stdout / stderr 各 256 KB 截断、默认 30 秒超时） | `core/ssh_store.py`、`core/ssh_manager.py`、`ui/ssh_panel.py`、`cli.py` 的 `ssh` 分组 |
 
 > 工程约束（新增功能须遵守）：
@@ -69,7 +69,7 @@
 | Redis 管理 | ~ | ~ | ✓ | 多实例 + 命令 + 键空间图表 |
 | HTTPS 本地证书一键生成 | ✓ | ✓ | ✓ | P1-1 已实现（mkcert > openssl 自签；本机已装 OpenSSL-Win64） |
 | Composer / Node 等工具随附 | ✓ | ~ | ✓ | P2-1 已集成：探测 `C:\ProgramData\ComposerSetup`（2.8.1），可按 PHP 版本运行 |
-| 一键启停整套服务 | ✓ | ✓ | ✓ | P1-3 已实现（托盘 + 关于页） |
+| 一键启停整套服务 | ✓ | ✓ | ✓ | P1-3 已实现（托盘 + 设置页） |
 | 崩溃检测 / 自愈 | ~ | ✗ | ✓ | phpvm 特色（双数据源 + 独立守护 + 失联兜底） |
 | 多语言界面 | ~ | ~ | ✓ | phpvm 特色（5 语言） |
 | 跨平台（Win + mac） | ✗ | ✗ | ◐ | GUI/服务已适配，仅缺 mac 托盘 |

@@ -220,11 +220,13 @@ class MetricCard:
     """仪表盘数字/状态卡（标签 + 大值 + 可选说明）。"""
 
     def __init__(self, master, *, label: str, value: str = "—",
-                 hint: str = "", on_click: Callable | None = None):
+                 hint: str = "", on_click: Callable | None = None,
+                 value_var: tk.StringVar | None = None):
         self.frame = ttk.Frame(master, style="MetricCard.TFrame",
                                padding=theme.PAD_MD)
         self.label_var = tk.StringVar(value=label)
-        self.value_var = tk.StringVar(value=value)
+        # 可传入外部 StringVar，便于面板在 _render 里直接 .set()
+        self.value_var = value_var if value_var is not None else tk.StringVar(value=value)
         self.hint_var = tk.StringVar(value=hint)
         ttk.Label(self.frame, textvariable=self.label_var,
                   style="MetricLabel.TLabel").pack(anchor="w")

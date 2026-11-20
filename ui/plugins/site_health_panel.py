@@ -23,6 +23,7 @@ from core.i18n import t
 from core.plugins import settings as plugin_settings
 from core.plugins.site_health import MANIFEST, probe
 from .. import theme
+from .. import widgets as w
 from ..window_utils import rearm_poll
 
 #: 自动巡检最小间隔（秒）：主窗口 tick 是 8 秒，这里独立节流
@@ -75,41 +76,37 @@ class SiteHealthPanel(ttk.Frame):
     # 构建
     # ------------------------------------------------------------------ #
     def _build(self) -> None:
-        bar = ttk.Frame(self)
-        bar.pack(fill="x")
-        ttk.Label(bar, text=t("站点巡检"),
-                  style="Title.TLabel").pack(side="left")
-        ttk.Label(bar, textvariable=self._status,
-                  style="CardDim.TLabel").pack(side="left",
-                                             padx=(theme.PAD_MD, 0))
-        ttk.Button(bar, text=t("刷新"), command=self.refresh,
-                   style="Toolbar.TButton").pack(side="right")
+        self._header = w.PageHeader(self, title=t("站点巡检"), subtitle=t("就绪"))
+        self._status = self._header.subtitle_var
+        w.Toolbar(self, secondary=[{"text": t("刷新"), "command": self.refresh}])
 
-        self._scheme_combo = ttk.Combobox(
-            bar, textvariable=self._scheme_var, values=list(_SCHEMES),
-            width=7, state="readonly")
-        self._scheme_combo.pack(side="right", padx=(0, theme.PAD_SM))
-        self._scheme_combo.bind("<<ComboboxSelected>>", self._on_scheme)
-        ttk.Label(bar, text=t("协议"),
-                  style="CardDim.TLabel").pack(side="right", padx=(0, 4))
-
-        self._filter_entry = ttk.Entry(bar, textvariable=self._filter_var,
+        frow = ttk.Frame(self)
+        frow.pack(fill="x", pady=(0, theme.PAD_SM))
+        ttk.Label(frow, text=t("域名过滤"),
+                  style="PageSub.TLabel").pack(side="left")
+        self._filter_entry = ttk.Entry(frow, textvariable=self._filter_var,
                                        width=18)
-        self._filter_entry.pack(side="right", padx=(0, theme.PAD_SM))
+        self._filter_entry.pack(side="left", padx=(theme.PAD_SM, theme.PAD_MD))
         self._filter_entry.bind("<Return>", lambda e: self.refresh())
-        ttk.Label(bar, text=t("域名过滤"),
-                  style="CardDim.TLabel").pack(side="right", padx=(0, 4))
+        ttk.Label(frow, text=t("协议"),
+                  style="PageSub.TLabel").pack(side="left")
+        self._scheme_combo = ttk.Combobox(
+            frow, textvariable=self._scheme_var, values=list(_SCHEMES),
+            width=7, state="readonly")
+        self._scheme_combo.pack(side="left", padx=(theme.PAD_SM, 0))
+        self._scheme_combo.bind("<<ComboboxSelected>>", self._on_scheme)
 
         cards = ttk.Frame(self)
-        cards.pack(fill="x", pady=(theme.PAD_MD, 0))
+        cards.pack(fill="x", pady=(0, theme.PAD_SM))
         for title, var in ((t("站点数"), self._v_total),
                            (t("正常"), self._v_up),
                            (t("异常"), self._v_bad),
                            (t("平均耗时"), self._v_avg)):
-            self._card(cards, title, var)
+            w.MetricCard(cards, label=title, value_var=var).pack(
+                side="left", fill="x", expand=True, padx=(0, theme.PAD_SM))
 
         wrap = ttk.Frame(self)
-        wrap.pack(fill="both", expand=True, pady=(theme.PAD_MD, 0))
+        wrap.pack(fill="both", expand=True)
         body = ttk.Frame(wrap)
         body.pack(side="top", fill="both", expand=True)
         heads = (t("域名"), t("结果"), t("状态码"), t("耗时"), t("大小"),
@@ -128,19 +125,11 @@ class SiteHealthPanel(ttk.Frame):
         self._tree.configure(xscrollcommand=hsb.set)
         hsb.pack(side="bottom", fill="x")
         self._tree.bind("<Double-1>", self._on_open)
-
         ttk.Label(self, text=t("只探测 nginx vhost 里的域名：GET /，"
                                "不跟随重定向、不带 Cookie、不经系统代理"),
                   style="CardDim.TLabel").pack(anchor="w",
                                                pady=(theme.PAD_SM, 0))
         self.refresh_theme()
-
-    def _card(self, parent, title: str, var: tk.StringVar) -> None:
-        box = ttk.Frame(parent, style="Card.TFrame",
-                        padding=(theme.PAD_MD, theme.PAD_SM))
-        box.pack(side="left", fill="x", expand=True, padx=(0, theme.PAD_SM))
-        ttk.Label(box, text=title, style="CardDim.TLabel").pack(anchor="w")
-        ttk.Label(box, textvariable=var, style="Title.TLabel").pack(anchor="w")
 
     # ------------------------------------------------------------------ #
     # 数据刷新（worker + 队列回主线程）

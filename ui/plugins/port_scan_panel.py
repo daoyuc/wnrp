@@ -20,6 +20,7 @@ from core.i18n import t
 from core.plugins import settings as plugin_settings
 from core.plugins.port_scan import MANIFEST, scan
 from .. import theme
+from .. import widgets as w
 from ..window_utils import rearm_poll
 
 #: 自动刷新最小间隔（秒）：每次刷新要起 1–2 个子进程，不能跟 8s tick 同频
@@ -59,40 +60,37 @@ class PortScanPanel(ttk.Frame):
     # 构建
     # ------------------------------------------------------------------ #
     def _build(self) -> None:
-        bar = ttk.Frame(self)
-        bar.pack(fill="x")
-        ttk.Label(bar, text=t("端口占用"), style="Title.TLabel").pack(side="left")
-        ttk.Label(bar, textvariable=self._status,
-                  style="CardDim.TLabel").pack(side="left",
-                                             padx=(theme.PAD_MD, 0))
-        ttk.Button(bar, text=t("刷新"), command=self.refresh,
-                   style="Toolbar.TButton").pack(side="right")
+        self._header = w.PageHeader(self, title=t("端口占用"), subtitle=t("就绪"))
+        self._status = self._header.subtitle_var
+        w.Toolbar(self, secondary=[{"text": t("刷新"), "command": self.refresh}])
 
-        self._kind_combo = ttk.Combobox(
-            bar, textvariable=self._kind_var, values=list(self._kind_labels),
-            width=10, state="readonly")
-        self._kind_combo.pack(side="right", padx=(0, theme.PAD_SM))
-        self._kind_combo.bind("<<ComboboxSelected>>", lambda e: self.refresh())
-        ttk.Label(bar, text=t("归属"),
-                  style="CardDim.TLabel").pack(side="right", padx=(0, 4))
-
-        self._filter_entry = ttk.Entry(bar, textvariable=self._filter_var,
+        frow = ttk.Frame(self)
+        frow.pack(fill="x", pady=(0, theme.PAD_SM))
+        ttk.Label(frow, text=t("端口 / 进程过滤"),
+                  style="PageSub.TLabel").pack(side="left")
+        self._filter_entry = ttk.Entry(frow, textvariable=self._filter_var,
                                        width=18)
-        self._filter_entry.pack(side="right", padx=(0, theme.PAD_SM))
+        self._filter_entry.pack(side="left", padx=(theme.PAD_SM, theme.PAD_MD))
         self._filter_entry.bind("<Return>", lambda e: self.refresh())
-        ttk.Label(bar, text=t("端口 / 进程过滤"),
-                  style="CardDim.TLabel").pack(side="right", padx=(0, 4))
+        ttk.Label(frow, text=t("归属"),
+                  style="PageSub.TLabel").pack(side="left")
+        self._kind_combo = ttk.Combobox(
+            frow, textvariable=self._kind_var, values=list(self._kind_labels),
+            width=10, state="readonly")
+        self._kind_combo.pack(side="left", padx=(theme.PAD_SM, 0))
+        self._kind_combo.bind("<<ComboboxSelected>>", lambda e: self.refresh())
 
         cards = ttk.Frame(self)
-        cards.pack(fill="x", pady=(theme.PAD_MD, 0))
+        cards.pack(fill="x", pady=(0, theme.PAD_SM))
         for title, var in ((t("监听端口"), self._v_ports),
                            (t("WNMP 服务"), self._v_services),
                            (t("其他程序"), self._v_other),
                            (t("端口冲突"), self._v_conflict)):
-            self._card(cards, title, var)
+            w.MetricCard(cards, label=title, value_var=var).pack(
+                side="left", fill="x", expand=True, padx=(0, theme.PAD_SM))
 
         wrap = ttk.Frame(self)
-        wrap.pack(fill="both", expand=True, pady=(theme.PAD_MD, 0))
+        wrap.pack(fill="both", expand=True)
         body = ttk.Frame(wrap)
         body.pack(side="top", fill="both", expand=True)
         heads = (t("端口"), t("进程"), t("PID"), t("归属"),
@@ -108,19 +106,11 @@ class PortScanPanel(ttk.Frame):
         self._tree.pack(side="left", fill="both", expand=True)
         sb.pack(side="right", fill="y")
         self._tree.bind("<Double-1>", self._on_copy)
-
         ttk.Label(self, text=t("只读列表：归属按进程名推断；双击一行复制端口号，"
                                "本页不杀进程"),
                   style="CardDim.TLabel").pack(anchor="w",
                                                pady=(theme.PAD_SM, 0))
         self.refresh_theme()
-
-    def _card(self, parent, title: str, var: tk.StringVar) -> None:
-        box = ttk.Frame(parent, style="Card.TFrame",
-                        padding=(theme.PAD_MD, theme.PAD_SM))
-        box.pack(side="left", fill="x", expand=True, padx=(0, theme.PAD_SM))
-        ttk.Label(box, text=title, style="CardDim.TLabel").pack(anchor="w")
-        ttk.Label(box, textvariable=var, style="Title.TLabel").pack(anchor="w")
 
     # ------------------------------------------------------------------ #
     # 采集（worker + 队列回主线程）

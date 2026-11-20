@@ -21,6 +21,7 @@ from core import run_log
 from core.i18n import t
 from core.plugins.cert_watch import watch
 from .. import theme
+from .. import widgets as w
 from ..window_utils import rearm_poll
 
 #: 自动刷新最小间隔（秒）
@@ -55,33 +56,30 @@ class CertWatchPanel(ttk.Frame):
     # 构建
     # ------------------------------------------------------------------ #
     def _build(self) -> None:
-        bar = ttk.Frame(self)
-        bar.pack(fill="x")
-        ttk.Label(bar, text=t("证书到期"),
-                  style="Title.TLabel").pack(side="left")
-        ttk.Label(bar, textvariable=self._status,
-                  style="CardDim.TLabel").pack(side="left",
-                                             padx=(theme.PAD_MD, 0))
-        ttk.Button(bar, text=t("刷新"), command=self.refresh,
-                   style="Toolbar.TButton").pack(side="right")
+        self._header = w.PageHeader(self, title=t("证书到期"), subtitle=t("就绪"))
+        self._status = self._header.subtitle_var
+        w.Toolbar(self, secondary=[{"text": t("刷新"), "command": self.refresh}])
 
-        self._filter_entry = ttk.Entry(bar, textvariable=self._filter_var,
+        frow = ttk.Frame(self)
+        frow.pack(fill="x", pady=(0, theme.PAD_SM))
+        ttk.Label(frow, text=t("站点 / 路径过滤"),
+                  style="PageSub.TLabel").pack(side="left")
+        self._filter_entry = ttk.Entry(frow, textvariable=self._filter_var,
                                        width=22)
-        self._filter_entry.pack(side="right", padx=(0, theme.PAD_SM))
+        self._filter_entry.pack(side="left", padx=(theme.PAD_SM, 0))
         self._filter_entry.bind("<Return>", lambda e: self.refresh())
-        ttk.Label(bar, text=t("站点 / 路径过滤"),
-                  style="CardDim.TLabel").pack(side="right", padx=(0, 4))
 
         cards = ttk.Frame(self)
-        cards.pack(fill="x", pady=(theme.PAD_MD, 0))
+        cards.pack(fill="x", pady=(0, theme.PAD_SM))
         for title, var in ((t("证书"), self._v_total),
                            (t("已过期"), self._v_expired),
                            (t("30 天内到期"), self._v_warn),
                            (t("最近到期"), self._v_nearest)):
-            self._card(cards, title, var)
+            w.MetricCard(cards, label=title, value_var=var).pack(
+                side="left", fill="x", expand=True, padx=(0, theme.PAD_SM))
 
         wrap = ttk.Frame(self)
-        wrap.pack(fill="both", expand=True, pady=(theme.PAD_MD, 0))
+        wrap.pack(fill="both", expand=True)
         body = ttk.Frame(wrap)
         body.pack(side="top", fill="both", expand=True)
         heads = (t("站点"), t("到期时间"), t("剩余天数"), t("状态"),
@@ -97,20 +95,12 @@ class CertWatchPanel(ttk.Frame):
         self._tree.pack(side="left", fill="both", expand=True)
         sb.pack(side="right", fill="y")
         self._tree.bind("<Double-1>", self._on_open)
-
         ttk.Label(self, text=t("只读：从 vhost 的 ssl_certificate 读路径，"
                                "用系统 openssl 取到期时间；不续期、不改配置，"
                                "双击打开证书所在目录"),
                   style="CardDim.TLabel").pack(anchor="w",
                                                pady=(theme.PAD_SM, 0))
         self.refresh_theme()
-
-    def _card(self, parent, title: str, var: tk.StringVar) -> None:
-        box = ttk.Frame(parent, style="Card.TFrame",
-                        padding=(theme.PAD_MD, theme.PAD_SM))
-        box.pack(side="left", fill="x", expand=True, padx=(0, theme.PAD_SM))
-        ttk.Label(box, text=title, style="CardDim.TLabel").pack(anchor="w")
-        ttk.Label(box, textvariable=var, style="Title.TLabel").pack(anchor="w")
 
     # ------------------------------------------------------------------ #
     # 采集

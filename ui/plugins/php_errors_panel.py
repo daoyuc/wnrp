@@ -21,6 +21,7 @@ from core import run_log
 from core.i18n import t
 from core.plugins.php_errors import MANIFEST, aggregate
 from .. import theme
+from .. import widgets as w
 from ..window_utils import rearm_poll
 
 #: 自动刷新最小间隔（秒）：一次要读最多 40 个日志尾部
@@ -59,41 +60,37 @@ class PhpErrorsPanel(ttk.Frame):
     # 构建
     # ------------------------------------------------------------------ #
     def _build(self) -> None:
-        bar = ttk.Frame(self)
-        bar.pack(fill="x")
-        ttk.Label(bar, text=t("PHP 错误日志"),
-                  style="Title.TLabel").pack(side="left")
-        ttk.Label(bar, textvariable=self._status,
-                  style="CardDim.TLabel").pack(side="left",
-                                             padx=(theme.PAD_MD, 0))
-        ttk.Button(bar, text=t("刷新"), command=self.refresh,
-                   style="Toolbar.TButton").pack(side="right")
+        self._header = w.PageHeader(self, title=t("PHP 错误日志"), subtitle=t("就绪"))
+        self._status = self._header.subtitle_var
+        w.Toolbar(self, secondary=[{"text": t("刷新"), "command": self.refresh}])
 
-        self._level_combo = ttk.Combobox(
-            bar, textvariable=self._level_var, values=list(self._level_labels),
-            width=10, state="readonly")
-        self._level_combo.pack(side="right", padx=(0, theme.PAD_SM))
-        self._level_combo.bind("<<ComboboxSelected>>", lambda e: self.refresh())
-        ttk.Label(bar, text=t("级别"),
-                  style="CardDim.TLabel").pack(side="right", padx=(0, 4))
-
-        self._filter_entry = ttk.Entry(bar, textvariable=self._filter_var,
+        frow = ttk.Frame(self)
+        frow.pack(fill="x", pady=(0, theme.PAD_SM))
+        ttk.Label(frow, text=t("路径过滤"),
+                  style="PageSub.TLabel").pack(side="left")
+        self._filter_entry = ttk.Entry(frow, textvariable=self._filter_var,
                                        width=20)
-        self._filter_entry.pack(side="right", padx=(0, theme.PAD_SM))
+        self._filter_entry.pack(side="left", padx=(theme.PAD_SM, theme.PAD_MD))
         self._filter_entry.bind("<Return>", lambda e: self.refresh())
-        ttk.Label(bar, text=t("路径过滤"),
-                  style="CardDim.TLabel").pack(side="right", padx=(0, 4))
+        ttk.Label(frow, text=t("级别"),
+                  style="PageSub.TLabel").pack(side="left")
+        self._level_combo = ttk.Combobox(
+            frow, textvariable=self._level_var, values=list(self._level_labels),
+            width=10, state="readonly")
+        self._level_combo.pack(side="left", padx=(theme.PAD_SM, 0))
+        self._level_combo.bind("<<ComboboxSelected>>", lambda e: self.refresh())
 
         cards = ttk.Frame(self)
-        cards.pack(fill="x", pady=(theme.PAD_MD, 0))
+        cards.pack(fill="x", pady=(0, theme.PAD_SM))
         for title, var in ((t("日志文件"), self._v_files),
                            (t("错误"), self._v_errors),
                            (t("警告"), self._v_warns),
                            (t("最近一条"), self._v_last)):
-            self._card(cards, title, var)
+            w.MetricCard(cards, label=title, value_var=var).pack(
+                side="left", fill="x", expand=True, padx=(0, theme.PAD_SM))
 
         wrap = ttk.Frame(self)
-        wrap.pack(fill="both", expand=True, pady=(theme.PAD_MD, 0))
+        wrap.pack(fill="both", expand=True)
         body = ttk.Frame(wrap)
         body.pack(side="top", fill="both", expand=True)
         heads = (t("最近时间"), t("级别"), t("次数"), t("来源"), t("消息"))
@@ -111,20 +108,12 @@ class PhpErrorsPanel(ttk.Frame):
         self._tree.configure(xscrollcommand=hsb.set)
         hsb.pack(side="bottom", fill="x")
         self._tree.bind("<Double-1>", self._on_open)
-
         ttk.Label(self, text=t("只读：读每个日志尾部 256 KB、最多 40 个文件；"
                                "同一消息（忽略行号与路径）合并计数，"
                                "双击打开对应日志"),
                   style="CardDim.TLabel").pack(anchor="w",
                                                pady=(theme.PAD_SM, 0))
         self.refresh_theme()
-
-    def _card(self, parent, title: str, var: tk.StringVar) -> None:
-        box = ttk.Frame(parent, style="Card.TFrame",
-                        padding=(theme.PAD_MD, theme.PAD_SM))
-        box.pack(side="left", fill="x", expand=True, padx=(0, theme.PAD_SM))
-        ttk.Label(box, text=title, style="CardDim.TLabel").pack(anchor="w")
-        ttk.Label(box, textvariable=var, style="Title.TLabel").pack(anchor="w")
 
     # ------------------------------------------------------------------ #
     # 采集

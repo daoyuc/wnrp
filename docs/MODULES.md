@@ -16,7 +16,7 @@
 ```
 
 - 顶部：菜单栏（外观 / 语言 / 帮助）、状态栏（就绪消息 + 整机内存槽位 + 更新提示 + 崩溃告警）。
-- 页面壳：各功能页优先用 `ui/widgets.py`（`page_header` / `toolbar` / `empty_state` / `metric_card`）；
+- 页面壳：各功能页与诊断类插件页优先用 `ui/widgets.py`（`page_header` / `toolbar` / `empty_state` / `metric_card`）；
   全局快捷键 `Cmd/Ctrl+R` 刷新当前页，`Cmd/Ctrl+1/2/3` 跳转总览 / PHP / 站点（输入框聚焦时不抢键）。
 - 分组定义在 `core/modules.py::GROUPS`（服务 / 站点 / 诊断 / 其他）；内置模块的归属写在 `_BUILTIN` 的
   `group` 字段，插件用 `PluginSpec.nav_group` 声明（默认 `other`）。页面按分组归位、组内保持登记顺序。

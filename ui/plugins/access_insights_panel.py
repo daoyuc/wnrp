@@ -18,6 +18,7 @@ from core import run_log
 from core.i18n import t
 from core.plugins.access_insights import aggregate
 from .. import theme
+from .. import widgets as w
 from ..window_utils import rearm_poll
 
 _LINE_CHOICES = (2000, 20000, 100000)
@@ -50,40 +51,37 @@ class AccessInsightsPanel(ttk.Frame):
     # 构建
     # ------------------------------------------------------------------ #
     def _build(self) -> None:
-        bar = ttk.Frame(self)
-        bar.pack(fill="x")
-        ttk.Label(bar, text=t("访问日志聚合"),
-                  style="Title.TLabel").pack(side="left")
-        ttk.Label(bar, textvariable=self._status,
-                  style="CardDim.TLabel").pack(side="left", padx=(theme.PAD_MD, 0))
-        ttk.Button(bar, text=t("刷新"), command=self.refresh,
-                   style="Toolbar.TButton").pack(side="right")
+        self._header = w.PageHeader(self, title=t("访问日志聚合"), subtitle=t("就绪"))
+        self._status = self._header.subtitle_var
+        w.Toolbar(self, secondary=[{"text": t("刷新"), "command": self.refresh}])
 
-        self._lines_combo = ttk.Combobox(
-            bar, textvariable=self._lines_var, width=8, state="readonly",
-            values=[str(n) for n in _LINE_CHOICES])
-        self._lines_combo.pack(side="right", padx=(0, theme.PAD_SM))
-        self._lines_combo.bind("<<ComboboxSelected>>", self._on_lines)
-        ttk.Label(bar, text=t("统计行数"),
-                  style="CardDim.TLabel").pack(side="right", padx=(0, 4))
-
+        frow = ttk.Frame(self)
+        frow.pack(fill="x", pady=(0, theme.PAD_SM))
+        ttk.Label(frow, text=t("日志文件"),
+                  style="PageSub.TLabel").pack(side="left")
         self._file_combo = ttk.Combobox(
-            bar, textvariable=self._file_var, width=24, state="readonly")
-        self._file_combo.pack(side="right", padx=(0, theme.PAD_SM))
+            frow, textvariable=self._file_var, width=24, state="readonly")
+        self._file_combo.pack(side="left", padx=(theme.PAD_SM, theme.PAD_MD))
         self._file_combo.bind("<<ComboboxSelected>>", self._on_file)
-        ttk.Label(bar, text=t("日志文件"),
-                  style="CardDim.TLabel").pack(side="right", padx=(0, 4))
+        ttk.Label(frow, text=t("统计行数"),
+                  style="PageSub.TLabel").pack(side="left")
+        self._lines_combo = ttk.Combobox(
+            frow, textvariable=self._lines_var, width=8, state="readonly",
+            values=[str(n) for n in _LINE_CHOICES])
+        self._lines_combo.pack(side="left", padx=(theme.PAD_SM, 0))
+        self._lines_combo.bind("<<ComboboxSelected>>", self._on_lines)
 
         cards = ttk.Frame(self)
-        cards.pack(fill="x", pady=(theme.PAD_MD, 0))
+        cards.pack(fill="x", pady=(0, theme.PAD_SM))
         for title, var in ((t("请求数"), self._v_requests),
                            (t("独立 IP"), self._v_ips),
                            (t("5xx 比例"), self._v_errors),
                            (t("平均耗时"), self._v_avg)):
-            self._card(cards, title, var)
+            w.MetricCard(cards, label=title, value_var=var).pack(
+                side="left", fill="x", expand=True, padx=(0, theme.PAD_SM))
 
         self._mid = ttk.Frame(self)
-        self._mid.pack(fill="both", expand=True, pady=(theme.PAD_MD, 0))
+        self._mid.pack(fill="both", expand=True, pady=(0, theme.PAD_SM))
         left = self._section(self._mid, t("状态码分布"))
         self._code_tree = self._make_tree(
             left, (t("状态码"), t("次数"), t("占比")), (70, 60, 60))
@@ -97,7 +95,7 @@ class AccessInsightsPanel(ttk.Frame):
         self._empty = ttk.Label(self, text="", style="CardDim.TLabel")
 
         self._hour_box = ttk.Frame(self)
-        self._hour_box.pack(fill="x", pady=(theme.PAD_MD, 0))
+        self._hour_box.pack(fill="x", pady=(0, theme.PAD_SM))
         ttk.Label(self._hour_box, text=t("按小时分布"),
                   style="Section.TLabel").pack(anchor="w")
         self._hour_canvas = tk.Canvas(
@@ -107,23 +105,15 @@ class AccessInsightsPanel(ttk.Frame):
         self._hour_canvas.bind("<Configure>", lambda e: self._draw_hours())
 
         err_box = ttk.Frame(self)
-        err_box.pack(fill="both", expand=False, pady=(theme.PAD_MD, 0))
+        err_box.pack(fill="both", expand=False)
         ttk.Label(err_box, text=t("最近错误请求"),
                   style="Section.TLabel").pack(anchor="w")
         self._err_tree = self._make_tree(
             err_box, (t("时间"), t("状态码"), t("方法"), t("路径")),
             (150, 60, 60, 320), height=6)
-
         ttk.Label(self, text=t("日志只读自 nginx 日志目录，不读取项目内文件"),
                   style="CardDim.TLabel").pack(anchor="w", pady=(theme.PAD_SM, 0))
         self.refresh_theme()
-
-    def _card(self, parent, title: str, var: tk.StringVar) -> None:
-        box = ttk.Frame(parent, style="Card.TFrame",
-                        padding=(theme.PAD_MD, theme.PAD_SM))
-        box.pack(side="left", fill="x", expand=True, padx=(0, theme.PAD_SM))
-        ttk.Label(box, text=title, style="CardDim.TLabel").pack(anchor="w")
-        ttk.Label(box, textvariable=var, style="Title.TLabel").pack(anchor="w")
 
     def _section(self, parent, title: str) -> ttk.Frame:
         box = ttk.LabelFrame(parent, text=title, style="Card.TLabelframe",
