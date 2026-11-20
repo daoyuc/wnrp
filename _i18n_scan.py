@@ -97,7 +97,19 @@ def _int_arg(name, default=None):
     return default
 
 
+def _ensure_utf8_stdio() -> None:
+    """Windows CI 默认 cp1252，print 中文会 UnicodeEncodeError 误报失败。"""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
+
+
 def main():
+    _ensure_utf8_stdio()
     keys = collect()
     _keys_path = os.path.join(I18N, "_keys.json")
     os.makedirs(I18N, exist_ok=True)

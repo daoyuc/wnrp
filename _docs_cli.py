@@ -166,7 +166,19 @@ def build_markdown() -> str:
     return text
 
 
+def _ensure_utf8_stdio() -> None:
+    """Windows CI 默认 cp1252，print 中文会 UnicodeEncodeError 把成功校验打成失败。"""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
+
+
 def main() -> int:
+    _ensure_utf8_stdio()
     check = "--check" in sys.argv[1:]
     text = build_markdown()
     if check:

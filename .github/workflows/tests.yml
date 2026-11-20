@@ -15,6 +15,11 @@ jobs:
   unittest:
     name: unittest (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    # Windows runner 默认控制台常是 cp1252；开发脚本 print 中文时若不强制 UTF-8
+    # 会 UnicodeEncodeError，把「校验其实已通过」打成步骤失败（见 _docs_cli --check）。
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: utf-8
     strategy:
       fail-fast: false          # 一个平台挂了也要看到另外两个平台的结果
       matrix:
@@ -40,7 +45,6 @@ jobs:
       - name: Check docs/CLI.md is up to date
         run: python _docs_cli.py --check
 
-      # i18n 覆盖率守护：目前 ja/ko 存量缺译最多（约 385 条），阈值只用于
-      # 挡住「一次性新增大量未译文案」，不代表缺译已清零（详见 ROADMAP）
+      # i18n 覆盖率守护：四语言扫描缺失已清零（第三十轮），阈值 0 挡住任何新漏译
       - name: i18n coverage guard
-        run: python _i18n_scan.py --fail-under=400
+        run: python _i18n_scan.py --fail-under=0
