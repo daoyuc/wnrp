@@ -4607,7 +4607,7 @@
   ]
  },
  "就绪": {
-  "count": 9,
+  "count": 16,
   "files": [
    "ui/main_window.py",
    "ui/ssh_panel.py",
@@ -8053,7 +8053,7 @@
   ]
  },
  "次/分": {
-  "count": 1,
+  "count": 2,
   "files": [
    "ui/plugins/keymouse_panel.py"
   ]
@@ -9132,7 +9132,7 @@
   ]
  },
  "站点地址来自站点映射（vhost）配置": {
-  "count": 1,
+  "count": 2,
   "files": [
    "ui/plugins/project_launcher_panel.py"
   ]
@@ -10675,7 +10675,7 @@
   ]
  },
  "选择目录": {
-  "count": 1,
+  "count": 2,
   "files": [
    "ui/plugins/project_launcher_panel.py"
   ]
@@ -11084,7 +11084,7 @@
   ]
  },
  "键鼠统计": {
-  "count": 2,
+  "count": 3,
   "files": [
    "ui/plugins/keymouse_panel.py"
   ]
