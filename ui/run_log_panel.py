@@ -50,31 +50,40 @@ class RunLogPanel(ttk.Frame):
             subtitle=t("应用启停、服务操作与异常的本机轨迹"),
         )
         top = ttk.Frame(self)
-        top.pack(fill="x", pady=(0, 6))
+        top.pack(fill="x", pady=(0, theme.PAD_SM))
 
         ttk.Label(top, text=t("级别："), style="Section.TLabel").pack(side="left")
         self.level_var = tk.StringVar(value=t(FILTER_ALL))
         self.level_cb = ttk.Combobox(top, textvariable=self.level_var,
                                      state="readonly", width=8)
         self.level_cb["values"] = [t(FILTER_ALL)] + [t(v) for v in LEVEL_TEXT.values()]
-        self.level_cb.pack(side="left", padx=(0, 10))
+        self.level_cb.pack(side="left", padx=(0, theme.PAD_SM))
         self.level_cb.bind("<<ComboboxSelected>>", lambda e: self._render())
 
         ttk.Label(top, text=t("搜索："), style="Section.TLabel").pack(side="left")
         self.filter_var = tk.StringVar()
         entry = ttk.Entry(top, textvariable=self.filter_var, width=18)
-        entry.pack(side="left", padx=(0, 10))
+        entry.pack(side="left", padx=(0, theme.PAD_SM))
         entry.bind("<KeyRelease>", lambda e: self._render())
 
         self.follow_var = tk.BooleanVar(value=True)
         ttk.Checkbutton(top, text=t("自动跟随"), variable=self.follow_var).pack(
-            side="left", padx=(0, 10))
+            side="left", padx=(0, theme.PAD_SM))
 
-        ttk.Button(top, text=t("刷新"), command=self.reload).pack(side="left", padx=(0, 4))
-        ttk.Button(top, text=t("清空"), command=self.clear).pack(side="left", padx=(0, 4))
-        ttk.Button(top, text=t("复制"), command=self._copy_selected).pack(side="left", padx=(0, 4))
-        ttk.Button(top, text=t("导出…"), command=self._export).pack(side="left", padx=(0, 4))
-        ttk.Button(top, text=t("打开日志文件"), command=self._open_file).pack(side="left")
+        tb = w.Toolbar(
+            self,
+            secondary=[
+                {"text": t("刷新"), "command": self.reload},
+                {"text": t("复制"), "command": self._copy_selected},
+                {"text": t("导出…"), "command": self._export},
+                {"text": t("打开日志文件"), "command": self._open_file},
+            ],
+            overflow=[
+                {"text": t("清空"), "command": self.clear},
+            ],
+        )
+        (self.btn_reload, self.btn_copy, self.btn_export,
+         self.btn_open_file) = tb.buttons
 
         self.info_var = tk.StringVar(value="")
         ttk.Label(self, textvariable=self.info_var, style="SubTitle.TLabel").pack(

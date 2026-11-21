@@ -71,20 +71,27 @@ class SqlitePanel(ttk.Frame):
                                      foreground=theme.TEXT_DIM, font=(theme.FONT, 8))
         self.state_label.pack(side="left")
 
-        # 顶部：数据库文件选择
+        # 顶部：数据库文件选择 + 工具栏
         top = ttk.Frame(self)
-        top.pack(fill="x", pady=(0, 4))
+        top.pack(fill="x", pady=(0, theme.PAD_SM))
         ttk.Label(top, text=t("数据库文件："), style="Section.TLabel").pack(side="left")
         self.file_var = tk.StringVar()
         self.file_cb = ttk.Combobox(top, textvariable=self.file_var, width=46)
-        self.file_cb.pack(side="left", padx=(0, 6))
+        self.file_cb.pack(side="left", padx=(0, theme.PAD_SM), fill="x", expand=True)
         self.file_cb.bind("<Return>", lambda e: self.open_db())
         self.file_cb.bind("<<ComboboxSelected>>", lambda e: self.open_db())
-        ttk.Button(top, text=t("打开"), command=self.open_db).pack(side="left", padx=(0, 4))
-        ttk.Button(top, text=t("浏览…"), command=self._browse).pack(side="left", padx=(0, 4))
-        ttk.Button(top, text=t("刷新"), command=self.refresh_files).pack(
-            side="left", padx=(0, 4))
-        ttk.Button(top, text=t("关闭"), command=self.close_db).pack(side="left")
+
+        tb = w.Toolbar(
+            self,
+            primary=[{"text": t("打开"), "command": self.open_db}],
+            secondary=[
+                {"text": t("浏览…"), "command": self._browse},
+                {"text": t("刷新"), "command": self.refresh_files},
+                {"text": t("关闭"), "command": self.close_db},
+            ],
+        )
+        (self.btn_open, self.btn_browse, self.btn_refresh,
+         self.btn_close) = tb.buttons
 
         ttk.Label(
             self,

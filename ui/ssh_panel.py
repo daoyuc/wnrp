@@ -62,10 +62,26 @@ class SshPanel(ttk.Frame):
         ttk.Label(header.actions, textvariable=self._status,
                   style="PageSub.TLabel").pack(side="left",
                                                padx=(0, theme.PAD_SM))
+        tb = w.Toolbar(
+            self,
+            primary=[
+                {"text": t("新增主机"), "command": self._on_add_host},
+            ],
+            secondary=[
+                {"text": t("编辑"), "command": self._on_edit_host},
+                {"text": t("测试连接"), "command": self._on_test},
+                {"text": t("打开终端"), "command": self._on_terminal},
+                {"text": t("刷新"), "command": self.reload},
+            ],
+            overflow=[
+                {"text": t("删除"), "command": self._on_remove_host},
+            ],
+        )
+        (self.btn_add_host, self.btn_edit_host, self.btn_test,
+         self.btn_terminal, self.btn_reload) = tb.buttons
+
         bar = ttk.Frame(self)
         bar.pack(fill="x", pady=(0, theme.PAD_SM))
-        ttk.Button(bar, text=t("刷新"), command=self.reload,
-                   style="Toolbar.TButton").pack(side="right")
         self._tag_box = ttk.Combobox(bar, textvariable=self._tag, width=12,
                                      state="readonly")
         self._tag_box.pack(side="right", padx=(0, theme.PAD_SM))
@@ -109,17 +125,6 @@ class SshPanel(ttk.Frame):
         hsb.pack(side="right", fill="y")
         self._htree.configure(yscrollcommand=hsb.set)
         self._htree.bind("<<TreeviewSelect>>", lambda e: self._on_pick())
-
-        hbtns = ttk.Frame(self)
-        hbtns.pack(fill="x", pady=(theme.PAD_SM, 0))
-        ttk.Button(hbtns, text=t("新增主机"), command=self._on_add_host,
-                   style="Accent.TButton").pack(side="left")
-        for text, fn in ((t("编辑"), self._on_edit_host),
-                         (t("删除"), self._on_remove_host),
-                         (t("测试连接"), self._on_test),
-                         (t("打开终端"), self._on_terminal)):
-            ttk.Button(hbtns, text=text, command=fn).pack(
-                side="left", padx=(theme.PAD_SM, 0))
 
         right = ttk.Frame(body)
         body.add(right, weight=2)

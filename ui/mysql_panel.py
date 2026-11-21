@@ -48,6 +48,7 @@ class MysqlPanel(ttk.Frame):
     btn_start: ttk.Button
     btn_stop: ttk.Button
     btn_restart: ttk.Button
+    btn_refresh: ttk.Button
 
     def __init__(self, master, mysql_mgr: MysqlManager, notify):
         super().__init__(master, padding=8)
@@ -66,18 +67,39 @@ class MysqlPanel(ttk.Frame):
             subtitle=t("实例发现、启停与错误日志"),
         )
         top = ttk.Frame(self)
-        top.pack(fill="x", pady=(0, 6))
-        ttk.Label(top, text=t("MySQL 实例："), font=(theme.FONT, 9, "bold")).pack(side="left")
+        top.pack(fill="x", pady=(0, theme.PAD_SM))
+        ttk.Label(top, text=t("MySQL 实例："), style="CardBold.TLabel").pack(side="left")
         self.instance_var = tk.StringVar()
         self.instance_cb = ttk.Combobox(top, textvariable=self.instance_var,
-                                        state="readonly", width=20, font=(theme.FONT, 9))
-        self.instance_cb.pack(side="left", padx=(4, 10))
+                                        state="readonly", width=20)
+        self.instance_cb.pack(side="left", padx=(theme.PAD_XS, theme.PAD_SM))
         self.instance_cb.bind("<<ComboboxSelected>>", lambda e: self.refresh_status())
         self.instance_cb["values"] = [i.name for i in self.mysql_mgr.instances]
         if self.mysql_mgr.instances:
             self.instance_var.set(self.mysql_mgr.default_instance().name)
-        ttk.Button(top, text=t("刷新状态"),
-                   command=lambda: self.refresh_status(rescan=True)).pack(side="left")
+
+        tb = w.Toolbar(
+            self,
+            primary=[
+                {"text": t(_OP_LABELS["start"]),
+                 "command": lambda: self._operate("start")},
+                {"text": t(_OP_LABELS["stop"]), "kind": "danger",
+                 "command": lambda: self._operate("stop")},
+            ],
+            secondary=[
+                {"text": t(_OP_LABELS["restart"]),
+                 "command": lambda: self._operate("restart")},
+                {"text": t("刷新状态"),
+                 "command": lambda: self.refresh_status(rescan=True)},
+            ],
+            overflow=[
+                {"text": t("打开配置文件"), "command": self._open_conf},
+                {"text": t("打开数据目录"), "command": self._open_datadir},
+                {"text": t("查看错误日志"), "command": self._show_error_log},
+            ],
+        )
+        (self.btn_start, self.btn_stop, self.btn_restart,
+         self.btn_refresh) = tb.buttons
 
         body = ttk.Frame(self)
         body.pack(fill="both", expand=True)
@@ -112,29 +134,6 @@ class MysqlPanel(ttk.Frame):
         self.hint_label = ttk.Label(left, text="", style="SubTitle.TLabel",
                                     wraplength=360, justify="left", foreground=theme.WARN)
         self.hint_label.pack(anchor="w", pady=(8, 0))
-
-        btns = ttk.Frame(left)
-        btns.pack(anchor="w", pady=(10, 0))
-        self.btn_start = ttk.Button(btns, text=t(_OP_LABELS["start"]),
-                                    style="Accent.TButton",
-                                    command=lambda: self._operate("start"))
-        self.btn_start.pack(side="left", padx=(0, 6))
-        self.btn_stop = ttk.Button(btns, text=t(_OP_LABELS["stop"]),
-                                   command=lambda: self._operate("stop"))
-        self.btn_stop.pack(side="left", padx=(0, 6))
-        self.btn_restart = ttk.Button(btns, text=t(_OP_LABELS["restart"]),
-                                      command=lambda: self._operate("restart"))
-        self.btn_restart.pack(side="left", padx=(0, 6))
-
-        btns2 = ttk.Frame(left)
-        btns2.pack(anchor="w", pady=(8, 0))
-        ttk.Button(btns2, text=t("打开配置文件"), command=self._open_conf).pack(
-            side="left", padx=(0, 6))
-        ttk.Button(btns2, text=t("打开数据目录"), command=self._open_datadir).pack(
-            side="left", padx=(0, 6))
-        ttk.Button(btns2, text=t("查看错误日志"), command=self._show_error_log).pack(
-            side="left")
-
         right = ttk.Frame(body)
         right.pack(side="left", fill="both", expand=True)
         ttk.Label(right, text=t("操作与日志"), style="Section.TLabel").pack(anchor="w")

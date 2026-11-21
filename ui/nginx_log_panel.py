@@ -62,37 +62,44 @@ class LogPanel(ttk.Frame):
             subtitle=t("Nginx / PHP / 站点日志统一查看"),
         )
         top = ttk.Frame(self)
-        top.pack(fill="x", pady=(0, 6))
+        top.pack(fill="x", pady=(0, theme.PAD_SM))
 
         ttk.Label(top, text=t("来源："), style="Section.TLabel").pack(side="left")
         self.group_var = tk.StringVar()
         self.group_cb = ttk.Combobox(top, textvariable=self.group_var, state="readonly", width=16)
-        self.group_cb.pack(side="left", padx=(0, 8))
+        self.group_cb.pack(side="left", padx=(0, theme.PAD_SM))
         self.group_cb.bind("<<ComboboxSelected>>", lambda e: self._on_group_selected())
 
         ttk.Label(top, text=t("日志文件："), style="Section.TLabel").pack(side="left")
         self.file_var = tk.StringVar()
         self.file_cb = ttk.Combobox(top, textvariable=self.file_var, state="readonly", width=22)
-        self.file_cb.pack(side="left", padx=(0, 8))
+        self.file_cb.pack(side="left", padx=(0, theme.PAD_SM))
         self.file_cb.bind("<<ComboboxSelected>>", lambda e: self._on_file_selected())
 
         self.follow_var = tk.BooleanVar(value=True)
         ttk.Checkbutton(top, text=t("自动跟随"), variable=self.follow_var).pack(
-            side="left", padx=(0, 8))
-
-        ttk.Button(top, text=t("刷新"), command=self.reload).pack(side="left", padx=(0, 4))
-        ttk.Button(top, text=t("清屏"), command=self.clear_view).pack(side="left", padx=(0, 4))
-        ttk.Button(top, text=t("打开目录"), command=self._open_dir).pack(side="left", padx=(0, 10))
+            side="left", padx=(0, theme.PAD_SM))
 
         ttk.Label(top, text=t("过滤："), style="Section.TLabel").pack(side="left")
         self.filter_var = tk.StringVar()
         filter_entry = ttk.Entry(top, textvariable=self.filter_var, width=16)
-        filter_entry.pack(side="left", padx=(0, 8))
+        filter_entry.pack(side="left", padx=(0, theme.PAD_SM))
         filter_entry.bind("<KeyRelease>", lambda e: self._render_filtered())
         filter_entry.bind("<Return>", lambda e: self._render_filtered())
 
         self.info_var = tk.StringVar(value="")
-        ttk.Label(top, textvariable=self.info_var, style="SubTitle.TLabel").pack(side="left", padx=(10, 0))
+        ttk.Label(top, textvariable=self.info_var, style="SubTitle.TLabel").pack(
+            side="left", padx=(theme.PAD_SM, 0))
+
+        tb = w.Toolbar(
+            self,
+            secondary=[
+                {"text": t("刷新"), "command": self.reload},
+                {"text": t("清屏"), "command": self.clear_view},
+                {"text": t("打开目录"), "command": self._open_dir},
+            ],
+        )
+        (self.btn_reload, self.btn_clear, self.btn_open_dir) = tb.buttons
 
         wrap = ttk.Frame(self)
         wrap.pack(fill="both", expand=True)

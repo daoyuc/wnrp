@@ -39,7 +39,43 @@ class NginxPanel(ttk.Frame):
             self, title=t("Nginx 管理"),
             subtitle=t("启停、平滑重载与配置检查"),
         )
-        # 左侧：状态卡片 + 控制按钮
+        primary = []
+        if self.on_new_site:
+            primary.append({
+                "text": t("＋ 新建站点向导…"),
+                "command": self.on_new_site,
+            })
+        primary.append({
+            "text": t("启动 Nginx"),
+            "command": lambda: self._run("start"),
+        })
+        primary.append({
+            "text": t("停止 Nginx"),
+            "kind": "danger",
+            "command": lambda: self._run("stop"),
+        })
+        tb = w.Toolbar(
+            self,
+            primary=primary,
+            secondary=[
+                {"text": t("平滑重载"), "command": lambda: self._run("reload")},
+                {"text": t("配置检查 (nginx -t)"),
+                 "command": lambda: self._run("test")},
+                {"text": t("推荐设置"), "command": self._recommend_settings},
+                {"text": t("刷新状态"), "command": self.refresh_status},
+            ],
+        )
+        btns = tb.buttons
+        if self.on_new_site:
+            (self.btn_new_site, self.btn_start, self.btn_stop,
+             self.btn_reload, self.btn_test, self.btn_tune,
+             self.btn_nrefresh) = btns
+        else:
+            self.btn_new_site = None
+            (self.btn_start, self.btn_stop, self.btn_reload,
+             self.btn_test, self.btn_tune, self.btn_nrefresh) = btns
+
+        # 左侧：状态卡片；右侧：命令输出
         left = ttk.Frame(self)
         left.pack(side="left", fill="y", padx=(0, 10))
 
@@ -64,36 +100,12 @@ class NginxPanel(ttk.Frame):
                 row=i, column=1, sticky="w", padx=(6, 0), pady=2
             )
 
-        btns = ttk.Frame(left)
-        btns.pack(fill="x", pady=(10, 0))
-        if self.on_new_site:
-            self.btn_new_site = ttk.Button(btns, text=t("＋ 新建站点向导…"),
-                                           style="Accent.TButton",
-                                           command=self.on_new_site)
-            self.btn_new_site.pack(fill="x", pady=(0, 6))
-        self.btn_start = ttk.Button(btns, text=t("启动 Nginx"), style="Accent.TButton",
-                                    command=lambda: self._run("start"))
-        self.btn_start.pack(fill="x", pady=(0, 6))
-        self.btn_reload = ttk.Button(btns, text=t("平滑重载"), command=lambda: self._run("reload"))
-        self.btn_reload.pack(fill="x", pady=(0, 6))
-        self.btn_test = ttk.Button(btns, text=t("配置检查 (nginx -t)"),
-                                   command=lambda: self._run("test"))
-        self.btn_test.pack(fill="x", pady=(0, 6))
-        self.btn_stop = ttk.Button(btns, text=t("停止 Nginx"), style="Danger.TButton",
-                                   command=lambda: self._run("stop"))
-        self.btn_stop.pack(fill="x", pady=(0, 6))
-        self.btn_tune = ttk.Button(btns, text=t("推荐设置"), command=self._recommend_settings)
-        self.btn_tune.pack(fill="x", pady=(0, 6))
-        self.btn_nrefresh = ttk.Button(btns, text=t("刷新状态"), command=self.refresh_status)
-        self.btn_nrefresh.pack(fill="x")
-
         ttk.Label(
             left,
             text=t("提示：修改 vhost 配置后点「配置检查」\n验证通过，再点「平滑重载」生效。"),
             style="SubTitle.TLabel",
             justify="left",
         ).pack(anchor="w", pady=(12, 0))
-
         # 右侧：命令输出日志
         right = ttk.Frame(self)
         right.pack(side="left", fill="both", expand=True)

@@ -68,23 +68,32 @@ class MailPanel(ttk.Frame):
             subtitle=t("查看 PHP mail() 捕获到的本地邮件"),
         )
         bar = ttk.Frame(self)
-        bar.pack(fill="x", pady=(0, 6))
+        bar.pack(fill="x", pady=(0, theme.PAD_SM))
         ttk.Label(bar, text=t("PHP 版本："), style="CardBold.TLabel").pack(side="left")
         self._ver_box = ttk.Combobox(bar, state="readonly", width=14, values=[])
         self._ver_box.pack(side="left", padx=(theme.PAD_XS, theme.PAD_SM))
         self._ver_box.bind("<<ComboboxSelected>>", lambda e: self._on_version_changed())
-        self.btn_enable = ttk.Button(bar, text=t("开启捕获"), style="Accent.TButton",
-                                     command=lambda: self._toggle(True))
-        self.btn_disable = ttk.Button(bar, text=t("关闭捕获"), command=lambda: self._toggle(False))
-        self.btn_refresh = ttk.Button(bar, text=t("刷新"), command=self.refresh)
-        self.btn_open = ttk.Button(bar, text=t("打开邮件目录"), command=self._open_dir)
-        self.btn_clear = ttk.Button(bar, text=t("清空"), style="Danger.TButton",
-                                    command=self._clear)
-        for b in (self.btn_enable, self.btn_disable, self.btn_refresh,
-                  self.btn_open, self.btn_clear):
-            b.pack(side="left", padx=(0, 6))
         self._state = ttk.Label(bar, text=t("正在读取…"), style="SubTitle.TLabel")
-        self._state.pack(side="left", padx=(4, 0))
+        self._state.pack(side="left", padx=(theme.PAD_SM, 0))
+
+        tb = w.Toolbar(
+            self,
+            primary=[
+                {"text": t("开启捕获"), "command": lambda: self._toggle(True)},
+            ],
+            secondary=[
+                {"text": t("关闭捕获"), "command": lambda: self._toggle(False)},
+                {"text": t("刷新"), "command": self.refresh},
+                {"text": t("打开邮件目录"), "command": self._open_dir},
+            ],
+            overflow=[
+                {"text": t("清空"), "command": self._clear},
+            ],
+        )
+        (self.btn_enable, self.btn_disable, self.btn_refresh,
+         self.btn_open) = tb.buttons
+        self.btn_clear = None  # overflow；清空走菜单项
+        self._overflow_menu = tb.overflow_menu
 
         self._hint = ttk.Label(self, text="", style="SubTitle.TLabel")
         self._hint.pack(anchor="w", pady=(0, 6))

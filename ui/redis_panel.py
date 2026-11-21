@@ -87,18 +87,38 @@ class RedisPanel(ttk.Frame):
             self, title=t("Redis 管理"),
             subtitle=t("实例启停、命令执行与键空间"),
         )
-        # 顶部：实例选择（全部页签共享）
+        # 顶部：实例选择（全部页签共享）+ 启停工具栏
         top = ttk.Frame(self)
-        top.pack(fill="x", pady=(0, 6))
-        ttk.Label(top, text=t("Redis 实例："), font=(theme.FONT, 9, "bold")).pack(side="left")
+        top.pack(fill="x", pady=(0, theme.PAD_SM))
+        ttk.Label(top, text=t("Redis 实例："), style="CardBold.TLabel").pack(side="left")
         self.instance_var = tk.StringVar()
         self.instance_cb = ttk.Combobox(top, textvariable=self.instance_var, state="readonly",
-                                        width=24, font=(theme.FONT, 9))
-        self.instance_cb.pack(side="left", padx=(4, 10))
+                                        width=24)
+        self.instance_cb.pack(side="left", padx=(theme.PAD_XS, theme.PAD_SM))
         self.instance_cb.bind("<<ComboboxSelected>>", lambda e: self._on_select())
         self.instance_cb["values"] = [i.name for i in self.redis_mgr.instances]
         self.instance_var.set(self._default_name())
-        ttk.Button(top, text=t("刷新状态"), command=self.refresh_status).pack(side="left")
+
+        tb = w.Toolbar(
+            self,
+            primary=[
+                {"text": t("启动 Redis"), "command": lambda: self._run("start")},
+                {"text": t("停止 Redis"), "kind": "danger",
+                 "command": lambda: self._run("stop")},
+            ],
+            secondary=[
+                {"text": t("重启"), "command": lambda: self._run("restart")},
+                {"text": t("测试连接 (PING)"), "command": lambda: self._run("ping")},
+                {"text": t("刷新状态"), "command": self.refresh_status},
+            ],
+            overflow=[
+                {"text": t("打开配置文件"), "command": self._open_conf},
+            ],
+        )
+        (self.btn_start, self.btn_stop, self.btn_restart,
+         self.btn_ping, self.btn_rrefresh) = tb.buttons
+        self.btn_conf = None  # 在 overflow 菜单里
+        self._ctrl_btns = list(tb.buttons)
 
         # 主体：三个页签
         nb = ttk.Notebook(self)
@@ -140,27 +160,6 @@ class RedisPanel(ttk.Frame):
                 row=i, column=1, sticky="w", padx=(6, 0), pady=2
             )
 
-        btns = ttk.Frame(left)
-        btns.pack(fill="x", pady=(10, 0))
-        btn_defs = [
-            ("btn_start", t("启动 Redis"), "Accent.TButton", lambda: self._run("start")),
-            ("btn_restart", t("重启"), None, lambda: self._run("restart")),
-            ("btn_stop", t("停止 Redis"), "Danger.TButton", lambda: self._run("stop")),
-            ("btn_ping", t("测试连接 (PING)"), None, lambda: self._run("ping")),
-            ("btn_conf", t("打开配置文件"), None, self._open_conf),
-            ("btn_rrefresh", t("刷新状态"), None, self.refresh_status),
-        ]
-        self._ctrl_btns: list[ttk.Button] = []
-        for idx, (attr, text, style, cmd) in enumerate(btn_defs):
-            btn = ttk.Button(btns, text=text, command=cmd)
-            if style:
-                btn.configure(style=style)
-            btn.grid(row=idx // 2, column=idx % 2, sticky="ew", padx=(0, 6), pady=(0, 6))
-            setattr(self, attr, btn)
-            self._ctrl_btns.append(btn)
-        for c in range(2):
-            btns.columnconfigure(c, weight=1, uniform="rb")
-
         ttk.Label(
             left,
             text=t("提示：Redis 监听端口在各自配置文件中\n（port 项），修改后重启 Redis 生效。"),
@@ -168,7 +167,6 @@ class RedisPanel(ttk.Frame):
             font=(theme.FONT, 8),
             justify="left",
         ).pack(anchor="w", pady=(10, 0))
-
         # 右侧：命令输出日志
         right = ttk.Frame(page)
         right.pack(side="left", fill="both", expand=True)
