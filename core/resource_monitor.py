@@ -463,59 +463,43 @@ def _service_entry(kind, name, running, pids, samples) -> dict:
     }
 
 
-def collect_service_metrics(config, php_mgr, nginx_mgr, redis_mgr=None,
-                             mysql_mgr=None) -> dict:
-    """聚合 phpvm 管理进程的资源画像，返回可 JSON 序列化的字典。
+def metrics_from_runtime(*, nginx_status, php_versions=None,
+                          redis_instances=None, mysql_instances=None) -> dict:
+    """由**已探测好**的运行时状态组装资源画像（不再二次 resolve / get_status）。
 
-    任一 manager 缺失（模块停用）时跳过对应分组。进程快照全局只取一次。
+    供总览仪表盘与 ``collect_service_metrics`` 共用，避免 8s 心跳里重复扫进程。
+    ``nginx_status`` 形如 ``(running, pids)``。
     """
     services: list[dict] = []
     all_pids: list[int] = []
 
-    def safe(fn, default=None):
-        try:
-            return fn()
-        except Exception:  # noqa: BLE001
-            return default
-
-    # Nginx
-    ng_run, ng_pids = safe(lambda: nginx_mgr.get_status(), (False, [])) or (False, [])
+    ng_run, ng_pids = nginx_status if nginx_status is not None else (False, [])
+    ng_pids = list(ng_pids or [])
     all_pids.extend(ng_pids)
-    services.append(_service_entry("nginx", "Nginx", ng_run, ng_pids, {}))
+    services.append(_service_entry("nginx", "Nginx", bool(ng_run), ng_pids, {}))
 
-    # PHP（按版本）
-    if php_mgr is not None:
-        versions = safe(lambda: php_mgr.resolve(refresh_status=True, fast=True), []) or []
-        for v in versions:
-            pids = [v.pid] if getattr(v, "running", False) and getattr(v, "pid", None) else []
-            all_pids.extend(pids)
-            services.append(_service_entry(
-                "php", getattr(v, "name", "?"), getattr(v, "running", False), pids, {}))
+    for v in php_versions or ():
+        pids = ([v.pid] if getattr(v, "running", False)
+                and getattr(v, "pid", None) else [])
+        all_pids.extend(pids)
+        services.append(_service_entry(
+            "php", getattr(v, "name", "?"), getattr(v, "running", False), pids, {}))
 
-    # Redis
-    if redis_mgr is not None:
-        safe(redis_mgr.refresh_instances)
-        safe(redis_mgr.get_status_all)
-        for inst in getattr(redis_mgr, "instances", []) or []:
-            pids = getattr(inst, "pids", []) or []
-            all_pids.extend(pids)
-            services.append(_service_entry(
-                "redis", getattr(inst, "name", "?"),
-                getattr(inst, "running", False), pids, {}))
+    for inst in redis_instances or ():
+        pids = list(getattr(inst, "pids", []) or [])
+        all_pids.extend(pids)
+        services.append(_service_entry(
+            "redis", getattr(inst, "name", "?"),
+            getattr(inst, "running", False), pids, {}))
 
-    # MySQL
-    if mysql_mgr is not None:
-        safe(mysql_mgr.refresh_instances)
-        for inst in getattr(mysql_mgr, "instances", []) or []:
-            pids = getattr(inst, "pids", []) or []
-            all_pids.extend(pids)
-            services.append(_service_entry(
-                "mysql", getattr(inst, "name", "?"),
-                getattr(inst, "running", False), pids, {}))
+    for inst in mysql_instances or ():
+        pids = list(getattr(inst, "pids", []) or [])
+        all_pids.extend(pids)
+        services.append(_service_entry(
+            "mysql", getattr(inst, "name", "?"),
+            getattr(inst, "running", False), pids, {}))
 
-    # 一次性采样全部 PID，回填到各服务
     samples = snapshot_pids(list(dict.fromkeys(all_pids)))
-    # 重新计算带采样数据的服务条目
     out_services: list[dict] = []
     total_rss = 0
     total_cpu = 0.0
@@ -539,3 +523,40 @@ def collect_service_metrics(config, php_mgr, nginx_mgr, redis_mgr=None,
             "service_count": sum(1 for s in out_services if s["running"]),
         },
     }
+
+
+def collect_service_metrics(config, php_mgr, nginx_mgr, redis_mgr=None,
+                             mysql_mgr=None) -> dict:
+    """聚合 phpvm 管理进程的资源画像，返回可 JSON 序列化的字典。
+
+    任一 manager 缺失（模块停用）时跳过对应分组。进程快照全局只取一次。
+    总览页请优先走 ``overview.build_dashboard``，避免与状态聚合重复探测。
+    """
+
+    def safe(fn, default=None):
+        try:
+            return fn()
+        except Exception:  # noqa: BLE001
+            return default
+
+    ng_status = safe(lambda: nginx_mgr.get_status(), (False, [])) or (False, [])
+    versions = []
+    if php_mgr is not None:
+        versions = safe(lambda: php_mgr.resolve(refresh_status=True, fast=True),
+                        []) or []
+    redis_insts = None
+    if redis_mgr is not None:
+        safe(redis_mgr.refresh_instances)
+        safe(redis_mgr.get_status_all)
+        redis_insts = getattr(redis_mgr, "instances", []) or []
+    mysql_insts = None
+    if mysql_mgr is not None:
+        safe(mysql_mgr.refresh_instances)
+        mysql_insts = getattr(mysql_mgr, "instances", []) or []
+
+    return metrics_from_runtime(
+        nginx_status=ng_status,
+        php_versions=versions,
+        redis_instances=redis_insts,
+        mysql_instances=mysql_insts,
+    )

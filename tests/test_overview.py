@@ -12,8 +12,9 @@ def _php(name, display, port, running):
     return types.SimpleNamespace(name=name, display=display, port=port, running=running)
 
 
-def _inst(name, port, running):
-    return types.SimpleNamespace(name=name, port=port, running=running)
+def _inst(name, port, running, pids=None):
+    return types.SimpleNamespace(name=name, port=port, running=running,
+                                 pids=list(pids or []))
 
 
 class OverviewTest(unittest.TestCase):
@@ -84,6 +85,43 @@ class OverviewTest(unittest.TestCase):
         self.assertIn("nginx", d)
         self.assertIn("alerts", d)
         self.assertIn("health", d)
+
+    def test_build_dashboard_probes_php_once(self):
+        """总览 + 资源画像必须共用一轮 resolve，不能再双倍扫进程。"""
+        calls = {"resolve": 0, "nginx": 0, "redis_refresh": 0}
+
+        def resolve(**k):
+            calls["resolve"] += 1
+            return [_php("php82", "8.2.4", 9000, True)]
+
+        nginx = types.SimpleNamespace(
+            get_status=lambda: calls.__setitem__("nginx", calls["nginx"] + 1) or (True, [1]))
+        php = types.SimpleNamespace(resolve=resolve)
+        redis = types.SimpleNamespace(
+            refresh_instances=lambda: calls.__setitem__(
+                "redis_refresh", calls["redis_refresh"] + 1),
+            get_status_all=lambda: None,
+            instances=[_inst("redis", 6379, True)])
+        mysql = types.SimpleNamespace(
+            refresh_instances=lambda: None, instances=[])
+        vhost = types.SimpleNamespace(scan=lambda: [])
+
+        with mock.patch("core.resource_monitor.snapshot_pids", return_value={}):
+            ov, metrics = ovmod.build_dashboard(
+                None, php, nginx, redis, mysql, vhost, hosts_map={})
+
+        self.assertEqual(calls["resolve"], 1)
+        self.assertEqual(calls["nginx"], 1)
+        self.assertEqual(calls["redis_refresh"], 1)
+        self.assertEqual(ov.health, "ok")
+        self.assertIsInstance(metrics, dict)
+        self.assertIn("services", metrics)
+        self.assertIn("totals", metrics)
+
+    def test_https_cert_missing_is_noop(self):
+        entry = types.SimpleNamespace(file="/definitely/missing.conf")
+        with mock.patch("builtins.open", side_effect=AssertionError("不应读盘")):
+            self.assertIsNone(ovmod._https_cert_missing(entry))
 
 
 if __name__ == "__main__":

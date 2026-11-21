@@ -70,51 +70,61 @@ def _read_hosts_map() -> dict:
 
 
 def _https_cert_missing(entry) -> Optional[str]:
-    try:
-        with open(entry.file, "r", encoding="utf-8", errors="replace") as f:
-            text = f.read()
-    except OSError:
-        return None
-    if "ssl_certificate" not in text:
-        return None
-    return None  # 仅做存在性缺失告警：证书文件存在性校验交给 diag，避免过度实现
+    """证书缺失告警占位：细查交给 diag，这里不读盘（总览 8s 心跳不能扫全部 vhost）。"""
+    return None
 
 
-def build_overview(config, php_mgr, nginx_mgr, redis_mgr, mysql_mgr,
-                   vhost_mgr, hosts_map: Optional[dict] = None) -> Overview:
-    """聚合总览数据（只读）。任一 manager 缺失（模块停用）时跳过对应分组。"""
-    # Nginx
+def _probe_runtime(php_mgr, nginx_mgr, redis_mgr, mysql_mgr) -> dict:
+    """一次探测 Nginx / PHP / Redis / MySQL 运行态，供总览与资源画像共用。"""
     ng_run, ng_pids = _safe(lambda: nginx_mgr.get_status(), (False, [])) or (False, [])
-    nginx = ServiceView("Nginx", "nginx", bool(ng_run),
-                        t("PID {p}", p=",".join(map(str, ng_pids))) if ng_pids else "")
+    php_versions = []
+    if php_mgr is not None:
+        php_versions = _safe(
+            lambda: php_mgr.resolve(refresh_status=True, fast=True), []) or []
+    redis_insts: list = []
+    if redis_mgr is not None:
+        _safe(redis_mgr.refresh_instances)
+        _safe(redis_mgr.get_status_all)
+        redis_insts = list(getattr(redis_mgr, "instances", []) or [])
+    mysql_insts: list = []
+    if mysql_mgr is not None:
+        _safe(mysql_mgr.refresh_instances)
+        mysql_insts = list(getattr(mysql_mgr, "instances", []) or [])
+    return {
+        "nginx_status": (bool(ng_run), list(ng_pids or [])),
+        "php_versions": php_versions,
+        "redis_instances": redis_insts,
+        "mysql_instances": mysql_insts,
+    }
 
-    # PHP
-    php_versions = _safe(lambda: php_mgr.resolve(refresh_status=True, fast=True), []) or []
+
+def _overview_from_runtime(runtime: dict, vhost_mgr,
+                           hosts_map: Optional[dict] = None) -> Overview:
+    """由已探测的运行时状态 + vhost/hosts/日志组装 Overview。"""
+    ng_run, ng_pids = runtime["nginx_status"]
+    nginx = ServiceView(
+        "Nginx", "nginx", bool(ng_run),
+        t("PID {p}", p=",".join(map(str, ng_pids))) if ng_pids else "")
+
+    php_versions = runtime.get("php_versions") or []
     php = [ServiceView(v.name, "php", bool(v.running),
                        f"{getattr(v, 'display', '')} :{getattr(v, 'port', '?')}")
            for v in php_versions]
     running_ports = {getattr(v, "port", None) for v in php_versions if v.running}
 
-    # Redis
-    redis: list = []
-    if redis_mgr is not None:
-        _safe(redis_mgr.refresh_instances)
-        _safe(redis_mgr.get_status_all)
-        for inst in getattr(redis_mgr, "instances", []) or []:
-            redis.append(ServiceView(getattr(inst, "name", "?"), "redis",
-                                     bool(getattr(inst, "running", False)),
-                                     f":{getattr(inst, 'port', '?')}"))
+    redis = [
+        ServiceView(getattr(inst, "name", "?"), "redis",
+                    bool(getattr(inst, "running", False)),
+                    f":{getattr(inst, 'port', '?')}")
+        for inst in (runtime.get("redis_instances") or [])
+    ]
+    mysql = [
+        ServiceView(getattr(inst, "name", "?"), "mysql",
+                    bool(getattr(inst, "running", False)),
+                    f":{getattr(inst, 'port', '?')}")
+        for inst in (runtime.get("mysql_instances") or [])
+    ]
 
-    # MySQL
-    mysql: list = []
-    if mysql_mgr is not None:
-        _safe(mysql_mgr.refresh_instances)
-        for inst in getattr(mysql_mgr, "instances", []) or []:
-            mysql.append(ServiceView(getattr(inst, "name", "?"), "mysql",
-                                     bool(getattr(inst, "running", False)),
-                                     f":{getattr(inst, 'port', '?')}"))
-
-    # 站点与告警
     entries = _safe(vhost_mgr.scan, []) or []
     alerts: list = []
     if hosts_map is None:
@@ -136,12 +146,10 @@ def build_overview(config, php_mgr, nginx_mgr, redis_mgr, mysql_mgr,
         if miss:
             alerts.append(t("证书缺失：{file}", file=miss))
 
-    # 最近崩溃 + 最近运行日志
     all_entries = run_log.entries_since(0)
     crashes = [e.line for e in all_entries if getattr(e, "scope", "") == "crash"][-5:]
     recent_logs = (run_log.as_text(5) or "").splitlines()
 
-    # 整体健康
     if not nginx.running:
         health = "err"
     elif alerts:
@@ -154,6 +162,36 @@ def build_overview(config, php_mgr, nginx_mgr, redis_mgr, mysql_mgr,
         site_count=len(entries), alerts=alerts,
         crashes=crashes, recent_logs=recent_logs, health=health,
     )
+
+
+def build_overview(config, php_mgr, nginx_mgr, redis_mgr, mysql_mgr,
+                   vhost_mgr, hosts_map: Optional[dict] = None) -> Overview:
+    """聚合总览数据（只读）。任一 manager 缺失（模块停用）时跳过对应分组。"""
+    runtime = _probe_runtime(php_mgr, nginx_mgr, redis_mgr, mysql_mgr)
+    return _overview_from_runtime(runtime, vhost_mgr, hosts_map=hosts_map)
+
+
+def build_dashboard(config, php_mgr, nginx_mgr, redis_mgr, mysql_mgr,
+                    vhost_mgr, hosts_map: Optional[dict] = None
+                    ) -> tuple[Overview, Optional[dict]]:
+    """总览 + 资源画像一次探测：状态 resolve / get_status 只跑一轮。
+
+    返回 ``(Overview, metrics|None)``；metrics 组装失败时仍回总览，metrics 为 ``None``。
+    """
+    from core import resource_monitor as rm
+
+    runtime = _probe_runtime(php_mgr, nginx_mgr, redis_mgr, mysql_mgr)
+    ov = _overview_from_runtime(runtime, vhost_mgr, hosts_map=hosts_map)
+    try:
+        metrics = rm.metrics_from_runtime(
+            nginx_status=runtime["nginx_status"],
+            php_versions=runtime["php_versions"],
+            redis_instances=runtime["redis_instances"],
+            mysql_instances=runtime["mysql_instances"],
+        )
+    except Exception:  # noqa: BLE001
+        metrics = None
+    return ov, metrics
 
 
 def diagnose_all(config, vhost_mgr, php_mgr, nginx_mgr,

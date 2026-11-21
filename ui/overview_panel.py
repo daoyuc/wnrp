@@ -138,21 +138,15 @@ class OverviewPanel(ttk.Frame):
 
         def worker():
             ov = None
+            metrics = None
             err = None
             try:
-                ov = ovmod.build_overview(
+                # 状态探测只跑一轮（原先 build_overview + collect_metrics 各扫一遍）
+                ov, metrics = ovmod.build_dashboard(
                     self.config, self.php_mgr, self.nginx_mgr,
                     self.redis_mgr, self.mysql_mgr, self.vhost_mgr)
             except Exception as e:  # noqa: BLE001
                 err = e
-            metrics = None
-            try:
-                from core import resource_monitor as rm
-                metrics = rm.collect_service_metrics(
-                    self.config, self.php_mgr, self.nginx_mgr,
-                    self.redis_mgr, self.mysql_mgr)
-            except Exception:  # noqa: BLE001
-                metrics = None
             self._queue.put(("data", (ov, metrics, err)))
 
         threading.Thread(target=worker, daemon=True).start()
