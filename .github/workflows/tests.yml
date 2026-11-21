@@ -27,9 +27,9 @@ jobs:
         # macos-latest 由 GitHub 解析到当前可用镜像。
         os: [macos-latest, ubuntu-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
