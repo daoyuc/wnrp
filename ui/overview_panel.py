@@ -38,8 +38,11 @@ class OverviewPanel(ttk.Frame):
         self._action_busy = False
         self._queue: queue.Queue = queue.Queue()
         self._draining = False
-        self._svc_cards: list[w.MetricCard] = []
-        self._svc_extras: list[ttk.Widget] = []
+        # 按 (kind, rname) 复用 MetricCard，避免 8s 刷新 destroy/重建闪动
+        self._svc_cards: dict[tuple[str, str], w.MetricCard] = {}
+        self._svc_foot_var = tk.StringVar(value="")
+        self._svc_foot: ttk.Label | None = None
+        self._list_cache: dict[int, tuple] = {}
         self._build()
         self.auto_refresh()
         self._start_drain()
@@ -78,6 +81,10 @@ class OverviewPanel(ttk.Frame):
         svc_box.pack(fill="both", expand=True, pady=(0, theme.PAD_SM))
         self._svc_host = ttk.Frame(svc_box)
         self._svc_host.pack(fill="both", expand=True)
+        for c in range(3):
+            self._svc_host.columnconfigure(c, weight=1)
+        self._svc_foot = ttk.Label(self._svc_host, textvariable=self._svc_foot_var,
+                                   style="PageSub.TLabel")
         self._svc_empty = w.EmptyState(
             svc_box, title=t("暂无服务数据"),
             hint=t("刷新或检查环境根目录后重试"),
@@ -225,19 +232,6 @@ class OverviewPanel(ttk.Frame):
                         ov.recent_logs, empty_ok=True)
 
     def _fill_services(self, ov, metrics=None) -> None:
-        for card in self._svc_cards:
-            try:
-                card.frame.destroy()
-            except tk.TclError:
-                pass
-        self._svc_cards.clear()
-        for extra in self._svc_extras:
-            try:
-                extra.destroy()
-            except tk.TclError:
-                pass
-        self._svc_extras.clear()
-
         res_map: dict = {}
         if metrics:
             for s in metrics.get("services", []):
@@ -271,7 +265,8 @@ class OverviewPanel(ttk.Frame):
                          "mysql", s.name, "mysql"))
 
         if not rows:
-            self._svc_host.pack_forget()
+            if self._svc_host.winfo_ismapped():
+                self._svc_host.pack_forget()
             self._svc_empty.show()
             return
         self._svc_empty.hide()
@@ -279,21 +274,32 @@ class OverviewPanel(ttk.Frame):
             self._svc_host.pack(fill="both", expand=True)
 
         cols = 3
+        wanted: set[tuple[str, str]] = set()
         for i, (label, running, detail, kind, rname, nav_key) in enumerate(rows):
+            key = (kind, rname)
+            wanted.add(key)
             value = t("运行中") if running else t("已停止")
             hint_parts = [p for p in (detail, res_hint(kind, rname, running)) if p]
             hint = " · ".join(hint_parts)
-            card = w.MetricCard(
-                self._svc_host, label=label, value=value, hint=hint,
-                on_click=(lambda k=nav_key: self._goto(k)),
-            )
+            card = self._svc_cards.get(key)
+            if card is None:
+                card = w.MetricCard(
+                    self._svc_host, label=label, value=value, hint=hint,
+                    on_click=(lambda k=nav_key: self._goto(k)),
+                )
+                self._svc_cards[key] = card
+            else:
+                card.label_var.set(label)
+                card.set(value, hint, animate=True)
             r, c = divmod(i, cols)
             card.grid(row=r, column=c, sticky="nsew",
                       padx=theme.PAD_XS, pady=theme.PAD_XS)
-            self._svc_cards.append(card)
-        for c in range(cols):
-            self._svc_host.columnconfigure(c, weight=1)
 
+        for key in list(self._svc_cards):
+            if key not in wanted:
+                self._svc_cards.pop(key).destroy()
+
+        summary = ""
         if metrics:
             tot = metrics.get("totals") or {}
             if tot:
@@ -302,23 +308,41 @@ class OverviewPanel(ttk.Frame):
                        if tot.get("cpu_percent", -1) >= 0 else t("未知"))
                 summary = t("合计 · {n} 个服务运行中 · 内存 {mem} · CPU {cpu}",
                             n=tot.get("service_count", 0), mem=mem, cpu=cpu)
-                foot = ttk.Label(self._svc_host, text=summary,
-                                 style="PageSub.TLabel")
-                foot.grid(row=(len(rows) + cols - 1) // cols, column=0,
-                          columnspan=cols, sticky="w", pady=(theme.PAD_SM, 0))
-                self._svc_extras.append(foot)
+        self._svc_foot_var.set(summary)
+        if self._svc_foot is not None:
+            if summary:
+                foot_row = (len(rows) + cols - 1) // cols
+                self._svc_foot.grid(row=foot_row, column=0, columnspan=cols,
+                                   sticky="w", pady=(theme.PAD_SM, 0))
+            else:
+                self._svc_foot.grid_forget()
 
     def _fill_list(self, tree: ttk.Treeview, empty: w.EmptyState,
                    items: list, *, empty_ok: bool) -> None:
-        tree.delete(*tree.get_children())
-        if not items:
-            tree.pack_forget()
+        cache_key = id(tree)
+        snapshot = tuple(items or ())
+        if self._list_cache.get(cache_key) == snapshot:
+            return
+        self._list_cache[cache_key] = snapshot
+
+        was_empty = not tree.get_children()
+        now_empty = not snapshot
+
+        if now_empty:
+            if tree.get_children():
+                tree.delete(*tree.get_children())
+            if tree.winfo_ismapped():
+                tree.pack_forget()
             empty.show()
             return
-        empty.hide()
-        if not tree.winfo_ismapped():
-            tree.pack(fill="both", expand=True)
-        for line in items:
+
+        if was_empty or not tree.winfo_ismapped():
+            empty.hide()
+            if not tree.winfo_ismapped():
+                tree.pack(fill="both", expand=True)
+
+        tree.delete(*tree.get_children())
+        for line in snapshot:
             tree.insert("", "end", values=(line,))
 
     def _set_action_busy(self, busy: bool) -> None:

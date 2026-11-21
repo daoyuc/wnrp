@@ -4,6 +4,7 @@ import os
 import unittest
 
 from core import theme as core_theme
+from ui.widgets import parse_metric_number
 
 
 class ThemeRolesForWidgetsTest(unittest.TestCase):
@@ -13,6 +14,20 @@ class ThemeRolesForWidgetsTest(unittest.TestCase):
             self.assertIn("success_bg", keys)
             self.assertIn("warn_bg", keys)
             self.assertIn("err_bg", keys)
+
+
+class ParseMetricNumberTest(unittest.TestCase):
+    def test_plain_int_and_percent(self):
+        self.assertEqual(parse_metric_number("12"), (12.0, ""))
+        self.assertEqual(parse_metric_number("12%"), (12.0, "%"))
+        self.assertEqual(parse_metric_number(" 6.8 "), (6.8, ""))
+
+    def test_suffix_and_reject(self):
+        self.assertEqual(parse_metric_number("-3.5ms"), (-3.5, "ms"))
+        self.assertEqual(parse_metric_number("12 个"), (12.0, " 个"))
+        self.assertIsNone(parse_metric_number("运行中"))
+        self.assertIsNone(parse_metric_number(""))
+        self.assertIsNone(parse_metric_number("mem 12"))
 
 
 def _tk_available() -> bool:
@@ -66,7 +81,7 @@ class WidgetsSmokeTest(unittest.TestCase):
         empty.show()
         empty.hide()
         card = w.MetricCard(host, label="Nginx", value="运行中", hint="80")
-        card.set("已停止", hint="")
+        card.set("已停止", hint="", animate=False)
         pill = w.status_pill(host, state=w.PILL_OK, text="健康")
         pill.set_state(w.PILL_ERR, "异常")
         banner = w.HealthBanner(host)
@@ -75,6 +90,43 @@ class WidgetsSmokeTest(unittest.TestCase):
         w.set_busy([btn], True)
         self.assertEqual(str(btn.cget("state")), "disabled")
         w.set_busy([btn], False)
+
+    def test_metric_same_value_is_noop(self):
+        w = self.widgets
+        host = self.tk.Frame(self.root)
+        card = w.MetricCard(host, label="CPU", value="10%", hint="ok")
+        card.set("10%", hint="ok", animate=True)
+        self.assertIsNone(card._anim_after)
+        self.assertEqual(card.value_lbl.cget("style"), "MetricValue.TLabel")
+
+    def test_metric_number_animates_to_end(self):
+        w = self.widgets
+        host = self.tk.Frame(self.root)
+        card = w.MetricCard(host, label="CPU", value="10%")
+        card.set("40%", animate=True)
+        self.assertIsNotNone(card._anim_after)
+        # 泵满动画时长 + 余量，终点必须落到目标值
+        deadline = self.root.tk.call("clock", "milliseconds") + 500
+        while card._anim_after is not None:
+            self.root.update()
+            if self.root.tk.call("clock", "milliseconds") > deadline:
+                break
+        self.root.update()
+        self.assertEqual(card.value_var.get(), "40%")
+
+    def test_metric_anim_cancel_lands_on_latest(self):
+        w = self.widgets
+        host = self.tk.Frame(self.root)
+        card = w.MetricCard(host, label="N", value="0")
+        card.set("100", animate=True)
+        card.set("50", animate=True)  # 取消前一段，改追 50
+        deadline = self.root.tk.call("clock", "milliseconds") + 500
+        while card._anim_after is not None:
+            self.root.update()
+            if self.root.tk.call("clock", "milliseconds") > deadline:
+                break
+        self.root.update()
+        self.assertEqual(card.value_var.get(), "50")
 
 
 if __name__ == "__main__":

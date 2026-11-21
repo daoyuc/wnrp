@@ -198,8 +198,13 @@ def setup_style(root: tk.Misc) -> ttk.Style:
                     background=p["card_bg"], foreground=p["text_dim"])
     style.configure("MetricValue.TLabel", font=font(FS_TITLE, True),
                     background=p["card_bg"], foreground=p["text"])
+    # 数值/状态更新时的短暂高亮（MetricCard 动画用，约 180ms）
+    style.configure("MetricValueFlash.TLabel", font=font(FS_TITLE, True),
+                    background=p["card_bg"], foreground=p["primary"])
     style.configure("MetricHint.TLabel", font=font(FS_SMALL),
                     background=p["card_bg"], foreground=p["text_dim"])
+    style.configure("MetricHintFlash.TLabel", font=font(FS_SMALL),
+                    background=p["card_bg"], foreground=p["primary"])
     style.configure("BannerOk.TFrame", background=p["success_bg"])
     style.configure("BannerWarn.TFrame", background=p["warn_bg"])
     style.configure("BannerErr.TFrame", background=p["err_bg"])

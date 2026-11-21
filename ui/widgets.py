@@ -14,6 +14,7 @@
 """
 from __future__ import annotations
 
+import re
 import tkinter as tk
 from tkinter import ttk
 from typing import Callable, Iterable, Sequence
@@ -21,6 +22,12 @@ from typing import Callable, Iterable, Sequence
 from core.i18n import t
 
 from . import theme
+
+# MetricCard 数字缓动 / 状态闪
+_METRIC_NUM_RE = re.compile(r"^([+-]?\d+(?:\.\d+)?)(.*)$")
+_ANIM_MS = 280
+_ANIM_STEP_MS = 16
+_FLASH_MS = 180
 
 # status_pill / health_banner 的稳定状态名
 PILL_OK = "ok"
@@ -216,6 +223,32 @@ def _default_pill_text(state: str) -> str:
     return t("未知")
 
 
+def parse_metric_number(text: str) -> tuple[float, str] | None:
+    """解析「数字 + 可选后缀」（如 ``12`` / ``12%`` / ``6.8``）。
+
+    整串必须是「可选符号 + 数字 + 后缀」；空白会先 strip。无法解析返回 ``None``。
+    """
+    s = (text or "").strip()
+    if not s:
+        return None
+    m = _METRIC_NUM_RE.match(s)
+    if not m:
+        return None
+    try:
+        num = float(m.group(1))
+    except ValueError:
+        return None
+    return num, m.group(2)
+
+
+def _format_metric_number(num: float, suffix: str, *, as_int: bool) -> str:
+    if as_int:
+        return f"{int(round(num))}{suffix}"
+    # 保留最多 1 位小数，去掉无意义的 .0
+    text = f"{num:.1f}".rstrip("0").rstrip(".")
+    return f"{text}{suffix}"
+
+
 class MetricCard:
     """仪表盘数字/状态卡（标签 + 大值 + 可选说明）。"""
 
@@ -240,29 +273,164 @@ class MetricCard:
         if hint or hint_var is not None:
             self.hint_lbl.pack(anchor="w", pady=(2, 0))
         self._on_click = on_click
+        self._anim_after: str | None = None
+        self._flash_after: str | None = None
+        self._hint_flash_after: str | None = None
         if on_click:
-            for w in (self.frame, self.value_lbl, self.hint_lbl):
-                w.bind("<Button-1>", lambda e: on_click())
+            for widget in (self.frame, self.value_lbl, self.hint_lbl):
+                widget.bind("<Button-1>", lambda e: on_click())
                 try:
-                    w.configure(cursor="hand2")
+                    widget.configure(cursor="hand2")
                 except tk.TclError:
                     pass
 
-    def set(self, value: str, hint: str | None = None) -> None:
-        self.value_var.set(value)
+    def set(self, value: str, hint: str | None = None, *,
+            animate: bool = True) -> None:
+        """更新大值 / 说明。
+
+        ``animate=True``（默认）时：纯数字缓动；非数字文案轻闪；hint 变化轻闪。
+        值与 hint 都未变则短路，避免无意义重绘。
+        """
+        new_value = value if value is not None else ""
+        old_value = self.value_var.get()
+        hint_changed = False
         if hint is not None:
-            self.hint_var.set(hint)
-            if hint:
-                if not self.hint_lbl.winfo_ismapped():
-                    self.hint_lbl.pack(anchor="w", pady=(2, 0))
+            old_hint = self.hint_var.get()
+            hint_changed = (hint != old_hint)
+            self._apply_hint(hint)
+            if hint_changed and animate and hint:
+                self._flash_hint()
+
+        if new_value == old_value:
+            return
+
+        if not animate:
+            self._cancel_anim()
+            self.value_var.set(new_value)
+            return
+
+        old_num = parse_metric_number(old_value)
+        new_num = parse_metric_number(new_value)
+        if (old_num is not None and new_num is not None
+                and old_num[1] == new_num[1]):
+            self._animate_number(old_num[0], new_num[0], new_num[1],
+                                 as_int=("." not in old_value
+                                         and "." not in new_value))
+            return
+
+        self._cancel_anim()
+        self.value_var.set(new_value)
+        self._flash_value()
+
+    def _apply_hint(self, hint: str) -> None:
+        self.hint_var.set(hint)
+        if hint:
+            if not self.hint_lbl.winfo_ismapped():
+                self.hint_lbl.pack(anchor="w", pady=(2, 0))
+        else:
+            self.hint_lbl.pack_forget()
+
+    def _cancel_anim(self) -> None:
+        if self._anim_after is not None:
+            try:
+                self.frame.after_cancel(self._anim_after)
+            except (tk.TclError, ValueError):
+                pass
+            self._anim_after = None
+
+    def _animate_number(self, start: float, end: float, suffix: str,
+                        *, as_int: bool) -> None:
+        self._cancel_anim()
+        steps = max(1, _ANIM_MS // _ANIM_STEP_MS)
+        state = {"i": 0}
+
+        def tick() -> None:
+            self._anim_after = None
+            try:
+                if not self.frame.winfo_exists():
+                    return
+            except tk.TclError:
+                return
+            state["i"] += 1
+            i = state["i"]
+            # ease-out：1 - (1-t)^3
+            t = min(1.0, i / steps)
+            eased = 1.0 - (1.0 - t) ** 3
+            cur = start + (end - start) * eased
+            self.value_var.set(_format_metric_number(cur, suffix, as_int=as_int))
+            if i < steps:
+                self._anim_after = self.frame.after(_ANIM_STEP_MS, tick)
             else:
-                self.hint_lbl.pack_forget()
+                self.value_var.set(
+                    _format_metric_number(end, suffix, as_int=as_int))
+                self._flash_value()
+
+        self._anim_after = self.frame.after(_ANIM_STEP_MS, tick)
+
+    def _flash_value(self) -> None:
+        if self._flash_after is not None:
+            try:
+                self.frame.after_cancel(self._flash_after)
+            except (tk.TclError, ValueError):
+                pass
+            self._flash_after = None
+        try:
+            self.value_lbl.configure(style="MetricValueFlash.TLabel")
+        except tk.TclError:
+            return
+
+        def restore() -> None:
+            self._flash_after = None
+            try:
+                if self.value_lbl.winfo_exists():
+                    self.value_lbl.configure(style="MetricValue.TLabel")
+            except tk.TclError:
+                pass
+
+        self._flash_after = self.frame.after(_FLASH_MS, restore)
+
+    def _flash_hint(self) -> None:
+        if self._hint_flash_after is not None:
+            try:
+                self.frame.after_cancel(self._hint_flash_after)
+            except (tk.TclError, ValueError):
+                pass
+            self._hint_flash_after = None
+        try:
+            self.hint_lbl.configure(style="MetricHintFlash.TLabel")
+        except tk.TclError:
+            return
+
+        def restore() -> None:
+            self._hint_flash_after = None
+            try:
+                if self.hint_lbl.winfo_exists():
+                    self.hint_lbl.configure(style="MetricHint.TLabel")
+            except tk.TclError:
+                pass
+
+        self._hint_flash_after = self.frame.after(_FLASH_MS, restore)
 
     def pack(self, **kw):
         return self.frame.pack(**kw)
 
     def grid(self, **kw):
         return self.frame.grid(**kw)
+
+    def destroy(self) -> None:
+        self._cancel_anim()
+        for attr in ("_flash_after", "_hint_flash_after"):
+            aid = getattr(self, attr, None)
+            if aid is not None:
+                try:
+                    self.frame.after_cancel(aid)
+                except (tk.TclError, ValueError):
+                    pass
+                setattr(self, attr, None)
+        try:
+            self.frame.destroy()
+        except tk.TclError:
+            pass
 
 
 def set_busy(widgets: Iterable[tk.Misc], busy: bool) -> None:

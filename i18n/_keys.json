@@ -3144,7 +3144,7 @@
   ]
  },
  "刷新状态": {
-  "count": 6,
+  "count": 5,
   "files": [
    "ui/mysql_panel.py",
    "ui/nginx_panel.py",
