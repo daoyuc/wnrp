@@ -56,7 +56,8 @@
 | hosts 写入 / 移除 / 还原 | `ui/vhost_panel.py` 按钮、向导 | `hosts_manager.py` | 系统 hosts + `hosts.phpvm.bak` | 只动 `# >>> phpvm-managed >>>` 块；写入需提权 |
 | Redis 多实例管理 | `ui/redis_panel.py` | `redis_manager.py` | redis 进程 / 日志 | 危险命令需二次确认 |
 | MySQL 实例管理 | `ui/mysql_panel.py` | `mysql_manager.py` | Windows 服务 / 进程 | 实例发现：环境根 `mysql*` + 自动探测（Windows 服务 bin 路径 / PATH / 常见安装位置）+ `settings.mysql_dirs` 显式指定，`bin` 目录自动上溯；服务模式启停需管理员，非管理员时禁用并提示；「刷新状态」会重新发现实例 |
-| SQLite 只读查询 | `ui/sqlite_panel.py` | `sqlite_manager.py` | `settings.sqlite_last_db` | 只读（mode=ro + query_only + 关键字白名单） |
+| 数据库连接与只读浏览（MySQL / SQLite） | `db` 命令组（GUI 面板后续） | `core/db/`（`store`、`audit`、`mysql_cli`、`sqlite_file`、`facade`） | `db_connections.json`（凭据，0600）+ `<数据目录>/db_audit/*.jsonl` | 连接 CRUD（密码经 `--password-stdin`，不进命令行）；只读：库 / 表 / 列 / 筛选分页 / 受控自由 SQL；写路径（未来）强制先写审计；凭据与审计不进备份包（ADR 28） |
+| SQLite 只读查询 | `ui/sqlite_panel.py` | `sqlite_manager.py` | `settings.sqlite_last_db` | 只读（mode=ro + query_only + 关键字白名单）；统一浏览亦可走 `db` 命令组（ADR 28） |
 | Nginx 日志查看 | `ui/nginx_log_panel.py` | `nginx_manager.py`（日志目录推导） | — | 增量 tail + 自动跟随 |
 | 运行日志 | `ui/run_log_panel.py` | `run_log.py` | `run_log.log(.1)` | 内存 2000 条 / 单文件 1MB 轮转 |
 | 整套服务一键启停 | 设置页按钮、托盘菜单、总览 | `service_group.py` | 各服务进程 | 顺序：启动 PHP→Redis→MySQL→Nginx，停止反向 |

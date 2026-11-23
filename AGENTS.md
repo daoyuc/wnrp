@@ -38,7 +38,7 @@ python3 cli.py env --json      # 环境快照：nginx、PHP 版本与端口、Re
 - **写 hosts 必须显式 `--hosts`**（会触发系统授权弹窗，无 TTY 时可能失败）。
 - **不要编辑 `ui/` 下代码来做自动化**；也不要在脚本里 import `ui/*`（会拉起 tkinter）。
 - 所有写入自动备份 `.bak`；`nginx -t` 失败会自动回滚并置 `rolled_back: true`。
-- 不要提交运行期文件：`config.json`、`recover_history.json`、`crash_watchdog.*`、`run_log.log*`、`updates/`、`dist/`、`plugins/`（键鼠统计的 `stats.db` / `daemon.*`）、`ssh_hosts.json*` 与 `ssh_known_hosts*`（SSH 凭据与指纹，本机私有）。
+- 不要提交运行期文件：`config.json`、`recover_history.json`、`crash_watchdog.*`、`run_log.log*`、`updates/`、`dist/`、`plugins/`（键鼠统计的 `stats.db` / `daemon.*`）、`ssh_hosts.json*` 与 `ssh_known_hosts*`（SSH 凭据与指纹，本机私有）、`db_connections.json*` 与 `db_audit/`（数据库连接凭据与写操作审计，本机私有，ADR 28）。
 - **SSH 凭据纪律**：密码 / 私钥口令只能经 `--password-stdin` / `--passphrase-stdin` 或面板输入，**任何情况下都不要拼进命令行**（会进进程列表与历史）；交互式终端只拼 `ssh -p/-i user@host`；首次连接必须显式确认指纹（`--trust-host`），不要为了「跑通」改成静默信任。**保存与连通性无关**：`ssh host add/update` 与面板「确定」都只做本地字段校验，密码 / 私钥可暂缺（`data.host.credential_ready=false` 且 `notes` 有提示），不要为了存进去而编造凭据，也不要给保存路径加连通性校验。私钥留空会自动填 `~/.ssh` 里的 `id_ed25519`/`id_ecdsa`/`id_rsa`/`id_dsa`（`ssh_store.default_key_path()`，目录可用 `PHPVM_SSH_KEY_DIR` 覆盖）——这是「表单默认值」，填的是具体路径、用户可见可改，**不要**以此为由打开 ssh-agent 或自动尝试其它密钥。预置命令片段（`ssh_store.builtin_snippets()`）**只许放只读探测命令**：不提权、不带 `sudo`、不改远端状态、输出必须截断；是否已播种看 `settings.ssh_snippets_builtin`（用户删掉的片段不能因重启复活），别手工把该值改回 0 来「补回」内置片段。系统概览（`core/ssh_overview`）同样只跑只读采集脚本（读 `/proc` + `df`），**不装 agent、不开端口、不写远端、不存历史**——想要实时刷新就再点一次「刷新状态」，不要为了「自动刷新」在远端放常驻进程或在本机加轮询连接（与零驻留纪律冲突，见 ADR 24 ⑦）。
 - **插件命令来源**：`.phpvm.json` 是团队可共享的项目文件，**绝不能把它的字段当命令执行**（克隆仓库即 RCE）；项目启动器的命令只来自内置白名单或用户手动添加的设置项，且仅点击 / 显式 CLI 调用才打开一次浏览器 / 终端，不自动执行（ADR 16）。「在浏览器打开」的 URL 同样只从 nginx vhost 的 `server_name` 生成，不采信 `.phpvm.json` 的 `domains`。新增 CLI 参数时避开 `command` 这个 dest，否则会覆盖 `Result.command` 的 `<group>.<action>` 契约。
 
@@ -66,6 +66,15 @@ python3 cli.py site sync-port --old 9082 --new 9083 --reload
 
 # 只读查库（不会写 settings.sqlite_last_db）
 python3 cli.py sqlite query /path/database.sqlite "select * from users limit 5" --json
+
+# 数据库连接 / 只读浏览（凭据独立 db_connections.json；密码只从 stdin）
+python3 cli.py db conn list --json
+python3 cli.py db conn add --name local --engine mysql --user root --dry-run --json
+printf 'secret\n' | python3 cli.py db conn add --name local --engine mysql --user root --password-stdin --json
+python3 cli.py db conn add --name app --engine sqlite --path ~/www/app/database.sqlite --json
+python3 cli.py db tables --conn local --database app --json
+python3 cli.py db query --conn local --table users --filter 'status=eq:active' --limit 50 --json
+python3 cli.py db audit list --limit 20 --json
 
 # hosts 写入前会自动备份为 <hosts>.phpvm.bak，可整文件还原
 python3 cli.py hosts restore --dry-run
@@ -127,6 +136,7 @@ python3 cli.py nginx test                # 任何改配置后都建议先跑
   - 建站流程只有一个实现：`core/site_service.py`（证书 → 写 vhost → 补 include → `nginx -t` → hosts → 重载 + 回滚），CLI 与 GUI 向导都调它
   - 文件备份统一走 `core/file_backup.py`（写配置前必 `.bak`，还原默认删备份）
   - SSH 管理：`core/ssh_store.py`（主机凭据 + 片段持久化，不碰 paramiko）与 `core/ssh_manager.py`（paramiko 传输，函数内导入），面板 `ui/ssh_panel.py`；凭据在 `ssh_hosts.json`（0600），片段在 `settings.ssh_snippets`
+  - 数据库连接 / 只读浏览：`core/db/`（`store` / `audit` / `mysql_cli` / `sqlite_file` / `facade`），CLI `db` 分组；凭据在 `db_connections.json`（0600），审计在 `db_audit/`；写路径必须先 `audit.append`（ADR 28）
   - `core/plugins/` 插件注册表与内置插件（声明式 `MANIFEST`，只声明面板路径、不 import `ui/*`）；运行期数据在 `<数据目录>/plugins/keymouse/`，不入库
 - `ui/plugins/` 插件面板（由主窗口延迟导入）：新增面板必须实现 `auto_refresh()` / `refresh_theme()`，`core` 不得反向依赖它
 - `tests/` 单元测试（标准库 unittest）：`python -m unittest discover -s tests -t .`；其中 `tests/test_docs.py` 守护文档（链接 / 引用的代码路径 / `docs/CLI.md` 与代码一致性 / Markdown 表格列数）、`tests/test_main_window_smoke.py` 真建一次主窗口（守 GUI 启动崩溃，无显示环境自动跳过）

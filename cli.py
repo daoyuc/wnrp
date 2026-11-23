@@ -2748,6 +2748,274 @@ def cmd_sqlite_query(a, r: Result) -> Result:
 
 
 # --------------------------------------------------------------------------- #
+# db（连接 / 只读浏览 / 审计；凭据独立存 db_connections.json，见 ADR 28）
+# --------------------------------------------------------------------------- #
+def _db_password(a) -> str:
+    return _ssh_stdin_secret(getattr(a, "password_stdin", False))
+
+
+def _db_conn_fields(a, *, require_engine: bool = False) -> dict:
+    """从 argparse 命名空间抽出非空连接字段（update 时未传的不算）。"""
+    data = {}
+    for key, attr in (
+        ("name", "name"),
+        ("engine", "engine"),
+        ("host", "host"),
+        ("user", "user"),
+        ("database", "database"),
+        ("socket", "socket"),
+        ("path", "path"),
+        ("mysql_cli", "mysql_cli"),
+    ):
+        val = getattr(a, attr, None)
+        if val is None:
+            continue
+        data[key] = val
+    port = getattr(a, "port", None)
+    if port is not None:
+        data["port"] = port
+    if require_engine and "engine" not in data:
+        data["engine"] = "mysql"
+    return data
+
+
+def _db_call(r: Result, fn, *args, **kwargs) -> Result:
+    """统一把 facade 的 KeyError / ValueError / DriverError 转成 Result.fail。"""
+    from core.db.base import DriverError
+    try:
+        r.data = fn(*args, **kwargs)
+    except KeyError as e:
+        return r.fail(str(e))
+    except ValueError as e:
+        return r.fail(str(e))
+    except DriverError as e:
+        return r.fail(str(e), error_kind=e.kind)
+    return r
+
+
+def cmd_db_conn_list(a, r: Result) -> Result:
+    from core.db import facade
+    out = facade.list_connections()
+    r.data = out
+    for c in out.get("connections") or []:
+        eng = c.get("engine") or "?"
+        if eng == "sqlite":
+            r.say(f"{c.get('name')} · sqlite · {c.get('path') or '—'}")
+        else:
+            r.say(f"{c.get('name')} · mysql · "
+                  f"{c.get('user') or '?'}@{c.get('host')}:{c.get('port')}"
+                  + (f"/{c.get('database')}" if c.get("database") else ""))
+    if not out.get("connections"):
+        r.say("（无连接）")
+    if out.get("mysql_cli"):
+        r.note(f"mysql 客户端：{out['mysql_cli']}")
+    return r
+
+
+def cmd_db_conn_suggest(a, r: Result) -> Result:
+    from core.db import facade
+    out = facade.suggest_local_mysql()
+    r.data = out
+    for item in out.get("items") or []:
+        flag = "running" if item.get("running") else "stopped"
+        r.say(f"{item.get('name')} · {item.get('host')}:{item.get('port')} "
+              f"· {flag} · instance={item.get('instance')}")
+    if not out.get("items"):
+        r.say("（未发现本机 MySQL 实例）")
+        if out.get("error"):
+            r.note(out["error"])
+    return r
+
+
+def cmd_db_conn_add(a, r: Result) -> Result:
+    from core.db import facade
+    fields = _db_conn_fields(a, require_engine=True)
+    if not fields.get("name"):
+        return r.fail(t("连接名称不合法"))
+    if fields.get("engine") == "sqlite" and not fields.get("path"):
+        return r.fail(t("SQLite 连接需要数据库文件路径"))
+    if fields.get("engine") != "sqlite" and not fields.get("user"):
+        # add 必填 user；缺省 root 对本地开发更友好
+        fields.setdefault("user", "root")
+    res = _db_call(r, facade.add_connection, fields,
+                   password=_db_password(a), dry_run=bool(a.dry_run))
+    if not res.ok:
+        return res
+    conn = (r.data or {}).get("connection") or {}
+    if (r.data or {}).get("dry_run"):
+        r.say(f"[dry-run] 将新增连接 {conn.get('name')}（{conn.get('engine')}）")
+    else:
+        r.say(f"已新增连接 {conn.get('name')}（id={conn.get('id')}）")
+    return r
+
+
+def cmd_db_conn_update(a, r: Result) -> Result:
+    from core.db import facade
+    fields = _db_conn_fields(a)
+    pwd = None
+    if getattr(a, "password_stdin", False):
+        pwd = _db_password(a)
+    if not fields and pwd is None:
+        return r.fail(t("请至少指定一个要更新的字段"))
+    res = _db_call(r, facade.update_connection, a.target, fields,
+                   password=pwd, dry_run=bool(a.dry_run))
+    if not res.ok:
+        return res
+    conn = (r.data or {}).get("connection") or {}
+    if (r.data or {}).get("dry_run"):
+        r.say(f"[dry-run] 将更新连接 {conn.get('name')}")
+    else:
+        r.say(f"已更新连接 {conn.get('name')}")
+    return r
+
+
+def cmd_db_conn_remove(a, r: Result) -> Result:
+    from core.db import facade
+    res = _db_call(r, facade.remove_connection, a.target,
+                   yes=bool(a.yes), dry_run=bool(a.dry_run))
+    if not res.ok:
+        return res
+    conn = (r.data or {}).get("connection") or {}
+    if (r.data or {}).get("dry_run"):
+        r.say(f"[dry-run] 将删除连接 {conn.get('name')}")
+    else:
+        r.say(f"已删除连接 {conn.get('name')}")
+    return r
+
+
+def cmd_db_conn_test(a, r: Result) -> Result:
+    from core.db import facade
+    from core.db.base import DriverError
+    try:
+        out = facade.test_connection(a.target, password=_db_password(a))
+    except KeyError as e:
+        return r.fail(str(e))
+    except DriverError as e:
+        return r.fail(str(e), error_kind=e.kind)
+    r.data = out
+    if not out.get("ok"):
+        return r.fail(out.get("error") or t("连接测试失败"),
+                      error_kind=out.get("error_kind") or "failed")
+    conn = out.get("connection") or {}
+    r.say(f"连接成功 · {conn.get('name')} · {out.get('elapsed_ms')} ms"
+          + (f" · {out.get('server')}" if out.get("server") else "")
+          + (f" · {out.get('path')}" if out.get("path") else ""))
+    return r
+
+
+def cmd_db_databases(a, r: Result) -> Result:
+    from core.db import facade
+    res = _db_call(r, facade.list_databases, a.conn,
+                   include_system=bool(a.include_system),
+                   password=_db_password(a))
+    if not res.ok:
+        return res
+    names = (r.data or {}).get("databases") or []
+    for name in names:
+        r.say(name)
+    r.data["count"] = len(names)
+    return r
+
+
+def cmd_db_tables(a, r: Result) -> Result:
+    from core.db import facade
+    res = _db_call(r, facade.list_tables, a.conn,
+                   database=a.database or "",
+                   password=_db_password(a))
+    if not res.ok:
+        return res
+    tables = (r.data or {}).get("tables") or []
+    for tbl in tables:
+        extra = []
+        if tbl.get("kind") and tbl["kind"] != "table":
+            extra.append(tbl["kind"])
+        if tbl.get("engine"):
+            extra.append(tbl["engine"])
+        if tbl.get("rows_approx") is not None:
+            extra.append(f"~{tbl['rows_approx']} rows")
+        suffix = f"  ({', '.join(extra)})" if extra else ""
+        r.say(f"{tbl.get('name')}{suffix}")
+    r.data["count"] = len(tables)
+    return r
+
+
+def cmd_db_columns(a, r: Result) -> Result:
+    from core.db import facade
+    res = _db_call(r, facade.list_columns, a.conn, a.table,
+                   database=a.database or "",
+                   password=_db_password(a))
+    if not res.ok:
+        return res
+    for col in (r.data or {}).get("columns") or []:
+        flags = []
+        if col.get("primary_key"):
+            flags.append("PK")
+        if not col.get("nullable", True):
+            flags.append("NOT NULL")
+        if col.get("extra"):
+            flags.append(col["extra"])
+        flag_s = (" " + " ".join(flags)) if flags else ""
+        r.say(f"  {col.get('name')} {col.get('type') or ''}{flag_s}")
+    return r
+
+
+def cmd_db_query(a, r: Result) -> Result:
+    from core.db import facade
+    from core.db.base import DriverError
+    pwd = _db_password(a)
+    try:
+        if a.sql:
+            out = facade.query_sql(a.conn, a.sql, limit=a.limit, password=pwd)
+        elif a.table:
+            out = facade.select_rows(
+                a.conn, a.table,
+                database=a.database or "",
+                filters=a.filter or "",
+                order=a.order or "",
+                limit=a.limit,
+                offset=a.offset,
+                password=pwd,
+            )
+        else:
+            return r.fail(t("请指定 --table 或 --sql"))
+    except KeyError as e:
+        return r.fail(str(e))
+    except ValueError as e:
+        return r.fail(str(e))
+    except DriverError as e:
+        return r.fail(str(e), error_kind=e.kind)
+    r.data = out
+    cols = out.get("columns") or []
+    rows = out.get("rows") or []
+    if not _flag(a, "json", False):
+        if cols:
+            r.say(" | ".join(str(c) for c in cols))
+        for row in rows:
+            r.say(" | ".join("" if v is None else str(v) for v in row))
+        r.say(f"（{len(rows)} 行"
+              + ("，结果已截断" if out.get("truncated") else "")
+              + f"，{out.get('elapsed_ms')} ms）")
+    if out.get("truncated"):
+        r.note(f"结果超过 limit={a.limit}，已截断；可用 --limit / --offset 翻页")
+    return r
+
+
+def cmd_db_audit_list(a, r: Result) -> Result:
+    from core.db import facade
+    out = facade.list_audit(limit=a.limit, kind=a.kind or "",
+                            conn_id=a.conn or "")
+    r.data = out
+    for e in out.get("entries") or []:
+        r.say(f"{e.get('ts')} · {e.get('kind')} · "
+              f"{e.get('conn_name') or e.get('conn_id') or '—'} · "
+              f"{e.get('result')}"
+              + (f" · {e.get('preview')}" if e.get("preview") else ""))
+    if not out.get("entries"):
+        r.say("（无审计记录）")
+    return r
+
+
+# --------------------------------------------------------------------------- #
 # services / update / module / schema
 # --------------------------------------------------------------------------- #
 def _php_scope_arg(raw: str | None) -> tuple[str, list[str] | None]:
@@ -4023,6 +4291,105 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("sql", help="SQL 语句（建议加引号）")
     p.add_argument("--limit", type=int, default=200, help="返回行数上限（默认 200）")
     p.add_argument("--offset", type=int, default=0, help="跳过前 N 行")
+
+    # db（数据库连接 / 只读浏览 / 审计；凭据独立存 db_connections.json，见 ADR 28）
+    g = sub.add_parser(
+        "db",
+        help="数据库连接与只读浏览（MySQL / SQLite；写路径后续接入审计）",
+        parents=[COMMON],
+    )
+    objs = g.add_subparsers(dest="object", metavar="<object>")
+
+    cg = objs.add_parser("conn", help="连接配置 / 测试")
+    cs = cg.add_subparsers(dest="action", metavar="<action>")
+    _leaf(cs, "list", cmd_db_conn_list, "db.conn.list", "列出已保存连接")
+    _leaf(cs, "suggest", cmd_db_conn_suggest, "db.conn.suggest",
+          "根据本机 MySQL 实例给出可添加的连接草稿")
+    p = _leaf(cs, "add", cmd_db_conn_add, "db.conn.add",
+              "新增连接（密码从 stdin 读，不进命令行历史）")
+    p.add_argument("--name", required=True, help="连接名称")
+    p.add_argument("--engine", choices=["mysql", "sqlite"], default="mysql",
+                   help="引擎（默认 mysql）")
+    p.add_argument("--host", default=None, help="主机（mysql，默认 127.0.0.1）")
+    p.add_argument("--port", type=int, default=None, help="端口（mysql，默认 3306）")
+    p.add_argument("--user", default=None, help="用户名（mysql，默认 root）")
+    p.add_argument("--database", default=None, help="默认数据库（mysql，可选）")
+    p.add_argument("--socket", default=None, help="Unix socket（mysql，可选）")
+    p.add_argument("--path", default=None, help="数据库文件路径（sqlite 必填）")
+    p.add_argument("--mysql-cli", dest="mysql_cli", default=None,
+                   help="mysql 客户端路径（可选）")
+    p.add_argument("--password-stdin", action="store_true",
+                   help="从 stdin 读取一行作为密码（避免进命令行历史）")
+    p.add_argument("--dry-run", action="store_true", help="只校验不写入")
+    p = _leaf(cs, "update", cmd_db_conn_update, "db.conn.update", "更新连接字段")
+    p.add_argument("target", help="连接名或 id")
+    p.add_argument("--name", default=None, help="新名称")
+    p.add_argument("--engine", choices=["mysql", "sqlite"], default=None,
+                   help="引擎")
+    p.add_argument("--host", default=None, help="主机")
+    p.add_argument("--port", type=int, default=None, help="端口")
+    p.add_argument("--user", default=None, help="用户名")
+    p.add_argument("--database", default=None, help="默认数据库")
+    p.add_argument("--socket", default=None, help="Unix socket")
+    p.add_argument("--path", default=None, help="数据库文件路径（sqlite）")
+    p.add_argument("--mysql-cli", dest="mysql_cli", default=None,
+                   help="mysql 客户端路径")
+    p.add_argument("--password-stdin", action="store_true",
+                   help="从 stdin 读取一行作为新密码")
+    p.add_argument("--dry-run", action="store_true", help="只报告将改什么")
+    p = _leaf(cs, "remove", cmd_db_conn_remove, "db.conn.remove",
+              "删除连接（需 --yes）")
+    p.add_argument("target", help="连接名或 id")
+    p.add_argument("--yes", action="store_true", help="确认删除")
+    p.add_argument("--dry-run", action="store_true", help="只报告将做什么")
+    p = _leaf(cs, "test", cmd_db_conn_test, "db.conn.test", "测试连接")
+    p.add_argument("target", help="连接名或 id")
+    p.add_argument("--password-stdin", action="store_true",
+                   help="临时覆盖密码（从 stdin 读，不落盘）")
+
+    p = _leaf(objs, "databases", cmd_db_databases, "db.databases",
+              "列出数据库（mysql；sqlite 固定为 main）")
+    p.add_argument("--conn", required=True, help="连接名或 id")
+    p.add_argument("--include-system", action="store_true",
+                   help="包含 mysql / information_schema 等系统库")
+    p.add_argument("--password-stdin", action="store_true",
+                   help="临时覆盖密码（从 stdin 读）")
+
+    p = _leaf(objs, "tables", cmd_db_tables, "db.tables", "列出表 / 视图")
+    p.add_argument("--conn", required=True, help="连接名或 id")
+    p.add_argument("--database", default="", help="数据库名（mysql 必填，除非连接已带）")
+    p.add_argument("--password-stdin", action="store_true",
+                   help="临时覆盖密码（从 stdin 读）")
+
+    p = _leaf(objs, "columns", cmd_db_columns, "db.columns", "查看表结构")
+    p.add_argument("--conn", required=True, help="连接名或 id")
+    p.add_argument("--table", required=True, help="表名")
+    p.add_argument("--database", default="", help="数据库名（mysql）")
+    p.add_argument("--password-stdin", action="store_true",
+                   help="临时覆盖密码（从 stdin 读）")
+
+    p = _leaf(objs, "query", cmd_db_query, "db.query",
+              "只读查询（--table 筛选分页，或 --sql 自由只读语句）")
+    p.add_argument("--conn", required=True, help="连接名或 id")
+    p.add_argument("--table", default=None, help="表名（结构化查询）")
+    p.add_argument("--database", default="", help="数据库名（mysql）")
+    p.add_argument("--filter", default="",
+                   help="列筛选，逗号分隔：col=eq:val,col2=like:%x%,col3=isnull")
+    p.add_argument("--order", default="", help="排序：col 或 col desc")
+    p.add_argument("--sql", default=None,
+                   help="自由只读 SQL（仅 SELECT/SHOW/DESCRIBE/EXPLAIN/WITH）")
+    p.add_argument("--limit", type=int, default=200, help="返回行数上限（默认 200）")
+    p.add_argument("--offset", type=int, default=0, help="跳过前 N 行")
+    p.add_argument("--password-stdin", action="store_true",
+                   help="临时覆盖密码（从 stdin 读）")
+
+    ag = objs.add_parser("audit", help="写操作审计（只读浏览）")
+    aus = ag.add_subparsers(dest="action", metavar="<action>")
+    p = _leaf(aus, "list", cmd_db_audit_list, "db.audit.list",
+              "列出最近审计记录")
+    p.add_argument("--limit", type=int, default=100, help="条数上限（默认 100）")
+    p.add_argument("--kind", default="", help="按 kind 过滤（如 meta.test）")
+    p.add_argument("--conn", default="", help="按连接名或 id 过滤")
 
     # services
     g = sub.add_parser("services", help="整套服务编排", parents=[COMMON])

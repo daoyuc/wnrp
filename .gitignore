@@ -28,6 +28,11 @@ recover_history.json
 /ssh_known_hosts
 /ssh_known_hosts.bak
 
+# 数据库连接凭据与写操作审计（ADR 28）：本机私有，不入库、不进备份包
+/db_connections.json
+/db_connections.json.bak
+/db_audit/
+
 # 崩溃自愈守护进程运行时状态
 crash_watchdog.json
 crash_watchdog.lock

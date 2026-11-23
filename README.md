@@ -38,6 +38,7 @@
 - **Redis**：多实例发现与启停、命令执行（危险命令二次确认）、DB 键空间图表
 - **MySQL**：实例发现与启停（Windows 服务优先；除环境根 `mysql*` 外还会自动探测服务 / PATH / 常见安装位置，可用 `settings.mysql_dirs` 显式指定）、配置与错误日志
 - **SQLite**：只读浏览表结构与执行查询
+- **数据库连接 / 只读浏览**：统一管理 MySQL / SQLite 连接（凭据独立 `db_connections.json`，0600）；库 / 表 / 列浏览、列筛选分页、受控只读 SQL；写操作审计目录已预留（ADR 28）；CLI `db` 分组，GUI 面板后续
 
 **数据与运维**
 
@@ -89,7 +90,7 @@ python3 cli.py schema --json    # 全部命令 / 参数 / 默认值的自描述�
 - 任意命令加 `--json`：stdout 只有一个 `{"ok", "command", "data", "warnings"}` 文档（字段名英文，稳定契约）
 - 退出码：`0` 成功 / `1` 业务失败（见 `data.error`）/ `2` 参数用法错误
 - 安全默认：写操作支持 `--dry-run`；删除需 `--yes`；Redis 危险命令需 `--force`；改动前自动备份 `.bak`
-- 覆盖 PHP / Nginx / 站点 / hosts / Redis / MySQL / SQLite / 服务编排 / 体检 / 日志 / 备份 / 项目配置 / Adminer / 插件（`plugin`）/ 键鼠统计（`keymouse`）/ 项目启动器（`launcher`）/ 访问日志聚合（`insights`）/ 站点巡检（`health`）/ Git 工作区（`repos`）/ SSH 管理（`ssh`）等分组
+- 覆盖 PHP / Nginx / 站点 / hosts / Redis / MySQL / SQLite / 数据库连接（`db`）/ 服务编排 / 体检 / 日志 / 备份 / 项目配置 / Adminer / 插件（`plugin`）/ 键鼠统计（`keymouse`）/ 项目启动器（`launcher`）/ 访问日志聚合（`insights`）/ 站点巡检（`health`）/ Git 工作区（`repos`）/ SSH 管理（`ssh`）等分组
 
 SSH 管理常用命令（密码只从 stdin 读，绝不进命令行）：
 

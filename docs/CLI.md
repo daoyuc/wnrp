@@ -34,6 +34,7 @@
 | `backup` | 环境备份与迁移（仅配置，不含数据库数据） | `export` · `restore` |
 | `certs` | 站点证书到期（只读，不续期） | `list` |
 | `config` | 配置读写（config.json） | `get` · `list` · `set` |
+| `db` | 数据库连接与只读浏览（MySQL / SQLite；写路径后续接入审计） | `audit`（`list`） · `columns` · `conn`（`add` · `list` · `remove` · `suggest` · `test` · `update`） · `databases` · `query` · `tables` |
 | `diag` | 一键体检 / 502 诊断（只读） | `all` · `site` |
 | `env` | 输出全部服务快照（nginx / PHP / Redis / MySQL） | — |
 | `errors` | PHP 错误日志（只读尾部） | `report` |
@@ -129,6 +130,72 @@
 | `<key>` | 是 |  | 配置键，如 ports.php82 / settings.check_update_on_start |
 | `<value>` | 是 |  | 新值（true/false/null/整数/JSON 数组/字符串） |
 | `--dry-run` |  |  | 只报告将做什么 |
+
+## `db` — 数据库连接与只读浏览（MySQL / SQLite；写路径后续接入审计）
+
+### `db audit` — 写操作审计（只读浏览）
+
+（无参数）
+
+**子动作**（用法：`python3 cli.py db audit <子动作> [options]`）：
+
+| 子动作 | 说明 | 参数 |
+|---|---|---|
+| `list` | 列出最近审计记录 | `--limit`、`--kind`、`--conn` |
+
+### `db columns` — 查看表结构
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--conn` | 是 |  | 连接名或 id |
+| `--table` | 是 |  | 表名 |
+| `--database` |  |  | 数据库名（mysql） |
+| `--password-stdin` |  |  | 临时覆盖密码（从 stdin 读） |
+
+### `db conn` — 连接配置 / 测试
+
+（无参数）
+
+**子动作**（用法：`python3 cli.py db conn <子动作> [options]`）：
+
+| 子动作 | 说明 | 参数 |
+|---|---|---|
+| `add` | 新增连接（密码从 stdin 读，不进命令行历史） | `--name`、`--engine`、`--host`、`--port`、`--user`、`--database`、`--socket`、`--path`、`--mysql-cli`、`--password-stdin`、`--dry-run` |
+| `list` | 列出已保存连接 | — |
+| `remove` | 删除连接（需 --yes） | `<target>`、`--yes`、`--dry-run` |
+| `suggest` | 根据本机 MySQL 实例给出可添加的连接草稿 | — |
+| `test` | 测试连接 | `<target>`、`--password-stdin` |
+| `update` | 更新连接字段 | `<target>`、`--name`、`--engine`、`--host`、`--port`、`--user`、`--database`、`--socket`、`--path`、`--mysql-cli`、`--password-stdin`、`--dry-run` |
+
+### `db databases` — 列出数据库（mysql；sqlite 固定为 main）
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--conn` | 是 |  | 连接名或 id |
+| `--include-system` |  |  | 包含 mysql / information_schema 等系统库 |
+| `--password-stdin` |  |  | 临时覆盖密码（从 stdin 读） |
+
+### `db query` — 只读查询（--table 筛选分页，或 --sql 自由只读语句）
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--conn` | 是 |  | 连接名或 id |
+| `--table` |  |  | 表名（结构化查询） |
+| `--database` |  |  | 数据库名（mysql） |
+| `--filter` |  |  | 列筛选，逗号分隔：col=eq:val,col2=like:%x%,col3=isnull |
+| `--order` |  |  | 排序：col 或 col desc |
+| `--sql` |  |  | 自由只读 SQL（仅 SELECT/SHOW/DESCRIBE/EXPLAIN/WITH） |
+| `--limit` |  | 200 | 返回行数上限（默认 200） |
+| `--offset` |  |  | 跳过前 N 行 |
+| `--password-stdin` |  |  | 临时覆盖密码（从 stdin 读） |
+
+### `db tables` — 列出表 / 视图
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--conn` | 是 |  | 连接名或 id |
+| `--database` |  |  | 数据库名（mysql 必填，除非连接已带） |
+| `--password-stdin` |  |  | 临时覆盖密码（从 stdin 读） |
 
 ## `diag` — 一键体检 / 502 诊断（只读）
 

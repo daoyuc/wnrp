@@ -138,6 +138,8 @@ CLI 返回 `data.error`，不影响其余页面（边界见 [ADR 23](DECISIONS.m
 | `autostart_services.log` | 每次 `--start-all` 的逐项结果（含 `php_scope=`） | `main.py` | 排查「登录后服务没起来」的第一现场 |
 | `updates/` | 升级包下载缓存（`.part` 原子改名 + SHA-256 校验） | `core/updater.py` | 可从设置页直达 |
 | `ssh_hosts.json` / `.bak` | SSH 主机清单（含密码 / 私钥口令） | `core/ssh_store.py` | POSIX `0600`、Windows `icacls` 仅当前用户；**不进 `config.json`、不进备份导出包**（ADR 24） |
+| `db_connections.json` / `.bak` | 数据库连接清单（含 MySQL 密码） | `core/db/store.py` | POSIX `0600`；**不进 `config.json`、不进备份导出包与安装包**（ADR 28） |
+| `<数据目录>/db_audit/*.jsonl` | 数据库写操作审计（按月追加） | `core/db/audit.py` | POSIX `0600`；写路径必须先追加成功才允许执行；不存密码（ADR 28） |
 | `ssh_known_hosts` | 已显式确认的主机指纹（OpenSSH known_hosts 格式） | `core/ssh_manager.py` | 首次连接一律拒绝，用户确认指纹后才写入；`PHPVM_SSH_HOSTS` 可把主机清单指向别处（测试用） |
 | `<数据目录>/plugins/keymouse/` | `stats.db`（WAL，日桶 + 分钟桶）+ `daemon.lock`（PID）/ `daemon.heartbeat` / `daemon.stop` / `paused` / `daemon.log(.1)` | 键鼠统计后台守护进程；面板与 CLI 只读 | 运行期文件，不入库；只落 vkCode 与时间戳，不记录输入内容 / 窗口标题；保留期默认 730 天 |
 | `C:\wnrp\{php*,nginx,Redis*,mysql}` | 被管理的真实程序本体 | 用户 / 安装器 | 环境的默认事实来源；根路径可用 `WNRP_ROOT` 覆盖。MySQL 例外：除环境根 `mysql*` 外还会自动探测环境根之外的安装（Windows 服务 bin 路径 / PATH / 常见位置），并可用 `settings.mysql_dirs` 显式指定 |

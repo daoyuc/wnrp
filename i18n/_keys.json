@@ -729,6 +729,14 @@
    "ui/sqlite_panel.py"
   ]
  },
+ "SQLite 连接需要数据库文件路径": {
+  "count": 3,
+  "files": [
+   "cli.py",
+   "core/db/sqlite_file.py",
+   "core/db/store.py"
+  ]
+ },
  "SSH 模块已停用（settings.disabled_modules）": {
   "count": 1,
   "files": [
@@ -1318,6 +1326,12 @@
   "count": 1,
   "files": [
    "ui/plugins/keymouse_panel.py"
+  ]
+ },
+ "mysql 执行失败（退出码 {code}）": {
+  "count": 1,
+  "files": [
+   "core/db/mysql_cli.py"
   ]
  },
  "nginx -t 校验失败（详见上方输出）": {
@@ -2030,6 +2044,12 @@
    "core/tuning.py"
   ]
  },
+ "不支持的引擎：{engine}": {
+  "count": 1,
+  "files": [
+   "core/db/facade.py"
+  ]
+ },
  "不是有效的 SQLite 数据库文件：{path}": {
   "count": 1,
   "files": [
@@ -2100,6 +2120,12 @@
   "count": 1,
   "files": [
    "ui/ssh_panel.py"
+  ]
+ },
+ "主机名不合法": {
+  "count": 1,
+  "files": [
+   "core/db/store.py"
   ]
  },
  "主机名称已存在：{name}": {
@@ -3098,6 +3124,12 @@
    "ui/ssh_panel.py"
   ]
  },
+ "删除连接需要 --yes": {
+  "count": 1,
+  "files": [
+   "core/db/store.py"
+  ]
+ },
  "删除需要 --yes": {
   "count": 1,
   "files": [
@@ -3380,6 +3412,12 @@
   "count": 1,
   "files": [
    "cli.py"
+  ]
+ },
+ "只允许单条只读语句": {
+  "count": 1,
+  "files": [
+   "core/db/mysql_cli.py"
   ]
  },
  "只探测 nginx vhost 里的域名：GET /，不跟随重定向、不带 Cookie、不经系统代理": {
@@ -5854,6 +5892,12 @@
    "core/health_monitor.py"
   ]
  },
+ "引擎必须是 mysql 或 sqlite": {
+  "count": 1,
+  "files": [
+   "core/db/store.py"
+  ]
+ },
  "归属": {
   "count": 2,
   "files": [
@@ -6595,6 +6639,12 @@
   "count": 1,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "数据库文件不存在：{path}": {
+  "count": 1,
+  "files": [
+   "core/db/sqlite_file.py"
   ]
  },
  "数据库文件：": {
@@ -7453,6 +7503,18 @@
    "core/hosts_manager.py"
   ]
  },
+ "未找到 mysql 客户端": {
+  "count": 1,
+  "files": [
+   "core/db/mysql_cli.py"
+  ]
+ },
+ "未找到 mysql 客户端；请安装 MySQL/MariaDB 客户端或配置 mysql_cli": {
+  "count": 1,
+  "files": [
+   "core/db/mysql_cli.py"
+  ]
+ },
  "未找到 nginx access 日志": {
   "count": 1,
   "files": [
@@ -7635,6 +7697,13 @@
   "files": [
    "cli.py",
    "ui/plugins/access_insights_panel.py"
+  ]
+ },
+ "未找到连接：{id}": {
+  "count": 3,
+  "files": [
+   "core/db/facade.py",
+   "core/db/store.py"
   ]
  },
  "未找到邮件：{name}": {
@@ -7950,6 +8019,12 @@
   "count": 1,
   "files": [
    "ui/plugins/git_status_panel.py"
+  ]
+ },
+ "查询超时（{sec}s）": {
+  "count": 1,
+  "files": [
+   "core/db/mysql_cli.py"
   ]
  },
  "查询超时（超过 {sec} 秒），已中断。请添加 LIMIT 或优化查询条件。": {
@@ -8866,6 +8941,12 @@
    "ui/ssh_panel.py"
   ]
  },
+ "用户名不合法": {
+  "count": 1,
+  "files": [
+   "core/db/store.py"
+  ]
+ },
  "用户名含有不允许的字符（只允许字母、数字与 . _ -）": {
   "count": 1,
   "files": [
@@ -9307,6 +9388,12 @@
    "core/ssh_store.py"
   ]
  },
+ "端口必须在 1–65535": {
+  "count": 1,
+  "files": [
+   "core/db/store.py"
+  ]
+ },
  "端口必须是整数": {
   "count": 2,
   "files": [
@@ -9724,6 +9811,12 @@
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "自由 SQL 仅允许 SELECT / SHOW / DESCRIBE / EXPLAIN / WITH": {
+  "count": 1,
+  "files": [
+   "core/db/mysql_cli.py"
   ]
  },
  "自签": {
@@ -10202,6 +10295,25 @@
    "core/ssh_store.py"
   ]
  },
+ "请指定 --table 或 --sql": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "请指定数据库（--database）": {
+  "count": 3,
+  "files": [
+   "core/db/mysql_cli.py"
+  ]
+ },
+ "请指定表名": {
+  "count": 3,
+  "files": [
+   "core/db/mysql_cli.py",
+   "core/db/sqlite_file.py"
+  ]
+ },
  "请检查系统终端是否可用": {
   "count": 1,
   "files": [
@@ -10224,6 +10336,12 @@
   "count": 1,
   "files": [
    "ui/plugins/access_insights_panel.py"
+  ]
+ },
+ "请至少指定一个要更新的字段": {
+  "count": 1,
+  "files": [
+   "cli.py"
   ]
  },
  "请输入 SQL 语句后执行": {
@@ -10595,6 +10713,19 @@
    "core/updater.py"
   ]
  },
+ "连接名称不合法": {
+  "count": 2,
+  "files": [
+   "cli.py",
+   "core/db/store.py"
+  ]
+ },
+ "连接名称已存在：{name}": {
+  "count": 2,
+  "files": [
+   "core/db/store.py"
+  ]
+ },
  "连接失败": {
   "count": 2,
   "files": [
@@ -10614,6 +10745,12 @@
   ]
  },
  "连接成功：{target} · {ms} ms · {server}": {
+  "count": 1,
+  "files": [
+   "cli.py"
+  ]
+ },
+ "连接测试失败": {
   "count": 1,
   "files": [
    "cli.py"

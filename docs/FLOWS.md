@@ -351,6 +351,23 @@ MySQL / Docker / 系统错误日志。全部是只读探测：不提权、不带
 
 ---
 
+## 10. 数据库连接 / 只读浏览（`core/db`）
+
+**入口**：`db` 命令组（GUI 面板后续）。逻辑只在 `core/db/facade.py` 一份。
+
+```
+读/写连接（core/db/store，凭据在 db_connections.json，0600）
+   → Driver：MysqlCliDriver（临时 --defaults-extra-file）或 SqliteFileDriver
+   → 只读：databases / tables / columns / select_rows / query_sql
+   → 审计浏览：core/db/audit.list_entries（db_audit/YYYY-MM.jsonl）
+```
+
+**密码**：只经 `--password-stdin` 或（未来）面板输入，绝不进 argv。保存连接不做连通性校验。
+**自由 SQL**：仅单条 `SELECT/SHOW/DESCRIBE/EXPLAIN/WITH`；结构化 `--table` + `--filter` 是默认入口。
+**写路径（未开放）**：必须先 `audit.append` 成功才允许执行（ADR 28）；删除连接需 `--yes`。
+
+---
+
 ## 排查速查表
 
 | 现象 | 先看哪里 |
@@ -365,3 +382,5 @@ MySQL / Docker / 系统错误日志。全部是只读探测：不提权、不带
 | SSH 首次连接被拒 / 指纹变了 | 面板弹窗确认指纹（或 `--trust-host`）后写入 `ssh_known_hosts`；指纹变化需先手工删掉该行再确认 |
 | SSH 连上但远端执行没输出 | 看 `exit_status` 与 `stderr`（`exit_status=-1` 表示超时被截断）；`truncated=true` 说明超过 256 KB 上限 |
 | 键鼠统计一直显示「后台未运行」 | `<数据目录>/plugins/keymouse/daemon.log`（钩子是否被安全软件拦截）→ `daemon.lock` 的 PID 与 `daemon.heartbeat` 是否新鲜 → 设置页是否启用了「键鼠统计」模块（流程 8） |
+| `db` 提示找不到 mysql 客户端 | 装本机 MySQL/MariaDB 客户端，或给连接指定 `--mysql-cli`；也可用 `db conn suggest` 看本机实例草稿（流程 10） |
+| `db` 连上但查表失败 | MySQL 需 `--database`（或连接上预填 database）；自由 SQL 只允许只读单句；看 `error_kind`（auth / no_tool / timeout） |

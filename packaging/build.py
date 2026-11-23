@@ -67,6 +67,8 @@ EXCLUDE_NAMES = {
     "run_log.log", "run_log.log.1",
     # SSH 管理：主机凭据与主机指纹属开发机私有数据，绝不能进安装包
     "ssh_hosts.json", "ssh_hosts.json.bak", "ssh_known_hosts", "ssh_known_hosts.bak",
+    # 数据库连接凭据与审计目录（ADR 28）
+    "db_connections.json", "db_connections.json.bak", "db_audit",
     "phpvm.ico", "phpvm.icns", "build", "dist",
 }
 
