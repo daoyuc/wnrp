@@ -39,7 +39,7 @@ Each PHP version is started and stopped precisely by port, so versions never int
 - **Redis**: multi-instance discovery and control, command execution (confirmation for dangerous commands), DB keyspace chart
 - **MySQL**: instance discovery and control (Windows service first; besides the env-root `mysql*` it also probes services / PATH / common install locations, configurable via `settings.mysql_dirs`), config and error log
 - **SQLite**: read-only browsing of schema and queries
-- **Database connections / read-only browse**: manage MySQL / SQLite connections (credentials in `db_connections.json`, mode 0600); list databases / tables / columns, filtered pagination, guarded read-only SQL; write-audit directory reserved (ADR 28); CLI `db` group (GUI panel later)
+- **Database connections / read-only browse**: manage MySQL / SQLite connections (credentials in `db_connections.json`, mode 0600); list databases / tables / columns, filtered pagination, guarded read-only SQL, audit browse; write-audit directory reserved (ADR 28); CLI `db` group + Database panel (toggleable module)
 
 **Data & operations**
 

@@ -717,15 +717,17 @@
   ]
  },
  "SQLite 数据库": {
-  "count": 2,
+  "count": 3,
   "files": [
+   "ui/db_panel.py",
    "ui/main_window.py",
    "ui/sqlite_panel.py"
   ]
  },
  "SQLite 文件": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "ui/db_panel.py",
    "ui/sqlite_panel.py"
   ]
  },
@@ -748,6 +750,12 @@
   "files": [
    "ui/main_window.py",
    "ui/ssh_panel.py"
+  ]
+ },
+ "Socket": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
   ]
  },
  "TS（线程安全）": {
@@ -1328,6 +1336,12 @@
    "ui/plugins/keymouse_panel.py"
   ]
  },
+ "mysql 客户端": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
+  ]
+ },
  "mysql 执行失败（退出码 {code}）": {
   "count": 1,
   "files": [
@@ -1682,6 +1696,12 @@
    "ui/nginx_log_panel.py"
   ]
  },
+ "{n} 行 · {ms} ms": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
+  ]
+ },
  "{prefix}：{name} · PHP {version}": {
   "count": 1,
   "files": [
@@ -1827,8 +1847,9 @@
   ]
  },
  "◀ 上一页": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "ui/db_panel.py",
    "ui/sqlite_panel.py"
   ]
  },
@@ -1924,8 +1945,9 @@
   ]
  },
  "下一页 ▶": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "ui/db_panel.py",
    "ui/sqlite_panel.py"
   ]
  },
@@ -2105,8 +2127,9 @@
   ]
  },
  "主机": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "ui/db_panel.py",
    "ui/ssh_panel.py"
   ]
  },
@@ -3047,8 +3070,9 @@
   ]
  },
  "列名": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "ui/db_panel.py",
    "ui/sqlite_panel.py"
   ]
  },
@@ -3083,8 +3107,9 @@
   ]
  },
  "删除": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "ui/db_panel.py",
    "ui/ssh_panel.py"
   ]
  },
@@ -3124,6 +3149,12 @@
    "ui/ssh_panel.py"
   ]
  },
+ "删除连接": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
+  ]
+ },
  "删除连接需要 --yes": {
   "count": 1,
   "files": [
@@ -3143,8 +3174,9 @@
   ]
  },
  "刷新": {
-  "count": 17,
+  "count": 18,
   "files": [
+   "ui/db_panel.py",
    "ui/mail_panel.py",
    "ui/nginx_log_panel.py",
    "ui/overview_panel.py",
@@ -3167,6 +3199,12 @@
   "count": 1,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "刷新审计": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
   ]
  },
  "刷新或检查环境根目录后重试": {
@@ -3232,6 +3270,12 @@
   "count": 1,
   "files": [
    "core/xdebug.py"
+  ]
+ },
+ "加载表": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
   ]
  },
  "动作": {
@@ -3379,8 +3423,9 @@
   ]
  },
  "取消": {
-  "count": 10,
+  "count": 11,
   "files": [
+   "ui/db_panel.py",
    "ui/dialogs.py",
    "ui/download_dialog.py",
    "ui/extension_dialog.py",
@@ -3512,9 +3557,16 @@
   ]
  },
  "可留空，连接前再补": {
+  "count": 2,
+  "files": [
+   "ui/db_panel.py",
+   "ui/ssh_panel.py"
+  ]
+ },
+ "可空": {
   "count": 1,
   "files": [
-   "ui/ssh_panel.py"
+   "ui/db_panel.py"
   ]
  },
  "可缓存文件数上限需覆盖 vendor 规模，默认 10000 以下会漏缓存大量依赖文件": {
@@ -3602,8 +3654,9 @@
   ]
  },
  "名称": {
-  "count": 5,
+  "count": 8,
   "files": [
+   "ui/db_panel.py",
    "ui/extension_dialog.py",
    "ui/sqlite_panel.py",
    "ui/ssh_panel.py",
@@ -3629,9 +3682,10 @@
   ]
  },
  "否": {
-  "count": 3,
+  "count": 4,
   "files": [
    "cli.py",
+   "ui/db_panel.py",
    "ui/site_wizard.py"
   ]
  },
@@ -4343,9 +4397,22 @@
    "ui/redis_panel.py"
   ]
  },
- "密码": {
+ "审计": {
   "count": 1,
   "files": [
+   "ui/db_panel.py"
+  ]
+ },
+ "审计 {n} 条": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
+  ]
+ },
+ "密码": {
+  "count": 2,
+  "files": [
+   "ui/db_panel.py",
    "ui/ssh_panel.py"
   ]
  },
@@ -4645,8 +4712,9 @@
   ]
  },
  "就绪": {
-  "count": 16,
+  "count": 17,
   "files": [
+   "ui/db_panel.py",
    "ui/main_window.py",
    "ui/ssh_panel.py",
    "ui/plugins/access_insights_panel.py",
@@ -4956,6 +5024,30 @@
   "count": 1,
   "files": [
    "ui/ssh_panel.py"
+  ]
+ },
+ "已删除连接": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
+  ]
+ },
+ "已加载 {n} 个数据库": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
+  ]
+ },
+ "已加载 {n} 个连接": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
+  ]
+ },
+ "已加载 {n} 张表": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
   ]
  },
  "已勾选 [{name}] 的开机自启": {
@@ -5313,6 +5405,12 @@
    "cli.py"
   ]
  },
+ "已新增连接：{name}": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
+  ]
+ },
  "已是最新版本": {
   "count": 1,
   "files": [
@@ -5362,6 +5460,12 @@
   "count": 1,
   "files": [
    "ui/ssh_panel.py"
+  ]
+ },
+ "已更新连接：{name}": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
   ]
  },
  "已替换 {count} 处": {
@@ -5892,6 +5996,12 @@
    "core/health_monitor.py"
   ]
  },
+ "引擎": {
+  "count": 2,
+  "files": [
+   "ui/db_panel.py"
+  ]
+ },
  "引擎必须是 mysql 或 sqlite": {
   "count": 1,
   "files": [
@@ -6082,8 +6192,9 @@
   ]
  },
  "所有文件": {
-  "count": 3,
+  "count": 4,
   "files": [
+   "ui/db_panel.py",
    "ui/run_log_panel.py",
    "ui/sqlite_panel.py",
    "ui/ssh_panel.py"
@@ -6569,6 +6680,12 @@
    "ui/run_log_panel.py"
   ]
  },
+ "摘要": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
+  ]
+ },
  "操作与日志": {
   "count": 1,
   "files": [
@@ -6611,6 +6728,12 @@
    "ui/overview_panel.py"
   ]
  },
+ "操作超时": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
+  ]
+ },
  "操作超时，已解锁": {
   "count": 1,
   "files": [
@@ -6633,6 +6756,19 @@
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "数据": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
+  ]
+ },
+ "数据库": {
+  "count": 4,
+  "files": [
+   "ui/db_panel.py",
+   "ui/main_window.py"
   ]
  },
  "数据库 GUI：": {
@@ -6713,6 +6849,12 @@
   "count": 2,
   "files": [
    "ui/ssh_panel.py"
+  ]
+ },
+ "新增连接": {
+  "count": 2,
+  "files": [
+   "ui/db_panel.py"
   ]
  },
  "新建 Nginx 站点": {
@@ -7012,8 +7154,9 @@
   ]
  },
  "时间": {
-  "count": 4,
+  "count": 5,
   "files": [
+   "ui/db_panel.py",
    "ui/dialogs.py",
    "ui/mail_panel.py",
    "ui/run_log_panel.py",
@@ -7027,9 +7170,10 @@
   ]
  },
  "是": {
-  "count": 2,
+  "count": 3,
   "files": [
-   "cli.py"
+   "cli.py",
+   "ui/db_panel.py"
   ]
  },
  "是（指向 127.0.0.1）": {
@@ -8009,6 +8153,12 @@
    "ui/mysql_panel.py"
   ]
  },
+ "查询": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
+  ]
+ },
  "查询失败": {
   "count": 1,
   "files": [
@@ -8406,6 +8556,12 @@
    "ui/ssh_panel.py"
   ]
  },
+ "正在测试连接…": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
+  ]
+ },
  "正在生成 php.ini": {
   "count": 1,
   "files": [
@@ -8601,8 +8757,9 @@
   ]
  },
  "测试连接": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "ui/db_panel.py",
    "ui/ssh_panel.py"
   ]
  },
@@ -8613,8 +8770,9 @@
   ]
  },
  "浏览": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "ui/db_panel.py",
    "ui/ssh_panel.py"
   ]
  },
@@ -8936,8 +9094,9 @@
   ]
  },
  "用户名": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "ui/db_panel.py",
    "ui/ssh_panel.py"
   ]
  },
@@ -9035,6 +9194,12 @@
    "ui/mail_panel.py"
   ]
  },
+ "目标": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
+  ]
+ },
  "目标 DB：": {
   "count": 1,
   "files": [
@@ -9054,8 +9219,9 @@
   ]
  },
  "确定": {
-  "count": 4,
+  "count": 5,
   "files": [
+   "ui/db_panel.py",
    "ui/dialogs.py",
    "ui/ssh_panel.py",
    "ui/plugins/project_launcher_panel.py"
@@ -9077,6 +9243,12 @@
   "count": 1,
   "files": [
    "ui/plugins/project_launcher_panel.py"
+  ]
+ },
+ "确定删除连接 {name}？": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
   ]
  },
  "确定清空内存中的运行日志？（落盘文件会保留）": {
@@ -9304,8 +9476,9 @@
   ]
  },
  "端口": {
-  "count": 5,
+  "count": 6,
   "files": [
+   "ui/db_panel.py",
    "ui/dialogs.py",
    "ui/php_panel.py",
    "ui/ssh_panel.py",
@@ -9431,6 +9604,12 @@
    "ui/sqlite_panel.py"
   ]
  },
+ "筛选": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
+  ]
+ },
  "管理 {root} 下多个 PHP 版本的启动 / 停止 / 重启 / 状态 / 端口 / 配置，并附带 Nginx 与 Redis 管理。": {
   "count": 1,
   "files": [
@@ -9438,8 +9617,9 @@
   ]
  },
  "类型": {
-  "count": 2,
+  "count": 5,
   "files": [
+   "ui/db_panel.py",
    "ui/sqlite_panel.py"
   ]
  },
@@ -9477,6 +9657,12 @@
   "count": 1,
   "files": [
    "ui/sqlite_panel.py"
+  ]
+ },
+ "约行数": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
   ]
  },
  "级别": {
@@ -9529,14 +9715,16 @@
   ]
  },
  "结构": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "ui/db_panel.py",
    "ui/sqlite_panel.py"
   ]
  },
  "结果": {
-  "count": 3,
+  "count": 4,
   "files": [
+   "ui/db_panel.py",
    "ui/dialogs.py",
    "ui/sqlite_panel.py",
    "ui/plugins/site_health_panel.py"
@@ -9573,8 +9761,9 @@
   ]
  },
  "编辑": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "ui/db_panel.py",
    "ui/ssh_panel.py"
   ]
  },
@@ -9621,8 +9810,9 @@
   ]
  },
  "编辑时留空表示不修改": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "ui/db_panel.py",
    "ui/ssh_panel.py"
   ]
  },
@@ -9642,6 +9832,12 @@
   "count": 1,
   "files": [
    "ui/dialogs.py"
+  ]
+ },
+ "编辑连接": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
   ]
  },
  "编辑配置": {
@@ -9859,6 +10055,12 @@
   "count": 1,
   "files": [
    "ui/sqlite_panel.py"
+  ]
+ },
+ "表 / 视图": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
   ]
  },
  "表 / 视图（{n}）": {
@@ -10247,6 +10449,12 @@
    "ui/ssh_panel.py"
   ]
  },
+ "请先选择一个连接": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
+  ]
+ },
  "请先选择一台主机": {
   "count": 2,
   "files": [
@@ -10336,6 +10544,12 @@
   "count": 1,
   "files": [
    "ui/plugins/access_insights_panel.py"
+  ]
+ },
+ "请等待当前操作完成": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
   ]
  },
  "请至少指定一个要更新的字段": {
@@ -10707,6 +10921,12 @@
    "core/ssh_manager.py"
   ]
  },
+ "连接": {
+  "count": 2,
+  "files": [
+   "ui/db_panel.py"
+  ]
+ },
  "连接发布源失败：{err}": {
   "count": 1,
   "files": [
@@ -10738,6 +10958,18 @@
    "core/ssh_manager.py"
   ]
  },
+ "连接成功": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
+  ]
+ },
+ "连接成功 · {ms} ms · {extra}": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
+  ]
+ },
  "连接成功：{target} · {ms} ms": {
   "count": 1,
   "files": [
@@ -10751,9 +10983,16 @@
   ]
  },
  "连接测试失败": {
+  "count": 2,
+  "files": [
+   "cli.py",
+   "ui/db_panel.py"
+  ]
+ },
+ "连接清单与只读浏览（MySQL / SQLite）": {
   "count": 1,
   "files": [
-   "cli.py"
+   "ui/db_panel.py"
   ]
  },
  "连接超时（{n} 秒）": {
@@ -10809,6 +11048,12 @@
   "count": 3,
   "files": [
    "ui/ssh_panel.py"
+  ]
+ },
+ "选择数据库文件": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
   ]
  },
  "选择目录": {
@@ -11457,6 +11702,12 @@
    "cli.py"
   ]
  },
+ "额外": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
+  ]
+ },
  "首轮就绪：事件游标已推进，{count} 条历史事件进入看护待复核": {
   "count": 1,
   "files": [
@@ -11467,6 +11718,12 @@
   "count": 1,
   "files": [
    "core/tuning.py"
+  ]
+ },
+ "默认": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
   ]
  },
  "默认 20 在批量上传调试时容易撞到": {
@@ -11527,6 +11784,12 @@
   "count": 1,
   "files": [
    "ui/download_dialog.py"
+  ]
+ },
+ "（已截断）": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
   ]
  },
  "（已翻页）": {

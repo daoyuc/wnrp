@@ -29,7 +29,7 @@
 | **SQLite 面板** | 自动发现库文件（含各站点 root）、表/视图与结构浏览、只读查询（mode=ro + query_only + 关键字白名单，500 行上限、10s 超时）、记忆上次库 | `core/sqlite_manager.py`、`ui/sqlite_panel.py` |
 | Redis | 多实例发现与启停、信息卡与日志、**命令执行**（DB 0–15、6 个危险命令确认）、**DB 键空间柱状图** | `core/redis_manager.py`、`ui/redis_panel.py` |
 | **MySQL** | 实例发现（my.ini 解析端口/数据目录）；**Windows 服务优先**控制（`sc`/`net`，非管理员禁用启停并提示，进程模式兜底）；状态卡、错误日志 tail、配置与数据目录直达 | `core/mysql_manager.py`、`ui/mysql_panel.py` |
-| **数据库连接 / 只读浏览** | 连接清单（MySQL / SQLite，凭据独立 `db_connections.json` 0600）；库 / 表 / 列浏览、列筛选分页、受控自由只读 SQL；审计目录预留（写路径强制先记审计）；CLI `db` 分组；GUI 面板与受控写后续 | `core/db/`、`cli.py` 的 `db` 分组（ADR 28） |
+| **数据库连接 / 只读浏览** | 连接清单（MySQL / SQLite，凭据独立 `db_connections.json` 0600）；库 / 表 / 列浏览、列筛选分页、受控自由只读 SQL；审计浏览；CLI `db` 分组 + GUI `ui/db_panel.py`（模块 `db`）；受控写后续 | `core/db/`、`ui/db_panel.py`、`cli.py` 的 `db` 分组（ADR 28） |
 | **HTTPS 证书** | 探测 openssl / mkcert → 为站点生成证书（`<nginx>/SSL/`）+ 443 模板变体；未检测到工具时禁用选项并给安装指引 | `core/cert_manager.py`、`core/site_templates.py`、`ui/site_wizard.py` |
 | **服务编排** | 一键全启停（PHP → Redis → MySQL → Nginx，反向停止）+ **自动启动时的 PHP 范围可选**（仅最新 / 站点引用+最新 / 跟随 cmd / 全部，默认仅最新）+ 「打开终端」（PATH 前置所选 PHP 版本） | `core/service_group.py`、`pu.open_terminal`、`ui/php_panel.py`、`ui/main_window.py` |
 | **模块开关** | 功能模块可勾选（设置页「功能模块」）：停用的模块不创建页签、不实例化 manager、不导入其代码；PHP/Nginx/站点映射 为刚需不可取消 | `core/modules.py`、`main.py`、`ui/main_window.py` |

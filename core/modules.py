@@ -32,6 +32,7 @@ _BUILTIN: list[dict] = [
     {"key": "vhost", "name": "站点映射", "required": True, "group": "site"},
     {"key": "redis", "name": "Redis 管理", "required": False, "group": "service"},
     {"key": "mysql", "name": "MySQL 管理", "required": False, "group": "service"},
+    {"key": "db", "name": "数据库", "required": False, "group": "site"},
     {"key": "sqlite", "name": "SQLite 数据库", "required": False, "group": "site"},
     {"key": "log", "name": "Nginx 日志", "required": False, "group": "diag"},
     {"key": "overview", "name": "总览仪表盘", "required": False, "group": "service"},

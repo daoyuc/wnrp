@@ -353,7 +353,7 @@ MySQL / Docker / 系统错误日志。全部是只读探测：不提权、不带
 
 ## 10. 数据库连接 / 只读浏览（`core/db`）
 
-**入口**：`db` 命令组（GUI 面板后续）。逻辑只在 `core/db/facade.py` 一份。
+**入口**：面板 `ui/db_panel.py` 与 `db` 命令组。逻辑只在 `core/db/facade.py` 一份。
 
 ```
 读/写连接（core/db/store，凭据在 db_connections.json，0600）

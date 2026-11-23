@@ -136,7 +136,7 @@ python3 cli.py nginx test                # 任何改配置后都建议先跑
   - 建站流程只有一个实现：`core/site_service.py`（证书 → 写 vhost → 补 include → `nginx -t` → hosts → 重载 + 回滚），CLI 与 GUI 向导都调它
   - 文件备份统一走 `core/file_backup.py`（写配置前必 `.bak`，还原默认删备份）
   - SSH 管理：`core/ssh_store.py`（主机凭据 + 片段持久化，不碰 paramiko）与 `core/ssh_manager.py`（paramiko 传输，函数内导入），面板 `ui/ssh_panel.py`；凭据在 `ssh_hosts.json`（0600），片段在 `settings.ssh_snippets`
-  - 数据库连接 / 只读浏览：`core/db/`（`store` / `audit` / `mysql_cli` / `sqlite_file` / `facade`），CLI `db` 分组；凭据在 `db_connections.json`（0600），审计在 `db_audit/`；写路径必须先 `audit.append`（ADR 28）
+  - 数据库连接 / 只读浏览：`core/db/`（`store` / `audit` / `mysql_cli` / `sqlite_file` / `facade`），面板 `ui/db_panel.py`（模块 key=`db`，须进 `_refresh_panels()`），CLI `db` 分组；凭据在 `db_connections.json`（0600），审计在 `db_audit/`；写路径必须先 `audit.append`（ADR 28）
   - `core/plugins/` 插件注册表与内置插件（声明式 `MANIFEST`，只声明面板路径、不 import `ui/*`）；运行期数据在 `<数据目录>/plugins/keymouse/`，不入库
 - `ui/plugins/` 插件面板（由主窗口延迟导入）：新增面板必须实现 `auto_refresh()` / `refresh_theme()`，`core` 不得反向依赖它
 - `tests/` 单元测试（标准库 unittest）：`python -m unittest discover -s tests -t .`；其中 `tests/test_docs.py` 守护文档（链接 / 引用的代码路径 / `docs/CLI.md` 与代码一致性 / Markdown 表格列数）、`tests/test_main_window_smoke.py` 真建一次主窗口（守 GUI 启动崩溃，无显示环境自动跳过）

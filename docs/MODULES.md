@@ -10,7 +10,7 @@
 
 ```
 服务  总览(overview) │ PHP 版本管理(php,刚需) │ Nginx 管理(nginx,刚需) │ Redis 管理(redis) │ MySQL 管理(mysql)
-站点  站点映射(vhost,刚需) │ SQLite 数据库(sqlite)
+站点  站点映射(vhost,刚需) │ 数据库(db) │ SQLite 数据库(sqlite)
 诊断  Nginx 日志(log) │ 邮件(mail) │ 运行日志(常驻，不受开关影响) │ 访问日志聚合(access_insights) │ 端口占用(port_scan) │ PHP 错误日志(php_errors) │ 证书到期(cert_watch)
 其他  SSH 管理(ssh) │ 键鼠统计(keymouse) │ 项目启动器(project_launcher) │ 站点巡检(site_health) │ Git 工作区(git_status) │ 设置(settings) │ 关于(about)
 ```
@@ -56,8 +56,8 @@
 | hosts 写入 / 移除 / 还原 | `ui/vhost_panel.py` 按钮、向导 | `hosts_manager.py` | 系统 hosts + `hosts.phpvm.bak` | 只动 `# >>> phpvm-managed >>>` 块；写入需提权 |
 | Redis 多实例管理 | `ui/redis_panel.py` | `redis_manager.py` | redis 进程 / 日志 | 危险命令需二次确认 |
 | MySQL 实例管理 | `ui/mysql_panel.py` | `mysql_manager.py` | Windows 服务 / 进程 | 实例发现：环境根 `mysql*` + 自动探测（Windows 服务 bin 路径 / PATH / 常见安装位置）+ `settings.mysql_dirs` 显式指定，`bin` 目录自动上溯；服务模式启停需管理员，非管理员时禁用并提示；「刷新状态」会重新发现实例 |
-| 数据库连接与只读浏览（MySQL / SQLite） | `db` 命令组（GUI 面板后续） | `core/db/`（`store`、`audit`、`mysql_cli`、`sqlite_file`、`facade`） | `db_connections.json`（凭据，0600）+ `<数据目录>/db_audit/*.jsonl` | 连接 CRUD（密码经 `--password-stdin`，不进命令行）；只读：库 / 表 / 列 / 筛选分页 / 受控自由 SQL；写路径（未来）强制先写审计；凭据与审计不进备份包（ADR 28） |
-| SQLite 只读查询 | `ui/sqlite_panel.py` | `sqlite_manager.py` | `settings.sqlite_last_db` | 只读（mode=ro + query_only + 关键字白名单）；统一浏览亦可走 `db` 命令组（ADR 28） |
+| 数据库连接与只读浏览（MySQL / SQLite） | `ui/db_panel.py` / `db` 命令组 | `core/db/`（`store`、`audit`、`mysql_cli`、`sqlite_file`、`facade`） | `db_connections.json`（凭据，0600）+ `<数据目录>/db_audit/*.jsonl` | 连接 CRUD（面板对话框 / CLI `--password-stdin`）；只读：库 / 表 / 列 / 筛选分页 / 受控自由 SQL / 审计浏览；写路径（未来）强制先写审计；凭据与审计不进备份包（ADR 28）；模块 key=`db`，站点组 |
+| SQLite 只读查询 | `ui/sqlite_panel.py` | `sqlite_manager.py` | `settings.sqlite_last_db` | 只读（mode=ro + query_only + 关键字白名单）；统一浏览亦可走 `db` 面板 / 命令组（ADR 28） |
 | Nginx 日志查看 | `ui/nginx_log_panel.py` | `nginx_manager.py`（日志目录推导） | — | 增量 tail + 自动跟随 |
 | 运行日志 | `ui/run_log_panel.py` | `run_log.py` | `run_log.log(.1)` | 内存 2000 条 / 单文件 1MB 轮转 |
 | 整套服务一键启停 | 设置页按钮、托盘菜单、总览 | `service_group.py` | 各服务进程 | 顺序：启动 PHP→Redis→MySQL→Nginx，停止反向 |
@@ -102,6 +102,7 @@
 | `vhost` | 站点映射 | ✅ | 不可停用 |
 | `redis` | Redis 管理 | ❌ | 不建导航项、不实例化 `RedisManager`、不导入该模块代码 |
 | `mysql` | MySQL 管理 | ❌ | 同上 |
+| `db` | 数据库 | ❌ | 不建导航项、不实例化 `DbPanel`；已保存连接与审计文件保留，`db` 命令组仍可用 |
 | `sqlite` | SQLite 数据库 | ❌ | 同上 |
 | `log` | Nginx 日志 | ❌ | 同上 |
 | `keymouse` | 键鼠统计 | ❌ | 不建插件导航项、不拉起后台记录进程；已在运行的守护进程下一轮配置检查（≤60s）自行 flush 并退出 |

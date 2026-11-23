@@ -297,6 +297,11 @@ class MainWindow(tk.Tk):
         # —— 站点组 ——
         self.vhost_panel = VhostPanel(host, self.vhost_mgr, self.set_log,
                                      php_mgr=self.php_mgr)
+        # 数据库连接 / 只读浏览（ADR 28）；停用时不 import 面板
+        self.db_panel = None
+        if modules.is_enabled("db", self.config):
+            from .db_panel import DbPanel
+            self.db_panel = DbPanel(host, self.set_log)
         self.sqlite_panel = None
         if modules.is_enabled("sqlite", self.config):
             # 延迟导入：停用时不加载 sqlite 面板与管理器
@@ -335,6 +340,8 @@ class MainWindow(tk.Tk):
         if self.mysql_panel is not None:
             nav.add(self.mysql_panel, text=t("MySQL 管理"), key="mysql")
         nav.add(self.vhost_panel, text=t("站点映射"), key="vhost")
+        if self.db_panel is not None:
+            nav.add(self.db_panel, text=t("数据库"), key="db")
         if self.sqlite_panel is not None:
             nav.add(self.sqlite_panel, text=t("SQLite 数据库"), key="sqlite")
         if self.log_panel is not None:
@@ -1363,7 +1370,7 @@ class MainWindow(tk.Tk):
         # 插件面板也在列（不登记就会「命令成功但界面没变」，见 AGENTS.md）
         for panel in (self.overview_panel, self.php_panel, self.nginx_panel,
                       self.redis_panel, self.log_panel, self.mail_panel,
-                      self.ssh_panel, self.vhost_panel,
+                      self.ssh_panel, self.db_panel, self.vhost_panel,
                       *getattr(self, "_plugin_panels", [])):
             if panel is None or not self._panel_visible(panel):
                 continue
