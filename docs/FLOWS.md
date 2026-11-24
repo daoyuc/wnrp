@@ -373,9 +373,10 @@ MySQL / Docker / 系统错误日志。全部是只读探测：不提权、不带
 | 现象 | 先看哪里 |
 |---|---|
 | 站点 502 | 目标 vhost 的 `fastcgi_pass` 端口 → 该版本是否在运行（流程 2 的跳过清单）→ 端口是否与 `config.json` 一致（流程 4） |
+| 总览误点「全部停止」 | 与设置页 / 托盘共用确认框（`ui/confirm.confirm_stop_all`）；取消即不动作 |
 | 点了 phpvm 没反应 | `run_log.log` 的单实例提示；任务栏/托盘是否已有窗口 |
 | 登录后服务没起来 | `autostart_services.log`（逐项结果 + `php_scope=`）→ 再查 `run_log.log` |
-| 改配置没生效 | php.ini 类需重启该版本；nginx 类需 reload；模块开关与语言需重启 phpvm |
+| 改配置没生效 | php.ini 类需重启该版本；nginx 类需 reload；模块改动在设置页点「立即重启」；语言切换对话框可选立即重启 |
 | php-cgi 反复崩溃 | 崩溃详情对话框 + `recover_history.json`；Windows 事件查看器；本机 php85 记得 JIT 必须关闭 |
 | CLI 行为与界面不一致 | 先 `python3 cli.py schema --json` 核对参数契约（文档只写典型用法） |
 | SSH 提示「缺少依赖 paramiko」 | 开发态 `pip install -r requirements.txt`；安装包看 `<包目录>/vendor/paramiko` 是否存在（vendor 装失败构建日志里有 warn），或就地 `pip install -r requirements.txt`（流程 9） |

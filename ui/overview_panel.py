@@ -362,6 +362,9 @@ class OverviewPanel(ttk.Frame):
     def _stop_all(self) -> None:
         if self._action_busy:
             return
+        from .confirm import confirm_stop_all
+        if not confirm_stop_all(self.winfo_toplevel()):
+            return
         self._set_action_busy(True)
         try:
             msg = self.services.stop_all()

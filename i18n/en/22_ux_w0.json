@@ -1,0 +1,10 @@
+{
+  "将停止 Nginx、全部 PHP 版本、Redis 与 MySQL，本机站点会全部不可访问。\n确定继续？": "This will stop Nginx, all PHP versions, Redis, and MySQL.\nAll local sites will go offline.\nContinue?",
+  "立即重启 phpvm 以使改动生效？": "Restart phpvm now to apply the change?",
+  "立即重启": "Restart now",
+  "默认全部启用。取消勾选后对应页面下次启动不再加载；改完点「立即重启」即可。": "All enabled by default. Unchecked pages won’t load next launch — click Restart now when done.",
+  "将隐藏：{names}。点「立即重启」生效。": "Will hide: {names}. Click Restart now to apply.",
+  "模块改动尚未生效。点「立即重启」加载新页面。": "Module changes are not applied yet. Click Restart now to load the new pages.",
+  "模块 {name} 已设为{state}": "Module {name} set to {state}",
+  "界面语言已保存为 {name}。": "Interface language saved as {name}."
+}

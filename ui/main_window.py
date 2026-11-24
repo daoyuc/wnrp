@@ -202,15 +202,14 @@ class MainWindow(tk.Tk):
             self.set_log(t("外观已跟随系统切换为{name}", name=theme_label(want)))
 
     def _on_lang_selected(self, code: str) -> None:
-        """保存语言选择；界面文本在重启后切换，因此仅提示。"""
+        """保存语言选择；需重启才切换界面文本，并提供立即重启。"""
         self._lang_var.set(code)
         if code == self.config.get_lang():
             return
         self.config.set_lang(code)
-        messagebox.showinfo(
+        self._offer_restart_now(
             t("语言已切换"),
-            t("界面语言已保存为 {name}。重启 phpvm 后生效。", name=LANGS[code]),
-            parent=self,
+            t("界面语言已保存为 {name}。", name=LANGS[code]),
         )
 
     def _build(self) -> None:
@@ -494,30 +493,43 @@ class MainWindow(tk.Tk):
         return page
 
     def _fill_settings_modules(self, host) -> None:
-        """功能模块页签：两列勾选，取消后需重启才不加载。"""
+        """功能模块页签：两列勾选；改完需重启，页内提供「立即重启」而不反复弹窗。"""
         auto_wrap(
             ttk.Label(
                 host,
-                text=t("默认全部启用；取消勾选后需重启 phpvm 生效（该模块代码将不再加载）。"),
+                text=t("默认全部启用。取消勾选后对应页面下次启动不再加载；改完点「立即重启」即可。"),
                 style="SubTitle.TLabel",
             ),
             host, pad=WRAP_PAD_PAGE,
         ).pack(anchor="w", pady=(0, theme.PAD_SM))
 
-        grid = ttk.Frame(host, style="Card.TFrame")
-        grid.pack(fill="both", expand=True)
-        grid.columnconfigure(0, weight=1)
-        grid.columnconfigure(1, weight=1)
+        # 重启条：有未生效改动时插在勾选网格上方显示，避免每勾一次就打断
+        self._module_restart_bar = ttk.Frame(host)
+        self._module_restart_hint = tk.StringVar(value="")
+        ttk.Label(self._module_restart_bar,
+                  textvariable=self._module_restart_hint,
+                  style="SubTitle.TLabel").pack(side="left", fill="x", expand=True)
+        ttk.Button(
+            self._module_restart_bar, text=t("立即重启"),
+            style="Accent.TButton", command=self._do_restart,
+        ).pack(side="right", padx=(theme.PAD_SM, 0))
+
+        self._module_grid = ttk.Frame(host, style="Card.TFrame")
+        self._module_grid.pack(fill="both", expand=True)
+        self._module_grid.columnconfigure(0, weight=1)
+        self._module_grid.columnconfigure(1, weight=1)
 
         self._module_vars: dict[str, tk.BooleanVar] = {}
-        disabled = modules.disabled_modules(self.config)
+        self._modules_at_start = set(modules.disabled_modules(self.config))
+        disabled = self._modules_at_start
         for i, meta in enumerate(modules.MODULES):
             key = str(meta["key"])
             required = bool(meta["required"])
             var = tk.BooleanVar(value=(key not in disabled))
             self._module_vars[key] = var
             cb = ttk.Checkbutton(
-                grid, text=modules.label(meta), variable=var, style="Card.TCheckbutton",
+                self._module_grid, text=modules.label(meta), variable=var,
+                style="Card.TCheckbutton",
                 state="disabled" if required else "normal",
                 command=lambda k=key: self._toggle_module(k),
             )
@@ -525,6 +537,7 @@ class MainWindow(tk.Tk):
             auto_wrap(cb, host, fraction=0.5, pad=WRAP_PAD_HALF)
             cb.grid(row=i // 2, column=i % 2, sticky="nw",
                     pady=1, padx=(0, theme.PAD_MD))
+        self._refresh_module_restart_bar()
 
     def _fill_settings_general(self, host) -> None:
         """常规页签：自启 / 主题 / 更新 / 服务编排 / 备份 / Adminer（左右两列）。"""
@@ -791,16 +804,7 @@ class MainWindow(tk.Tk):
         idx = self._lang_box.current()
         if idx < 0 or idx >= len(codes):
             return
-        code = codes[idx]
-        self._lang_var.set(code)
-        if code == self.config.get_lang():
-            return
-        self.config.set_lang(code)
-        messagebox.showinfo(
-            t("语言已切换"),
-            t("界面语言已保存为 {name}。重启 phpvm 后生效。", name=LANGS[code]),
-            parent=self,
-        )
+        self._on_lang_selected(codes[idx])
 
     # ------------------------------------------------------------------ #
     # 软件更新
@@ -1027,12 +1031,10 @@ class MainWindow(tk.Tk):
     def _all_services(self, action: str) -> None:
         """一键启停整套服务（Nginx + 各 PHP + Redis + MySQL），后台执行。"""
         title = t("全部启动") if action == "start" else t("全部停止")
-        if action == "stop" and not messagebox.askyesno(
-                title,
-                t("将停止 Nginx、全部 PHP 版本、Redis 与 MySQL，"
-                  "本机站点会全部不可访问。\n确定继续？"),
-                parent=self):
-            return
+        if action == "stop":
+            from .confirm import confirm_stop_all
+            if not confirm_stop_all(self):
+                return
         self.set_log(t("正在{title}…", title=title))
 
         def worker():
@@ -1073,8 +1075,45 @@ class MainWindow(tk.Tk):
         modules.set_disabled(self.config, disabled)
         state = t("停用") if key in disabled else t("启用")
         name = next((str(m["name"]) for m in modules.MODULES if str(m["key"]) == key), key)
-        self.set_log(t("模块 {name} 已设为{state}，重启 phpvm 后生效",
-                       name=t(name), state=state))
+        self.set_log(t("模块 {name} 已设为{state}", name=t(name), state=state))
+        self._refresh_module_restart_bar()
+
+    def _refresh_module_restart_bar(self) -> None:
+        """有未生效的模块改动时显示「立即重启」条，并列出将隐藏的模块。"""
+        bar = getattr(self, "_module_restart_bar", None)
+        hint = getattr(self, "_module_restart_hint", None)
+        grid = getattr(self, "_module_grid", None)
+        if bar is None or hint is None:
+            return
+        now = {k for k, v in self._module_vars.items()
+               if not v.get() and k not in modules.REQUIRED_KEYS}
+        baseline = getattr(self, "_modules_at_start", set())
+        if now == set(baseline):
+            bar.pack_forget()
+            return
+        labels = []
+        for meta in modules.MODULES:
+            key = str(meta["key"])
+            if key in now:
+                labels.append(t(str(meta["name"])))
+        if labels:
+            text = t("将隐藏：{names}。点「立即重启」生效。",
+                     names="、".join(labels))
+        else:
+            text = t("模块改动尚未生效。点「立即重启」加载新页面。")
+        hint.set(text)
+        # 插在勾选网格上方，不反复打断用户勾选
+        kwargs = {"fill": "x", "pady": (0, theme.PAD_SM)}
+        if grid is not None and grid.winfo_manager() == "pack":
+            kwargs["before"] = grid
+        bar.pack(**kwargs)
+
+    def _offer_restart_now(self, title: str, detail: str) -> None:
+        """语言等「必须重启」改动：询问是否立即重启。"""
+        from .confirm import offer_restart_now
+        self.set_log(detail)
+        if offer_restart_now(self, title=title, detail=detail):
+            self._do_restart()
 
     def _toggle_service_autostart(self) -> None:
         """开机自动启动整套服务开关。"""
@@ -1761,19 +1800,30 @@ class MainWindow(tk.Tk):
                 style="SubTitle.TLabel",
             ).pack(pady=(0, 12))
 
+        # 安全默认在前：托盘 / 取消用 Accent；重启降为普通，避免误点中断手头工作
         if show_tray:
-            ttk.Button(frm, text=t("最小化到托盘"), command=lambda: choose("tray")).pack(
+            ttk.Button(frm, text=t("最小化到托盘"), style="Accent.TButton",
+                       command=lambda: choose("tray")).pack(
                 side="left", padx=theme.PAD_SM
             )
-        ttk.Button(frm, text=t("重启"), style="Accent.TButton",
-                   command=lambda: choose("restart")).pack(side="left", padx=theme.PAD_SM)
+        btn_cancel = ttk.Button(
+            frm, text=t("取消"),
+            style=("Accent.TButton" if not show_tray else "TButton"),
+            command=dlg.destroy,
+        )
+        btn_cancel.pack(side="left", padx=theme.PAD_SM)
         ttk.Button(frm, text=t("退出"), style="Danger.TButton",
                    command=lambda: choose("exit")).pack(side="left", padx=theme.PAD_SM)
-        ttk.Button(frm, text=t("取消"), command=dlg.destroy).pack(side="left", padx=theme.PAD_SM)
+        ttk.Button(frm, text=t("重启"),
+                   command=lambda: choose("restart")).pack(side="left", padx=theme.PAD_SM)
 
         # 按可用工作区收敛尺寸并定位：按钮栏已固定底部，保证右下角按钮不被遮挡
         fit_window(dlg, self, width=430 if show_tray else 330,
                    height=160 if show_tray else 150)
+        try:
+            btn_cancel.focus_set()
+        except tk.TclError:
+            pass
 
         dlg.wait_window()
 

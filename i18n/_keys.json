@@ -4519,12 +4519,6 @@
    "ui/vhost_panel.py"
   ]
  },
- "将停止 Nginx、全部 PHP 版本、Redis 与 MySQL，本机站点会全部不可访问。\n确定继续？": {
-  "count": 1,
-  "files": [
-   "ui/main_window.py"
-  ]
- },
  "将写入 hosts：{doms}": {
   "count": 1,
   "files": [
@@ -4697,6 +4691,12 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "将隐藏：{names}。点「立即重启」生效。": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
   ]
  },
  "小响应立即发出，降低本地请求的等待感": {
@@ -8259,13 +8259,19 @@
    "ui/plugins/keymouse_panel.py"
   ]
  },
- "模块 {name} 已设为{state}，重启 phpvm 后生效": {
+ "模块 {name} 已设为{state}": {
   "count": 1,
   "files": [
    "ui/main_window.py"
   ]
  },
  "模块开关、开机自启、外观与环境维护": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "模块改动尚未生效。点「立即重启」加载新页面。": {
   "count": 1,
   "files": [
    "ui/main_window.py"
@@ -9130,8 +9136,8 @@
    "ui/main_window.py"
   ]
  },
- "界面语言已保存为 {name}。重启 phpvm 后生效。": {
-  "count": 2,
+ "界面语言已保存为 {name}。": {
+  "count": 1,
   "files": [
    "ui/main_window.py"
   ]
@@ -9345,6 +9351,18 @@
   "count": 2,
   "files": [
    "ui/update_dialog.py"
+  ]
+ },
+ "立即重启": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
+  ]
+ },
+ "立即重启 phpvm 以使改动生效？": {
+  "count": 1,
+  "files": [
+   "ui/confirm.py"
   ]
  },
  "立即重启并升级": {
@@ -10386,7 +10404,7 @@
   ]
  },
  "语言已切换": {
-  "count": 2,
+  "count": 1,
   "files": [
    "ui/main_window.py"
   ]
@@ -11750,7 +11768,7 @@
    "ui/sqlite_panel.py"
   ]
  },
- "默认全部启用；取消勾选后需重启 phpvm 生效（该模块代码将不再加载）。": {
+ "默认全部启用。取消勾选后对应页面下次启动不再加载；改完点「立即重启」即可。": {
   "count": 1,
   "files": [
    "ui/main_window.py"
