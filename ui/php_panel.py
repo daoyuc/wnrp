@@ -80,15 +80,17 @@ _MISSING_MARK = "⚠ "
 
 class PhpPanel(ttk.Frame):
     def __init__(self, master, php_mgr: PhpManager, config: Config, notify,
-                 on_autostart_change=None):
+                 on_autostart_change=None, services=None):
         """on_autostart_change(names, switched)：开机自启勾选变更回调（可省略）。
 
         勾选框切换启动策略时，由主窗口借此同步「设置」页的下拉框显示。
+        services：用于「开机将启动：…」预览（与设置页共用 format_php_boot_preview）。
         """
         super().__init__(master, padding=8)
         self.php_mgr = php_mgr
         self.config = config
         self.notify = notify
+        self.services = services
         self._on_autostart_change = on_autostart_change
 
         self._queue: queue.Queue = queue.Queue()
@@ -116,6 +118,13 @@ class PhpPanel(ttk.Frame):
             self, title=t("PHP 版本管理"),
             subtitle=t("选中版本后操作 · 双击行查看配置 · 点击「开机自启」列切换勾选"),
         )
+        self._boot_preview_var = tk.StringVar(
+            value=t("开机将启动：（扫描版本后显示）"))
+        ttk.Label(
+            self, textvariable=self._boot_preview_var,
+            style="CardBold.TLabel",
+        ).pack(anchor="w", pady=(0, theme.PAD_SM))
+        self._refresh_boot_preview()
         tb = w.Toolbar(
             self,
             primary=[
@@ -264,6 +273,7 @@ class PhpPanel(ttk.Frame):
         if kind == "versions":
             self._set_busy(False)
             self._render(payload)
+            self._refresh_boot_preview()
             self.notify(t("已发现 {count} 个 PHP 版本", count=len(payload)))
         elif kind in ("op", "conflict"):
             self._set_busy(False)
@@ -554,6 +564,22 @@ class PhpPanel(ttk.Frame):
     # ------------------------------------------------------------------ #
     # 开机自启勾选（列表「开机自启」列）
     # ------------------------------------------------------------------ #
+    def set_boot_preview(self, text: str) -> None:
+        """主窗口同步「开机将启动：…」文案（设置页改策略时调用）。"""
+        var = getattr(self, "_boot_preview_var", None)
+        if var is None:
+            return
+        var.set(text or "")
+
+    def _refresh_boot_preview(self) -> None:
+        """按当前 scope / 勾选名单刷新预览（扫描完成与勾选切换后调用）。"""
+        if self.services is None:
+            return
+        scope = self.config.get_setting(
+            "autostart_php_scope", service_group.PHP_SCOPE_NEWEST)
+        self.set_boot_preview(
+            service_group.format_php_boot_preview(self.services, scope))
+
     def _reload_autostart(self) -> None:
         """从配置重读勾选名单（渲染前调用，保证列表与配置一致）。"""
         self._autostart = set(service_group.autostart_versions(self.config))
@@ -614,6 +640,7 @@ class PhpPanel(ttk.Frame):
             msg += " · " + t("「自动启动服务的 PHP 版本」已切换为：按 PHP 页勾选")
         self.notify(msg)
         self._refresh_row(name)
+        self._refresh_boot_preview()
         if callable(self._on_autostart_change):
             try:
                 self._on_autostart_change(set(names), switched)

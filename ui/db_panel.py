@@ -28,6 +28,17 @@ _POLL_MS = 120
 _BUSY_TIMEOUT = 60.0
 _PAGE = 100
 
+# 筛选控件：展示名 → facade DSL 算子（底层仍走 col=op:value）
+_FILTER_OPS: tuple[tuple[str, str], ...] = (
+    ("等于", "eq"),
+    ("不等于", "ne"),
+    ("包含", "like"),
+    ("为空", "isnull"),
+    ("非空", "notnull"),
+)
+_FILTER_OP_BY_LABEL = {lab: op for lab, op in _FILTER_OPS}
+_NULL_OPS = frozenset({"isnull", "notnull"})
+
 
 class DbPanel(ttk.Frame):
     """数据库连接与只读浏览面板。"""
@@ -42,11 +53,15 @@ class DbPanel(ttk.Frame):
         self._selected: dict | None = None
         self._tables: list = []
         self._database = tk.StringVar(value="")
-        self._filter = tk.StringVar(value="")
+        self._filter_col = tk.StringVar(value="")
+        self._filter_op = tk.StringVar(value=t("等于"))
+        self._filter_val = tk.StringVar(value="")
         self._status = tk.StringVar(value=t("就绪"))
         self._offset = 0
         self._has_more = False
         self._current_table = ""
+        self._audit_tab_index: int | None = None
+        self._audit_loaded = False
         self._build()
         self.reload()
         self._poll()
@@ -107,9 +122,8 @@ class DbPanel(ttk.Frame):
         ttk.Label(dbrow, text=t("数据库"), style="PageSub.TLabel").pack(side="left")
         self._db_cb = ttk.Combobox(dbrow, textvariable=self._database, width=24)
         self._db_cb.pack(side="left", padx=(theme.PAD_XS, theme.PAD_SM))
+        # 选库即加载表，不再要用户点「加载表」
         self._db_cb.bind("<<ComboboxSelected>>", lambda e: self._load_tables())
-        ttk.Button(dbrow, text=t("加载表"), command=self._load_tables,
-                   style="Toolbar.TButton").pack(side="left")
 
         mid = ttk.PanedWindow(right, orient="horizontal")
         mid.pack(fill="both", expand=True, pady=(theme.PAD_SM, 0))
@@ -137,16 +151,33 @@ class DbPanel(ttk.Frame):
         mid.add(detail, weight=3)
         self._nb = ttk.Notebook(detail)
         self._nb.pack(fill="both", expand=True)
+        self._nb.bind("<<NotebookTabChanged>>", self._on_detail_tab)
 
         data_tab = ttk.Frame(self._nb, padding=4)
         self._nb.add(data_tab, text=t("数据"))
         frow = ttk.Frame(data_tab)
         frow.pack(fill="x")
         ttk.Label(frow, text=t("筛选"), style="PageSub.TLabel").pack(side="left")
-        ttk.Entry(frow, textvariable=self._filter, width=36).pack(
-            side="left", padx=(theme.PAD_XS, theme.PAD_SM), fill="x", expand=True)
+        self._filter_col_cb = ttk.Combobox(
+            frow, textvariable=self._filter_col, width=14, state="readonly",
+        )
+        self._filter_col_cb.pack(side="left", padx=(theme.PAD_XS, theme.PAD_XS))
+        self._filter_op_cb = ttk.Combobox(
+            frow, textvariable=self._filter_op, width=8, state="readonly",
+            values=[lab for lab, _op in _FILTER_OPS],
+        )
+        self._filter_op_cb.pack(side="left", padx=(0, theme.PAD_XS))
+        self._filter_op_cb.bind(
+            "<<ComboboxSelected>>", lambda _e: self._sync_filter_value_state())
+        self._filter_val_entry = ttk.Entry(
+            frow, textvariable=self._filter_val, width=16)
+        self._filter_val_entry.pack(
+            side="left", padx=(0, theme.PAD_SM), fill="x", expand=True)
         ttk.Button(frow, text=t("查询"), command=self._load_rows,
                    style="Accent.TButton").pack(side="left")
+        ttk.Button(frow, text=t("清除"), command=self._clear_filter,
+                   style="Toolbar.TButton").pack(
+                       side="left", padx=(theme.PAD_XS, 0))
         dwrap = ttk.Frame(data_tab)
         dwrap.pack(fill="both", expand=True, pady=(theme.PAD_XS, 0))
         self._dtree = ttk.Treeview(dwrap, show="headings", height=12)
@@ -186,8 +217,11 @@ class DbPanel(ttk.Frame):
 
         audit_tab = ttk.Frame(self._nb, padding=4)
         self._nb.add(audit_tab, text=t("审计"))
+        self._audit_tab_index = self._nb.index("end") - 1
+        self._audit_body = ttk.Frame(audit_tab)
+        self._audit_body.pack(fill="both", expand=True)
         self._atree = ttk.Treeview(
-            audit_tab,
+            self._audit_body,
             columns=("kind", "conn", "result", "preview"),
             show="tree headings", height=14,
         )
@@ -201,7 +235,12 @@ class DbPanel(ttk.Frame):
         self._atree.column("conn", width=100)
         self._atree.column("result", width=60, stretch=False)
         self._atree.column("preview", width=200)
-        self._atree.pack(fill="both", expand=True)
+        self._audit_empty = w.EmptyState(
+            self._audit_body,
+            title=t("还没有写操作记录"),
+            hint=t("写操作的审计会出现在这里（当前面板只读，暂无写入）。"),
+        )
+        self._audit_empty.show()
         ttk.Button(audit_tab, text=t("刷新审计"), command=self._load_audit,
                    style="Toolbar.TButton").pack(anchor="e", pady=(theme.PAD_XS, 0))
 
@@ -373,6 +412,7 @@ class DbPanel(ttk.Frame):
             return
         self._current_table = sel[0]
         self._offset = 0
+        self._clear_filter()
         self._start_bg("columns")
         self._load_rows()
 
@@ -393,6 +433,55 @@ class DbPanel(ttk.Frame):
     def _load_audit(self) -> None:
         self._start_bg("audit")
 
+    def _on_detail_tab(self, _event=None) -> None:
+        """切到审计页时再拉记录（无写能力时多数为空，避免启动时抢 worker）。"""
+        idx = self._audit_tab_index
+        if idx is None:
+            return
+        try:
+            if self._nb.index(self._nb.select()) != idx:
+                return
+        except tk.TclError:
+            return
+        if not self._audit_loaded:
+            self._audit_loaded = True
+            self._load_audit()
+
+    def _clear_filter(self) -> None:
+        self._filter_col.set("")
+        self._filter_op.set(t("等于"))
+        self._filter_val.set("")
+        self._sync_filter_value_state()
+
+    def _sync_filter_value_state(self) -> None:
+        op = _FILTER_OP_BY_LABEL.get(self._filter_op.get(), "eq")
+        state = "disabled" if op in _NULL_OPS else "normal"
+        entry = getattr(self, "_filter_val_entry", None)
+        if entry is not None:
+            entry.configure(state=state)
+
+    def _compose_filter(self) -> str:
+        """把列 / 条件 / 值控件合成 facade 认识的 DSL 字符串。"""
+        col = self._filter_col.get().strip()
+        if not col:
+            return ""
+        op = _FILTER_OP_BY_LABEL.get(self._filter_op.get(), "eq")
+        if op in _NULL_OPS:
+            return f"{col}={op}:"
+        val = self._filter_val.get()
+        if op == "like" and val and "%" not in val and "_" not in val:
+            val = f"%{val}%"
+        return f"{col}={op}:{val}"
+
+    def _set_filter_columns(self, names: list[str]) -> None:
+        cb = getattr(self, "_filter_col_cb", None)
+        if cb is None:
+            return
+        cb["values"] = names
+        cur = self._filter_col.get()
+        if cur and cur not in names:
+            self._filter_col.set("")
+
     # ------------------------------------------------------------------ #
     # worker
     # ------------------------------------------------------------------ #
@@ -408,7 +497,7 @@ class DbPanel(ttk.Frame):
         cid = conn["id"] if conn else ""
         database = self._database.get().strip()
         table = self._current_table
-        filt = self._filter.get().strip()
+        filt = self._compose_filter()
         offset = self._offset
 
         def worker() -> None:
@@ -496,10 +585,14 @@ class DbPanel(ttk.Frame):
         if action == "columns":
             cols = payload.get("columns") or []
             self._coltree.delete(*self._coltree.get_children())
+            names: list[str] = []
             for i, col in enumerate(cols):
                 tag = ("odd",) if i % 2 else ()
+                name = col.get("name") or ""
+                if name:
+                    names.append(name)
                 self._coltree.insert(
-                    "", "end", text=col.get("name") or "",
+                    "", "end", text=name,
                     values=(
                         col.get("type") or "",
                         t("是") if col.get("nullable", True) else t("否"),
@@ -509,6 +602,7 @@ class DbPanel(ttk.Frame):
                     ),
                     tags=tag,
                 )
+            self._set_filter_columns(names)
             return
         if action == "rows":
             cols = payload.get("columns") or []
@@ -518,6 +612,8 @@ class DbPanel(ttk.Frame):
             for c in cols:
                 self._dtree.heading(c, text=c)
                 self._dtree.column(c, width=110, anchor="w")
+            if cols and not self._filter_col_cb["values"]:
+                self._set_filter_columns(list(cols))
             for i, row in enumerate(rows):
                 tag = ("odd",) if i % 2 else ()
                 vals = ["" if v is None else str(v) for v in row]
@@ -548,7 +644,22 @@ class DbPanel(ttk.Frame):
                     ),
                     tags=tag,
                 )
+            self._show_audit_entries(bool(entries))
             self._status.set(t("审计 {n} 条", n=len(entries)))
+
+    def _show_audit_entries(self, has_rows: bool) -> None:
+        """无记录时显示 EmptyState，有记录时显示表格。"""
+        empty = getattr(self, "_audit_empty", None)
+        tree = getattr(self, "_atree", None)
+        if empty is None or tree is None:
+            return
+        if has_rows:
+            empty.hide()
+            if not tree.winfo_ismapped():
+                tree.pack(fill="both", expand=True)
+        else:
+            tree.pack_forget()
+            empty.show()
 
     def _clear_tables(self) -> None:
         self._tables = []
@@ -565,6 +676,8 @@ class DbPanel(ttk.Frame):
 
     def _clear_columns(self) -> None:
         self._coltree.delete(*self._coltree.get_children())
+        self._set_filter_columns([])
+        self._clear_filter()
 
 
 # ---------------------------------------------------------------------- #

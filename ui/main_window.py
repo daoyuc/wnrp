@@ -22,7 +22,8 @@ from core.nginx_manager import NginxManager
 from core.php_manager import PhpManager
 from core.redis_manager import RedisManager
 from core.service_group import (PHP_SCOPE_CUSTOM, PHP_SCOPE_NEWEST, PHP_SCOPES,
-                                ServiceGroup, autostart_versions, scope_label)
+                                ServiceGroup, format_php_boot_preview,
+                                scope_label)
 from core.vhost_manager import VhostManager
 from .dialogs import CliSwitchDialog, CrashDialog
 from .layout import ScrolledFrame, auto_wrap, scrolled_frame
@@ -283,8 +284,11 @@ class MainWindow(tk.Tk):
                 self.config, self.services,
                 on_navigate=lambda key: self.nav.select_key(key)
                 if getattr(self, "nav", None) else False)
-        self.php_panel = PhpPanel(host, self.php_mgr, self.config, self.set_log,
-                                  on_autostart_change=self._on_php_autostart_change)
+        self.php_panel = PhpPanel(
+            host, self.php_mgr, self.config, self.set_log,
+            on_autostart_change=self._on_php_autostart_change,
+            services=self.services,
+        )
         self.nginx_panel = NginxPanel(host, self.nginx_mgr, self.set_log,
                                       on_new_site=self._open_site_wizard)
         self.redis_panel = None
@@ -497,7 +501,8 @@ class MainWindow(tk.Tk):
         auto_wrap(
             ttk.Label(
                 host,
-                text=t("默认全部启用。取消勾选后对应页面下次启动不再加载；改完点「立即重启」即可。"),
+                text=t("刚需默认开启。「SQLite 数据库」已并入「数据库」，新装默认关闭；"
+                       "取消勾选后对应页面下次启动不再加载，改完点「立即重启」即可。"),
                 style="SubTitle.TLabel",
             ),
             host, pad=WRAP_PAD_PAGE,
@@ -600,23 +605,25 @@ class MainWindow(tk.Tk):
         )
         self._sync_service_scope_box()
         self._svc_scope_box.pack(side="left", padx=(theme.PAD_XS, 0))
-        ttk.Button(scope_row, text=t("应用"), command=self._apply_service_scope_box).pack(
-            side="left", padx=(theme.PAD_SM, 0)
+        self._svc_scope_box.bind(
+            "<<ComboboxSelected>>",
+            lambda _e: self._apply_service_scope_box(),
         )
+        self._php_boot_preview_var = tk.StringVar()
+        auto_wrap(
+            ttk.Label(
+                left, textvariable=self._php_boot_preview_var,
+                style="CardBold.TLabel",
+            ),
+            host, **half,
+        ).pack(anchor="w", pady=(0, theme.PAD_XS))
+        self._refresh_php_boot_preview()
         auto_wrap(
             ttk.Label(
                 left,
                 text=t("默认「仅最新版本」：开机自启/启动时不会一次拉起全部 PHP 版本，"
-                       "其它版本可在 PHP 页手动启动。"),
-                style="SubTitle.TLabel",
-            ),
-            host, **half,
-        ).pack(anchor="w", pady=(0, theme.PAD_XS))
-        auto_wrap(
-            ttk.Label(
-                left,
-                text=t("选「按 PHP 页勾选」时，只启动 PHP 页中勾选了「开机自启」的版本"
-                       "（在 PHP 页点击「开机自启」列即可切换）。"),
+                       "其它版本可在 PHP 页手动启动。选「按 PHP 页勾选」时，"
+                       "在 PHP 页点「开机自启」列即可切换。"),
                 style="SubTitle.TLabel",
             ),
             host, **half,
@@ -650,8 +657,9 @@ class MainWindow(tk.Tk):
         )
         self._lang_box.current(list(LANGS).index(self.config.get_lang()))
         self._lang_box.pack(side="left", padx=(theme.PAD_XS, 0))
-        ttk.Button(lang_row, text=t("应用"), command=self._apply_lang_box).pack(
-            side="left", padx=(theme.PAD_SM, 0)
+        self._lang_box.bind(
+            "<<ComboboxSelected>>",
+            lambda _e: self._apply_lang_box(),
         )
 
         theme_row = ttk.Frame(left, style="Card.TFrame")
@@ -663,8 +671,9 @@ class MainWindow(tk.Tk):
         )
         self._theme_box.pack(side="left", padx=(theme.PAD_XS, 0))
         self._sync_theme_box()
-        ttk.Button(theme_row, text=t("应用"), command=self._apply_theme_box).pack(
-            side="left", padx=(theme.PAD_SM, 0)
+        self._theme_box.bind(
+            "<<ComboboxSelected>>",
+            lambda _e: self._apply_theme_box(),
         )
         auto_wrap(
             ttk.Label(
@@ -789,7 +798,8 @@ class MainWindow(tk.Tk):
         auto_wrap(
             ttk.Label(
                 frame,
-                text=t("提示：修改端口后需同步修改对应 nginx vhost 的 fastcgi_pass 才会生效。\n"
+                text=t("提示：在 PHP 页改端口后会弹出「一键同步」对话框，"
+                       "把引用旧端口的站点配置改到新端口并校验 nginx。\n"
                        "phpvm 按端口精确启停，不会像旧的 start_phpXX.bat 那样误杀其它版本进程。"),
                 style="SubTitle.TLabel",
             ),
@@ -986,6 +996,23 @@ class MainWindow(tk.Tk):
         scope = PHP_SCOPES[idx]
         self.config.set_setting("autostart_php_scope", scope)
         self.set_log(t("自动启动服务的 PHP 版本已设为：{scope}", scope=scope_label(scope)))
+        self._refresh_php_boot_preview()
+
+    def _refresh_php_boot_preview(self) -> None:
+        """刷新设置页与 PHP 页的「开机将启动：…」预览。"""
+        text = format_php_boot_preview(self.services, self._autostart_php_scope())
+        var = getattr(self, "_php_boot_preview_var", None)
+        if var is not None:
+            try:
+                var.set(text)
+            except tk.TclError:
+                pass
+        panel = getattr(self, "php_panel", None)
+        if panel is not None and hasattr(panel, "set_boot_preview"):
+            try:
+                panel.set_boot_preview(text)
+            except tk.TclError:
+                pass
 
     def _on_php_autostart_change(self, names: set, switched: bool) -> None:
         """PHP 页勾选「开机自启」后：同步设置页下拉框显示并记一条日志。
@@ -998,6 +1025,7 @@ class MainWindow(tk.Tk):
                 self._sync_service_scope_box()
             except tk.TclError:  # 窗口正在销毁
                 pass
+        self._refresh_php_boot_preview()
         run_log.info("env", t("开机自启勾选的 PHP 版本：{names}",
                               names="、".join(sorted(names)) or t("无")))
         if switched:

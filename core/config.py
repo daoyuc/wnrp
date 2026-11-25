@@ -56,7 +56,9 @@ DEFAULT_SETTINGS = {
     "auto_recover_limit": 3,      # 每小时每版本自愈次数上限
     "lang": None,                 # 界面语言；None = 跟随系统 locale（en/zh_CN/zh_TW/ja/ko）
     "sqlite_last_db": "",         # SQLite 查询页上次打开的数据库文件（下次启动自动带回）
-    "disabled_modules": [],       # 已停用的可选模块 key（见 core/modules.py；重启后不再加载）
+    # 新装默认关掉旧「SQLite 数据库」页（已并入「数据库」）；升级用户若配置里
+    # 已有 disabled_modules 键则保持原样，不会被默认值覆盖。
+    "disabled_modules": ["sqlite"],
     "check_update_on_start": True,  # 启动时静默检查新版本（发现后仅状态栏提示）
     "skipped_version": "",          # 用户点过「跳过此版本」的版本号，启动检查不再提示
     "theme": "system",              # 界面主题：light / dark / system（跟随系统外观，见 core/theme.py）

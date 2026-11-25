@@ -1,0 +1,12 @@
+{
+  "已并入「数据库」，建议关闭": "Merged into Databases — consider disabling",
+  "刚需默认开启。「SQLite 数据库」已并入「数据库」，新装默认关闭；取消勾选后对应页面下次启动不再加载，改完点「立即重启」即可。": "Required modules stay on. “SQLite database” is merged into Databases and off for new installs; unchecked pages won’t load next launch — click Restart now when done.",
+  "等于": "Equals",
+  "不等于": "Not equal",
+  "包含": "Contains",
+  "为空": "Is empty",
+  "非空": "Not empty",
+  "清除": "Clear",
+  "还没有写操作记录": "No write audit yet",
+  "写操作的审计会出现在这里（当前面板只读，暂无写入）。": "Write-operation audit will appear here (this panel is read-only for now)."
+}

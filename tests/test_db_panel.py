@@ -11,6 +11,13 @@ from core.db import store
 
 
 class DbModuleTest(unittest.TestCase):
+    def setUp(self):
+        self._lang = _i18n.current_language()
+        _i18n.set_language("zh_CN")
+
+    def tearDown(self):
+        _i18n.set_language(self._lang)
+
     def test_db_is_registered_in_site_group(self):
         keys = {m["key"] for m in modules.MODULES}
         self.assertIn("db", keys)
@@ -18,6 +25,37 @@ class DbModuleTest(unittest.TestCase):
         self.assertFalse(modules.MODULES[
             next(i for i, m in enumerate(modules.MODULES) if m["key"] == "db")
         ]["required"])
+
+    def test_sqlite_is_legacy_and_default_disabled(self):
+        from core.config import DEFAULT_SETTINGS
+        meta = next(m for m in modules.MODULES if m["key"] == "sqlite")
+        self.assertTrue(meta.get("legacy"))
+        self.assertIn("sqlite", DEFAULT_SETTINGS["disabled_modules"])
+        self.assertIn("已并入", modules.label(meta))
+
+
+class DbFilterComposeTest(unittest.TestCase):
+    """筛选控件 → DSL，不依赖 Tk 显示。"""
+
+    def setUp(self):
+        self._lang = _i18n.current_language()
+        _i18n.set_language("zh_CN")
+
+    def tearDown(self):
+        _i18n.set_language(self._lang)
+
+    def test_compose_helpers_via_source(self):
+        import inspect
+        from ui import db_panel
+        src = inspect.getsource(db_panel.DbPanel._compose_filter)
+        self.assertIn("_NULL_OPS", src)
+        self.assertIn("like", src)
+        self.assertIn("isnull", "".join(op for _lab, op in db_panel._FILTER_OPS))
+        build = inspect.getsource(db_panel.DbPanel._build)
+        self.assertNotIn('text=t("加载表")', build)
+        self.assertIn("_filter_col_cb", build)
+        self.assertIn("EmptyState", build)
+        self.assertIn("写操作的审计会出现在这里", build)
 
 
 class DbPanelSmokeTest(unittest.TestCase):

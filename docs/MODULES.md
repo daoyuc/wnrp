@@ -10,7 +10,7 @@
 
 ```
 服务  总览(overview) │ PHP 版本管理(php,刚需) │ Nginx 管理(nginx,刚需) │ Redis 管理(redis) │ MySQL 管理(mysql)
-站点  站点映射(vhost,刚需) │ 数据库(db) │ SQLite 数据库(sqlite)
+站点  站点映射(vhost,刚需) │ 数据库(db) │ SQLite 数据库(sqlite,新装默认关/已并入数据库)
 诊断  Nginx 日志(log) │ 邮件(mail) │ 运行日志(常驻，不受开关影响) │ 访问日志聚合(access_insights) │ 端口占用(port_scan) │ PHP 错误日志(php_errors) │ 证书到期(cert_watch)
 其他  SSH 管理(ssh) │ 键鼠统计(keymouse) │ 项目启动器(project_launcher) │ 站点巡检(site_health) │ Git 工作区(git_status) │ 设置(settings) │ 关于(about)
 ```
@@ -103,7 +103,7 @@
 | `redis` | Redis 管理 | ❌ | 不建导航项、不实例化 `RedisManager`、不导入该模块代码 |
 | `mysql` | MySQL 管理 | ❌ | 同上 |
 | `db` | 数据库 | ❌ | 不建导航项、不实例化 `DbPanel`；已保存连接与审计文件保留，`db` 命令组仍可用 |
-| `sqlite` | SQLite 数据库 | ❌ | 同上 |
+| `sqlite` | SQLite 数据库（legacy） | ❌ | 自由 SQL 旧页；能力已并入 `db`，**新装默认写入 `disabled_modules`**；升级用户若配置里已有该键则保持原样 |
 | `log` | Nginx 日志 | ❌ | 同上 |
 | `keymouse` | 键鼠统计 | ❌ | 不建插件导航项、不拉起后台记录进程；已在运行的守护进程下一轮配置检查（≤60s）自行 flush 并退出 |
 | `project_launcher` | 项目启动器 | ❌ | 不建插件导航项；无后台进程需停止，已添加的自定义命令保留在 `plugin_settings` 中 |

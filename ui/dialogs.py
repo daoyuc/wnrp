@@ -56,7 +56,7 @@ class PortDialog(tk.Toplevel):
 
         ttk.Label(
             body,
-            text=t("修改后需同步修改 nginx vhost 中的 fastcgi_pass 才会生效"),
+            text=t("保存后会提示同步站点配置（一键更新引用旧端口的 fastcgi_pass）"),
             style="SubTitle.TLabel",
         ).pack(anchor="w", pady=(4, 0))
 
@@ -103,7 +103,8 @@ class PortDialog(tk.Toplevel):
             messagebox.showinfo(
                 t("端口已修改"),
                 t("[{name}] 端口已改为 {port} 并保存。\n\n"
-                  "若 nginx 配置引用了旧端口 {old}，请手动同步 fastcgi_pass。",
+                  "未能打开同步对话框；请到站点页检查是否仍有 fastcgi_pass "
+                  "指向旧端口 {old}。",
                   name=self.version.name, port=port, old=old_port),
                 parent=self.master,
             )

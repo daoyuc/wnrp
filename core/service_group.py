@@ -49,6 +49,40 @@ def scope_label(scope: str) -> str:
     return t(_SCOPE_LABELS.get(scope, _SCOPE_LABELS[PHP_SCOPE_NEWEST]))
 
 
+def format_php_boot_preview(group, php_scope: str | None = None) -> str:
+    """开机/启动时将拉起的 PHP 名单（设置页与 PHP 页共用一句）。
+
+    custom 且未勾选（或勾选版本均不可用）时会回落「仅最新」——文案直接写出
+    回落后的结果，避免用户以为「勾了却没启」或「空名单什么都不启」。
+    """
+    if group is None:
+        return t("开机将启动：（当前无可用 PHP 版本）")
+    scope = php_scope
+    if not scope:
+        cfg = getattr(getattr(group, "php_mgr", None), "config", None)
+        raw = cfg.get_setting("autostart_php_scope", PHP_SCOPE_NEWEST) if cfg else PHP_SCOPE_NEWEST
+        scope = raw if raw in PHP_SCOPES else PHP_SCOPE_NEWEST
+    elif scope not in PHP_SCOPES:
+        scope = PHP_SCOPE_NEWEST
+    try:
+        targets, _ = group.php_targets(php_scope=scope)
+    except Exception:  # noqa: BLE001 —— 预览失败不拖垮设置页
+        return t("开机将启动：（当前无可用 PHP 版本）")
+    names = [getattr(v, "name", "") for v in targets if getattr(v, "name", "")]
+    if not names:
+        return t("开机将启动：（当前无可用 PHP 版本）")
+    joined = "、".join(names)
+    if scope == PHP_SCOPE_CUSTOM:
+        cfg = getattr(getattr(group, "php_mgr", None), "config", None)
+        checked = autostart_versions(cfg)
+        if not checked:
+            return t("开机将启动：{names}（未勾选，已回落仅最新）", names=joined)
+        available = {getattr(v, "name", "") for v in (group.php_mgr.versions or [])}
+        if not (set(checked) & available):
+            return t("开机将启动：{names}（勾选版本不可用，已回落仅最新）", names=joined)
+    return t("开机将启动：{names}", names=joined)
+
+
 def autostart_versions(config) -> list[str]:
     """设置里勾选的开机自启版本名（去空白、去重、保持配置顺序）。
 

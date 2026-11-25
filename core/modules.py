@@ -33,7 +33,9 @@ _BUILTIN: list[dict] = [
     {"key": "redis", "name": "Redis 管理", "required": False, "group": "service"},
     {"key": "mysql", "name": "MySQL 管理", "required": False, "group": "service"},
     {"key": "db", "name": "数据库", "required": False, "group": "site"},
-    {"key": "sqlite", "name": "SQLite 数据库", "required": False, "group": "site"},
+    # legacy：自由 SQL 页；能力已并入「数据库」，新装默认停用（见 DEFAULT_SETTINGS）
+    {"key": "sqlite", "name": "SQLite 数据库", "required": False,
+     "group": "site", "legacy": True},
     {"key": "log", "name": "Nginx 日志", "required": False, "group": "diag"},
     {"key": "overview", "name": "总览仪表盘", "required": False, "group": "service"},
     {"key": "mail", "name": "邮件捕获", "required": False, "group": "diag"},
@@ -109,6 +111,10 @@ def set_disabled(config, keys) -> list[str]:
 
 
 def label(meta: dict) -> str:
-    """设置界面显示文本（刚需模块附带说明）。"""
+    """设置界面显示文本（刚需 / 已并入说明）。"""
     name = t(meta["name"])
-    return f"{name}（{t('刚需，不可取消')}）" if meta["required"] else name
+    if meta.get("required"):
+        return f"{name}（{t('刚需，不可取消')}）"
+    if meta.get("legacy") and str(meta.get("key")) == "sqlite":
+        return f"{name}（{t('已并入「数据库」，建议关闭')}）"
+    return name

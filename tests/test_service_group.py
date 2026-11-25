@@ -20,6 +20,7 @@ from core.service_group import (
     PHP_SCOPES,
     ServiceGroup,
     autostart_versions,
+    format_php_boot_preview,
     scope_label,
     set_autostart_versions,
 )
@@ -387,6 +388,52 @@ class PhpCustomScopeTest(unittest.TestCase):
             "autostart_php_versions": "php85"})), [])
         set_autostart_versions(cfg, ["php82", "php82", " php85 "])
         self.assertEqual(cfg.get_setting("autostart_php_versions"), ["php82", "php85"])
+
+
+class FormatPhpBootPreviewTest(unittest.TestCase):
+    """设置页 / PHP 页共用的「开机将启动：…」文案。"""
+
+    def setUp(self):
+        self._lang = _i18n.current_language()
+        _i18n.set_language("zh_CN")
+        self.v74 = FakePhpVersion("php74", display="7.4.33", port=9074)
+        self.v82 = FakePhpVersion("php82", display="8.2.4", port=9000)
+        self.v85 = FakePhpVersion("php85", display="8.5.9", port=9085)
+
+    def tearDown(self):
+        _i18n.set_language(self._lang)
+
+    def _group(self, checked, scope=PHP_SCOPE_CUSTOM):
+        cfg = FakeConfig(settings={
+            "autostart_php_versions": list(checked),
+            "autostart_php_scope": scope,
+        })
+        _, group = make_group([self.v74, self.v82, self.v85], config=cfg)
+        return group
+
+    def test_none_group(self):
+        self.assertIn("无可用", format_php_boot_preview(None))
+
+    def test_newest_lists_single(self):
+        text = format_php_boot_preview(self._group([], PHP_SCOPE_NEWEST),
+                                      PHP_SCOPE_NEWEST)
+        self.assertEqual(text, "开机将启动：php85")
+
+    def test_custom_lists_checked(self):
+        text = format_php_boot_preview(self._group(["php74", "php82"]),
+                                      PHP_SCOPE_CUSTOM)
+        self.assertEqual(text, "开机将启动：php74、php82")
+
+    def test_custom_empty_notes_fallback(self):
+        text = format_php_boot_preview(self._group([]), PHP_SCOPE_CUSTOM)
+        self.assertIn("php85", text)
+        self.assertIn("未勾选", text)
+        self.assertIn("回落", text)
+
+    def test_custom_missing_notes_fallback(self):
+        text = format_php_boot_preview(self._group(["php99"]), PHP_SCOPE_CUSTOM)
+        self.assertIn("php85", text)
+        self.assertIn("不可用", text)
 
 
 if __name__ == "__main__":

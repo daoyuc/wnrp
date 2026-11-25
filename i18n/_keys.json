@@ -1084,7 +1084,7 @@
    "core/php_manager.py"
   ]
  },
- "[{name}] 端口已改为 {port} 并保存。\n\n若 nginx 配置引用了旧端口 {old}，请手动同步 fastcgi_pass。": {
+ "[{name}] 端口已改为 {port} 并保存。\n\n未能打开同步对话框；请到站点页检查是否仍有 fastcgi_pass 指向旧端口 {old}。": {
   "count": 1,
   "files": [
    "ui/dialogs.py"
@@ -2362,6 +2362,12 @@
    "ui/dialogs.py"
   ]
  },
+ "保存后会提示同步站点配置（一键更新引用旧端口的 fastcgi_pass）": {
+  "count": 1,
+  "files": [
+   "ui/dialogs.py"
+  ]
+ },
  "保存失败": {
   "count": 2,
   "files": [
@@ -2440,12 +2446,6 @@
   "count": 1,
   "files": [
    "ui/diag_dialog.py"
-  ]
- },
- "修改后需同步修改 nginx vhost 中的 fastcgi_pass 才会生效": {
-  "count": 1,
-  "files": [
-   "ui/dialogs.py"
   ]
  },
  "修改注册表失败，请检查权限": {
@@ -2996,6 +2996,12 @@
    "ui/site_wizard.py"
   ]
  },
+ "写操作的审计会出现在这里（当前面板只读，暂无写入）。": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
+  ]
+ },
  "决定 nginx 的 fastcgi_pass 端口。": {
   "count": 1,
   "files": [
@@ -3085,6 +3091,12 @@
   "files": [
    "ui/db_panel.py",
    "ui/sqlite_panel.py"
+  ]
+ },
+ "刚需默认开启。「SQLite 数据库」已并入「数据库」，新装默认关闭；取消勾选后对应页面下次启动不再加载，改完点「立即重启」即可。": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
   ]
  },
  "刚需，不可取消": {
@@ -3305,12 +3317,6 @@
   "count": 1,
   "files": [
    "core/xdebug.py"
-  ]
- },
- "加载表": {
-  "count": 1,
-  "files": [
-   "ui/db_panel.py"
   ]
  },
  "动作": {
@@ -5328,6 +5334,12 @@
    "cli.py"
   ]
  },
+ "已并入「数据库」，建议关闭": {
+  "count": 1,
+  "files": [
+   "core/modules.py"
+  ]
+ },
  "已开启": {
   "count": 3,
   "files": [
@@ -5824,12 +5836,6 @@
    "core/php_extension.py"
   ]
  },
- "应用": {
-  "count": 3,
-  "files": [
-   "ui/main_window.py"
-  ]
- },
  "应用启停、服务操作与异常的本机轨迹": {
   "count": 1,
   "files": [
@@ -5966,6 +5972,36 @@
   "count": 1,
   "files": [
    "ui/main_window.py"
+  ]
+ },
+ "开机将启动：{names}": {
+  "count": 1,
+  "files": [
+   "core/service_group.py"
+  ]
+ },
+ "开机将启动：{names}（勾选版本不可用，已回落仅最新）": {
+  "count": 1,
+  "files": [
+   "core/service_group.py"
+  ]
+ },
+ "开机将启动：{names}（未勾选，已回落仅最新）": {
+  "count": 1,
+  "files": [
+   "core/service_group.py"
+  ]
+ },
+ "开机将启动：（当前无可用 PHP 版本）": {
+  "count": 3,
+  "files": [
+   "core/service_group.py"
+  ]
+ },
+ "开机将启动：（扫描版本后显示）": {
+  "count": 1,
+  "files": [
+   "ui/php_panel.py"
   ]
  },
  "开机自动启动 phpvm（当前用户）": {
@@ -6683,16 +6719,16 @@
    "ui/nginx_panel.py"
   ]
  },
- "提示：修改端口后需同步修改对应 nginx vhost 的 fastcgi_pass 才会生效。\nphpvm 按端口精确启停，不会像旧的 start_phpXX.bat 那样误杀其它版本进程。": {
-  "count": 1,
-  "files": [
-   "ui/main_window.py"
-  ]
- },
  "提示：只读查询模式，仅支持 SELECT / PRAGMA / EXPLAIN / WITH 等语句；双击左侧表名可生成查询语句。": {
   "count": 1,
   "files": [
    "ui/sqlite_panel.py"
+  ]
+ },
+ "提示：在 PHP 页改端口后会弹出「一键同步」对话框，把引用旧端口的站点配置改到新端口并校验 nginx。\nphpvm 按端口精确启停，不会像旧的 start_phpXX.bat 那样误杀其它版本进程。": {
+  "count": 1,
+  "files": [
+   "ui/main_window.py"
   ]
  },
  "插件 key 重复：{key}（{name} 已跳过）": {
@@ -8948,6 +8984,12 @@
    "ui/run_log_panel.py"
   ]
  },
+ "清除": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
+  ]
+ },
  "点击「检查更新」开始": {
   "count": 1,
   "files": [
@@ -9704,6 +9746,12 @@
   "count": 1,
   "files": [
    "ui/sqlite_panel.py"
+  ]
+ },
+ "等于": {
+  "count": 2,
+  "files": [
+   "ui/db_panel.py"
   ]
  },
  "筛选": {
@@ -10976,6 +11024,12 @@
    "core/site_service.py"
   ]
  },
+ "还没有写操作记录": {
+  "count": 1,
+  "files": [
+   "ui/db_panel.py"
+  ]
+ },
  "还没有站点": {
   "count": 2,
   "files": [
@@ -11120,12 +11174,6 @@
   "files": [
    "ui/main_window.py",
    "ui/tray.py"
-  ]
- },
- "选「按 PHP 页勾选」时，只启动 PHP 页中勾选了「开机自启」的版本（在 PHP 页点击「开机自启」列即可切换）。": {
-  "count": 1,
-  "files": [
-   "ui/main_window.py"
   ]
  },
  "选中一个版本查看常用指标": {
@@ -11840,7 +11888,7 @@
    "core/tuning.py"
   ]
  },
- "默认「仅最新版本」：开机自启/启动时不会一次拉起全部 PHP 版本，其它版本可在 PHP 页手动启动。": {
+ "默认「仅最新版本」：开机自启/启动时不会一次拉起全部 PHP 版本，其它版本可在 PHP 页手动启动。选「按 PHP 页勾选」时，在 PHP 页点「开机自启」列即可切换。": {
   "count": 1,
   "files": [
    "ui/main_window.py"
@@ -11850,12 +11898,6 @@
   "count": 1,
   "files": [
    "ui/sqlite_panel.py"
-  ]
- },
- "默认全部启用。取消勾选后对应页面下次启动不再加载；改完点「立即重启」即可。": {
-  "count": 1,
-  "files": [
-   "ui/main_window.py"
   ]
  },
  "默认字符集": {
