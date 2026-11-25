@@ -148,6 +148,29 @@ class SiteServiceTest(unittest.TestCase):
         self.assertTrue(res.fatal)
         self.assertTrue(res.failed("test"))
 
+    def test_new_conf_tracked_as_created_and_deleted_on_rollback(self):
+        ng = make_layout(self.root)
+        self._patch(ng)
+        res = site_service.create_site(self._plan(), FakeConfig())
+        self.assertFalse(res.fatal, res.steps)
+        self.assertTrue(res.rollback.created, res.rollback)
+        self.assertTrue(os.path.isfile(res.path))
+        site_service.rollback_site(res.rollback, FakeConfig())
+        self.assertFalse(os.path.isfile(res.path), "撤销应删除本次新建的配置")
+        self.assertEqual(res.rollback.created, [])
+
+    def test_remove_site_backs_up_and_deletes(self):
+        ng = make_layout(self.root)
+        self._patch(ng)
+        path = os.path.join(ng.vhost_dir, "gone.conf")
+        os.makedirs(ng.vhost_dir, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("server { listen 80; server_name gone.test; }\n")
+        out = site_service.remove_site(path, config=FakeConfig(), reload=False)
+        self.assertTrue(out["ok"], out)
+        self.assertFalse(os.path.isfile(path))
+        self.assertTrue(out.get("backup"))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -21,8 +21,9 @@
 - ``test`` 在「未找到 nginx 可执行文件」时记为 ``skip``，此时仍继续写 hosts；
 - ``hosts`` / ``reload`` 为**软项**：失败只提示，不影响站点配置是否就绪。
 
-回滚边界（与历史行为一致）：只还原**被覆盖**的文件（改前已存在的 vhost 与
-nginx.conf），本次**新建**的配置文件不删除，避免误删用户刚生成的配置。
+回滚边界：还原**被覆盖**的文件（改前已存在的 vhost 与 nginx.conf）；
+本次**新建**的配置文件记入 ``SiteRollback.created``，撤销时删除
+（建站成功后的「撤销本次创建」依赖此项）。
 """
 import os
 import re
@@ -59,13 +60,15 @@ class SiteRollback:
     """本次创建产生的可回滚改动记录（由 :func:`create_site` 填充）。"""
 
     vhost: list[tuple[str, str]] = field(default_factory=list)  # (path, backup) 覆盖过的
+    created: list[str] = field(default_factory=list)  # 本次新建的 vhost 路径（撤销时删除）
     main_conf: str = ""  # 改过的 nginx.conf 备份路径（空＝未改）
     hosts: list[str] = field(default_factory=list)  # 本次写入 hosts 的域名
     certs: list[str] = field(default_factory=list)  # 本次生成的证书域名
 
     def changed(self) -> bool:
         """本次是否产生过可回滚改动。"""
-        return bool(self.vhost or self.main_conf or self.hosts or self.certs)
+        return bool(self.vhost or self.created or self.main_conf
+                    or self.hosts or self.certs)
 
 
 @dataclass
@@ -314,8 +317,12 @@ def create_site(plan: SitePlan, config: Config | None = None) -> SiteResult:
     conf_name = plan.conf_name or (safe_conf_base(plan.domains[0]) + ".conf")
     file_res = vm.write_vhost(conf_name, content)
     result.path = file_res.get("path", "")
-    if file_res.get("ok") and file_res.get("existed") and file_res.get("backup"):
-        rb.vhost.append((file_res["path"], file_res["backup"]))
+    if file_res.get("ok"):
+        path = file_res.get("path") or ""
+        if file_res.get("existed") and file_res.get("backup"):
+            rb.vhost.append((path, file_res["backup"]))
+        elif path:
+            rb.created.append(path)
     result.steps.append(("file", file_res))
     if not file_res.get("ok"):
         result.fatal = True
@@ -374,8 +381,8 @@ def create_site(plan: SitePlan, config: Config | None = None) -> SiteResult:
 
 
 def rollback_site(rb: SiteRollback, config: Config | None = None) -> list[dict]:
-    """执行回滚：还原被覆盖的 vhost / nginx.conf、移除本次写过的 hosts 映射、
-    删除本次生成的证书。
+    """执行回滚：还原被覆盖的 vhost / nginx.conf、删除本次新建的 vhost、
+    移除本次写过的 hosts 映射、删除本次生成的证书。
 
     返回每项结果 ``[{target, path, ok, message}]``（不抛异常）。文件还原项不带
     通用提示文案（调用方自行汇总，避免为同一件事造多份词条）；证书 / hosts 项的
@@ -387,6 +394,16 @@ def rollback_site(rb: SiteRollback, config: Config | None = None) -> list[dict]:
         out.append({"target": "vhost", "path": path, "ok": ok, "backup": backup,
                     "message": "" if ok else t("还原失败：{path}（备份 {backup}）",
                                                path=path, backup=backup)})
+    for path in list(reversed(rb.created)):
+        try:
+            if os.path.isfile(path):
+                os.remove(path)
+            out.append({"target": "created", "path": path, "ok": True,
+                        "message": t("已删除本次新建的配置：{path}", path=path)})
+        except OSError as e:
+            out.append({"target": "created", "path": path, "ok": False,
+                        "message": t("删除新建配置失败：{err}", err=e)})
+    rb.created = []
     if rb.main_conf:
         vm = VhostManager(config)
         ok = file_backup.restore(rb.main_conf, vm.main_conf)
@@ -420,3 +437,48 @@ def rollback_site(rb: SiteRollback, config: Config | None = None) -> list[dict]:
                         "message": t("hosts 映射移除异常：{err}", err=e)})
         rb.hosts = []
     return out
+
+
+def remove_site(path: str, *, reload: bool = True,
+                config: Config | None = None) -> dict:
+    """删除站点配置文件（改前 ``.bak``；``nginx -t`` 失败则还原）。
+
+    不自动改 hosts（调用方可另调 ``hosts_manager.remove_entries``）。
+    """
+    path = os.path.abspath(path or "")
+    if not path or not os.path.isfile(path):
+        return {"ok": False, "message": t("配置文件不存在：{path}", path=path or "—")}
+    vm = VhostManager(config)
+    if os.path.normcase(path) == os.path.normcase(os.path.abspath(vm.main_conf)):
+        return {"ok": False,
+                "message": t("不能删除 nginx 主配置文件。")}
+    try:
+        backup = file_backup.backup(path)
+        os.remove(path)
+    except OSError as e:
+        return {"ok": False, "message": t("删除失败：{err}", err=e)}
+
+    test_ok, output, rolled_back = True, "", False
+    if os.path.exists(vm.nginx.exe):
+        output = vm.nginx.test_config()
+        test_ok = test_output_ok(output)
+        if not test_ok:
+            file_backup.restore(backup, path, remove_backup=False)
+            rolled_back = True
+            return {
+                "ok": False, "path": path, "backup": backup,
+                "rolled_back": True, "output": output,
+                "message": t("nginx -t 校验失败，已还原站点配置。\n{out}", out=output),
+            }
+    reloaded = False
+    if test_ok and reload:
+        running, _ = vm.nginx.get_status()
+        if running:
+            vm.nginx.reload()
+            reloaded = True
+    return {
+        "ok": True, "path": path, "backup": backup, "output": output,
+        "rolled_back": rolled_back, "reloaded": reloaded,
+        "message": t("已删除站点配置：{path}（备份 {backup}）",
+                     path=path, backup=backup or "—"),
+    }

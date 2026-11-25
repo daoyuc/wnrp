@@ -456,6 +456,8 @@ class VhostPanel(ttk.Frame):
         self._menu.add_separator()
         self._menu.add_command(label=t("从 hosts 移除映射"), command=self._remove_hosts)
         self._menu.add_separator()
+        self._menu.add_command(label=t("删除站点…"), command=self._delete_site)
+        self._menu.add_separator()
         self._menu.add_command(label=t("刷新"), command=self.refresh)
         try:
             self._menu.tk_popup(event.x_root, event.y_root)
@@ -633,6 +635,32 @@ class VhostPanel(ttk.Frame):
                 parent=self):
             return
         self._run_op(lambda: hosts_manager.remove_entries(doms), t("正在移除 hosts 映射…"))
+
+    def _delete_site(self) -> None:
+        """删除站点配置（强确认；改前 .bak；nginx -t 失败自动还原）。"""
+        entry = self._selected()
+        if not entry:
+            return
+        doms = [d for d in entry.server_name.split() if d and not d.startswith("*.")]
+        hosts_note = (
+            t("\n同时移除 hosts 映射：{doms}", doms="、".join(doms)) if doms else "")
+        if not messagebox.askyesno(
+                t("删除站点"),
+                t("将删除配置文件：\n{path}\n（自动备份为 .bak）{hosts}\n\n"
+                  "确定删除？此操作比「禁用站点」更彻底。",
+                  path=entry.file, hosts=hosts_note),
+                parent=self):
+            return
+        path = entry.file
+        cfg = self.vhost_mgr.config
+
+        def work():
+            res = site_service.remove_site(path, config=cfg, reload=True)
+            if res.get("ok") and doms:
+                hosts_manager.remove_entries(doms)
+            return res
+
+        self._run_op(work, t("正在删除站点…"))
 
     def _run_op(self, fn, tip: str) -> None:
         """后台执行站点操作（可能触发 nginx -t 或 hosts 提权），结果回主线程提示。"""

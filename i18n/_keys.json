@@ -5,6 +5,12 @@
    "ui/site_wizard.py"
   ]
  },
+ "\n同时移除 hosts 映射：{doms}": {
+  "count": 1,
+  "files": [
+   "ui/vhost_panel.py"
+  ]
+ },
  "\n注意：同名配置文件已存在，创建时将覆盖（原文件自动备份为 .bak）": {
   "count": 1,
   "files": [
@@ -1294,12 +1300,6 @@
    "ui/site_wizard.py"
   ]
  },
- "hosts 路径：{path}": {
-  "count": 1,
-  "files": [
-   "ui/site_wizard.py"
-  ]
- },
  "include 已补上": {
   "count": 1,
   "files": [
@@ -1370,6 +1370,12 @@
   "count": 2,
   "files": [
    "core/vhost_manager.py"
+  ]
+ },
+ "nginx -t 校验失败，已还原站点配置。\n{out}": {
+  "count": 1,
+  "files": [
+   "core/site_service.py"
   ]
  },
  "nginx -t 校验失败，已还原：{output}": {
@@ -2090,6 +2096,12 @@
    "core/ini_editor.py"
   ]
  },
+ "不能删除 nginx 主配置文件。": {
+  "count": 1,
+  "files": [
+   "core/site_service.py"
+  ]
+ },
  "不适用": {
   "count": 1,
   "files": [
@@ -2762,14 +2774,13 @@
   ]
  },
  "关闭": {
-  "count": 11,
+  "count": 10,
   "files": [
    "ui/diag_dialog.py",
    "ui/dialogs.py",
    "ui/download_dialog.py",
    "ui/extension_dialog.py",
    "ui/mail_panel.py",
-   "ui/site_wizard.py",
    "ui/sqlite_panel.py",
    "ui/tuning_dialog.py",
    "ui/xdebug_dialog.py"
@@ -2979,7 +2990,7 @@
    "core/tuning.py"
   ]
  },
- "写入需要系统管理员权限：macOS 会弹出系统授权框，Windows 会弹出 UAC 确认。\n已指向 127.0.0.1 的域名自动跳过；指向其它 IP 的域名不覆盖，仅提示。": {
+ "写入需系统授权；已指向 127.0.0.1 的自动跳过，指向其它 IP 的不覆盖。": {
   "count": 1,
   "files": [
    "ui/site_wizard.py"
@@ -3143,10 +3154,34 @@
    "ui/ssh_panel.py"
   ]
  },
+ "删除失败：{err}": {
+  "count": 1,
+  "files": [
+   "core/site_service.py"
+  ]
+ },
+ "删除新建配置失败：{err}": {
+  "count": 1,
+  "files": [
+   "core/site_service.py"
+  ]
+ },
  "删除片段": {
   "count": 2,
   "files": [
    "ui/ssh_panel.py"
+  ]
+ },
+ "删除站点": {
+  "count": 1,
+  "files": [
+   "ui/vhost_panel.py"
+  ]
+ },
+ "删除站点…": {
+  "count": 1,
+  "files": [
+   "ui/vhost_panel.py"
   ]
  },
  "删除连接": {
@@ -4356,15 +4391,10 @@
   ]
  },
  "完成": {
-  "count": 1,
+  "count": 2,
   "files": [
+   "ui/site_wizard.py",
    "core/mysql_manager.py"
-  ]
- },
- "完成，可关闭本向导": {
-  "count": 1,
-  "files": [
-   "ui/site_wizard.py"
   ]
  },
  "完整内容": {
@@ -4549,6 +4579,12 @@
    "ui/mail_panel.py"
   ]
  },
+ "将删除配置文件：\n{path}\n（自动备份为 .bak）{hosts}\n\n确定删除？此操作比「禁用站点」更彻底。": {
+  "count": 1,
+  "files": [
+   "ui/vhost_panel.py"
+  ]
+ },
  "将启动 Nginx": {
   "count": 1,
   "files": [
@@ -4631,6 +4667,12 @@
   "count": 1,
   "files": [
    "ui/vhost_panel.py"
+  ]
+ },
+ "将撤销刚才创建的站点配置（含 hosts 与本次证书）。确定？": {
+  "count": 1,
+  "files": [
+   "ui/site_wizard.py"
   ]
  },
  "将文件：{path}": {
@@ -4989,6 +5031,18 @@
    "ui/dialogs.py"
   ]
  },
+ "已创建推荐目录 {d}": {
+  "count": 1,
+  "files": [
+   "ui/site_wizard.py"
+  ]
+ },
+ "已创建目录 {root}": {
+  "count": 1,
+  "files": [
+   "ui/site_wizard.py"
+  ]
+ },
  "已删除主机": {
   "count": 1,
   "files": [
@@ -5014,6 +5068,12 @@
    "cli.py"
   ]
  },
+ "已删除本次新建的配置：{path}": {
+  "count": 1,
+  "files": [
+   "core/site_service.py"
+  ]
+ },
  "已删除本次生成的证书：{dom}": {
   "count": 1,
   "files": [
@@ -5024,6 +5084,12 @@
   "count": 1,
   "files": [
    "ui/ssh_panel.py"
+  ]
+ },
+ "已删除站点配置：{path}（备份 {backup}）": {
+  "count": 1,
+  "files": [
+   "core/site_service.py"
   ]
  },
  "已删除连接": {
@@ -5161,12 +5227,6 @@
   "files": [
    "ui/nginx_panel.py",
    "ui/redis_panel.py"
-  ]
- },
- "已填入推荐目录：\n{d}\n\n该目录尚不存在，请先在系统中创建（创建站点前向导会再次校验目录存在）。": {
-  "count": 1,
-  "files": [
-   "ui/site_wizard.py"
   ]
  },
  "已复制到剪贴板": {
@@ -5405,6 +5465,12 @@
    "cli.py"
   ]
  },
+ "已撤销本次创建": {
+  "count": 1,
+  "files": [
+   "ui/site_wizard.py"
+  ]
+ },
  "已新增连接：{name}": {
   "count": 1,
   "files": [
@@ -5624,7 +5690,7 @@
    "ui/plugins/site_health_panel.py"
   ]
  },
- "已还原本次改动（vhost 文件、nginx.conf 与 hosts 均恢复）。": {
+ "已还原本次改动（新建配置已删、覆盖文件与 hosts 已恢复）。": {
   "count": 1,
   "files": [
    "ui/site_wizard.py"
@@ -6575,7 +6641,7 @@
   ]
  },
  "推荐目录": {
-  "count": 2,
+  "count": 1,
   "files": [
    "ui/site_wizard.py"
   ]
@@ -6684,6 +6750,12 @@
   "count": 1,
   "files": [
    "ui/db_panel.py"
+  ]
+ },
+ "撤销本次创建": {
+  "count": 2,
+  "files": [
+   "ui/site_wizard.py"
   ]
  },
  "操作与日志": {
@@ -6972,11 +7044,23 @@
    "core/updater.py"
   ]
  },
+ "无法创建目录": {
+  "count": 1,
+  "files": [
+   "ui/site_wizard.py"
+  ]
+ },
  "无法创建目录：{err}": {
   "count": 2,
   "files": [
    "core/adminer.py",
    "core/backup_bundle.py"
+  ]
+ },
+ "无法创建项目目录：\n{root}\n\n{err}": {
+  "count": 1,
+  "files": [
+   "ui/site_wizard.py"
   ]
  },
  "无法启动升级脚本：{err}": {
@@ -8368,6 +8452,12 @@
    "ui/vhost_panel.py"
   ]
  },
+ "正在删除站点…": {
+  "count": 1,
+  "files": [
+   "ui/vhost_panel.py"
+  ]
+ },
  "正在加载…": {
   "count": 1,
   "files": [
@@ -9396,12 +9486,6 @@
    "ui/site_wizard.py"
   ]
  },
- "站点创建成功": {
-  "count": 1,
-  "files": [
-   "ui/site_wizard.py"
-  ]
- },
  "站点地址来自站点映射（vhost）配置": {
   "count": 2,
   "files": [
@@ -9444,6 +9528,12 @@
    "core/vhost_manager.py"
   ]
  },
+ "站点已就绪。若建错可点「撤销本次创建」。": {
+  "count": 1,
+  "files": [
+   "ui/site_wizard.py"
+  ]
+ },
  "站点已禁用，请先启用站点再启用 HTTPS。": {
   "count": 1,
   "files": [
@@ -9479,12 +9569,6 @@
   "count": 2,
   "files": [
    "core/diag.py"
-  ]
- },
- "站点配置已就绪：\n{path}": {
-  "count": 1,
-  "files": [
-   "ui/site_wizard.py"
   ]
  },
  "站点配置已被禁用（.conf.disabled），Nginx 不会加载它": {
@@ -10715,6 +10799,12 @@
    "ui/plugins/access_insights_panel.py"
   ]
  },
+ "路径已存在但是文件，无法作为项目目录：\n{root}": {
+  "count": 1,
+  "files": [
+   "ui/site_wizard.py"
+  ]
+ },
  "路径解析缓存：框架每次请求上千次 stat()，默认 16K 太小": {
   "count": 1,
   "files": [
@@ -11206,7 +11296,7 @@
   ]
  },
  "配置文件不存在：{path}": {
-  "count": 3,
+  "count": 4,
   "files": [
    "core/mail_catcher.py",
    "core/site_service.py"
@@ -11627,12 +11717,6 @@
   "count": 1,
   "files": [
    "core/diag.py"
-  ]
- },
- "项目目录不存在或不是文件夹：\n{root}": {
-  "count": 1,
-  "files": [
-   "ui/site_wizard.py"
   ]
  },
  "项目目录不存在：{path}": {

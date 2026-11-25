@@ -1830,30 +1830,21 @@ def cmd_site_remove(a, r: Result) -> Result:
         r.data = {"dry_run": True, "file": e.file, "backup": backup}
         r.say(f"[dry-run] 将删除 {e.file}（备份为 {backup}）")
         return r
-    try:
-        backup = file_backup.backup(e.file) or backup
-        os.remove(e.file)
-    except OSError as err:
-        return r.fail(f"删除失败：{err}", file=e.file)
-    ng = _nginx()
-    test_ok, out, rolled_back = True, "", False
-    if os.path.exists(ng.exe):
-        out = ng.test_config()
-        test_ok = _test_output_ok(out)
-        if not test_ok:
-            file_backup.restore(backup, e.file, remove_backup=False)
-            rolled_back = True
+    res = site_service.remove_site(
+        e.file, config=cfg, reload=not a.no_reload)
+    r.ok = bool(res.get("ok"))
+    r.data = {
+        "file": res.get("path") or e.file,
+        "backup": res.get("backup") or backup,
+        "test_output": res.get("output") or "",
+        "rolled_back": bool(res.get("rolled_back")),
+        "reloaded": bool(res.get("reloaded")),
+    }
+    if not r.ok:
+        r.data["error"] = res.get("message") or "删除失败"
+        if res.get("rolled_back"):
             r.note("nginx -t 未通过，已还原站点配置")
-    reloaded = False
-    if test_ok and not a.no_reload and ng.get_status()[0]:
-        ng.reload()
-        reloaded = True
-    r.ok = test_ok
-    r.data = {"file": e.file, "backup": backup, "test_output": out,
-              "rolled_back": rolled_back, "reloaded": reloaded}
-    if not test_ok:
-        r.data["error"] = "删除后 nginx -t 未通过（已还原）"
-    r.say(f"已删除 {e.file}（备份 {backup}）")
+    r.say(res.get("message") or "")
     return r
 
 

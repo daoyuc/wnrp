@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
-"""「新建站点」可视化向导：分 4 步配置一个 nginx 虚拟站点。
+"""「新建站点」可视化向导：分 3 步配置一个 nginx 虚拟站点。
 
 步骤：
   1. 基本信息 —— 域名、项目目录、PHP 版本（决定 fastcgi_pass 端口）
   2. 应用模板 —— Laravel / WordPress / ThinkPHP / 通用 PHP / 静态 / SPA，实时预览配置
-  3. hosts 映射 —— 一键把域名写入 hosts 指向 127.0.0.1（无权限时按平台弹窗提权）
-  4. 确认创建 —— 落盘 vhost 文件 → 自动补 include → nginx -t 校验 → 写入 hosts → 重载
+  3. 确认创建 —— hosts 勾选 + 摘要 → 落盘 vhost → include → nginx -t → hosts → 重载
 
-创建全程后台执行，结果经 queue 回传；校验失败自动还原本次改动并保留备份提示。
+创建全程后台执行，结果经 queue 回传；校验失败可回滚；成功后可「撤销本次创建」。
 """
 import os
 import queue
@@ -30,7 +29,7 @@ from core.vhost_manager import (
 from . import theme
 from .window_utils import fit_window
 
-STEP_TITLES = ["基本信息", "应用模板", "hosts 映射", "确认创建"]
+STEP_TITLES = ["基本信息", "应用模板", "确认创建"]
 
 
 class SiteWizardDialog(tk.Toplevel):
@@ -123,8 +122,7 @@ class SiteWizardDialog(tk.Toplevel):
         # 分步 frame（先建好，切换显示）
         self._frame_step1 = self._build_step1(self.content)
         self._frame_step2 = self._build_step2(self.content)
-        self._frame_step3 = self._build_step3(self.content)
-        self._frame_step4 = self._build_step4(self.content)
+        self._frame_step3 = self._build_step3(self.content)  # 确认（含 hosts）
 
     # --------------------- 步骤 1：基本信息 --------------------- #
     def _build_step1(self, master) -> ttk.Frame:
@@ -257,58 +255,52 @@ class SiteWizardDialog(tk.Toplevel):
         hs.pack(side="bottom", fill="x")
         return fr
 
-    # --------------------- 步骤 3：hosts --------------------- #
+    # --------------------- 步骤 3：确认创建（含 hosts） --------------------- #
     def _build_step3(self, master) -> ttk.Frame:
         fr = ttk.Frame(master, padding=8)
-        card = ttk.LabelFrame(fr, text=t("hosts 映射（域名 → 本机）"), padding=14)
-        card.pack(fill="x")
+
+        hosts = ttk.LabelFrame(fr, text=t("hosts 映射（域名 → 本机）"), padding=10)
+        hosts.pack(fill="x")
         self.chk_hosts = ttk.Checkbutton(
-            card, text=t("自动写入 hosts，使下列域名指向本机 127.0.0.1"),
+            hosts, text=t("自动写入 hosts，使下列域名指向本机 127.0.0.1"),
             variable=self.v_hosts,
+            command=self._refresh_summary,
         )
         self.chk_hosts.pack(anchor="w")
         ttk.Label(
-            card,
-            text=t("写入需要系统管理员权限：macOS 会弹出系统授权框，Windows 会弹出 UAC 确认。\n"
-                   "已指向 127.0.0.1 的域名自动跳过；指向其它 IP 的域名不覆盖，仅提示。"),
+            hosts,
+            text=t("写入需系统授权；已指向 127.0.0.1 的自动跳过，指向其它 IP 的不覆盖。"),
             style="SubTitle.TLabel", justify="left", background=theme.CARD_BG,
-        ).pack(anchor="w", pady=(4, 6))
-
+        ).pack(anchor="w", pady=(2, 4))
         self.hosts_status = tk.Text(
-            card, height=7, wrap="word", font=(theme.FONT, 9), relief="flat",
-            background=theme.PANEL_ALT, foreground=theme.TEXT, padx=8, pady=6, state="disabled",
+            hosts, height=4, wrap="word", font=(theme.FONT, 9), relief="flat",
+            background=theme.PANEL_ALT, foreground=theme.TEXT, padx=8, pady=6,
+            state="disabled",
         )
         self.hosts_status.pack(fill="x")
-
-        btns = ttk.Frame(card)
-        btns.pack(anchor="w", pady=(8, 0))
-        ttk.Button(btns, text=t("打开 hosts 文件"), command=self._open_hosts).pack(side="left")
-        ttk.Button(btns, text=t("刷新状态"), command=self._refresh_hosts_status).pack(
+        hbtns = ttk.Frame(hosts)
+        hbtns.pack(anchor="w", pady=(6, 0))
+        ttk.Button(hbtns, text=t("打开 hosts 文件"), command=self._open_hosts).pack(side="left")
+        ttk.Button(hbtns, text=t("刷新状态"), command=self._refresh_hosts_status).pack(
             side="left", padx=(8, 0))
-        ttk.Label(
-            btns, text=t("hosts 路径：{path}", path=hosts_manager.hosts_path()),
-            style="SubTitle.TLabel",
-        ).pack(side="left", padx=(10, 0))
-        return fr
 
-    # --------------------- 步骤 4：确认创建 --------------------- #
-    def _build_step4(self, master) -> ttk.Frame:
-        fr = ttk.Frame(master, padding=8)
-        card = ttk.LabelFrame(fr, text=t("创建前确认"), padding=14)
-        card.pack(fill="x")
+        card = ttk.LabelFrame(fr, text=t("创建前确认"), padding=10)
+        card.pack(fill="x", pady=(8, 0))
         self.summary = tk.Text(
-            card, height=10, wrap="word", font=(theme.FONT, 9), relief="flat",
-            background=theme.PANEL_ALT, foreground=theme.TEXT, padx=10, pady=8, state="disabled",
+            card, height=8, wrap="word", font=(theme.FONT, 9), relief="flat",
+            background=theme.PANEL_ALT, foreground=theme.TEXT, padx=10, pady=8,
+            state="disabled",
         )
         self.summary.pack(fill="x")
 
-        ttk.Label(fr, text=t("执行日志"), style="Section.TLabel").pack(anchor="w", pady=(10, 4))
+        ttk.Label(fr, text=t("执行日志"), style="Section.TLabel").pack(
+            anchor="w", pady=(10, 4))
         wrap = ttk.Frame(fr)
         wrap.pack(fill="both", expand=True)
         self.log = tk.Text(
             wrap, wrap="word", font=theme.mono(),
-            background=theme.LOG_BG, foreground=theme.LOG_FG, relief="flat", padx=10, pady=8,
-            state="disabled",
+            background=theme.LOG_BG, foreground=theme.LOG_FG, relief="flat",
+            padx=10, pady=8, state="disabled",
         )
         vs = ttk.Scrollbar(wrap, orient="vertical", command=self.log.yview)
         self.log.configure(yscrollcommand=vs.set)
@@ -330,19 +322,19 @@ class SiteWizardDialog(tk.Toplevel):
 
     def _show_step(self, idx: int) -> None:
         self._step = idx
-        frames = (self._frame_step1, self._frame_step2, self._frame_step3, self._frame_step4)
+        frames = (self._frame_step1, self._frame_step2, self._frame_step3)
         for f in frames:
             f.pack_forget()
         frames[idx].pack(fill="both", expand=True)
         self.btn_prev.configure(state="disabled" if idx == 0 or self._finished else "normal")
         if not self._finished:
-            self.btn_next.configure(text=t("创建站点") if idx == 3 else t("下一步"), state="normal")
+            self.btn_next.configure(
+                text=t("创建站点") if idx == 2 else t("下一步"), state="normal")
         self.hint_label.configure(text="")
         if idx == 1:
             self._refresh_preview()
         elif idx == 2:
             self._refresh_hosts_status()
-        elif idx == 3:
             self._refresh_summary()
         self._render_steps()
 
@@ -354,14 +346,15 @@ class SiteWizardDialog(tk.Toplevel):
     def _on_next(self) -> None:
         if self._busy:
             return
+        if self._finished:
+            self.destroy()
+            return
         if self._step == 0:
             if not self._validate_step1():
                 return
             self._show_step(1)
         elif self._step == 1:
             self._show_step(2)
-        elif self._step == 2:
-            self._show_step(3)
         else:
             self._do_create()
 
@@ -390,8 +383,30 @@ class SiteWizardDialog(tk.Toplevel):
             messagebox.showwarning(t("缺少目录"), t("请选择站点项目目录。"), parent=self)
             return False
         if not os.path.isdir(root):
-            messagebox.showwarning(t("目录不存在"), t("项目目录不存在或不是文件夹：\n{root}", root=root), parent=self)
+            if not self._ensure_project_dir(root):
+                return False
+        return True
+
+    def _ensure_project_dir(self, root: str) -> bool:
+        """目录不存在时自动创建；无权限或已是文件时才打断用户。"""
+        if os.path.isfile(root):
+            messagebox.showwarning(
+                t("目录不存在"),
+                t("路径已存在但是文件，无法作为项目目录：\n{root}", root=root),
+                parent=self,
+            )
             return False
+        try:
+            os.makedirs(root, exist_ok=True)
+        except OSError as e:
+            messagebox.showwarning(
+                t("无法创建目录"),
+                t("无法创建项目目录：\n{root}\n\n{err}", root=root, err=e),
+                parent=self,
+            )
+            return False
+        self.hint_label.configure(
+            text=t("已创建目录 {root}", root=root), foreground=theme.OK)
         return True
 
     @property
@@ -435,12 +450,9 @@ class SiteWizardDialog(tk.Toplevel):
         self.v_root.set(d)
         self._refresh_filename()
         if not os.path.isdir(d):
-            messagebox.showinfo(
-                t("推荐目录"),
-                t("已填入推荐目录：\n{d}\n\n该目录尚不存在，请先在系统中创建"
-                  "（创建站点前向导会再次校验目录存在）。", d=d),
-                parent=self,
-            )
+            if self._ensure_project_dir(d):
+                self.hint_label.configure(
+                    text=t("已创建推荐目录 {d}", d=d), foreground=theme.OK)
 
     def _refresh_filename(self) -> None:
         if self._finished:
@@ -722,10 +734,9 @@ class SiteWizardDialog(tk.Toplevel):
             self.btn_cancel.configure(state="normal")
             return
 
-        # 关键步骤均完成（含「未找到 nginx」等跳过场景）
+        # 关键步骤均完成：保留向导，提供「撤销本次创建」，不打断到手的站点
         self._finished = True
         self._append_log(t("== 站点创建完成 =="), "ok")
-        self.btn_next.configure(text=t("关闭"), state="normal")
         notes = []
         for s in skipped:
             m = s.get("message")
@@ -733,14 +744,17 @@ class SiteWizardDialog(tk.Toplevel):
                 notes.append(m)
         for sf in soft_fail:
             notes.append(t("注意：{msg}", msg=sf.get("message", t("hosts 或重载未完成。"))))
-        msg = t("站点配置已就绪：\n{path}", path=self.conf_path)
-        if notes:
-            msg += "\n\n" + "\n".join(notes)
-        messagebox.showinfo(t("站点创建成功"), msg, parent=self)
-        self.hint_label.configure(text=t("完成，可关闭本向导"), foreground=theme.OK)
+        self.hint_label.configure(
+            text=t("站点已就绪。若建错可点「撤销本次创建」。"),
+            foreground=theme.OK)
+        for n in notes:
+            self._append_log(n, "info")
+        self.btn_next.configure(text=t("完成"), state="normal")
+        self.btn_cancel.configure(text=t("撤销本次创建"), state="normal",
+                                  command=self._undo_create)
+        self.btn_prev.configure(state="disabled")
         if self.on_done:
             self.on_done()
-        self.destroy()
 
     def _append_result_log(self, tag: str, res: dict) -> None:
         titles = {"file": t("① 写入 vhost 配置"), "include": t("② nginx.conf include 检查"),
@@ -762,7 +776,8 @@ class SiteWizardDialog(tk.Toplevel):
             if msg:
                 self._append_log(msg, "ok" if item.get("ok") else "err")
         self._rb = site_service.SiteRollback()
-        self._append_log(t("已还原本次改动（vhost 文件、nginx.conf 与 hosts 均恢复）。"), "err")
+        self._append_log(
+            t("已还原本次改动（新建配置已删、覆盖文件与 hosts 已恢复）。"), "err")
 
     # ------------------------------------------------------------------ #
     def _append_log(self, text: str, tag: str = "") -> None:
@@ -781,10 +796,26 @@ class SiteWizardDialog(tk.Toplevel):
         self.btn_cancel.configure(state=state)
         self.btn_prev.configure(state=state)
 
+    def _undo_create(self) -> None:
+        """建站成功后的撤销：删除新建配置 / 还原覆盖项 / 清 hosts / 证书。"""
+        if self._busy or not self._finished:
+            return
+        if not messagebox.askyesno(
+                t("撤销本次创建"),
+                t("将撤销刚才创建的站点配置（含 hosts 与本次证书）。确定？"),
+                parent=self):
+            return
+        self._rollback()
+        self.hint_label.configure(text=t("已撤销本次创建"), foreground=theme.ERR)
+        if self.on_done:
+            self.on_done()
+        self.destroy()
+
     def _cancel(self) -> None:
         if self._busy:
             return
         if self._finished:
+            # 「完成」走 btn_next；此处仅在命令未改绑定时兜底关闭
             self.destroy()
             return
         changed = self._rb.changed()
