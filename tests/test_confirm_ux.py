@@ -71,5 +71,31 @@ class CloseDialogWeightTest(unittest.TestCase):
         self.assertIn("Accent.TButton", src)  # 托盘或取消仍可用 Accent
 
 
+class OfferPhpRestartTest(_Lang):
+    def test_not_running_shows_info_only(self):
+        with mock.patch("ui.confirm.messagebox.showinfo") as info, \
+             mock.patch("ui.confirm.messagebox.askyesno") as ask:
+            self.assertFalse(confirm.offer_php_restart(
+                None, name="php82", detail="done", running=False))
+            info.assert_called_once()
+            ask.assert_not_called()
+
+    def test_running_asks_yesno(self):
+        with mock.patch("ui.confirm.messagebox.askyesno",
+                        return_value=True) as ask:
+            self.assertTrue(confirm.offer_php_restart(
+                None, name="php82", detail="done", running=True))
+            args, _ = ask.call_args
+            self.assertIn("php82", args[1])
+            self.assertIn("立即重启", args[1])
+
+
+class ConfirmRedisDangerTest(_Lang):
+    def test_flush_requires_ack_checkbox_in_source(self):
+        src = inspect.getsource(confirm.confirm_redis_danger)
+        self.assertIn("我知道会清空", src)
+        self.assertIn("DB{db}", src)
+
+
 if __name__ == "__main__":
     unittest.main()

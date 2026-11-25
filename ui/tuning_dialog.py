@@ -30,10 +30,15 @@ class TuningDialog(tk.Toplevel):
     FIT_SIZE = (980, 620, 760, 440)
 
     def __init__(self, master, title: str, subtitle: str, profile: MachineProfile,
-                 items: list[Suggestion], notes: list[str], on_apply):
+                 items: list[Suggestion], notes: list[str], on_apply,
+                 *, php_name: str = "", php_running: bool = False,
+                 on_restart=None):
         super().__init__(master)
         self.items = items
         self.on_apply = on_apply
+        self.php_name = php_name
+        self.php_running = php_running
+        self.on_restart = on_restart
         self._checked: dict[str, bool] = {i.key: True for i in items}
         self._iid_to_key: dict[str, str] = {}
 
@@ -142,8 +147,19 @@ class TuningDialog(tk.Toplevel):
             ok, message = False, str(e)
         self.btn_apply.configure(state="normal")
         if ok:
-            messagebox.showinfo(t("应用完成"), message, parent=self)
+            from .confirm import offer_php_restart
+            name = self.php_name or ""
+            restart = False
+            if name and self.on_restart:
+                restart = offer_php_restart(
+                    self, name=name, detail=message,
+                    running=bool(self.php_running),
+                )
+            else:
+                messagebox.showinfo(t("应用完成"), message, parent=self)
             self.destroy()
+            if restart and self.on_restart:
+                self.on_restart()
         else:
             messagebox.showerror(t("应用失败"), message, parent=self)
 

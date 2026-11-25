@@ -2356,7 +2356,7 @@
    "core/ssh_store.py"
   ]
  },
- "保存前自动备份原文件（.bak）；修改后需重启对应版本（FastCGI）才生效。": {
+ "保存前自动备份原文件（.bak）；保存后可立即重启对应版本使改动生效。": {
   "count": 1,
   "files": [
    "ui/dialogs.py"
@@ -2382,9 +2382,9 @@
   ]
  },
  "保存成功": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/dialogs.py"
+   "ui/confirm.py"
   ]
  },
  "保存扩展启用状态": {
@@ -2573,6 +2573,24 @@
    "cli.py"
   ]
  },
+ "先补密码或私钥后再打开终端": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "先补密码或私钥后再测试 / 打开终端（保存仍允许缺凭据）": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "先补密码或私钥后再测试连接": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
  "全不选": {
   "count": 1,
   "files": [
@@ -2719,7 +2737,7 @@
    "ui/redis_panel.py"
   ]
  },
- "共更新 {count} 个扩展的启用状态。\n备份：{backup}\n\n重启 [{name}]（停止后启动）即可生效。": {
+ "共更新 {count} 个扩展的启用状态。\n备份：{backup}": {
   "count": 1,
   "files": [
    "ui/extension_dialog.py"
@@ -3362,9 +3380,9 @@
   ]
  },
  "危险命令确认": {
-  "count": 1,
+  "count": 2,
   "files": [
-   "ui/redis_panel.py"
+   "ui/confirm.py"
   ]
  },
  "即将在终端运行自定义命令：\n{cmd}\n\n请确认该命令由你自己添加。": {
@@ -3464,8 +3482,9 @@
   ]
  },
  "取消": {
-  "count": 11,
+  "count": 12,
   "files": [
+   "ui/confirm.py",
    "ui/db_panel.py",
    "ui/dialogs.py",
    "ui/download_dialog.py",
@@ -3931,12 +3950,6 @@
   "files": [
    "ui/ssh_panel.py",
    "ui/plugins/project_launcher_panel.py"
-  ]
- },
- "命令 {cmd} 会删除数据或影响运行，确定要执行吗？": {
-  "count": 1,
-  "files": [
-   "ui/redis_panel.py"
   ]
  },
  "命令不会自动执行，需在此面板手动点击运行。": {
@@ -4609,6 +4622,12 @@
    "core/project_config.py"
   ]
  },
+ "将在 DB{db} 执行：\n{cmd}": {
+  "count": 1,
+  "files": [
+   "ui/confirm.py"
+  ]
+ },
  "将在 {target} 执行：\n\n{cmd}\n\n确认执行吗？": {
   "count": 1,
   "files": [
@@ -4705,7 +4724,7 @@
    "ui/site_wizard.py"
   ]
  },
- "将用以下备份覆盖当前 hosts：\n{path}\n\n备份内容是 phpvm 最近一次写入 / 删除 hosts 之前的完整文件，因此这期间手动添加的映射也会一并被覆盖。\n\n确定继续？": {
+ "将用以下备份覆盖当前 hosts：\n{path}\n\n备份时间：{mtime}\n将恢复约 {lines} 行。\n\n备份内容是 phpvm 最近一次写入 / 删除 hosts 之前的完整文件，因此这期间手动添加的映射也会一并被覆盖。\n\n确定继续？": {
   "count": 1,
   "files": [
    "ui/vhost_panel.py"
@@ -4900,12 +4919,6 @@
    "core/hosts_manager.py"
   ]
  },
- "已保存": {
-  "count": 1,
-  "files": [
-   "ui/extension_dialog.py"
-  ]
- },
  "已保存报告：{path}": {
   "count": 1,
   "files": [
@@ -5017,6 +5030,12 @@
   "count": 1,
   "files": [
    "ui/nginx_panel.py"
+  ]
+ },
+ "已写入，立即重启 [{name}]？": {
+  "count": 1,
+  "files": [
+   "ui/confirm.py"
   ]
  },
  "已切换 cmd php 命令 → [{name}]（PHP {display}）\n\n注意：已打开的 cmd / 终端不会自动感知，请新开窗口执行 php -v 验证。": {
@@ -5508,17 +5527,17 @@
    "ui/plugins/keymouse_panel.py"
   ]
  },
- "已更新 {count} 项配置，备份保留于：\n{backup}\n\n点左侧「平滑重载」即可生效（未运行时启动后生效）。": {
-  "count": 1,
-  "files": [
-   "ui/nginx_panel.py"
-  ]
- },
- "已更新 {count} 项配置，备份保留于：\n{backup}\n\n重启 [{name}]（停止后启动）即可生效。": {
+ "已更新 {count} 项配置，备份保留于：\n{backup}": {
   "count": 2,
   "files": [
    "ui/dialogs.py",
    "ui/php_panel.py"
+  ]
+ },
+ "已更新 {count} 项配置，备份保留于：\n{backup}\n\n点左侧「平滑重载」即可生效（未运行时启动后生效）。": {
+  "count": 1,
+  "files": [
+   "ui/nginx_panel.py"
   ]
  },
  "已更新主机：{name}": {
@@ -5791,6 +5810,12 @@
   "count": 1,
   "files": [
    "ui/php_panel.py"
+  ]
+ },
+ "常用探测": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
   ]
  },
  "常规": {
@@ -6291,6 +6316,12 @@
   "files": [
    "ui/nginx_panel.py",
    "ui/redis_panel.py"
+  ]
+ },
+ "我知道会清空该库（或全部库）的数据": {
+  "count": 1,
+  "files": [
+   "ui/confirm.py"
   ]
  },
  "所有文件": {
@@ -6854,6 +6885,12 @@
    "ui/mail_panel.py"
   ]
  },
+ "收起常用探测（{n}）": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
  "改动：暂存 {staged} · 修改 {modified} · 未跟踪 {untracked} · 冲突 {conflict}": {
   "count": 1,
   "files": [
@@ -7321,6 +7358,18 @@
    "ui/vhost_panel.py"
   ]
  },
+ "显示常用探测": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
+ "显示常用探测（{n}）": {
+  "count": 1,
+  "files": [
+   "ui/ssh_panel.py"
+  ]
+ },
  "显示报告": {
   "count": 1,
   "files": [
@@ -7755,7 +7804,7 @@
   ]
  },
  "未找到 hosts 备份：{path}": {
-  "count": 2,
+  "count": 3,
   "files": [
    "ui/vhost_panel.py",
    "core/hosts_manager.py"
@@ -9389,6 +9438,12 @@
    "ui/db_panel.py"
   ]
  },
+ "确定执行": {
+  "count": 1,
+  "files": [
+   "ui/confirm.py"
+  ]
+ },
  "确定清空内存中的运行日志？（落盘文件会保留）": {
   "count": 1,
   "files": [
@@ -10557,6 +10612,12 @@
    "ui/xdebug_dialog.py"
   ]
  },
+ "请先勾选「我知道会清空…」再继续。": {
+  "count": 1,
+  "files": [
+   "ui/confirm.py"
+  ]
+ },
  "请先勾选要采用的建议项。": {
   "count": 1,
   "files": [
@@ -10724,6 +10785,12 @@
   "count": 1,
   "files": [
    "ui/site_wizard.py"
+  ]
+ },
+ "读取 hosts 备份失败：{err}": {
+  "count": 1,
+  "files": [
+   "core/hosts_manager.py"
   ]
  },
  "读取 hosts 失败：{err}": {

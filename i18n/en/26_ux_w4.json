@@ -1,0 +1,19 @@
+{
+  "已写入，立即重启 [{name}]？": "Saved. Restart [{name}] now?",
+  "保存前自动备份原文件（.bak）；保存后可立即重启对应版本使改动生效。": "Original file is backed up (.bak) before saving; you can restart the version right after to apply changes.",
+  "显示常用探测": "Show common probes",
+  "显示常用探测（{n}）": "Show common probes ({n})",
+  "收起常用探测（{n}）": "Hide common probes ({n})",
+  "常用探测": "Common probes",
+  "先补密码或私钥后再测试 / 打开终端（保存仍允许缺凭据）": "Add a password or private key before Test / Open terminal (saving without credentials is still allowed)",
+  "先补密码或私钥后再测试连接": "Add a password or private key before testing the connection",
+  "先补密码或私钥后再打开终端": "Add a password or private key before opening a terminal",
+  "将在 DB{db} 执行：\n{cmd}": "Will run on DB{db}:\n{cmd}",
+  "我知道会清空该库（或全部库）的数据": "I understand this will wipe this DB (or all DBs)",
+  "请先勾选「我知道会清空…」再继续。": "Check “I understand this will wipe…” before continuing.",
+  "确定执行": "Run anyway",
+  "将用以下备份覆盖当前 hosts：\n{path}\n\n备份时间：{mtime}\n将恢复约 {lines} 行。\n\n备份内容是 phpvm 最近一次写入 / 删除 hosts 之前的完整文件，因此这期间手动添加的映射也会一并被覆盖。\n\n确定继续？": "Overwrite current hosts with this backup:\n{path}\n\nBackup time: {mtime}\nAbout {lines} lines will be restored.\n\nThe backup is the full hosts file from before phpvm’s last write/delete, so any mappings you added since then will also be overwritten.\n\nContinue?",
+  "读取 hosts 备份失败：{err}": "Failed to read hosts backup: {err}",
+  "共更新 {count} 个扩展的启用状态。\n备份：{backup}": "Updated enable state for {count} extension(s).\nBackup: {backup}",
+  "已更新 {count} 项配置，备份保留于：\n{backup}": "Updated {count} setting(s). Backup kept at:\n{backup}"
+}

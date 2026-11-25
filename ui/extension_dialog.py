@@ -23,7 +23,9 @@ from .window_utils import fit_window
 class ExtensionDialog(tk.Toplevel):
     """管理/安装某 PHP 版本的扩展。"""
 
-    def __init__(self, master, version: PhpVersion, php_mgr: PhpManager):
+    def __init__(self, master, version: PhpVersion, php_mgr: PhpManager,
+                 on_restart=None):
+        self.on_restart = on_restart
         super().__init__(master)
         self.version = version
         self.php_mgr = php_mgr
@@ -326,13 +328,16 @@ class ExtensionDialog(tk.Toplevel):
         self._reload_local_state()
         self._render_online(self._infos, self._runtime)
         self._update_dirty()
-        messagebox.showinfo(
-            t("已保存"),
-            t("共更新 {count} 个扩展的启用状态。\n备份：{backup}\n\n"
-              "重启 [{name}]（停止后启动）即可生效。",
-              count=count, backup=backup, name=self.version.name),
-            parent=self,
-        )
+        detail = t("共更新 {count} 个扩展的启用状态。\n备份：{backup}",
+                   count=count, backup=backup)
+        from .confirm import offer_php_restart
+        if offer_php_restart(
+                self, name=self.version.name, detail=detail,
+                running=bool(getattr(self.version, "running", False)
+                             and self.on_restart)):
+            self.destroy()
+            self.on_restart()
+            return
 
     def _reload_local_state(self) -> None:
         enabled = ext_mod.read_enabled_exts(self.version.ini)

@@ -486,19 +486,16 @@ class RedisPanel(ttk.Frame):
         if not line:
             return
         first = line.split()[0].strip('"').lower()
-        if first in _DANGEROUS_CMDS:
-            sure = messagebox.askyesno(
-                t("危险命令确认"),
-                t("命令 {cmd} 会删除数据或影响运行，确定要执行吗？",
-                  cmd=repr(line)),
-                parent=self,
-            )
-            if not sure:
-                return
         try:
             db = int(self.db_var.get())
         except ValueError:
             db = 0
+        if first in _DANGEROUS_CMDS:
+            from .confirm import confirm_redis_danger
+            if not confirm_redis_danger(
+                    self, cmd=line, db=db,
+                    flush=first in ("flushall", "flushdb")):
+                return
         self._set_cmd_busy(True)
         self.cmd_state.configure(text=t("执行中（实例 {name} · DB{db}）…",
                                         name=inst.name, db=db))

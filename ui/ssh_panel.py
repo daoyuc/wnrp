@@ -79,9 +79,10 @@ class SshPanel(ttk.Frame):
         )
         (self.btn_add_host, self.btn_edit_host, self.btn_test,
          self.btn_terminal, self.btn_reload) = tb.buttons
-
-        bar = ttk.Frame(self)
-        bar.pack(fill="x", pady=(0, theme.PAD_SM))
+        self._filter_bar = ttk.Frame(self)
+        self._filter_bar.pack(fill="x", pady=(0, theme.PAD_SM))
+        self._cred_hint = ttk.Label(self, text="", style="CardDim.TLabel")
+        bar = self._filter_bar
         self._tag_box = ttk.Combobox(bar, textvariable=self._tag, width=12,
                                      state="readonly")
         self._tag_box.pack(side="right", padx=(0, theme.PAD_SM))
@@ -145,6 +146,11 @@ class SshPanel(ttk.Frame):
         srow = ttk.Frame(right)
         srow.pack(fill="x", pady=(theme.PAD_SM, 0))
         ttk.Label(srow, text=t("命令片段"), style="Section.TLabel").pack(side="left")
+        self._show_builtin = False
+        self._builtin_btn = ttk.Button(
+            srow, text=t("显示常用探测"), command=self._toggle_builtin,
+            style="Toolbar.TButton")
+        self._builtin_btn.pack(side="right", padx=(0, theme.PAD_XS))
         ttk.Button(srow, text=t("新增片段"), command=self._on_add_snippet,
                    style="Accent.TButton").pack(side="right")
         self._stree = ttk.Treeview(right, columns=("scope", "command"),
@@ -230,9 +236,11 @@ class SshPanel(ttk.Frame):
         self._hcount.configure(text=t("{n} 台", n=len(rows)))
         if keep and self._htree.exists(keep):
             self._htree.selection_set(keep)
+            self._sync_cred_actions()
         else:
             self._selected_host = None
             self._detail.set(t("选择左侧主机查看详情"))
+            self._sync_cred_actions()
             self._render_snippets()
 
     def _on_pick(self) -> None:
@@ -244,6 +252,7 @@ class SshPanel(ttk.Frame):
                     self._selected_host = host
                     break
         self._render_detail()
+        self._sync_cred_actions()
         self._render_snippets()
         self._refresh_overview()
 
@@ -262,20 +271,56 @@ class SshPanel(ttk.Frame):
             text += "\n" + host["note"]
         self._detail.set(text)
 
+    def _sync_cred_actions(self) -> None:
+        """未配齐密码/私钥时禁用测试与打开终端，并旁注原因（保存仍允许）。"""
+        host = self._selected_host
+        ready = bool(host) and not ssh_store.missing_secret(host)
+        state = "normal" if ready else "disabled"
+        for btn in (self.btn_test, self.btn_terminal):
+            btn.configure(state=state)
+        hint = getattr(self, "_cred_hint", None)
+        if hint is None:
+            return
+        if host and not ready:
+            hint.configure(text=t("先补密码或私钥后再测试 / 打开终端（保存仍允许缺凭据）"))
+            if not hint.winfo_ismapped():
+                hint.pack(anchor="w", pady=(0, theme.PAD_XS),
+                          before=self._filter_bar)
+        else:
+            hint.pack_forget()
+
+    def _toggle_builtin(self) -> None:
+        self._show_builtin = not self._show_builtin
+        self._render_snippets()
+
     def _render_snippets(self) -> None:
         for item in self._stree.get_children():
             self._stree.delete(item)
         known = {str(h["id"]) for h in self._hosts}
         rows = ssh_store.snippets_for(self.config, host=self._selected_host,
                                       known_host_ids=known)
-        self._snippets = rows
-        for index, snip in enumerate(rows):
+        builtin = [s for s in rows if str(s.get("id", "")).startswith("builtin-")]
+        custom = [s for s in rows if not str(s.get("id", "")).startswith("builtin-")]
+        shown = list(custom)
+        if self._show_builtin:
+            shown.extend(builtin)
+        self._snippets = shown
+        for index, snip in enumerate(shown):
             scope = t("通用") if not snip["host_ids"] \
                 else t("{n} 台主机", n=len(snip["host_ids"]))
+            if str(snip.get("id", "")).startswith("builtin-"):
+                scope = t("常用探测")
             lines = snip["command"].strip().splitlines()
             self._stree.insert("", "end", iid=str(snip["id"]), text=snip["name"],
                                values=(scope, lines[0][:80] if lines else ""),
                                tags=("odd",) if index % 2 else ())
+        btn = getattr(self, "_builtin_btn", None)
+        if btn is not None:
+            n = len(builtin)
+            if self._show_builtin:
+                btn.configure(text=t("收起常用探测（{n}）", n=n))
+            else:
+                btn.configure(text=t("显示常用探测（{n}）", n=n))
 
     # ------------------------------------------------------------------ #
     # 系统概览（拉式）
@@ -428,6 +473,9 @@ class SshPanel(ttk.Frame):
         host = self._require_host()
         if host is None or not self._require_dep():
             return
+        if ssh_store.missing_secret(host):
+            self.notify(t("先补密码或私钥后再测试连接"), "warn")
+            return
         self._status.set(t("正在测试 {target}…",
                            target=ssh_manager.target_label(host)))
         self._start_bg("test", host)
@@ -435,6 +483,9 @@ class SshPanel(ttk.Frame):
     def _on_terminal(self) -> None:
         host = self._require_host()
         if host is None:
+            return
+        if ssh_store.missing_secret(host):
+            self.notify(t("先补密码或私钥后再打开终端"), "warn")
             return
         label = ssh_manager.target_label(host)
         if host["auth"] == "password" and not messagebox.askyesno(

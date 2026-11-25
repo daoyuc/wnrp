@@ -20,6 +20,7 @@ import re
 import shutil
 import sys
 import tempfile
+import time
 
 from . import file_backup
 from . import process_utils as pu
@@ -299,6 +300,28 @@ def backup_path() -> str:
 
 def has_backup() -> bool:
     return os.path.exists(backup_path())
+
+
+def backup_summary() -> dict:
+    """还原前预览：备份路径、修改时间、行数（文件缺失时 ok=False）。"""
+    path = backup_path()
+    if not os.path.exists(path):
+        return {"ok": False, "path": path, "mtime": "", "lines": 0,
+                "message": t("未找到 hosts 备份：{path}", path=path)}
+    try:
+        mtime = time.strftime(
+            "%Y-%m-%d %H:%M:%S", time.localtime(os.path.getmtime(path)))
+    except OSError:
+        mtime = "—"
+    lines = 0
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            lines = sum(1 for _ in f)
+    except OSError as e:
+        return {"ok": False, "path": path, "mtime": mtime, "lines": 0,
+                "message": t("读取 hosts 备份失败：{err}", err=e)}
+    return {"ok": True, "path": path, "mtime": mtime, "lines": lines,
+            "message": ""}
 
 
 def create_backup() -> tuple[bool, str]:

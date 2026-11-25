@@ -62,11 +62,21 @@ class HostsManagerTest(unittest.TestCase):
         self.assertTrue(ok)
         self.assertEqual(backup, hosts_manager.backup_path())
         self.assertTrue(hosts_manager.has_backup())
+        summary = hosts_manager.backup_summary()
+        self.assertTrue(summary["ok"])
+        self.assertEqual(summary["path"], backup)
+        self.assertGreater(summary["lines"], 0)
+        self.assertTrue(summary["mtime"])
         with open(self.hosts, "a", encoding="ascii") as f:
             f.write("127.0.0.1 manual.test\n")
         ok, msg = hosts_manager.restore_backup()
         self.assertTrue(ok, msg)
         self.assertEqual(self._read(), before)
+
+    def test_backup_summary_missing(self):
+        summary = hosts_manager.backup_summary()
+        self.assertFalse(summary["ok"])
+        self.assertIn("未找到", summary["message"])
 
     def test_remove_entries_only_removes_managed_domains(self):
         hosts_manager.ensure_entries(["a.test", "b.test"])

@@ -767,7 +767,10 @@ class PhpPanel(ttk.Frame):
                 parent=self,
             )
             return
-        self._bind_metrics_refresh(IniEditDialog(self, v, self.php_mgr))
+        self._bind_metrics_refresh(IniEditDialog(
+            self, v, self.php_mgr,
+            on_restart=lambda: self._operate("restart"),
+        ))
 
     def _recommend_settings(self) -> None:
         """按本机硬件给出 php.ini 的开发环境推荐值，由用户勾选后写入。"""
@@ -800,6 +803,9 @@ class PhpPanel(ttk.Frame):
             t("配置文件：{file}", file=v.ini),
             profile, items, tuning.php_notes(),
             lambda picked: self._apply_tuning(v, picked),
+            php_name=v.name,
+            php_running=bool(v.running),
+            on_restart=lambda: self._operate("restart"),
         ))
 
     def _apply_tuning(self, v, items) -> tuple[bool, str]:
@@ -809,10 +815,8 @@ class PhpPanel(ttk.Frame):
         res = tuning.apply_php(v.ini, items)
         self.notify(t("已按推荐值更新 {count} 项配置（{name}）",
                       count=res.get("changed", 0), name=v.name))
-        return True, t("已更新 {count} 项配置，备份保留于：\n{backup}\n\n"
-                       "重启 [{name}]（停止后启动）即可生效。",
-                       count=res.get("changed", 0), backup=res.get("backup", ""),
-                       name=v.name)
+        return True, t("已更新 {count} 项配置，备份保留于：\n{backup}",
+                       count=res.get("changed", 0), backup=res.get("backup", ""))
 
     def _init_ini(self) -> None:
         """为没有生效配置的 PHP 版本生成 php.ini（官方模板优先，其次内置骨架）。"""
@@ -901,7 +905,10 @@ class PhpPanel(ttk.Frame):
                 parent=self,
             )
             return
-        self._bind_metrics_refresh(ExtensionDialog(self, v, self.php_mgr))
+        self._bind_metrics_refresh(ExtensionDialog(
+            self, v, self.php_mgr,
+            on_restart=lambda: self._operate("restart"),
+        ))
 
     def _composer(self) -> None:
         """检测 Composer，并在所选 PHP 版本的 PATH 下打开终端查看版本。"""

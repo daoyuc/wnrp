@@ -342,18 +342,22 @@ class VhostPanel(ttk.Frame):
 
     def _restore_hosts(self) -> None:
         """用 phpvm 写入前的备份一键还原 hosts（整文件还原，失败会提示提权）。"""
-        backup = hosts_manager.backup_path()
-        if not hosts_manager.has_backup():
+        summary = hosts_manager.backup_summary()
+        if not summary.get("ok"):
             messagebox.showinfo(
                 t("还原 hosts 备份"),
-                t("未找到 hosts 备份：{path}", path=backup),
+                summary.get("message") or t("未找到 hosts 备份：{path}",
+                                            path=summary.get("path", "")),
                 parent=self)
             return
         if not messagebox.askyesno(
                 t("还原 hosts 备份"),
                 t("将用以下备份覆盖当前 hosts：\n{path}\n\n"
+                  "备份时间：{mtime}\n将恢复约 {lines} 行。\n\n"
                   "备份内容是 phpvm 最近一次写入 / 删除 hosts 之前的完整文件，"
-                  "因此这期间手动添加的映射也会一并被覆盖。\n\n确定继续？", path=backup),
+                  "因此这期间手动添加的映射也会一并被覆盖。\n\n确定继续？",
+                  path=summary["path"], mtime=summary["mtime"],
+                  lines=summary["lines"]),
                 parent=self):
             return
         self._set_busy(True)

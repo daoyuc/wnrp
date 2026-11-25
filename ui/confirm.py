@@ -37,3 +37,69 @@ def offer_restart_now(parent: tk.Misc | None, *, title: str, detail: str) -> boo
         detail + "\n\n" + t("立即重启 phpvm 以使改动生效？"),
         parent=parent,
     ))
+
+
+def offer_php_restart(parent: tk.Misc | None, *, name: str, detail: str,
+                      running: bool = True) -> bool:
+    """ini / 调优写入后：若该 PHP 在跑，询问是否立即重启该版本。
+
+    未运行时只 showinfo，返回 False（调用方无需再启停）。
+    """
+    if not running:
+        messagebox.showinfo(t("保存成功"), detail, parent=parent)
+        return False
+    return bool(messagebox.askyesno(
+        t("保存成功"),
+        detail + "\n\n" + t("已写入，立即重启 [{name}]？", name=name),
+        parent=parent,
+    ))
+
+
+def confirm_redis_danger(parent: tk.Misc | None, *, cmd: str, db: int,
+                         flush: bool = False) -> bool:
+    """危险 Redis 命令确认：展示解析后的命令与目标 DB；FLUSH* 还需勾选知晓。"""
+    win = tk.Toplevel(parent)
+    win.title(t("危险命令确认"))
+    win.transient(parent)
+    win.grab_set()
+    result = {"ok": False}
+
+    body = tk.Frame(win, padx=16, pady=14)
+    body.pack(fill="both", expand=True)
+    tk.Label(
+        body,
+        text=t("将在 DB{db} 执行：\n{cmd}", db=db, cmd=cmd),
+        justify="left",
+        wraplength=420,
+    ).pack(anchor="w")
+    ack_var = tk.BooleanVar(value=False)
+    if flush:
+        tk.Checkbutton(
+            body,
+            text=t("我知道会清空该库（或全部库）的数据"),
+            variable=ack_var,
+        ).pack(anchor="w", pady=(12, 0))
+
+    btns = tk.Frame(body)
+    btns.pack(fill="x", pady=(16, 0))
+
+    def _yes() -> None:
+        if flush and not ack_var.get():
+            messagebox.showwarning(
+                t("危险命令确认"),
+                t("请先勾选「我知道会清空…」再继续。"),
+                parent=win,
+            )
+            return
+        result["ok"] = True
+        win.destroy()
+
+    def _no() -> None:
+        win.destroy()
+
+    tk.Button(btns, text=t("取消"), command=_no).pack(side="right")
+    tk.Button(btns, text=t("确定执行"), command=_yes).pack(
+        side="right", padx=(0, 8))
+    win.protocol("WM_DELETE_WINDOW", _no)
+    win.wait_window()
+    return bool(result["ok"])

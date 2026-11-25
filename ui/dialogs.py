@@ -869,14 +869,16 @@ class SelfCheckDialog(tk.Toplevel):
 
 
 class IniEditDialog(tk.Toplevel):
-    """ini 关键配置项表单编辑：读写安全（备份 + 精确行替换），改后提示重启生效。"""
+    """ini 关键配置项表单编辑：读写安全（备份 + 精确行替换），改后可一键重启。"""
     # (期望宽, 期望高, 最小宽, 最小高)：由 _center 按屏幕可用工作区收敛
     FIT_SIZE = (680, 520, 560, 420)
 
-    def __init__(self, master, version: PhpVersion, php_mgr: PhpManager):
+    def __init__(self, master, version: PhpVersion, php_mgr: PhpManager,
+                 on_restart=None):
         super().__init__(master)
         self.version = version
         self.php_mgr = php_mgr
+        self.on_restart = on_restart
         self._queue: queue.Queue = queue.Queue()
         self._vars: dict[str, tk.Variable] = {}
 
@@ -890,7 +892,7 @@ class IniEditDialog(tk.Toplevel):
                   style="Title.TLabel").pack(anchor="w")
         ttk.Label(
             header,
-            text=t("保存前自动备份原文件（.bak）；修改后需重启对应版本（FastCGI）才生效。"),
+            text=t("保存前自动备份原文件（.bak）；保存后可立即重启对应版本使改动生效。"),
             style="SubTitle.TLabel",
         ).pack(anchor="w", pady=(4, 0))
 
@@ -974,14 +976,17 @@ class IniEditDialog(tk.Toplevel):
             messagebox.showerror(t("保存失败"), str(payload), parent=self)
             return
         count, backup = payload
-        messagebox.showinfo(
-            t("保存成功"),
-            t("已更新 {count} 项配置，备份保留于：\n{backup}\n\n"
-              "重启 [{name}]（停止后启动）即可生效。",
-              count=count, backup=backup, name=self.version.name),
-            parent=self,
+        detail = t("已更新 {count} 项配置，备份保留于：\n{backup}",
+                   count=count, backup=backup)
+        from .confirm import offer_php_restart
+        restart = offer_php_restart(
+            self, name=self.version.name, detail=detail,
+            running=bool(getattr(self.version, "running", False)
+                         and self.on_restart),
         )
         self.destroy()
+        if restart and self.on_restart:
+            self.on_restart()
 
     def _center(self, master) -> None:
         """按屏幕可用工作区收敛尺寸并定位，保证底部（右下角）按钮始终可见。"""
