@@ -23,6 +23,7 @@ MANIFEST = PluginSpec(
     default_settings={"timeout": 5, "scheme": "http"},
     platforms=("win32", "darwin", "linux"),
     description="探测 nginx 站点的可用性（状态码 / 耗时 / 证书剩余天数）",
+    nav_group="diag",
 )
 
 

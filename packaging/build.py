@@ -167,19 +167,31 @@ def _reset_dir(path: str) -> None:
 # macOS
 # --------------------------------------------------------------------------- #
 LAUNCHER = """#!/bin/sh
-# phpvm macOS 启动器：自动挑选带 tkinter 的 Python 3（Homebrew 优先）
+# phpvm macOS 启动器：优先挑与 vendor wheel 的 ABI 同小版本的 Python
+# （vendor 由构建机的 sys.executable 安装，cffi / cryptography 是 cp3x 专用 wheel）
 HERE="$(cd "$(dirname "$0")/../Resources/phpvm" && pwd)"
-for cand in \\
-    /opt/homebrew/opt/python@3.13/bin/python3.13 \\
-    /opt/homebrew/opt/python@3.12/bin/python3.12 \\
-    /opt/homebrew/bin/python3 \\
-    /usr/local/bin/python3 \\
-    /usr/bin/python3 \\
-    python3 ; do
+PYTAG="{py}"
+CANDS="/opt/homebrew/opt/python@3.13/bin/python3.13 /opt/homebrew/opt/python@3.12/bin/python3.12 /opt/homebrew/bin/python3 /usr/local/bin/python3 /usr/bin/python3 python3"
+
+# 第一轮：vendor 存在时只接受同小版本，避免「装了但 import paramiko 失败」
+for cand in $CANDS; do
     if command -v "$cand" >/dev/null 2>&1 && "$cand" -c "import tkinter" >/dev/null 2>&1; then
+        if [ -d "$HERE/vendor" ]; then
+            ver=$("$cand" -c 'import sys;print("%d.%d" % sys.version_info[:2])' 2>/dev/null) || continue
+            [ "$ver" = "$PYTAG" ] || continue
+        fi
         exec "$cand" "$HERE/main.py" "$@"
     fi
 done
+
+# 第二轮：没有 ABI 匹配版本时照常启动（SSH 降级为安装提示），并明确告知
+for cand in $CANDS; do
+    if command -v "$cand" >/dev/null 2>&1 && "$cand" -c "import tkinter" >/dev/null 2>&1; then
+        echo "phpvm: vendor 依赖为 Python $PYTAG 编译，当前解释器不兼容；SSH 功能可能不可用" >&2
+        exec "$cand" "$HERE/main.py" "$@"
+    fi
+done
+
 MSG="phpvm 需要带 tkinter 的 Python 3（推荐：brew install python-tk@3.13）"
 osascript -e "display alert \\"phpvm\\" message \\"$MSG\\"" >/dev/null 2>&1 || echo "$MSG" >&2
 exit 1
@@ -274,8 +286,10 @@ def build_macos(ver: str, out_dir: str, with_dmg: bool = True) -> list[str]:
     _inject_version(res_pkg, ver)
 
     launcher = os.path.join(contents, "MacOS", APP_NAME)
+    # vendor wheel 绑定构建机 Python 小版本，launcher 据此优先选同版本解释器
+    pytag = f"{sys.version_info.major}.{sys.version_info.minor}"
     with open(launcher, "w", encoding="utf-8") as f:
-        f.write(LAUNCHER)
+        f.write(LAUNCHER.format(py=pytag))
     os.chmod(launcher, 0o755)
 
     with open(os.path.join(contents, "Info.plist"), "w", encoding="utf-8") as f:

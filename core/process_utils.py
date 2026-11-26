@@ -780,15 +780,24 @@ def open_terminal(cwd: str = "", path_prepend: str = "",
             )
             return True
         if sys.platform == "darwin":
+            # 路径按 POSIX shell 规则引用（与 Linux 分支一致）；命令本身是
+            # 受控的 php -v / composer，cmd_line 保持原样。
             script = ""
             if path_prepend:
-                script += f'export PATH="{path_prepend}:$PATH"; '
+                script += f"export PATH={shlex.quote(path_prepend)}:$PATH; "
             if cwd:
-                script += f'cd "{cwd}"; '
+                script += f"cd {shlex.quote(cwd)}; "
             script += f"echo phpvm; {cmd_line}"
+            # AppleScript 源码固定，script 作为唯一位置参数传入 run argv，
+            # 避免 cwd 含双引号 / 反斜杠时把 do script 的字符串截断（P4 遗留）。
+            applescript = ('on run argv\n'
+                           '  tell application "Terminal"\n'
+                           '    do script (item 1 of argv)\n'
+                           '    activate\n'
+                           '  end tell\n'
+                           'end run')
             subprocess.Popen(
-                ["osascript", "-e", f'tell application "Terminal" to do script "{script}"',
-                 "-e", 'tell application "Terminal" to activate'],
+                ["osascript", "-e", applescript, script],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
             return True

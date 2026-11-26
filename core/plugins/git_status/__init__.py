@@ -24,6 +24,7 @@ MANIFEST = PluginSpec(
     default_settings={"timeout": 6.0},
     platforms=("win32", "darwin", "linux"),
     description="汇总各项目的分支、未提交改动与待推送 / 待拉取数量",
+    nav_group="diag",
 )
 
 
